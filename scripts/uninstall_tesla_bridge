@@ -1,0 +1,19 @@
+#!/bin/sh
+
+echo " "
+echo " "
+#uninstall dspbridge driver
+echo "uninstalling bridgedriver.ko"
+rmmod bridgedriver
+
+#uninstall bridge memory driver
+echo "uninstalling dspbridge.ko"
+rmmod dspbridge
+
+#uninstall notify tesla driver
+echo "uninstalling notify_tesladriver.ko"
+rmmod notify_tesladriver
+
+#uninstall omap_notify driver
+echo "uninstalling omap_notify.ko"
+rmmod omap_notify

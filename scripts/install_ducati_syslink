@@ -1,0 +1,116 @@
+#!/bin/sh
+# invoke insmod with all arguments we were passed
+# and use a pathname, as newer modutils dont look in . by default
+
+echo " "
+echo " "
+#install omap_notify driver
+echo "installing /binaries/omap_notify.ko"
+insmod /binaries/omap_notify.ko
+
+#install notify syslink proc driver
+echo "installing syslink_proc.ko"
+insmod /binaries/syslink_proc.ko
+
+#install notify syslink proc4430 driver
+echo "installing syslink_proc4430.ko"
+insmod syslink_proc4430.ko
+
+#install syslink ipc driver
+echo "installing syslink_ipc.ko"
+insmod syslink_ipc.ko
+
+#install notify tesla driver
+echo "installing notify_ducatidriver.ko"
+insmod notify_ducatidriver.ko
+
+
+
+
+
+#ipcnotify
+MAJ=`cat /proc/devices | sed -ne "/ipcnotify/s/ipcnotify.*$//p"`
+if [ -z "$MAJ" ]
+then
+    echo "Can't find ipcnotify driver, can't continue"
+        exit 1
+fi
+CNT=`echo "$MAJ" | wc -l`
+if [ $CNT != 1 ]
+then
+    echo "Found multiple instances of ipcnotify driver, can't continue"
+    exit 1
+fi
+
+echo "calling mknod... ipcnotify"
+mknod /dev/ipcnotify c $MAJ 0
+
+#syslink-procmgr
+MAJ=`cat /proc/devices | sed -ne "/syslink-procmgr/s/syslink-procmgr.*$//p"`
+if [ -z "$MAJ" ]
+then
+    echo "Can't find Procmgr driver, can't continue"
+        exit 1
+fi
+CNT=`echo "$MAJ" | wc -l`
+if [ $CNT != 1 ]
+then
+    echo "Found multiple instances of DspBridge driver, can't continue"
+    exit 1
+fi
+
+echo "calling mknod... syslink-procmgr"
+mknod /dev/syslink-procmgr c $MAJ 0
+
+
+#syslink-procmgr4430
+MAJ=`cat /proc/devices | sed -ne "/syslink-proc4430/s/syslink-proc4430.*$//p"`
+if [ -z "$MAJ" ]
+then
+    echo "Can't find Procmgr4430 driver, can't continue"
+        exit 1
+fi
+CNT=`echo "$MAJ" | wc -l`
+if [ $CNT != 1 ]
+then
+    echo "Found multiple instances of Procmgr4430 driver, can't continue"
+    exit 1
+fi
+
+echo "calling mknod... syslink-proc4430"
+mknod /dev/syslink-proc4430 c $MAJ 0
+
+
+#notifyducatidrv
+MAJ=`cat /proc/devices | sed -ne "/notifyducatidrv/s/notifyducatidrv.*$//p"`
+if [ -z "$MAJ" ]
+then
+    echo "Can't find notify ducati driver, can't continue"
+        exit 1
+fi
+CNT=`echo "$MAJ" | wc -l`
+if [ $CNT != 1 ]
+then
+    echo "Found multiple instances of notify ducati driver, can't continue"
+    exit 1
+fi
+
+echo "calling mknod... notifyducatidrv"
+mknod /dev/notifyducatidrv c $MAJ 0
+
+#syslink_ipc
+MAJ=`cat /proc/devices | sed -ne "/syslink_ipc/s/syslink_ipc.*$//p"`
+if [ -z "$MAJ" ]
+then
+    echo "Can't find syslink_ipc driver, can't continue"
+        exit 1
+fi
+CNT=`echo "$MAJ" | wc -l`
+if [ $CNT != 1 ]
+then
+    echo "Found multiple instances of syslink ipc driver, can't continue"
+    exit 1
+fi
+
+echo "calling mknod... syslink_ipc"
+mknod /dev/syslink_ipc c $MAJ 0

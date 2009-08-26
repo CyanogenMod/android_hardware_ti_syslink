@@ -1,0 +1,24 @@
+#!/bin/sh
+
+echo " "
+echo " "
+#uninstall syslink ipc driver
+echo "uninstalling syslink_ipc.ko"
+rmmod syslink_ipc
+
+#uninstall notify ducati driver
+echo "uninstalling notify_ducatidriver.ko"
+rmmod notify_ducatidriver
+
+
+#uninstall omap_notify driver
+echo "uninstalling omap_notify.ko"
+rmmod omap_notify
+
+#uninstall syslink proc4430 driver
+echo "uninstalling syslink_proc4430.ko"
+rmmod syslink_proc4430
+
+#uninstall syslink proc driver
+echo "uninstalling syslink_proc.ko"
+rmmod syslink_proc

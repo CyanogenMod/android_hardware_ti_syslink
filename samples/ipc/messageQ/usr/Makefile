@@ -1,0 +1,54 @@
+#
+#  Copyright 2001-2009 Texas Instruments - http://www.ti.com/
+# 
+#  Licensed under the Apache License, Version 2.0 (the "License");
+#  you may not use this file except in compliance with the License.
+#  You may obtain a copy of the License at
+# 
+#     http://www.apache.org/licenses/LICENSE-2.0
+# 
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+
+#   ============================================================================
+#   @file   Makefile
+#
+#   @brief  Makefile for user-side MessageQ samples
+#
+#   ============================================================================
+
+PROJROOT=../../..
+
+include $(PROJROOT)/make/start.mk
+
+INCLUDE=-I $(PROJROOT)/../api/include -I $(PROJROOT)/inc
+LDPATH=$(PROJROOT)/../target/lib $(PROJROOT)/../target/usr/lib
+LDFLAGS = $(addprefix -L, $(LDPATH))
+
+CFLAGS=-Wall -g -O2 $(INCLUDE) -finline-functions -D$(PROCFAMILY) $(LDFLAGS)
+CFLAGS += -DSYSLINK_TRACE_ENABLE
+CFLAGS += -DSYSLINK_USE_SYSMGR
+#CFLAGS += -DSYSLINK_USE_LOADER
+
+
+LIBS = -lutils -lnotify -lipc -lprocmgr
+LIBS += -lsysmgr -lsysmemmgr
+
+all: messageQApp.out messageQApp1.out
+
+messageQApp.out:
+	$(CC) $(CFLAGS) -o messageQApp.out MessageQAppOS.c MessageQApp.c $(LIBS)
+
+messageQApp1.out:
+	$(CC) $(CFLAGS) -o messageQApp1.out MessageQAppOS1.c MessageQApp1.c $(LIBS)
+
+install: messageQApp.out messageQApp1.out
+	$(INSTALL) -D $< $(TARGETDIR)/ipc//$<
+	$(STRIP) -s $(TARGETDIR)/ipc/$<
+
+clean:
+	\rm -f messageQApp.out
+	\rm -f messageQApp1.out
