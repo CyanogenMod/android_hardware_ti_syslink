@@ -118,11 +118,13 @@ SharedRegionDrv_open (Void)
                                      status,
                                      "Failed to set file descriptor flags!");
             }
+            else{
+                /* TBD: Protection for refCount. */
+                SharedRegionDrv_refCount++;
+            }
         }
     }
-
-    if (status == SHAREDREGION_SUCCESS) {
-        /* TBD: Protection for refCount. */
+    else {
         SharedRegionDrv_refCount++;
     }
 
@@ -152,7 +154,9 @@ SharedRegionDrv_close (Void)
         osStatus = close (SharedRegionDrv_handle);
         if (osStatus != 0) {
             perror ("SharedRegion driver close: ");
-/*! @retval SHAREDREGION_E_OSFAILURE Failed to open SharedRegion driver with OS */
+            /*! @retval SHAREDREGION_E_OSFAILURE Failed to open SharedRegion
+             *          driver with OS
+             */
             status = SHAREDREGION_E_OSFAILURE;
             GT_setFailureReason (curTrace,
                                  GT_4CLASS,
@@ -167,7 +171,7 @@ SharedRegionDrv_close (Void)
 
     GT_1trace (curTrace, GT_LEAVE, "SharedRegionDrv_close", status);
 
-/*! @retval SHAREDREGION_SUCCESS Operation successfully completed. */
+    /*! @retval SHAREDREGION_SUCCESS Operation successfully completed. */
     return status;
 }
 
@@ -205,7 +209,7 @@ SharedRegionDrv_ioctl (UInt32 cmd, Ptr args)
 
     osStatus = ioctl (SharedRegionDrv_handle, cmd, args);
     if (osStatus < 0) {
-    /*! @retval SHAREDREGION_E_OSFAILURE Driver ioctl failed */
+        /*! @retval SHAREDREGION_E_OSFAILURE Driver ioctl failed */
         status = SHAREDREGION_E_OSFAILURE;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
@@ -216,6 +220,8 @@ SharedRegionDrv_ioctl (UInt32 cmd, Ptr args)
     else {
         /* First field in the structure is the API status. */
         status = ((SharedRegionDrv_CmdArgs *) args)->apiStatus;
+
+        /* Convert the base address to user virtual address */
         if (cmd == CMD_SHAREDREGION_SETUP) {
             for (i = 0u; (   (i < config.maxRegions) && (status >= 0)); i++) {
                 for (j = 0u; j < (MultiProc_getMaxProcessors() + 1u); j++) {
@@ -244,10 +250,9 @@ SharedRegionDrv_ioctl (UInt32 cmd, Ptr args)
 
     GT_1trace (curTrace, GT_LEAVE, "SharedRegionDrv_ioctl", status);
 
-/*! @retval SHAREDREGION_SUCCESS Operation successfully completed. */
+    /*! @retval SHAREDREGION_SUCCESS Operation successfully completed. */
     return status;
 }
-
 
 
 #if defined (__cplusplus)

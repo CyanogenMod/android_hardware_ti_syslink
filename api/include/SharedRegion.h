@@ -252,7 +252,7 @@ void SharedRegion_getTableInfo (UInt                index,
 
 /* Removes the memory segment at the specified index from the lookup table at
  * runtime */
-void SharedRegion_remove (UInt index);
+Int32 SharedRegion_remove (UInt index);
 
 /* Sets the base address of the entry in the table */
 void SharedRegion_setTableInfo (UInt                index,

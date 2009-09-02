@@ -329,6 +329,11 @@ extern "C" {
  */
 #define MESSAGEQ_ALLOWGROWTH         (~((UInt32) 0u))
 
+/*!
+ *  @brief  Number of types of priority queues for each transport
+ */
+#define MESSAGEQ_NUM_PRIORITY_QUEUES  2
+
 
 /*!
  *  @brief  Type used with open/setReplyQueue/getReplyQueue/putQueue

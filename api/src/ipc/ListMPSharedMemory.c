@@ -301,7 +301,7 @@ ListMPSharedMemory_destroy (void)
     /* TBD: Protect from multiple threads. */
     ListMPSharedMemory_state.setupRefCount--;
     /* This is needed at runtime so should not be in SYSLINK_BUILD_OPTIMIZE. */
-    if (ListMPSharedMemory_state.setupRefCount > 0) {
+    if (ListMPSharedMemory_state.setupRefCount >= 1) {
         /*! @retval LISTMPSHAREDMEMORY_S_ALREADYSETUP Success:
          *           ListMPSharedMemory module has been already setup
          *           in this process
@@ -309,8 +309,9 @@ ListMPSharedMemory_destroy (void)
         status = LISTMPSHAREDMEMORY_S_ALREADYSETUP;
         GT_1trace (curTrace,
                    GT_1CLASS,
-                   "ListMPSharedMemory module has been already setup in this"
-                   " process.\n  RefCount: [%d]\n",
+                   "ListMPSharedMemory module has been setup by other clients"
+                   " in this process.\n"
+                   "    RefCount: [%d]\n",
                    ListMPSharedMemory_state.setupRefCount);
     }
     else {
@@ -325,10 +326,10 @@ ListMPSharedMemory_destroy (void)
                                  "API (through IOCTL) failed on kernel-side!");
         }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-    }
 
-    /* Close the driver handle. */
-    ListMPSharedMemoryDrv_close ();
+        /* Close the driver handle. */
+        ListMPSharedMemoryDrv_close ();
+    }
 
     GT_1trace (curTrace, GT_LEAVE, "ListMPSharedMemory_destroy", status);
 
@@ -726,22 +727,24 @@ Int ListMPSharedMemory_open (ListMPSharedMemory_Handle       * listMPHandle,
         else {
             cmdArgs.args.open.nameLen = 0;
         }
-        cmdArgs.args.open.knlGate =
-                                    Gate_getKnlHandle (params->gate);
+        cmdArgs.args.open.knlGate = Gate_getKnlHandle (params->gate);
         status = ListMPSharedMemoryDrv_ioctl (CMD_LISTMPSHAREDMEMORY_OPEN,
                                               &cmdArgs);
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
         if (status < 0) {
-            GT_setFailureReason (curTrace,
-                                 GT_4CLASS,
-                                 "ListMPSharedMemory_open",
-                                 status,
-                                 "API (through IOCTL) failed on kernel-side!");
+            /* LISTMPSHAREDMEMORY_E_NOTFOUND is an expected run-time failure. */
+            if (status != LISTMPSHAREDMEMORY_E_NOTFOUND) {
+                GT_setFailureReason (curTrace,
+                                     GT_4CLASS,
+                                     "ListMPSharedMemory_open",
+                                     status,
+                                     "API (through IOCTL) failed on "
+                                     "kernel-side!");
+            }
         }
         else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
            status = _ListMPSharedMemory_create (listMPHandle,cmdArgs,FALSE);
-
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
         }
     }
@@ -967,8 +970,10 @@ Ptr ListMPSharedMemory_getHead (ListMPSharedMemory_Handle listMPHandle)
         }
         else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-            elem = (ListMP_Elem *)SharedRegion_getPtr(
+            if (cmdArgs.args.getHead.elemSrPtr != SHAREDREGION_INVALIDSRPTR) {
+                elem = (ListMP_Elem *) SharedRegion_getPtr(
                                                 cmdArgs.args.getHead.elemSrPtr);
+            }
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
         }
     }
@@ -1038,8 +1043,10 @@ Ptr ListMPSharedMemory_getTail (ListMPSharedMemory_Handle listMPHandle)
         }
         else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-            elem = (ListMP_Elem *)SharedRegion_getPtr(
+            if (cmdArgs.args.getTail.elemSrPtr != SHAREDREGION_INVALIDSRPTR) {
+                elem = (ListMP_Elem *) SharedRegion_getPtr(
                                                 cmdArgs.args.getTail.elemSrPtr);
+            }
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
         }
     }
@@ -1378,7 +1385,7 @@ Ptr ListMPSharedMemory_next (ListMPSharedMemory_Handle     listMPHandle,
         cmdArgs.args.next.handle = ((ListMPSharedMemory_Obj *)
                                                       (handle->obj))->knlObject;
 
-        if(elem != NULL){
+        if (elem != NULL){
             index = SharedRegion_getIndex (elem);
             cmdArgs.args.next.elemSrPtr = SharedRegion_getSRPtr (elem,index);
         }
@@ -1399,8 +1406,10 @@ Ptr ListMPSharedMemory_next (ListMPSharedMemory_Handle     listMPHandle,
         }
         else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-            next = (ListMP_Elem *)SharedRegion_getPtr(
+            if (cmdArgs.args.next.nextElemSrPtr != SHAREDREGION_INVALIDSRPTR) {
+                next = (ListMP_Elem *)SharedRegion_getPtr(
                                                cmdArgs.args.next.nextElemSrPtr);
+            }
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
         }
     }
@@ -1479,8 +1488,10 @@ Ptr ListMPSharedMemory_prev (ListMPSharedMemory_Handle    listMPHandle,
         }
         else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-            prev = (ListMP_Elem *)SharedRegion_getPtr(
+            if (cmdArgs.args.prev.prevElemSrPtr != SHAREDREGION_INVALIDSRPTR) {
+                prev = (ListMP_Elem *)SharedRegion_getPtr(
                                                cmdArgs.args.prev.prevElemSrPtr);
+            }
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
         }
     }
@@ -1491,6 +1502,8 @@ Ptr ListMPSharedMemory_prev (ListMPSharedMemory_Handle    listMPHandle,
     /*! @retval Previous-element if Operation Successful */
     return prev;
 }
+
+
 /*=============================================================================
     Internal functions
   =============================================================================
@@ -1589,6 +1602,7 @@ Int32
      */
     return(status);
 }
+
 
 #if defined (__cplusplus)
 }

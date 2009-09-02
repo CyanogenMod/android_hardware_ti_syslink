@@ -353,7 +353,7 @@ MessageQ_destroy (void)
     /* TBD: Protect from multiple threads. */
     MessageQ_state.setupRefCount--;
     /* This is needed at runtime so should not be in SYSLINK_BUILD_OPTIMIZE. */
-    if (MessageQ_state.setupRefCount > 1) {
+    if (MessageQ_state.setupRefCount >= 1) {
         /*! @retval MESSAGEQ_S_ALREADYSETUP Success:
          *          MessageQ module has been already setup in this
          *          process
@@ -376,6 +376,7 @@ MessageQ_destroy (void)
                                  "API (through IOCTL) failed on kernel-side!");
         }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+
         /* Close the driver handle. */
         MessageQDrv_close ();
     }

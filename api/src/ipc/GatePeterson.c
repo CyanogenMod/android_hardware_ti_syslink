@@ -312,7 +312,7 @@ GatePeterson_destroy (void)
     /* TBD: Protect from multiple threads. */
     GatePeterson_state.setupRefCount--;
     /* This is needed at runtime so should not be in SYSLINK_BUILD_OPTIMIZE. */
-    if (GatePeterson_state.setupRefCount > 1) {
+    if (GatePeterson_state.setupRefCount >= 1) {
         /*! @retval GATEPETERSON_S_ALREADYSETUP Success: ProcMgr module has been
                                            already setup in this process */
         status = GATEPETERSON_S_ALREADYSETUP;
@@ -333,10 +333,10 @@ GatePeterson_destroy (void)
                                  "API (through IOCTL) failed on kernel-side!");
         }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-    }
 
-    /* Close the driver handle. */
-    GatePetersonDrv_close ();
+        /* Close the driver handle. */
+        GatePetersonDrv_close ();
+    }
 
     GT_1trace (curTrace, GT_LEAVE, "GatePeterson_destroy", status);
 

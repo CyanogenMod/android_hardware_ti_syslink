@@ -121,11 +121,13 @@ ListMPSharedMemoryDrv_open (Void)
                                      status,
                                      "Failed to set file descriptor flags!");
             }
+            else{
+                /* TBD: Protection for refCount. */
+                ListMPSharedMemoryDrv_refCount++;
+            }
         }
     }
-
-    if (status == LISTMPSHAREDMEMORY_SUCCESS) {
-        /* TBD: Protection for refCount. */
+    else {
         ListMPSharedMemoryDrv_refCount++;
     }
 

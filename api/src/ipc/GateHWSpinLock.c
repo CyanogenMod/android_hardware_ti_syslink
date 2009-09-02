@@ -258,7 +258,7 @@ GateHWSpinLock_destroy (void)
     /* TBD: Protect from multiple threads. */
     GateHWSpinLock_state.setupRefCount--;
     /* This is needed at runtime so should not be in SYSLINK_BUILD_OPTIMIZE. */
-    if (GateHWSpinLock_state.setupRefCount > 1) {
+    if (GateHWSpinLock_state.setupRefCount >= 1) {
         /*! @retval GATEHWSPINLOCK_S_ALREADYSETUP Success: ProcMgr module has
                     been already setup in this process */
         status = GATEHWSPINLOCK_S_ALREADYSETUP;
@@ -279,10 +279,10 @@ GateHWSpinLock_destroy (void)
                                  "API (through IOCTL) failed on kernel-side!");
         }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-    }
 
-    /* Close the driver handle. */
-    GateHWSpinLockDrv_close ();
+        /* Close the driver handle. */
+        GateHWSpinLockDrv_close ();
+    }
 
     GT_1trace (curTrace, GT_LEAVE, "GateHWSpinLock_destroy", status);
 

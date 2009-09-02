@@ -93,7 +93,7 @@ GatePetersonDrv_open (Void)
                                        O_SYNC | O_RDWR);
         if (GatePetersonDrv_handle < 0) {
             perror (GATEPETERSON_DRIVER_NAME);
-            /*! @retval GATEPETERSON_E_OSFAILURE Failed to open GatePeterson 
+            /*! @retval GATEPETERSON_E_OSFAILURE Failed to open GatePeterson
              *          driver with OS
              */
             status = GATEPETERSON_E_OSFAILURE;
@@ -116,11 +116,13 @@ GatePetersonDrv_open (Void)
                                      status,
                                      "Failed to set file descriptor flags!");
             }
+            else {
+                /* TBD: Protection for refCount. */
+                GatePetersonDrv_refCount++;
+            }
         }
     }
-
-    if (status == GATEPETERSON_SUCCESS) {
-        /* TBD: Protection for refCount. */
+    else {
         GatePetersonDrv_refCount++;
     }
 

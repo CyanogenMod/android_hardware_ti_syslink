@@ -116,11 +116,13 @@ HeapBufDrv_open (Void)
                                      status,
                                      "Failed to set file descriptor flags!");
             }
+            else {
+                /* TBD: Protection for refCount. */
+                HeapBufDrv_refCount++;
+            }
         }
     }
-
-    if (status == HEAPBUF_SUCCESS) {
-        /* TBD: Protection for refCount. */
+    else {
         HeapBufDrv_refCount++;
     }
 

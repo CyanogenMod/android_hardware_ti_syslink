@@ -124,6 +124,9 @@ GateHWSpinLockDrv_open (Void)
             }
         }
     }
+    else {
+        GateHWSpinLockDrv_refCount++;
+    }
 
     GT_1trace (curTrace, GT_LEAVE, "GateHWSpinLockDrv_open", status);
 

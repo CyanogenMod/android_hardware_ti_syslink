@@ -72,6 +72,7 @@
 #ifndef HEAPBUF_H_0x4CD5
 #define HEAPBUF_H_0x4CD5
 
+
 /* Osal & Utils headers */
 #include <Heap.h>
 #include <Gate.h>
@@ -294,7 +295,7 @@ typedef struct HeapBuf_Params_tag {
      *  hardware linked list to use.
      *
      *  Not all devices supports the a hardware linked list. In this
-     *  case, HeapBuf uses the {@link #gate} provided and shared memory.
+     *  case, HeapBuf uses the gate provided and shared memory.
      *
      *  The default of -1 denotes not to use the a hardware linked list.
      */
@@ -354,7 +355,7 @@ typedef struct HeapBuf_Params_tag {
 
     Ptr sharedAddr;
     /*!<
-     *  Physical address of the shared memory
+     *  Address of the shared memory in caller's address space
      *
      *  The creator must supply the shared memory that
      *  this will use for maintain shared state information.

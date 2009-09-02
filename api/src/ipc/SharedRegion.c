@@ -339,7 +339,7 @@ Int32 SharedRegion_destroy (Void)
     /* TBD: Protect from multiple threads. */
     SharedRegion_moduleState.setupRefCount--;
     /* This is needed at runtime so should not be in SYSLINK_BUILD_OPTIMIZE. */
-    if (SharedRegion_moduleState.setupRefCount > 1) {
+    if (SharedRegion_moduleState.setupRefCount >= 1) {
         /*! @retval SHAREDREGION_S_ALREADYSETUP Success: ProcMgr module has been
                                            already setup in this process */
         status = SHAREDREGION_S_ALREADYSETUP;
@@ -360,10 +360,10 @@ Int32 SharedRegion_destroy (Void)
                                  "API (through IOCTL) failed on kernel-side!");
         }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-    }
 
-    /* Close the driver handle. */
-    SharedRegionDrv_close ();
+        /* Close the driver handle. */
+        SharedRegionDrv_close ();
+    }
 
     GT_1trace (curTrace, GT_LEAVE, "SharedRegion_destroy", status);
 
@@ -412,7 +412,7 @@ SharedRegion_add (UInt index, Ptr base, UInt32 len)
     }
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-        physAddress = (UInt32) Memory_translate (base, 
+        physAddress = (UInt32) Memory_translate (base,
                                                  Memory_XltFlags_Virt2Phys);
         GT_assert (curTrace, (physAddress != (UInt32)NULL));
         cmdArgs.args.add.index = index;
@@ -862,7 +862,7 @@ SharedRegion_setTableInfo (UInt                index,
  *
  *  @sa         SharedRegion_add
  */
-Void
+Int32
 SharedRegion_remove (UInt index)
 {
     Int32                   status = SHAREDREGION_SUCCESS;
@@ -870,17 +870,30 @@ SharedRegion_remove (UInt index)
     SharedRegion_Info *     entry = NULL;
     SharedRegion_Info *     table = NULL;
     /* TBD : UInt32         key; */
+    UInt16                  myProcId;
 
     GT_1trace (curTrace, GT_ENTER, "SharedRegion_remove", index);
 
 
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
     if (SharedRegion_moduleState.setupRefCount == 0) {
+        /*! @retval  SHAREDREGION_E_INVALIDSTATE Module is in invalid state! */
+        status = SHAREDREGION_E_INVALIDSTATE;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "SharedRegion_remove",
-                             SHAREDREGION_E_INVALIDSTATE,
-                             "Modules is invalidstate!");
+                             status,
+                             "Module is in invalid state!");
+    }
+    else if (index >= SharedRegion_moduleState.cfg.maxRegions) {
+        /*! @retval  SHAREDREGION_E_INVALIDARG index is outside range of
+                                                configured maxRegions. */
+        status = SHAREDREGION_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "SharedRegion_remove",
+                             status,
+                             "index is outside range of configured maxRegions");
     }
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
@@ -895,35 +908,43 @@ SharedRegion_remove (UInt index)
                                  "API (through IOCTL) failed on kernel-side!");
         }
         else if (SharedRegion_moduleState.table == NULL) {
+            /*! @retval  SHAREDREGION_E_INVALIDSTATE Module is not
+                                                     initialized! */
+            status = SHAREDREGION_E_INVALIDSTATE;
             GT_setFailureReason (curTrace,
                                  GT_4CLASS,
                                  "SharedRegion_remove",
-                                 SHAREDREGION_E_INVALIDSTATE,
+                                 status,
                                  "Module is not initialized");
         }
         else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-        /* Enter the gate */
-        /* TBD: key = Gate_enter (SharedRegion_moduleState.gateHandle);*/
+            /* Enter the gate */
+            /* TBD: key = Gate_enter (SharedRegion_moduleState.gateHandle);*/
 
-        /* mark entry invalid */
-        table = SharedRegion_moduleState.table;
-        entry = (table + index);
-        entry->base    = NULL;
-        entry->len     = 0u;
-        entry->isValid = FALSE;
+            /* mark entry invalid */
+            table = SharedRegion_moduleState.table;
+            myProcId = MultiProc_getId (NULL);
 
-        /* Leave the gate */
-        /* TBD: Gate_leave (SharedRegion_moduleState.gateHandle, key);*/
+            entry = (  table
+                     + (myProcId * SharedRegion_moduleState.cfg.maxRegions)
+                     + index);
+            entry->base    = NULL;
+            entry->len     = 0u;
+            entry->isValid = FALSE;
+
+            /* Leave the gate */
+            /* TBD: Gate_leave (SharedRegion_moduleState.gateHandle, key);*/
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
         }
     }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
 
-    GT_0trace (curTrace, GT_LEAVE, "SharedRegion_remove");
+    GT_1trace (curTrace, GT_LEAVE, "SharedRegion_remove", status);
+
+    /*! @retval  SHAREDREGION_SUCCESS Entry is added successfully */
+    return status;
 }
-
-
 
 
 #if defined (__cplusplus)

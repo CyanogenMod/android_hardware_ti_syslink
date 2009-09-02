@@ -283,7 +283,7 @@ MessageQTransportShm_destroy (void)
     /* TBD: Protect from multiple threads. */
     MessageQTransportShm_state.setupRefCount--;
     /* This is needed at runtime so should not be in SYSLINK_BUILD_OPTIMIZE. */
-    if (MessageQTransportShm_state.setupRefCount > 1) {
+    if (MessageQTransportShm_state.setupRefCount >= 1) {
         /*! @retval MESSAGEQTRANSPORTSHM_S_ALREADYSETUP Success:
          *           MessageQTransportShm module has been already setup
          *           in this process
@@ -307,10 +307,10 @@ MessageQTransportShm_destroy (void)
                                  "API (through IOCTL) failed on kernel-side!");
         }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-    }
 
-    /* Close the driver handle. */
-    MessageQTransportShmDrv_close ();
+        /* Close the driver handle. */
+        MessageQTransportShmDrv_close ();
+    }
 
     GT_1trace (curTrace, GT_LEAVE, "MessageQTransportShm_destroy", status);
 

@@ -115,11 +115,13 @@ MessageQDrv_open (Void)
                                      status,
                                      "Failed to set file descriptor flags!");
             }
+            else{
+                /* TBD: Protection for refCount. */
+                MessageQDrv_refCount++;
+            }
         }
     }
-
-    if (status == MESSAGEQ_SUCCESS) {
-        /* TBD: Protection for refCount. */
+    else {
         MessageQDrv_refCount++;
     }
 

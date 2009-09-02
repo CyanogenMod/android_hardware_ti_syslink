@@ -549,8 +549,7 @@ HeapBuf_create (const HeapBuf_Params * params)
         }
 
         /* Translate Gate handle to kernel-side gate handle. */
-        cmdArgs.args.create.knlGate = Gate_getKnlHandle (
-                                                            params->gate);
+        cmdArgs.args.create.knlGate = Gate_getKnlHandle (params->gate);
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
         status =
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
@@ -1390,6 +1389,8 @@ _HeapBuf_create (HeapBuf_Handle     * heapHandle,
             ((HeapBuf_Object *)(*heapHandle))->getStats     = &HeapBuf_getStats;
             ((HeapBuf_Object *)(*heapHandle))->getKnlHandle =
                                                           &HeapBuf_getKnlHandle;
+            ((HeapBuf_Object *)(*heapHandle))->isBlocking   = \
+                                                          &HeapBuf_isBlocking;
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
         }
     }
