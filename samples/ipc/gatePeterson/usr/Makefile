@@ -26,13 +26,13 @@ CFLAGS += -DSYSLINK_TRACE_ENABLE
 
 LIBS =  -lutils -lipc -lprocmgr
 
-all: GatePetersonApp.out
+all: gatePetersonApp.out
 
-GatePetersonApp.out:
-	$(CC) $(CFLAGS) -o GatePetersonApp.out GatePetersonApp.c $(LIBS)
+gatePetersonApp.out:
+	$(CC) $(CFLAGS) -o gatePetersonApp.out GatePetersonApp.c $(LIBS)
 
-install: GatePetersonApp.out
-	$(INSTALL) -D $< $(TARGETDIR)/ipc/$<
-	$(STRIP) -s $(TARGETDIR)/ipc/$<
+install: gatePetersonApp.out
+	$(INSTALL) -D $< $(TARGETDIR)/syslink/$<
+	$(STRIP) -s $(TARGETDIR)/syslink/$<
 clean:
-	\rm -f GatePetersonApp.out
+	\rm -f gatePetersonApp.out

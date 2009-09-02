@@ -32,8 +32,8 @@ heapBufApp.out:
 	$(CC) $(CFLAGS) -o heapBufApp.out HeapBufAppOS.c HeapBufApp.c $(LIBS)
 
 install: heapBufApp.out
-	$(INSTALL) -D $< $(TARGETDIR)/ipc/$<
-	$(STRIP) -s $(TARGETDIR)/ipc/$<
+	$(INSTALL) -D $< $(TARGETDIR)/syslink/$<
+	$(STRIP) -s $(TARGETDIR)/syslink/$<
 
 clean:
 	\rm -f heapBufApp.out

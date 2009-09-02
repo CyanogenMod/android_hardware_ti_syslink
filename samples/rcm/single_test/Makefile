@@ -55,10 +55,10 @@ TARGETNAME  = rcm_singletest
 TARGETTYPE  = EXEC
 
 # install directory relative to the HOSTTARGET directory
-HOSTRELEASE = target
+HOSTRELEASE = syslink
 
 # install directory relative to the root filesystem
-ROOTFSRELEASE = target
+ROOTFSRELEASE = syslink
 
 # Folders in which gmake will run before building current target
 

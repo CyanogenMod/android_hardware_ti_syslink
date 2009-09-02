@@ -26,14 +26,14 @@ CFLAGS += -DSYSLINK_TRACE_ENABLE
 
 LIBS = -lutils -lipc -lprocmgr
 
-all: SharedRegionApp.out
+all: sharedRegionApp.out
 
-SharedRegionApp.out:
-	$(CC) $(CFLAGS) -o SharedRegionApp.out SharedRegionAppOS.c SharedRegionApp.c $(LIBS)
+sharedRegionApp.out:
+	$(CC) $(CFLAGS) -o sharedRegionApp.out SharedRegionAppOS.c SharedRegionApp.c $(LIBS)
 
-install: SharedRegionApp.out
-	$(INSTALL) -D $< $(TARGETDIR)/ipc/$<
-	$(STRIP) -s $(TARGETDIR)/ipc/$<
+install: sharedRegionApp.out
+	$(INSTALL) -D $< $(TARGETDIR)/syslink/$<
+	$(STRIP) -s $(TARGETDIR)/syslink/$<
 
 clean:
-	\rm -f SharedRegionApp.out
+	\rm -f sharedRegionApp.out

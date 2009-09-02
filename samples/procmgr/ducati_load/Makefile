@@ -31,8 +31,8 @@ ducati_load.out: ducati_load.c getopt.c
 	$(CC) $(CFLAGS) -o ducati_load.out ducati_load.c getopt.c $(LIBS) 
 
 install: ducati_load.out
-	$(INSTALL) -D $< $(TARGETDIR)/procmgrapps//$<
-	$(STRIP) -s $(TARGETDIR)/procmgrapps/$<
+	$(INSTALL) -D $< $(TARGETDIR)/syslink/$<
+	$(STRIP) -s $(TARGETDIR)/syslink/$<
 
 clean:
 	\rm -f ducati_load.out

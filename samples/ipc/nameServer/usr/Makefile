@@ -26,14 +26,14 @@ CFLAGS += -DSYSLINK_TRACE_ENABLE
 
 LIBS =  -lutils -lipc -lprocmgr
 
-all: NameServerApp.out
+all: nameServerApp.out
 
-NameServerApp.out:
-	$(CC) $(CFLAGS) -o NameServerApp.out NameServerApp.c $(LIBS)
+nameServerApp.out:
+	$(CC) $(CFLAGS) -o nameServerApp.out NameServerApp.c $(LIBS)
 
-install: NameServerApp.out
-	$(INSTALL) -D $< $(TARGETDIR)/ipc/$<
-	$(STRIP) -s $(TARGETDIR)/ipc/$<
+install: nameServerApp.out
+	$(INSTALL) -D $< $(TARGETDIR)/syslink/$<
+	$(STRIP) -s $(TARGETDIR)/syslink/$<
 
 clean:
-	\rm -f NameServerApp.out
+	\rm -f nameServerApp.out

@@ -25,14 +25,14 @@ CFLAGS=-Wall -g -O2 $(INCLUDE) -finline-functions -D$(PROCFAMILY) $(LDFLAGS)
 
 LIBS = -lutils -lipc -lprocmgr -lomap4430proc
 
-all: procmgrapp.out
+all: procMgrApp.out
 
-procmgrapp.out: ProcMgrAppOS.c
-	$(CC) $(CFLAGS) -o procmgrapp.out ProcMgrApp.c ProcMgrAppOS.c $(LIBS)
+procMgrApp.out: ProcMgrAppOS.c
+	$(CC) $(CFLAGS) -o procMgrApp.out ProcMgrApp.c ProcMgrAppOS.c $(LIBS)
 
-install: procmgrapp.out
-	$(INSTALL) -D $< $(TARGETDIR)/procmgrapps//$<
-	$(STRIP) -s $(TARGETDIR)/procmgrapps/$<
+install: procMgrApp.out
+	$(INSTALL) -D $< $(TARGETDIR)/syslink/$<
+	$(STRIP) -s $(TARGETDIR)/syslink/$<
 
 clean:
-	\rm -f procmgrapp.out
+	\rm -f procMgrApp.out

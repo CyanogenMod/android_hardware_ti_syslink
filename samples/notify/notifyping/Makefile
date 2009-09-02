@@ -30,8 +30,8 @@ notifyping.out: notifyping.c
 	$(CC) $(CFLAGS) -o notifyping.out notifyping.c $(LIBS)
 
 install: notifyping.out
-	$(INSTALL) -D $< $(TARGETDIR)/notify//$<
-	$(STRIP) -s $(TARGETDIR)/notify/$<
+	$(INSTALL) -D $< $(TARGETDIR)/syslink/$<
+	$(STRIP) -s $(TARGETDIR)/syslink/$<
 
 clean:
 	\rm -f notifyping.out

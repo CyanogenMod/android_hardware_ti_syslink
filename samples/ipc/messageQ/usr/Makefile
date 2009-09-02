@@ -45,9 +45,15 @@ messageQApp.out:
 messageQApp1.out:
 	$(CC) $(CFLAGS) -o messageQApp1.out MessageQAppOS1.c MessageQApp1.c $(LIBS)
 
-install: messageQApp.out messageQApp1.out
-	$(INSTALL) -D $< $(TARGETDIR)/ipc//$<
-	$(STRIP) -s $(TARGETDIR)/ipc/$<
+messageQinstall1: messageQApp.out
+	$(INSTALL) -D $< $(TARGETDIR)/syslink/$<
+	$(STRIP) -s $(TARGETDIR)/syslink/$<
+
+messageQinstall2: messageQApp1.out
+	$(INSTALL) -D $< $(TARGETDIR)/syslink/$<
+	$(STRIP) -s $(TARGETDIR)/syslink/$<
+
+install: messageQinstall1 messageQinstall2
 
 clean:
 	\rm -f messageQApp.out

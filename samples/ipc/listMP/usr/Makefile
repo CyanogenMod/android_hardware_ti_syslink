@@ -31,8 +31,8 @@ listMPApp.out:
 	$(CC) $(CFLAGS) -o listMPApp.out ListMPAppOS.c ListMPApp.c $(LIBS)
 
 install: listMPApp.out
-	$(INSTALL) -D $< $(TARGETDIR)/ipc//$<
-	$(STRIP) -s $(TARGETDIR)/ipc/$<
+	$(INSTALL) -D $< $(TARGETDIR)/syslink/$<
+	$(STRIP) -s $(TARGETDIR)/syslink/$<
 
 clean:
 	\rm -f listMPApp.out
