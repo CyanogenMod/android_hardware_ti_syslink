@@ -348,7 +348,7 @@ ProcMgr_destroy (Void)
     /* TBD: Protect from multiple threads. */
     ProcMgr_state.setupRefCount--;
     /* This is needed at runtime so should not be in SYSLINK_BUILD_OPTIMIZE. */
-    if (ProcMgr_state.setupRefCount > 1) {
+    if (ProcMgr_state.setupRefCount >= 1) {
         /*! @retval PROCMGR_S_SETUP Success: ProcMgr module has been setup
                                              by other clients in this process */
         status = PROCMGR_S_SETUP;
@@ -379,10 +379,10 @@ ProcMgr_destroy (Void)
                 ProcMgr_delete (&(ProcMgr_state.procHandles [i]));
             }
         }
-    }
 
-    /* Close the driver handle. */
-    ProcMgrDrvUsr_close ();
+        /* Close the driver handle. */
+        ProcMgrDrvUsr_close ();
+    }
 
     GT_1trace (curTrace, GT_LEAVE, "ProcMgr_destroy", status);
 
@@ -828,12 +828,18 @@ ProcMgr_open (ProcMgr_Handle * handlePtr, UInt16 procId)
                     ProcMgr_state.procHandles [procId] = (ProcMgr_Handle)handle;
                     handle->openRefCount = 1;
                     handle->procId = procId;
+                    handle->created = FALSE;
 
-                    /* Store the memory information received. */
-                    handle->numMemEntries = cmdArgs.procInfo.numMemEntries;
-                    Memory_copy (&(handle->memEntries),
-                                 &(cmdArgs.procInfo.memEntries),
-                                 sizeof (handle->memEntries));
+                    /* Store the memory information received, only if the Proc
+                     * has been attached-to already, which will create the
+                     * mappings on kernel-side.
+                     */
+                    if (cmdArgs.procInfo.numMemEntries != 0) {
+                        handle->numMemEntries = cmdArgs.procInfo.numMemEntries;
+                        Memory_copy (&(handle->memEntries),
+                                     &(cmdArgs.procInfo.memEntries),
+                                     sizeof (handle->memEntries));
+                    }
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
                  }
             }
@@ -1228,12 +1234,11 @@ ProcMgr_load (ProcMgr_Handle handle,
               ProcId         procID)
 {
     Int                 status          = PROCMGR_SUCCESS;
-    ProcMgr_Object *    procMgrHandle   = (ProcMgr_Object *) handle;
     ProcMgr_CmdArgsLoad cmdArgs;
-    int prog_argc,i;
-    char* tok, *str_argc;
-    Array_List prog_argv;
-    UInt32 proc_entry_point;
+    Int                 prog_argc;
+    Array_List          prog_argv;
+    UInt32              proc_entry_point;
+
     GT_5trace (curTrace, GT_ENTER, "ProcMgr_load",
                handle, imagePath, argc, argv, procID);
     GT_assert (curTrace, (handle != NULL));
@@ -2323,7 +2328,7 @@ ProcMgr_unmap (ProcMgr_Handle   handle,
                              status,
                              "Invalid NULL handle specified");
     }
-    else if (mappedAddr == NULL) {
+    else if ((Void *)mappedAddr == NULL) {
         /*! @retval  PROCMGR_E_INVALIDARG Invalid value NULL provided for
                      argument mappedAddr */
         status = PROCMGR_E_INVALIDARG;

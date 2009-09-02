@@ -100,9 +100,6 @@ ProcMgrDrvUsr_open (Void)
     GT_0trace (curTrace, GT_ENTER, "ProcMgrDrvUsr_open");
 
     if (ProcMgrDrvUsr_refCount == 0) {
-        /* TBD: Protection for refCount. */
-        ProcMgrDrvUsr_refCount++;
-
         ProcMgrDrvUsr_handle = open (PROCMGR_DRIVER_NAME, O_SYNC | O_RDWR);
         if (ProcMgrDrvUsr_handle < 0) {
             perror ("ProcMgr driver open: " PROCMGR_DRIVER_NAME);
@@ -126,6 +123,10 @@ ProcMgrDrvUsr_open (Void)
                                      "ProcMgrDrvUsr_open",
                                      status,
                                      "Failed to set file descriptor flags!");
+            }
+            else{
+                /* TBD: Protection for refCount. */
+                ProcMgrDrvUsr_refCount++;
             }
         }
     }
@@ -257,13 +258,21 @@ ProcMgrDrvUsr_ioctl (UInt32 cmd, Ptr args)
                                      "Driver ioctl failed!");
             }
             else {
-                status = _ProcMgrDrvUsr_mapMemoryRegion (&(srcArgs->procInfo));
-                if (status < 0) {
-                    GT_setFailureReason (curTrace,
-                                         GT_4CLASS,
-                                         "ProcMgrDrvUsr_ioctl",
-                                         status,
-                                         "Failed to map memory regions!");
+                /* If the driver was not opened earlier in this process, need to
+                 * map the memory region. This can be done only if the Proc has
+                 * been attached-to already, which will create the mappings on
+                 * kernel-side.
+                 */
+                if (srcArgs->procInfo.numMemEntries != 0) {
+                    status = _ProcMgrDrvUsr_mapMemoryRegion (
+                                                        &(srcArgs->procInfo));
+                    if (status < 0) {
+                        GT_setFailureReason (curTrace,
+                                             GT_4CLASS,
+                                             "ProcMgrDrvUsr_ioctl",
+                                             status,
+                                             "Failed to map memory regions!");
+                    }
                 }
             }
         }
