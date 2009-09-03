@@ -703,9 +703,6 @@ Void RcmServerCleanup (Void)
     status = NameServerRemoteNotify_delete (&nsrnHandle_server);
     Osal_printf ("NameServerRemoteNotify_delete status: [0x%x]\n", status);
 
-    status = MessageQ_unregisterHeap (HEAPID);
-    Osal_printf ("MessageQ_unregisterHeap status: [0x%x]\n", status);
-
     status = NotifyDriverShm_delete (&notifyDrvHandle_server);
     Osal_printf ("NotifyDriverShm_delete status: [0x%x]\n", status);
 

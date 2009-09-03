@@ -714,7 +714,10 @@ Int CreateRcmClient(Int testCase)
 
         /* Create the heap. */
         HeapBuf_Params_init(NULL, &heapbufParams);
-        heapbufParams.name           = HEAPNAME;
+        if (testCase == 1)
+            heapbufParams.name       = HEAPNAME_SYSM3;
+        else if (testCase == 2)
+            heapbufParams.name       = HEAPNAME_APPM3;
         heapbufParams.sharedAddr     = (Ptr)(curShAddr);
         heapbufParams.align          = 128;
         heapbufParams.numBlocks      = 4;
@@ -733,7 +736,10 @@ Int CreateRcmClient(Int testCase)
         }
 
         /* Register this heap with MessageQ */
-        MessageQ_registerHeap (heapHandle_client, HEAPID);
+        if (testCase == 1)
+            MessageQ_registerHeap (heapHandle_client, HEAPID_SYSM3);
+        else if (testCase == 2)
+            MessageQ_registerHeap (heapHandle_client, HEAPID_APPM3);
     }
 
     if (status >= 0) {
@@ -824,7 +830,10 @@ Int CreateRcmClient(Int testCase)
     /* create an rcm client instance */
     Osal_printf ("Creating RcmClient instance \n");
     rcmClient_Params.callbackNotification = 0; /* disable asynchronous exec */
-    rcmClient_Params.heapId = HEAPID; /* TODO test RCMCLIENT_DEFAULT_HEAPID*/
+    if (testCase == 1)
+        rcmClient_Params.heapId = HEAPID_SYSM3;
+    else if (testCase == 2)
+        rcmClient_Params.heapId = HEAPID_APPM3;
 
     while ((rcmClientHandle == NULL) && (count++ < MAX_CREATE_ATTEMPTS)) {
         status = RcmClient_create (remoteServerName, &rcmClient_Params,
@@ -853,7 +862,7 @@ exit:
 /*
  *  ======== RcmServerCleanup ========
  */
-Int RcmClientCleanup (Void)
+Int RcmClientCleanup (Int testCase)
 {
     Int                     status = 0;
     RcmClient_Message *     rcmMsg = NULL;
@@ -925,7 +934,10 @@ Int RcmClientCleanup (Void)
     status = NameServerRemoteNotify_delete (&nsrnHandle_client);
     Osal_printf ("NameServerRemoteNotify_delete status: [0x%x]\n", status);
 
-    status = MessageQ_unregisterHeap (HEAPID);
+    if (testCase == 1)
+        status = MessageQ_unregisterHeap (HEAPID_SYSM3);
+    else if (testCase == 2)
+        status = MessageQ_unregisterHeap (HEAPID_APPM3);
     Osal_printf ("MessageQ_unregisterHeap status: [0x%x]\n", status);
 
     status = HeapBuf_delete (&heapHandle_client);
@@ -1023,7 +1035,7 @@ Int MpuRcmClientTest(Int testCase)
         goto exit;
     } */
 
-    status = RcmClientCleanup ();
+    status = RcmClientCleanup (testCase);
     if (status < 0)
         Osal_printf ("Error in RcmClientCleanup \n");
 

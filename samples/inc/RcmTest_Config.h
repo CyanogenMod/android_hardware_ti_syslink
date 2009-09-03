@@ -37,9 +37,10 @@ extern "C" {
 #define TRANSPORT_NOTIFY_EVENTNO    8
 #define NSRN_NOTIFY_EVENTNO1        22
 #define TRANSPORT_NOTIFY_EVENTNO1   23
-#define HEAPID                      0
-
-#define HEAPNAME                    "RcmCli_Heap"
+#define HEAPID_SYSM3                0
+#define HEAPNAME_SYSM3              "SysMgrHeap0"
+#define HEAPID_APPM3                1
+#define HEAPNAME_APPM3              "SysMgrHeap1"
 #define RCMSERVER_NAME              "RcmSvr_Mpu:0"
 #define SYSM3_SERVER_NAME           "RcmSvr_SysM3:0"
 #define APPM3_SERVER_NAME           "RcmSvr_AppM3:0"
