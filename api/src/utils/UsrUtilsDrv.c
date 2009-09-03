@@ -72,7 +72,7 @@ Void UsrUtilsDrv_destroy (Void)
     /* Finalize the MemoryOS module */
     MemoryOS_destroy ();
 
-    Osal_printf ("Leaving UsrUtilsDrv_destroy \n");
+    GT_0trace (curTrace, GT_LEAVE, "UsrUtilsDrv_destroy");
 }
 
 

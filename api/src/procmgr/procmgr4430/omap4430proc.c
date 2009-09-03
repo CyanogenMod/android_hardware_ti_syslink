@@ -276,7 +276,7 @@ OMAP4430PROC_destroy (Void)
     /* TBD: Protect from multiple threads. */
     OMAP4430PROC_state.setupRefCount--;
     /* This is needed at runtime so should not be in SYSLINK_BUILD_OPTIMIZE. */
-    if (OMAP4430PROC_state.setupRefCount > 1) {
+    if (OMAP4430PROC_state.setupRefCount >= 1) {
         /*! @retval OMAP4430PROC_S_SETUP Success: OMAP4430PROC module has been
                                        setup by other clients in this process */
         status = OMAP4430PROC_S_SETUP;
@@ -307,12 +307,12 @@ OMAP4430PROC_destroy (Void)
                 OMAP4430PROC_delete (&(OMAP4430PROC_state.procHandles [i]));
             }
         }
+
+        /* Close the driver handle. */
+        OMAP4430PROCDrvUsr_close ();
     }
 
-    /* Close the driver handle. */
-    OMAP4430PROCDrvUsr_close ();
-
-	Osal_printf ("<- OMAP4430PROC_destroy\n");
+    Osal_printf ("<- OMAP4430PROC_destroy\n");
     GT_1trace (curTrace, GT_LEAVE, "OMAP4430PROC_destroy", status);
 
     /*! @retval OMAP4430PROC_SUCCESS Operation successful */

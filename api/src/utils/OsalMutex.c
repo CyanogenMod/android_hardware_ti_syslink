@@ -202,7 +202,6 @@ OsalMutex_enter (OsalMutex_Handle mutexHandle)
     }
 #endif /* #if !defined(SYSLINK_BUILD_OPTIMIZE) */
 
-    GT_1trace (curTrace, GT_3CLASS, "   OsalMutex_enter key [0x%x]", retVal);
     GT_1trace (curTrace, GT_LEAVE, "OsalMutex_enter", retVal);
 
     /*! @retval 0 Operation successfully completed. */

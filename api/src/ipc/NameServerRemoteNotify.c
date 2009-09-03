@@ -278,7 +278,7 @@ NameServerRemoteNotify_destroy (Void)
     /* TBD: Protect from multiple threads. */
     NameServerRemoteNotify_state.setupRefCount--;
     /* This is needed at runtime so should not be in SYSLINK_BUILD_OPTIMIZE. */
-    if (NameServerRemoteNotify_state.setupRefCount > 1) {
+    if (NameServerRemoteNotify_state.setupRefCount >= 1) {
         /*! @retval NAMESERVERREMOTENOTIFY_S_ALREADYSETUP Success:
          *           NameServerRemoteNotify module has been already setup
          *           in this process
@@ -303,10 +303,10 @@ NameServerRemoteNotify_destroy (Void)
                                  "API (through IOCTL) failed on kernel-side!");
         }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-    }
 
-    /* Close the driver handle. */
-    NameServerRemoteNotifyDrv_close ();
+        /* Close the driver handle. */
+        NameServerRemoteNotifyDrv_close ();
+    }
 
     GT_1trace (curTrace, GT_LEAVE, "NameServerRemoteNotify_destroy", status);
 

@@ -95,7 +95,6 @@ GateHWSpinLockDrv.c \
 GateHWSpinLock.c \
 MultiProcDrv.c \
 MultiProc.c
-#IPCMultiProc.c \
 
 # Search path for include files
 

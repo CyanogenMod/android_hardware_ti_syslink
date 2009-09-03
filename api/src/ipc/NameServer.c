@@ -151,12 +151,12 @@ NameServer_setup (Void)
     NameServer_state.setupRefCount++;
     /* This is needed at runtime so should not be in SYSLINK_BUILD_OPTIMIZE. */
     if (NameServer_state.setupRefCount > 1) {
-        /*! @retval NAMESERVER_S_ALREADYSETUP Success: ProcMgr module has been
-                                           already setup in this process */
+        /*! @retval NAMESERVER_S_ALREADYSETUP Success: NameServer module has
+                                          been already setup in this process */
         status = NAMESERVER_S_ALREADYSETUP;
         GT_1trace (curTrace,
                    GT_1CLASS,
-                   "ProcMgr module has been already setup in this process.\n"
+                   "NameServer module has been already setup in this process.\n"
                    "    RefCount: [%d]\n",
                    NameServer_state.setupRefCount);
     }
@@ -209,7 +209,7 @@ NameServer_destroy (void)
     /* TBD: Protect from multiple threads. */
     NameServer_state.setupRefCount--;
     /* This is needed at runtime so should not be in SYSLINK_BUILD_OPTIMIZE. */
-    if (NameServer_state.setupRefCount > 1) {
+    if (NameServer_state.setupRefCount >= 1) {
         /*! @retval NAMESERVER_S_ALREADYSETUP Success: ProcMgr module has been
                                            already setup in this process */
         status = NAMESERVER_S_ALREADYSETUP;
@@ -230,10 +230,10 @@ NameServer_destroy (void)
                                  "API (through IOCTL) failed on kernel-side!");
         }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-    }
 
-    /* Close the driver handle. */
-    NameServerDrv_close ();
+        /* Close the driver handle. */
+        NameServerDrv_close ();
+    }
 
     GT_1trace (curTrace, GT_LEAVE, "NameServer_destroy", status);
 

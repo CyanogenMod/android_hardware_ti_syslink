@@ -178,8 +178,8 @@ MemoryOS_setup (void)
 Int32
 MemoryOS_destroy (void)
 {
-    Int32  status = MEMORYOS_SUCCESS;
-    /* UInt32 key    = 0; */
+    Int32 status    = MEMORYOS_SUCCESS;
+    Int32 tmpStatus = MEMORYOS_SUCCESS;
 
     GT_0trace (curTrace, GT_ENTER, "MemoryOS_destroy");
 
@@ -200,10 +200,40 @@ MemoryOS_destroy (void)
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
         if (   Atomic_dec_return (&MemoryOS_state.refCount)
             == MEMORYOS_MAKE_MAGICSTAMP(0)) {
-            /* Delete the gate handle */
-            GateMutex_delete (&MemoryOS_state.gateHandle);
+            status = List_destruct (&MemoryOS_state.mapTable);
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+            if (status < 0) {
+                GT_setFailureReason (curTrace,
+                                     GT_4CLASS,
+                                     "MemoryOS_destroy",
+                                     status,
+                                     "List_destruct failed!");
+            }
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
 
-            OsalDrv_close ();
+            /* Delete the gate handle */
+            status = GateMutex_delete (&MemoryOS_state.gateHandle);
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+            if (status < 0) {
+                GT_setFailureReason (curTrace,
+                                     GT_4CLASS,
+                                     "MemoryOS_destroy",
+                                     status,
+                                     "GateMutex_delete failed!");
+            }
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+
+            tmpStatus = OsalDrv_close ();
+            if ((status >= 0) && (tmpStatus < 0)) {
+                status = tmpStatus;
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+                GT_setFailureReason (curTrace,
+                                     GT_4CLASS,
+                                     "MemoryOS_destroy",
+                                     status,
+                                     "OsalDrv_close failed!");
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+            }
         }
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
     }
@@ -378,7 +408,6 @@ MemoryOS_map (Memory_MapInfo * mapInfo)
 #endif /* #if !defined(SYSLINK_BUILD_OPTIMIZE) */
         key = Gate_enter (MemoryOS_state.gateHandle);
 
-
         mapInfo->dst = OsalDrv_map (mapInfo->src, mapInfo->size);
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
         if (mapInfo->dst == (UInt32)NULL) {
@@ -485,15 +514,18 @@ MemoryOS_unmap (Memory_UnmapInfo * unmapInfo)
 #endif /* #if !defined(SYSLINK_BUILD_OPTIMIZE) */
         key = Gate_enter (MemoryOS_state.gateHandle);
 
-
         /* Delete the node in the map table */
         List_traverse (info, (List_Handle) &MemoryOS_state.mapTable) {
             if (   ((MemoryOS_MapTableInfo *) info)->mappedAddress
                 == unmapInfo->addr) {
                 List_remove ((List_Handle) &MemoryOS_state.mapTable,
                              (List_Elem *) info);
+                MemoryOS_free (info, sizeof (MemoryOS_MapTableInfo), 0);
+                break;
             }
         }
+
+        OsalDrv_unmap (unmapInfo->addr, unmapInfo->size);
 
         Gate_leave (MemoryOS_state.gateHandle, key);
 #if !defined(SYSLINK_BUILD_OPTIMIZE)

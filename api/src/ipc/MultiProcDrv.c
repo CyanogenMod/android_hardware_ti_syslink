@@ -65,6 +65,11 @@ extern "C" {
  */
 static Int32 MultiProcDrv_handle = 0;
 
+/*!
+ *  @brief  Reference count for the driver handle.
+ */
+static UInt32 MultiProcDrv_refCount = 0;
+
 
 
 /** ============================================================================
@@ -84,38 +89,46 @@ MultiProcDrv_open (Void)
 
     GT_0trace (curTrace, GT_ENTER, "MultiProcDrv_open");
 
-    MultiProcDrv_handle = open (MULTIPROC_DRIVER_NAME,
-                                         O_SYNC | O_RDWR);
-    if (MultiProcDrv_handle < 0) {
-        perror (MULTIPROC_DRIVER_NAME);
-        /*! @retval MULTIPROC_E_OSFAILURE
-         *          Failed to open MultiProc driver with OS
-         */
-        status = MULTIPROC_E_OSFAILURE;
-        GT_setFailureReason (curTrace,
-                             GT_4CLASS,
-                             "MultiProcDrv_open",
-                             status,
-                             "Failed to open MultiProc driver"
-                             " with OS!");
-    }
-    else {
-        osStatus = fcntl (MultiProcDrv_handle,
-                          F_SETFD,
-                          FD_CLOEXEC);
-        if (osStatus != 0) {
+    if (MultiProcDrv_refCount == 0) {
+        MultiProcDrv_handle = open (MULTIPROC_DRIVER_NAME,
+                                             O_SYNC | O_RDWR);
+        if (MultiProcDrv_handle < 0) {
+            perror (MULTIPROC_DRIVER_NAME);
             /*! @retval MULTIPROC_E_OSFAILURE
-             *          Failed to set file descriptor flags
+             *          Failed to open MultiProc driver with OS
              */
             status = MULTIPROC_E_OSFAILURE;
             GT_setFailureReason (curTrace,
                                  GT_4CLASS,
                                  "MultiProcDrv_open",
                                  status,
-                                 "Failed to set file descriptor flags!");
+                                 "Failed to open MultiProc driver"
+                                 " with OS!");
+        }
+        else {
+            osStatus = fcntl (MultiProcDrv_handle,
+                              F_SETFD,
+                              FD_CLOEXEC);
+            if (osStatus != 0) {
+                /*! @retval MULTIPROC_E_OSFAILURE
+                 *          Failed to set file descriptor flags
+                 */
+                status = MULTIPROC_E_OSFAILURE;
+                GT_setFailureReason (curTrace,
+                                     GT_4CLASS,
+                                     "MultiProcDrv_open",
+                                     status,
+                                     "Failed to set file descriptor flags!");
+            }
+            else{
+                /* TBD: Protection for refCount. */
+                MultiProcDrv_refCount++;
+            }
         }
     }
-
+    else {
+        MultiProcDrv_refCount++;
+    }
 
     GT_1trace (curTrace, GT_LEAVE, "MultiProcDrv_open", status);
 
@@ -137,6 +150,9 @@ MultiProcDrv_close (Void)
 
     GT_0trace (curTrace, GT_ENTER, "MultiProcDrv_close");
 
+    /* TBD: Protection for refCount. */
+    MultiProcDrv_refCount--;
+    if (MultiProcDrv_refCount == 0) {
         osStatus = close (MultiProcDrv_handle);
         if (osStatus != 0) {
             perror ("MultiProc driver close: ");
@@ -154,6 +170,7 @@ MultiProcDrv_close (Void)
         else {
             MultiProcDrv_handle = 0;
         }
+    }
 
     GT_1trace (curTrace, GT_LEAVE, "MultiProcDrv_close", status);
 

@@ -115,11 +115,13 @@ NameServerDrv_open (Void)
                                      status,
                                      "Failed to set file descriptor flags!");
             }
+            else{
+                /* TBD: Protection for refCount. */
+                NameServerDrv_refCount++;
+            }
         }
     }
-
-    if (status == NAMESERVER_SUCCESS) {
-        /* TBD: Protection for refCount. */
+    else {
         NameServerDrv_refCount++;
     }
 

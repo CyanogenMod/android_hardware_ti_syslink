@@ -120,11 +120,13 @@ NameServerRemoteNotifyDrv_open (Void)
                                      status,
                                      "Failed to set file descriptor flags!");
             }
+            else{
+                /* TBD: Protection for refCount. */
+                NameServerRemoteNotifyDrv_refCount++;
+            }
         }
     }
-
-    if (status == NAMESERVERREMOTENOTIFY_SUCCESS) {
-        /* TBD: Protection for refCount. */
+    else {
         NameServerRemoteNotifyDrv_refCount++;
     }
 
