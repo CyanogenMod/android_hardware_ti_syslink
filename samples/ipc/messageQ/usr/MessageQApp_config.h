@@ -36,7 +36,7 @@ extern "C" {
 #define NSRN_NOTIFY_EVENTNO        7u
 #define TRANSPORT_NOTIFY_EVENTNO   8u
 #define HEAPID                     0u
-#define HEAPNAME             "myHeap"
+#define HEAPNAME             "SysMgrHeap0"
 #define DIEMESSAGE             0xFFFF
 
 #define DSP_MESSAGEQNAME            "Q0"
