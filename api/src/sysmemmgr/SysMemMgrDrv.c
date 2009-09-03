@@ -226,6 +226,7 @@ SysMemMgrDrv_ioctl (UInt32 cmd, Ptr args)
     int                    osStatus    = 0;
     SysMemMgrDrv_CmdArgs * cargs = (SysMemMgrDrv_CmdArgs *) args;
     Memory_MapInfo         info;
+    Memory_UnmapInfo       unmapInfo;
     SysMemMgrDrv_CmdArgs   cmdArgs;
 
     GT_2trace (curTrace, GT_ENTER, "SysMemMgrDrv_ioctl", cmd, args);
@@ -285,6 +286,21 @@ SysMemMgrDrv_ioctl (UInt32 cmd, Ptr args)
                                          "SysMemMgrDrv_ioctl",
                                          status,
                                          "Memory_map failed!");
+
+                }
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+            }
+            else if (cmd == CMD_SYSMEMMGR_FREE) {
+                unmapInfo.addr = (UInt32) cargs->args.free.buf;
+                unmapInfo.size = cargs->args.free.size;
+                status = Memory_unmap (&unmapInfo);
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+                if (status < 0) {
+                    GT_setFailureReason (curTrace,
+                                         GT_4CLASS,
+                                         "SysMemMgrDrv_ioctl",
+                                         status,
+                                         "Memory_unmap failed!");
 
                 }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */

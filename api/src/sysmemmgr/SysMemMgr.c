@@ -346,13 +346,13 @@ SysMemMgr_destroy (void)
             }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
             GateMutex_delete (&SysMemMgr_state.gateHandle);
+
+            /* Close the driver handle. */
+            SysMemMgrDrv_close ();
         }
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
     }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-
-    /* Close the driver handle. */
-    SysMemMgrDrv_close ();
 
     GT_1trace (curTrace, GT_LEAVE, "SysMemMgr_destroy", status);
 
@@ -507,6 +507,7 @@ SysMemMgr_free (Ptr blk, UInt32 size, SysMemMgr_AllocFlag flag)
             key = Gate_enter (SysMemMgr_state.gateHandle);
             for (i = 0; i < SYSMEMMGR_MAX_MAPINFO; i++) {
                 if (SysMemMgr_state.mapTable[i].virtAddress == (UInt32) blk) {
+                    SysMemMgr_state.mapTable[i].virtAddress = 0;
                     SysMemMgr_state.mapTable[i].size = 0;
                     break;
                 }
