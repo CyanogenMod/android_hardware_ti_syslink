@@ -121,7 +121,7 @@ t t_name##_dequeue(t_name##_Queue* queue)                                \
      t to_ret;                                                           \
      t_name##_Queue_Node* next_ptr = NULL;                               \
                                                                          \
-     if (!queue->size) return NULL;                                      \
+     if (!queue->size) return ((t)(NULL));                               \
                                                                          \
      next_ptr = queue->front_ptr->next_ptr;                              \
      queue->size--;                                                      \

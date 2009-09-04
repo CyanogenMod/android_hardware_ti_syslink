@@ -28,10 +28,10 @@
 #include "arm_elf32.h"
 
 #define EXTRACT(field, lsb_offset, field_size) \
-   ( (field >> lsb_offset) & (1U << field_size) - 1 )
+   ( ((field) >> (lsb_offset)) & ((1U << (field_size)) - 1) )
 #define OPND_S(symval) (symval & ~0x1)
 #define OPND_T(symval) (symval & 0x1)
-#define IS_BLX(field) ((EXTRACT(field, 24, 8) & ~0x1) == 0xFA)
+#define IS_BLX(field) ((EXTRACT((field), 24, 8) & ~0x1) == 0xFA)
 #define SIGN_EXTEND(field, field_size) (field |= -(field & (1<<(field_size-1))))
 
 /*****************************************************************************/
@@ -72,10 +72,10 @@ static BOOL is_data_relocation(ARM_RELOC_TYPE r_type)
         case R_ARM_REL32:
         case R_ARM_ABS32_NOI:
         case R_ARM_REL32_NOI:
-           return TRUE;
+            return TRUE;
+        default:
+            return FALSE;
     }
-
-    return FALSE;
 }
 
 /*****************************************************************************/
@@ -131,9 +131,10 @@ static BOOL rel_concludes_group(ARM_RELOC_TYPE r_type)
         case R_ARM_LDRS_PC_G0:
         case R_ARM_LDRS_PC_G1:
         case R_ARM_LDRS_PC_G2:
-        return TRUE;
+            return TRUE;
+        default:
+            return FALSE;
     }
-    return FALSE;
 }
 
 /*****************************************************************************/
@@ -143,28 +144,29 @@ static int rel_group_num(ARM_RELOC_TYPE r_type)
 {
     switch (r_type)
     {
-      case R_ARM_ALU_PC_G0:
-      case R_ARM_ALU_PC_G0_NC:
-      case R_ARM_LDC_PC_G0:
-      case R_ARM_LDR_PC_G0:
-      case R_ARM_LDRS_PC_G0:
-         return 0;
+        case R_ARM_ALU_PC_G0:
+        case R_ARM_ALU_PC_G0_NC:
+        case R_ARM_LDC_PC_G0:
+        case R_ARM_LDR_PC_G0:
+        case R_ARM_LDRS_PC_G0:
+            return 0;
 
-      case R_ARM_ALU_PC_G1:
-      case R_ARM_ALU_PC_G1_NC:
-      case R_ARM_LDC_PC_G1:
-      case R_ARM_LDR_PC_G1:
-      case R_ARM_LDRS_PC_G1:
-         return 1;
+        case R_ARM_ALU_PC_G1:
+        case R_ARM_ALU_PC_G1_NC:
+        case R_ARM_LDC_PC_G1:
+        case R_ARM_LDR_PC_G1:
+        case R_ARM_LDRS_PC_G1:
+            return 1;
 
-      case R_ARM_ALU_PC_G2:
-      case R_ARM_LDC_PC_G2:
-      case R_ARM_LDR_PC_G2:
-      case R_ARM_LDRS_PC_G2:
-         return 2;
+        case R_ARM_ALU_PC_G2:
+        case R_ARM_LDC_PC_G2:
+        case R_ARM_LDR_PC_G2:
+        case R_ARM_LDRS_PC_G2:
+            return 2;
+
+        default:
+            return 0;
     }
-
-    return 0;
 }
 
 /*****************************************************************************/
@@ -181,7 +183,7 @@ static uint32_t rel_alu_mask_offset(int32_t residual, int bit_align)
 
     if (bit_align == 0) bit_align = 1;
 
-    if (mask_offset & bit_align !=0)
+    if ((mask_offset & bit_align) != 0)
         mask_offset += (bit_align - (mask_offset % bit_align));
 
     return mask_offset;
@@ -274,12 +276,15 @@ static void rel_change_endian(ARM_RELOC_TYPE r_type, uint8_t* address)
             DLIMP_change_endian16(ins1_ptr + 1);
             break;
         }
-           
+
         case THUMB16_RELOC:
         {
             DLIMP_change_endian16((int16_t*)address);
             break;
         }
+
+        default:
+            break;
     }
 }
 
@@ -298,7 +303,7 @@ static void write_reloc_r(uint8_t* rel_field_ptr,
    /*------------------------------------------------------------------------*/
    if(debugging_on)
    {
-          printf("RWRT: rel_field_ptr: 0x%x\n", rel_field_ptr);
+          printf("RWRT: rel_field_ptr: 0x%x\n", (uint32_t)rel_field_ptr);
           printf("RWRT: result: 0x%x\n", reloc_val);
    }
 #endif
@@ -1027,7 +1032,7 @@ static BOOL rel_overflow(ARM_RELOC_TYPE r_type, int32_t reloc_value)
             return (sbits != 0 && sbits != -1UL);
         }
 
-        case R_ARM_ABS16:            
+        case R_ARM_ABS16:
         {
             return ((reloc_value > 65535) ||
                         (reloc_value < -32768));
@@ -1037,8 +1042,10 @@ static BOOL rel_overflow(ARM_RELOC_TYPE r_type, int32_t reloc_value)
             return ((reloc_value > 255) ||
                          (reloc_value < -128));
         }
+
+        default:
+            return FALSE;
     }
-    return FALSE;
 }
 
 #if LOADER_DEBUG || LOADER_PROFILE
@@ -1561,8 +1568,6 @@ static BOOL process_rel_table(DLIMP_Loaded_Segment* seg,
 
     for ( ; rid < relnum; rid++)
     {
-        int32_t r_symid = ELF32_R_SYM(rel_table[rid].r_info);
-
         /*---------------------------------------------------------------*/
         /* If the relocation offset falls within the segment, process it */
         /*---------------------------------------------------------------*/

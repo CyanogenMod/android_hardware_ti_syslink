@@ -144,7 +144,7 @@ dynamic_module_ptr_Stack DLIMP_dependency_stack;
 /*---------------------------------------------------------------------------*/
 static int32_t file_handle = 1;
 
-static struct mem_entry {
+struct mem_entry {
 	unsigned long ducati_virt_addr;
 	unsigned long mpu_phys_addr;
 	unsigned long size;
@@ -353,17 +353,17 @@ UInt32 load_executable(const char* file_name, int argc, char** argv)
    {
       if (DLL_debug)
       {
-	 /*---------------------------------------------------------------*/ 
-	 /* Allocate target memory for the module's debug record.  Use    */
-	 /* host version of the debug information to determine how much   */
-	 /* target memory we need and how it is to be filled in.          */
-	 /*---------------------------------------------------------------*/
-	 /* Note that we don't go through the normal API functions to get */
-	 /* target memory and write the debug information since we're not */
-	 /* dealing with object file content here.  The DLL View debug is */
-	 /* supported entirely on the client side.                        */
-	 /*---------------------------------------------------------------*/
-	 DLDBG_add_target_record(prog_handle);
+         /*---------------------------------------------------------------*/
+         /* Allocate target memory for the module's debug record.  Use    */
+         /* host version of the debug information to determine how much   */
+         /* target memory we need and how it is to be filled in.          */
+         /*---------------------------------------------------------------*/
+         /* Note that we don't go through the normal API functions to get */
+         /* target memory and write the debug information since we're not */
+         /* dealing with object file content here.  The DLL View debug is */
+         /* supported entirely on the client side.                        */
+         /*---------------------------------------------------------------*/
+         DLDBG_add_target_record(prog_handle);
       }
 
       /*---------------------------------------------------------------------*/
@@ -371,15 +371,18 @@ UInt32 load_executable(const char* file_name, int argc, char** argv)
       /* entry point in "loaded_program".                                    */
       /*---------------------------------------------------------------------*/
       DLOAD_get_entry_point(prog_handle, (TARGET_ADDRESS)(&loaded_program));
-      printf("loaded_program: 0x%x\n", loaded_program);
-	  return loaded_program;
+      printf("loaded_program: 0x%x\n", (UInt32) loaded_program);
+      return (UInt32)loaded_program;
    }
 
    /*------------------------------------------------------------------------*/
    /* Report failure to load an object file.                                 */
    /*------------------------------------------------------------------------*/
    else
+   {
       DLIF_error(DLET_MISC, "Failed load of file '%s'.\n", file_name);
+      return -1;
+   }
 }
 
 
@@ -516,9 +519,9 @@ static void initialize_loaded_module(DLIMP_Dynamic_Module *dyn1_module)
    /* placement is completed and dyn_module's local copy of the dynamic      */
    /* table is updated.                                                      */
    /*------------------------------------------------------------------------*/
-   loaded_module->fini_array = NULL;
+   loaded_module->fini_array = (Elf32_Addr)NULL;
    loaded_module->fini_arraysz = 0;
-   loaded_module->fini = NULL;
+   loaded_module->fini = (Elf32_Addr) NULL;
 
 #if LOADER_DEBUG || LOADER_PROFILE
    if (debugging_on || profiling_on)
@@ -527,7 +530,7 @@ static void initialize_loaded_module(DLIMP_Dynamic_Module *dyn1_module)
       if (profiling_on)
       {
          profile_stop_clock();
-         printf("Took %d cycles.\n", profile_cycle_count());
+         printf("Took %d cycles.\n", (int32_t)profile_cycle_count());
       }
    }
 #endif
@@ -550,19 +553,20 @@ static BOOL load_static_segment(LOADER_FILE_DESC *fd,
    int i;
    DLIMP_Loaded_Segment* seg = (DLIMP_Loaded_Segment*) 
                               (dyn_module->loaded_module->loaded_segments.buf);
-	int num_mem_entries;
-	int seg_no;
-	int seg_offset;
- 
-	num_mem_entries = sizeof(memory_regions) /
-					  sizeof(struct mem_entry);
-	int mem_fd;
-	int j;
+   int num_mem_entries;
+   int seg_no;
+   int seg_offset;
+
+   num_mem_entries = sizeof(memory_regions) / sizeof(struct mem_entry);
+   int mem_fd;
+   int j;
 #if LOADER_DEBUG
-	printf("dynmodule is 0x%x\n",dyn_module);
-	printf("loaded_module is 0x%x\n",dyn_module->loaded_module);
-	printf("loaded_segments is 0x%x\n",dyn_module->loaded_module->loaded_segments);
-	printf("seg is 0x%x\n",dyn_module->loaded_module->loaded_segments.buf);
+   printf("dynmodule is 0x%x\n",(UInt32) dyn_module);
+   printf("loaded_module is 0x%x\n",(UInt32)dyn_module->loaded_module);
+   printf("loaded_segments is 0x%x\n",
+            (UInt32)&dyn_module->loaded_module->loaded_segments);
+   printf("seg is 0x%x\n",
+        (UInt32)dyn_module->loaded_module->loaded_segments.buf);
 #endif
 
    /*------------------------------------------------------------------------*/
@@ -571,23 +575,23 @@ static BOOL load_static_segment(LOADER_FILE_DESC *fd,
    /* to load the segment from the client, then get the client to write the  */
    /* segment contents out to target memory to the appropriate address.      */
    /*--------------	----------------------------------------------------------*/
-	 mem_fd = open ("/dev/mem", O_RDWR|O_SYNC);
+    mem_fd = open ("/dev/mem", O_RDWR|O_SYNC);
     if (mem_fd) {
-		for (j = 0; j < num_mem_entries; j++){
-			memory_regions[j].mpu_virt_addr = mmap(0, memory_regions[j].size, PROT_READ | PROT_WRITE, MAP_SHARED, mem_fd,
-                                                        memory_regions[j].mpu_phys_addr);
-        	if( memory_regions[j].mpu_virt_addr == (void *) -1) {
-            	printf("Failed to do memory mapping for \n");
-            	return FALSE;
-        	} 
-		}
-	
-	}else {
-        		printf("Failed opening /dev/mem file\n");
-        		return FALSE;
-	}
+        for (j = 0; j < num_mem_entries; j++){
+            memory_regions[j].mpu_virt_addr = (unsigned long) mmap(0,
+                                    memory_regions[j].size,
+                                    PROT_READ | PROT_WRITE, MAP_SHARED, mem_fd,
+                                    memory_regions[j].mpu_phys_addr);
+            if( memory_regions[j].mpu_virt_addr == (unsigned long)(-1)) {
+                printf("Failed to do memory mapping for \n");
+                return FALSE;
+            }
+        }
+    } else {
+        printf("Failed opening /dev/mem file\n");
+        return FALSE;
+    }
 
-	
    for (i = 0; i < dyn_module->loaded_module->loaded_segments.size; i++)
    {
       struct DLOAD_MEMORY_REQUEST targ_req;
@@ -609,7 +613,7 @@ static BOOL load_static_segment(LOADER_FILE_DESC *fd,
       targ_req.flip_endian = dyn_module->wrong_endian;
       printf("============================================\n");
       printf("targ_req.align %d\n", targ_req.align);
-      printf("targ_req.segment 0x%x\n", targ_req.segment);
+      printf("targ_req.segment 0x%x\n", (UInt32) targ_req.segment);
       printf("targ_req.offset 0x%x\n", targ_req.offset);
       printf("targ_req.flip_endian 0x%x\n", targ_req.flip_endian);
 
@@ -628,16 +632,19 @@ static BOOL load_static_segment(LOADER_FILE_DESC *fd,
       /*---------------------------------------------------------------------*/
       if (seg[i].phdr.p_filesz)
       {
-		seg_no = get_section_no(targ_req.segment->target_address);
-	   	seg_offset = targ_req.segment->target_address - memory_regions[seg_no].ducati_virt_addr;
-		memset(memory_regions[seg_no].mpu_virt_addr + seg_offset, 0, targ_req.segment->memsz_in_bytes);
-		fseek(targ_req.fp,targ_req.offset,SEEK_SET);
-		fread((memory_regions[seg_no].mpu_virt_addr + seg_offset),targ_req.segment->objsz_in_bytes,1,targ_req.fp);
-
+         seg_no = get_section_no(
+                    (unsigned long)(targ_req.segment->target_address));
+         seg_offset = targ_req.segment->target_address - \
+            ((void *)memory_regions[seg_no].ducati_virt_addr);
+         memset((void *)(memory_regions[seg_no].mpu_virt_addr + seg_offset), 0,
+            targ_req.segment->memsz_in_bytes);
+         fseek(targ_req.fp,targ_req.offset,SEEK_SET);
+         fread((void *)(memory_regions[seg_no].mpu_virt_addr + seg_offset),
+            targ_req.segment->objsz_in_bytes,1,targ_req.fp);
       }
    }
-	
-	close(mem_fd);
+
+   close(mem_fd);
    return TRUE;
 }
 
@@ -1009,7 +1016,7 @@ static BOOL allocate_dynamic_segments_and_relocate_symbols
       if (profiling_on)
       {
          profile_stop_clock();
-         printf("Took %d cycles.\n", profile_cycle_count());
+         printf("Took %d cycles.\n", (int)profile_cycle_count());
       }
    }
 #endif
@@ -1408,7 +1415,7 @@ static BOOL dload_file_header(LOADER_FILE_DESC *fd,
       if (profiling_on)
       {
          profile_stop_clock();
-         printf("Took %d cycles.\n", profile_cycle_count());
+         printf("Took %d cycles.\n", (int)profile_cycle_count());
          profile_start_clock();
       }
    }
@@ -2177,10 +2184,11 @@ static void process_dynamic_module_relocations(LOADER_FILE_DESC *fd,
       if (profiling_on)
       {
          profile_stop_clock();
-         printf("Took %d cycles.\n", profile_cycle_count());
-         printf("Total reloc time: %d\n", DLREL_total_reloc_time);
+         printf("Took %d cycles.\n", (int)profile_cycle_count());
+         printf("Total reloc time: %d\n", (int)DLREL_total_reloc_time);
          printf("Time per relocation: %d\n",
-         DLREL_relocations ? DLREL_total_reloc_time / DLREL_relocations : 0);
+            (DLREL_relocations ?
+                (int)(DLREL_total_reloc_time / DLREL_relocations) : 0));
       }
 
       printf("Number of relocations: %d\n", DLREL_relocations);
@@ -2507,7 +2515,7 @@ int32_t DLOAD_load(LOADER_FILE_DESC *fd, int argc, char** argv)
       if (profiling_on)
       {
          profile_stop_clock();
-         printf("Took %d cycles.\n", profile_cycle_count());
+         printf("Took %d cycles.\n", (int)profile_cycle_count());
       }
    }
 #endif
@@ -2789,7 +2797,7 @@ static void execute_module_termination(DLIMP_Loaded_Module *loaded_module)
    /* function indicated by the tag's value to complete the termination      */
    /* process for this module.                                               */
    /*------------------------------------------------------------------------*/
-   if (loaded_module->fini != NULL)
+   if (loaded_module->fini != (Elf32_Addr)NULL)
       DLIF_execute((TARGET_ADDRESS)loaded_module->fini);
 }
 

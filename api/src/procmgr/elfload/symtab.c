@@ -111,7 +111,7 @@ void DLSYM_copy_globals(DLIMP_Dynamic_Module *dyn_module)
       struct Elf32_Sym *sym = &((struct Elf32_Sym*)(module->gsymtab))[i];
       sym->st_name = new_offset + (Elf32_Addr)module->gstrtab;
 #if LOADER_DEBUG
-      if (debugging_on) printf("Copying symbol: %s\n",
+      if (debugging_on) printf("Copying symbol: %s\n", (char *)
                                dyn_module->symtab[i + global_index].st_name);
 #endif
    }
@@ -150,7 +150,7 @@ static BOOL breadth_first_lookup(const char* sym_name,
       /* Pluck off the file handle at the front of the file_handle_queue.    */
       /* We will search this file next.                                      */
       /*---------------------------------------------------------------------*/
-      handle = Int32_dequeue(&file_handle_queue); 
+      handle = Int32_dequeue(&file_handle_queue);
       
       /*---------------------------------------------------------------------*/
       /* Locate the Module associated with the current file handle.          */
@@ -264,7 +264,7 @@ static BOOL DLSYM_lookup_symtab(const char *sym_name, struct Elf32_Sym *symtab,
    {
 #if LOADER_DEBUG
       if (debugging_on)
-         printf("DLSYM_lookup_symtab %s\n", symtab[sym_idx].st_name);
+         printf("DLSYM_lookup_symtab %s\n", (char *)symtab[sym_idx].st_name);
 #endif
 
       if ((symtab[sym_idx].st_shndx != SHN_UNDEF) && 

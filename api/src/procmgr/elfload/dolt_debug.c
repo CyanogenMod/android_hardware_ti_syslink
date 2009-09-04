@@ -193,7 +193,7 @@ void DLDBG_add_target_record(int handle)
    /* debug records to/from the list.                                        */
    /*------------------------------------------------------------------------*/
    host_dbg->target_address = obj_desc.target_address;
-   host_dbg->next_module_ptr = NULL;
+   host_dbg->next_module_ptr = (uint32_t)NULL;
    host_dbg->next_module_size = 0;
 
    /*------------------------------------------------------------------------*/
