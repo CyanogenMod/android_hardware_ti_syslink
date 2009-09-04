@@ -250,7 +250,7 @@ Notify_destroy (Void)
     /* TBD: Protect from multiple threads. */
     Notify_state.setupRefCount--;
     /* This is needed at runtime so should not be in SYSLINK_BUILD_OPTIMIZE. */
-    if (Notify_state.setupRefCount > 1) {
+    if (Notify_state.setupRefCount >= 1) {
         /*! @retval NOTIFY_S_SETUP Success: Notify module has been setup
                                              by other clients in this process */
         status = NOTIFY_S_SETUP;
@@ -272,10 +272,10 @@ Notify_destroy (Void)
                                  "API (through IOCTL) failed on kernel-side!");
         }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-    }
 
-    /* Close the driver handle. */
-    NotifyDrvUsr_close (TRUE);
+        /* Close the driver handle. */
+        NotifyDrvUsr_close (TRUE);
+    }
 
     GT_1trace (curTrace, GT_LEAVE, "Notify_destroy", status);
 

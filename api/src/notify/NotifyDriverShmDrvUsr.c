@@ -65,6 +65,11 @@ extern "C" {
  */
 static Int32 NotifyDriverShm_drvHandle = 0;
 
+/*!
+ *  @brief  Reference count for the driver handle.
+ */
+static UInt32 NotifyDriverShm_refCount = 0;
+
 
 /** ============================================================================
  *  Functions
@@ -83,32 +88,42 @@ NotifyDriverShmDrvUsr_open (Void)
 
     GT_0trace (curTrace, GT_ENTER, "NotifyDriverShmDrvUsr_open");
 
-    /* TBD: Need to handle multi-threading */
-    NotifyDriverShm_drvHandle = open (NOTIFYDRIVERSHM_DRIVER_NAME,
-                                      O_SYNC | O_RDWR);
-    if (NotifyDriverShm_drvHandle < 0) {
-        perror ("NotifyDriverShm driver open: " NOTIFYDRIVERSHM_DRIVER_NAME);
-        /*! @retval NOTIFYDRIVERSHM_E_OSFAILURE Failed to open NotifyDriverShm
-                   driver with OS */
-        status = NOTIFYDRIVERSHM_E_OSFAILURE;
-        GT_setFailureReason (curTrace,
-                             GT_4CLASS,
-                             "NotifyDriverShmDrvUsr_open",
-                             status,
-                             "Failed to open NotifyDriverShm driver with OS!");
-    }
-    else {
-        osStatus = fcntl (NotifyDriverShm_drvHandle, F_SETFD, FD_CLOEXEC);
-        if (osStatus != 0) {
-            /*! @retval NOTIFYDRIVERSHM_E_OSFAILURE Failed to set file
-                                     descriptor flags */
+    if (NotifyDriverShm_refCount == 0) {
+        NotifyDriverShm_drvHandle = open (NOTIFYDRIVERSHM_DRIVER_NAME,
+                                          O_SYNC | O_RDWR);
+        if (NotifyDriverShm_drvHandle < 0) {
+            perror ("NotifyDriverShm driver open: " 
+                        NOTIFYDRIVERSHM_DRIVER_NAME);
+            /*! @retval NOTIFYDRIVERSHM_E_OSFAILURE Failed to open
+                        NotifyDriverShm driver with OS */
             status = NOTIFYDRIVERSHM_E_OSFAILURE;
             GT_setFailureReason (curTrace,
                                  GT_4CLASS,
                                  "NotifyDriverShmDrvUsr_open",
                                  status,
-                                 "Failed to set file descriptor flags!");
+                                 "Failed to open NotifyDriverShm driver with "
+                                 "OS!");
         }
+        else {
+            osStatus = fcntl (NotifyDriverShm_drvHandle, F_SETFD, FD_CLOEXEC);
+            if (osStatus != 0) {
+                /*! @retval NOTIFYDRIVERSHM_E_OSFAILURE Failed to set file
+                                         descriptor flags */
+                status = NOTIFYDRIVERSHM_E_OSFAILURE;
+                GT_setFailureReason (curTrace,
+                                     GT_4CLASS,
+                                     "NotifyDriverShmDrvUsr_open",
+                                     status,
+                                     "Failed to set file descriptor flags!");
+            }
+            else{
+                /* TBD: Protection for refCount. */
+                NotifyDriverShm_refCount++;
+            }
+        }
+    }
+    else {
+        NotifyDriverShm_refCount++;
     }
 
     GT_1trace (curTrace, GT_LEAVE, "NotifyDriverShmDrvUsr_open", status);
@@ -131,21 +146,26 @@ NotifyDriverShmDrvUsr_close (Void)
 
     GT_0trace (curTrace, GT_ENTER, "NotifyDriverShmDrvUsr_close");
 
-    /* TBD: Need to handle multi-threading */
-    osStatus = close (NotifyDriverShm_drvHandle);
-    if (osStatus != 0) {
-        perror ("NotifyDriverShm driver close: " NOTIFYDRIVERSHM_DRIVER_NAME);
-        /*! @retval NOTIFYDRIVERSHM_E_OSFAILURE Failed to open NotifyDriverShm
-                               driver with OS */
-        status = NOTIFYDRIVERSHM_E_OSFAILURE;
-        GT_setFailureReason (curTrace,
-                             GT_4CLASS,
-                             "NotifyDriverShmDrvUsr_close",
-                             status,
-                             "Failed to close NotifyDriverShm driver with OS!");
-    }
-    else {
-        NotifyDriverShm_drvHandle = 0;
+    /* TBD: Protection for refCount. */
+    NotifyDriverShm_refCount--;
+    if (NotifyDriverShm_refCount == 0) {
+        osStatus = close (NotifyDriverShm_drvHandle);
+        if (osStatus != 0) {
+            perror ("NotifyDriverShm driver close: "
+                        NOTIFYDRIVERSHM_DRIVER_NAME);
+            /*! @retval NOTIFYDRIVERSHM_E_OSFAILURE Failed to open
+                                   NotifyDriverShm driver with OS */
+            status = NOTIFYDRIVERSHM_E_OSFAILURE;
+            GT_setFailureReason (curTrace,
+                                 GT_4CLASS,
+                                 "NotifyDriverShmDrvUsr_close",
+                                 status,
+                                 "Failed to close NotifyDriverShm driver with "
+                                 "OS!");
+        }
+        else {
+            NotifyDriverShm_drvHandle = 0;
+        }
     }
 
     GT_1trace (curTrace, GT_LEAVE, "NotifyDriverShmDrvUsr_close", status);

@@ -285,7 +285,7 @@ NotifyDriverShm_destroy (Void)
     /* TBD: Protect from multiple threads. */
     NotifyDriverShm_state.setupRefCount--;
     /* This is needed at runtime so should not be in SYSLINK_BUILD_OPTIMIZE. */
-    if (NotifyDriverShm_state.setupRefCount > 1) {
+    if (NotifyDriverShm_state.setupRefCount >= 1) {
         /*! @retval NOTIFYDRIVERSHM_S_SETUP Success: NotifyDriverShm module has
                                   been setup by other clients in this process */
         status = NOTIFYDRIVERSHM_S_SETUP;
