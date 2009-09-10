@@ -200,7 +200,7 @@ typedef enum {
     PROC_SYSM3 = 2,
     PROC_APPM3 = 3,
     PROC_END = 4
-} ProcId;
+} ProcMgr_ProcId;
 
 /*!
  *  @brief  Enumerations to indicate different types of slave boot modes.
@@ -238,10 +238,12 @@ typedef enum {
  */
 typedef enum {
     ProcMgr_MapType_Virt     = 0u,
-    /*!< Map/unmap to virtual address space (kernel/user) */
-    ProcMgr_MapType_Slave    = 1u,
-    /*!< Map/unmap to slave address space */
-    ProcMgr_MapType_EndValue = 2u
+     /*!< Map/unmap to virtual address space (user) */
+    ProcMgr_MapType_Phys     = 1u,
+    /*!< Map/unmap to Physical address space */
+    ProcMgr_MapType_Tiler    = 2u,
+    /*!< Map/unmap to Physical address space */
+    ProcMgr_MapType_EndValue = 3u
     /*!< End delimiter indicating start of invalid values for this enum */
 } ProcMgr_MapType;
 
@@ -385,7 +387,7 @@ ProcMgr_load (ProcMgr_Handle    handle,
               String *          argv,
               UInt32 *          entry_point,
               UInt32 *          fileId,
-              ProcId            procID);
+              ProcMgr_ProcId    procID);
 
 /* Function to unload the previously loaded file on the slave processor.
  * The fileId received from the load function must be passed to this
@@ -453,6 +455,11 @@ Int ProcMgr_getSymbolAddress (ProcMgr_Handle handle,
                               String         symbolName,
                               UInt32 *       symValue);
 
+/* Function that reserves the slave processor's address space */
+Int ProcMgr_reserveMemory (ProcMgr_Handle handle,
+                           UInt32         size,
+                           UInt32 *       pResrvAddr);
+
 /* Function that maps the specified slave address to master address space. */
 Int ProcMgr_map (ProcMgr_Handle  handle,
                  UInt32          procAddr,
@@ -462,9 +469,11 @@ Int ProcMgr_map (ProcMgr_Handle  handle,
                  ProcMgr_MapType type);
 
 /* Function that maps the specified slave address to master address space. */
-Int ProcMgr_unmap (ProcMgr_Handle          handle,
+Int ProcMgr_unmap (ProcMgr_Handle  handle,
                    UInt32          mappedAddr);
 
+/* Function that unreserves the slave processor's address space */
+Int ProcMgr_unReserveMemory (ProcMgr_Handle  handle, UInt32 * pResrvAddr);
 
 /* Function that registers for notification when the slave processor
  * transitions to any of the states specified.
@@ -480,6 +489,14 @@ Int ProcMgr_registerNotify (ProcMgr_Handle      handle,
 Int ProcMgr_getProcInfo (ProcMgr_Handle     handle,
                          ProcMgr_ProcInfo * procInfo);
 
+/* Function that performs virtual address to physical address translations.
+ */
+Int ProcMgr_virtToPhysPages (ProcMgr_Handle handle,
+                             UInt32         remoteAddr,
+                             UInt32         numOfPages,
+                             UInt32 *       physEntries,
+                             ProcMgr_ProcId procId);
+
 
 /* =============================================================================
  *  Compatibility layer for SYSBIOS
@@ -494,6 +511,31 @@ Int ProcMgr_getProcInfo (ProcMgr_Handle     handle,
 #define ProcMgr_E_FAIL             PROCMGR_E_FAIL
 #define ProcMgr_E_INVALIDSTATE     PROCMGR_E_INVALIDSTATE
 #define ProcMgr_SUCCESS            PROCMGR_SUCCESS
+
+/* Types of mapping attributes */
+
+/* MPU address is virtual and needs to be translated to physical addr */
+#define ProcMgr_MAPVIRTUALADDR          0x00000000
+#define ProcMgr_MAPPHYSICALADDR         0x00000001
+
+/* Mapped data is big endian */
+#define ProcMgr_MAPBIGENDIAN            0x00000002
+#define ProcMgr_MAPLITTLEENDIAN         0x00000000
+
+/* Element size is based on DSP r/w access size */
+#define ProcMgr_MAPMIXEDELEMSIZE        0x00000004
+
+/*
+ * Element size for MMU mapping (8, 16, 32, or 64 bit)
+ * Ignored if DSP_MAPMIXEDELEMSIZE enabled
+ */
+#define ProcMgr_MAPELEMSIZE8            0x00000008
+#define ProcMgr_MAPELEMSIZE16           0x00000010
+#define ProcMgr_MAPELEMSIZE32           0x00000020
+#define ProcMgr_MAPELEMSIZE64           0x00000040
+
+#define ProcMgr_MAPVMALLOCADDR          0x00000080
+#define ProcMgr_MAPTILERADDR            0x00000100
 
 
 #if defined (__cplusplus)

@@ -189,6 +189,12 @@ typedef struct ProcMgr_CmdArgs_tag {
  */
 #define CMD_PROCMGR_UNMAP               (PROCMGR_BASE_CMD + 27u)
 
+/*!
+ * @brief   Command for ProcMgr_getVirtToPhysPages
+ */
+#define CMD_PROCMGR_GETVIRTTOPHYS       (PROCMGR_BASE_CMD + 28u)
+
+
 
 /*  ----------------------------------------------------------------------------
  *  Command arguments for ProcMgr
@@ -556,6 +562,23 @@ typedef struct ProcMgr_CmdArgsGetProcInfo_tag {
     ProcMgr_ProcInfo *  procInfo;
     /*!< Pointer to the ProcInfo object to be populated. */
 } ProcMgr_CmdArgsGetProcInfo;
+
+/*!
+ *  @brief  Command arguments for ProcMgr_virtToPhysPages
+ */
+typedef struct ProcMgr_CmdArgsVirtToPhysPages_tag {
+    ProcMgr_CmdArgs     commonArgs;
+    /*!< Common command args */
+    Handle              handle;
+    /*!< Handle to the ProcMgr object */
+    UInt32              da;
+    /*!< Remote Processor address. */
+    UInt32 *            memEntries;
+    /*!< translated mem entries buffer. */
+    UInt32              numEntries;
+    /*!<  number of entries to translate */
+} ProcMgr_CmdArgsVirtToPhysPages;
+
 
 
 #if defined (__cplusplus)

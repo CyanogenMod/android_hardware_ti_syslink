@@ -1231,7 +1231,7 @@ ProcMgr_load (ProcMgr_Handle handle,
               String *       argv,
               UInt32 *       entry_point,
               UInt32 *       fileId,
-              ProcId         procID)
+              ProcMgr_ProcId procID)
 {
     Int                 status          = PROCMGR_SUCCESS;
     ProcMgr_CmdArgsLoad cmdArgs;
@@ -2263,6 +2263,18 @@ ProcMgr_map (ProcMgr_Handle     handle,
     }
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+        switch (type) {
+        case ProcMgr_MapType_Phys:
+            type = (ProcMgr_MAPPHYSICALADDR | ProcMgr_MAPELEMSIZE32);
+            break;
+        case ProcMgr_MapType_Tiler:
+            type = (ProcMgr_MAPTILERADDR | ProcMgr_MAPELEMSIZE32);
+            break;
+        default:
+            break;
+        }
+        GT_5trace (curTrace, GT_ENTER, "ProcMgr_map",
+               type, procAddr, size, mappedAddr, mappedSize);
         cmdArgs.handle = procMgrHandle->knlObject;
         cmdArgs.procAddr = procAddr;
         cmdArgs.size = size;
@@ -2328,7 +2340,7 @@ ProcMgr_unmap (ProcMgr_Handle   handle,
                              status,
                              "Invalid NULL handle specified");
     }
-    else if ((Void *)mappedAddr == NULL) {
+    else if (mappedAddr == (UInt32)NULL) {
         /*! @retval  PROCMGR_E_INVALIDARG Invalid value NULL provided for
                      argument mappedAddr */
         status = PROCMGR_E_INVALIDARG;
@@ -2347,6 +2359,44 @@ ProcMgr_unmap (ProcMgr_Handle   handle,
 
     Osal_printf ("Exit ProcMgr_unmap \n" );
     return status;
+}
+
+
+/*!
+ *  @brief      Function to reserve slave address space
+ *
+ *              This function reserves the provided slave address of
+ *              specified size
+ *
+ *  @param      handle      Handle to the ProcMgr object
+ *  @param      size        Size (in bytes) of region to be mapped
+ *  @param      pResrvAddr  Return parameter: reserved slave address
+  *
+ *  @sa         ProcMgr_map
+ */
+Int
+ProcMgr_reserveMemory (ProcMgr_Handle   handle,
+                       UInt32           size,
+                       UInt32 *         pResrvAddr)
+{
+    return 1;
+}
+
+
+/*!
+ *  @brief      Function to unreserve slave address space
+ *
+ *              This function unreserves the provided slave address
+ *
+ *  @param      handle      Handle to the ProcMgr object
+ *  @param      pResrvAddr  Return parameter: reserved slave address
+  *
+ *  @sa         ProcMgr_reserveMemory
+ */
+Int
+ProcMgr_unReserveMemory (ProcMgr_Handle  handle, UInt32 * pResrvAddr)
+{
+    return 1;
 }
 
 
@@ -2495,6 +2545,85 @@ ProcMgr_getProcInfo (ProcMgr_Handle     handle,
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
 
     GT_1trace (curTrace, GT_LEAVE, "ProcMgr_getProcInfo", status);
+
+    /*! @retval PROCMGR_SUCCESS Operation successful */
+    return status;
+}
+
+/*!
+ *  @brief      Function that returns virtual address to phsyical
+ *              address translations
+ *
+ *  @param      handle      Handle to the ProcMgr object
+ *  @param      remoteAddr  Remote Processor Address
+ *  @param      numOfPages  Number of entries to translate
+ *  @param      physEntries Buffer that has translated entries
+ *  @param      procId      Remote Processor ID
+ *
+ *  @sa         ProcMgrDrvUsr_ioctl
+ */
+Int
+ProcMgr_virtToPhysPages (ProcMgr_Handle handle,
+                         UInt32         remoteAddr,
+                         UInt32         numOfPages,
+                         UInt32 *       physEntries,
+                         ProcMgr_ProcId procId)
+{
+    Int                             status          = PROCMGR_SUCCESS;
+    ProcMgr_Object *                procMgrHandle   = (ProcMgr_Object *) handle;
+    ProcMgr_CmdArgsVirtToPhysPages  cmdArgs;
+
+    GT_2trace (curTrace, GT_ENTER, "ProcMgr_virtToPhysPages", handle,
+                physEntries);
+
+    GT_assert (curTrace, (handle    != NULL));
+    GT_assert (curTrace, (physEntries  != 0));
+
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+    if (handle == NULL) {
+        /*! @retval  PROCMGR_E_HANDLE Invalid NULL handle specified */
+        status = PROCMGR_E_HANDLE;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "ProcMgr_virtToPhysPages",
+                             status,
+                             "Invalid NULL handle specified");
+    }
+    else if (physEntries == NULL) {
+        /*! @retval  PROCMGR_E_INVALIDARG Invalid value NULL provided for
+                     argument physEntries */
+        status = PROCMGR_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                           GT_4CLASS,
+                           "ProcMgr_virtToPhysPages",
+                           status,
+                           "Invalid value provided for argument physEntries");
+    }
+    else {
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+        cmdArgs.handle = procMgrHandle->knlObject;
+        cmdArgs.da = remoteAddr;
+        cmdArgs.memEntries = physEntries;
+        cmdArgs.numEntries = numOfPages;
+        printf("calling ProcMgrDrvUsr_ioctl \n");
+        status = ProcMgrDrvUsr_ioctl (CMD_PROCMGR_GETVIRTTOPHYS, &cmdArgs);
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+        if (status < 0) {
+            GT_setFailureReason (curTrace,
+                                 GT_4CLASS,
+                                 "ProcMgr_getProcInfo",
+                                 status,
+                                 "API (through IOCTL) failed on kernel-side!");
+        }
+        else {
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+        }
+    }
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+
+    GT_1trace (curTrace, GT_LEAVE, "ProcMgr_virtToPhysPages", status);
 
     /*! @retval PROCMGR_SUCCESS Operation successful */
     return status;
