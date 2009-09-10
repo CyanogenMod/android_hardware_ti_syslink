@@ -49,7 +49,7 @@ SH_SONAME =
 # Folders in which gmake will run before building current target
 
 SUBMODULES  = \
-tiler
+syslink
 
 # Filename must not begin with '.', '/' or '\'
 
