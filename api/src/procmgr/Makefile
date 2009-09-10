@@ -73,6 +73,7 @@ procmgr4430
 SOURCES     = \
 ProcMgr.c \
 ProcMgrDrvUsr.c \
+SysLinkMemUtils.c \
 elfload/arm_dynamic.c \
 elfload/arm_reloc.c \
 elfload/ArrayList.c \
