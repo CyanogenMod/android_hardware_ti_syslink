@@ -135,7 +135,7 @@ Int getHeapBufStatus(Int apiStatus)
         case -EBUSY:
             status = HEAPBUF_E_INUSE;
             break;
-        
+
         case -EEXIST:
         case 1:
             status = HEAPBUF_S_ALREADYSETUP;
@@ -253,7 +253,7 @@ Int getSharedRegionStatus(Int apiStatus)
     case 1:
         status = SHAREDREGION_S_ALREADYSETUP;
         break;
-        
+
     default:
         status = SHAREDREGION_E_FAIL;
 /*        status = SHAREDREGION_E_OSFAILURE; */
@@ -305,6 +305,10 @@ Int getNameServerRemoteNotifyStatus(Int apiStatus)
 
     case -EPERM:
         status = NAMESERVERREMOTENOTIFY_E_OVERLAP;
+        break;
+
+    case 1:
+        status = NAMESERVERREMOTENOTIFY_S_ALREADYSETUP;
         break;
 
     default:
@@ -407,7 +411,7 @@ Int getMessageQStatus(Int apiStatus)
     case -ETIME:
         status = MESSAGEQ_E_TIMEOUT;
         break;
-    
+
     case 1:
         status = MESSAGEQ_S_ALREADYSETUP;
         break;
@@ -445,7 +449,7 @@ Int getMessageQTransportShmStatus(Int apiStatus)
     case -ENOMEM:
         status = MESSAGEQTRANSPORTSHM_E_MEMORY;
         break;
-        
+
     case 1:
         status = MESSAGEQTRANSPORTSHM_S_ALREADYSETUP;
         break;
@@ -492,11 +496,11 @@ Int getListMPSharedMemoryStatus(Int apiStatus)
         /* LISTMPSHAREDMEMORY_E_REMOTEACTIVE is also converted to this. */
         status = LISTMPSHAREDMEMORY_E_INUSE;
         break;
-        
+
     case 1:
         status = LISTMPSHAREDMEMORY_S_ALREADYSETUP;
         break;
-        
+
     /* All error codes are not converted to kernel error codes */
     default:
         status = apiStatus;
