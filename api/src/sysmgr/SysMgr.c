@@ -369,7 +369,7 @@ SysMgr_setup (const SysMgr_Config * cfg)
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
     }
 
-/* Initialize SYSMGR */
+/* Initialize GATEPETERSON */
     if (status >= 0) {
         status = GatePeterson_setup (&config->gatePetersonConfig);
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
@@ -561,272 +561,258 @@ SysMgr_destroy (void)
     }
     else {
 
-    /* Finalize NAMESERVERREMOTENOTIFY */
-    if (SysMgr_state.nameServerRemoteNotifyInitFlag == TRUE) {
-        status = NameServerRemoteNotify_destroy ();
+        /* Finalize NAMESERVERREMOTENOTIFY */
+        if (SysMgr_state.nameServerRemoteNotifyInitFlag == TRUE) {
+            status = NameServerRemoteNotify_destroy ();
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-        if (status < 0) {
-            GT_setFailureReason (curTrace,
-                                 GT_4CLASS,
-                                 "SysMgr_destroy",
-                                 status,
-                                 "NameServerRemoteNotify_destroy failed!");
-        }
-        else {
+            if (status < 0) {
+                GT_setFailureReason (curTrace,
+                                     GT_4CLASS,
+                                     "SysMgr_destroy",
+                                     status,
+                                     "NameServerRemoteNotify_destroy failed!");
+            }
+            else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-            SysMgr_state.nameServerRemoteNotifyInitFlag = FALSE;
+                SysMgr_state.nameServerRemoteNotifyInitFlag = FALSE;
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-        }
+            }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-    }
+        }
 
-    /* Finalize NOTIFYSHMDRIVER */
-    if (SysMgr_state.notifyDriverShmInitFlag == TRUE) {
-            status = NotifyDriverShm_destroy ();
+        /* Finalize MESSAGEQTRANSPORTSHM */
+        if (SysMgr_state.messageQTransportShmInitFlag == TRUE) {
+            status = MessageQTransportShm_destroy ();
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-        if (status < 0) {
-            GT_setFailureReason (curTrace,
-                                 GT_4CLASS,
-                                 "SysMgr_setup",
-                                 status,
-                                 "NotifyDriverShm_destroy failed!");
-        }
-        else {
+            if (status < 0) {
+                GT_setFailureReason (curTrace,
+                                     GT_4CLASS,
+                                     "SysMgr_setup",
+                                     status,
+                                     "MessageQTransportShm_destroy failed!");
+            }
+            else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-            SysMgr_state.notifyDriverShmInitFlag = FALSE;
+                SysMgr_state.messageQTransportShmInitFlag = FALSE;
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-        }
+            }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-    }
+        }
 
-    /* Finalize MESSAGEQTRANSPORTSHM */
-    if (SysMgr_state.messageQTransportShmInitFlag == TRUE) {
-        status = MessageQTransportShm_destroy ();
+        /* Finalize LISTMPSHAREDMEMORY */
+        if (SysMgr_state.listMPSharedMemoryInitFlag == TRUE) {
+            status = ListMPSharedMemory_destroy ();
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-        if (status < 0) {
-            GT_setFailureReason (curTrace,
-                                 GT_4CLASS,
-                                 "SysMgr_setup",
-                                 status,
-                                 "MessageQTransportShm_destroy failed!");
-        }
-        else {
+            if (status < 0) {
+                GT_setFailureReason (curTrace,
+                                     GT_4CLASS,
+                                     "SysMgr_setup",
+                                     status,
+                                     "ListMpSharedMemory_destroy failed!");
+            }
+            else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-            SysMgr_state.messageQTransportShmInitFlag = FALSE;
+                SysMgr_state.listMPSharedMemoryInitFlag = FALSE;
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-        }
+            }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-    }
+        }
 
-    /* Finalize LISTMPSHAREDMEMORY */
-    if (SysMgr_state.listMPSharedMemoryInitFlag == TRUE) {
-        status = ListMPSharedMemory_destroy ();
+        /* Finalize heap buf */
+        if (SysMgr_state.heapBufInitFlag == TRUE) {
+            status = HeapBuf_destroy ();
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-        if (status < 0) {
-            GT_setFailureReason (curTrace,
-                                 GT_4CLASS,
-                                 "SysMgr_setup",
-                                 status,
-                                 "ListMpSharedMemory_destroy failed!");
-        }
-        else {
+            if (status < 0) {
+                GT_setFailureReason (curTrace,
+                                     GT_4CLASS,
+                                     "SysMgr_destroy",
+                                     status,
+                                     "HeapBuf_destroy failed!");
+            }
+            else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-            SysMgr_state.listMPSharedMemoryInitFlag = FALSE;
+                SysMgr_state.heapBufInitFlag = FALSE;
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-        }
+            }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-    }
-
-    /* Finalize heap buf */
-    if (SysMgr_state.heapBufInitFlag == TRUE) {
-        status = HeapBuf_destroy ();
-#if !defined(SYSLINK_BUILD_OPTIMIZE)
-        if (status < 0) {
-            GT_setFailureReason (curTrace,
-                                 GT_4CLASS,
-                                 "SysMgr_destroy",
-                                 status,
-                                 "HeapBuf_destroy failed!");
         }
-        else {
-#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-            SysMgr_state.heapBufInitFlag = FALSE;
-#if !defined(SYSLINK_BUILD_OPTIMIZE)
-        }
-#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-    }
 
 #if 0
-    /* Finalize coff loader */
-    if (SysMgr_state.coffLoaderInitFlag == TRUE) {
-        status = CoffLoader_destroy ();
+        /* Finalize coff loader */
+        if (SysMgr_state.coffLoaderInitFlag == TRUE) {
+            status = CoffLoader_destroy ();
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-        if (status < 0) {
-            GT_setFailureReason (curTrace,
-                                 GT_4CLASS,
-                                 "SysMgr_destroy",
-                                 status,
-                                 "CoffLoader_destroy failed!");
-        }
-        else {
+            if (status < 0) {
+                GT_setFailureReason (curTrace,
+                                     GT_4CLASS,
+                                     "SysMgr_destroy",
+                                     status,
+                                     "CoffLoader_destroy failed!");
+            }
+            else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-            SysMgr_state.coffLoaderInitFlag = FALSE;
+                SysMgr_state.coffLoaderInitFlag = FALSE;
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-        }
+            }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-    }
+        }
 #endif
 
-    /* Finalize MESSAGEQ */
-    if (SysMgr_state.messageQInitFlag == TRUE) {
-        status = MessageQ_destroy ();
+        /* Finalize MESSAGEQ */
+        if (SysMgr_state.messageQInitFlag == TRUE) {
+            status = MessageQ_destroy ();
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-        if (status < 0) {
-            GT_setFailureReason (curTrace,
-                                 GT_4CLASS,
-                                 "SysMgr_destroy",
-                                 status,
-                                 "MessageQ_destroy failed!");
-        }
-        else {
+            if (status < 0) {
+                GT_setFailureReason (curTrace,
+                                     GT_4CLASS,
+                                     "SysMgr_destroy",
+                                     status,
+                                     "MessageQ_destroy failed!");
+            }
+            else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-            SysMgr_state.messageQInitFlag = FALSE;
+                SysMgr_state.messageQInitFlag = FALSE;
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-        }
+            }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-    }
+        }
 
-    /* Finalize SYSMGR */
-    if (SysMgr_state.gatePetersonInitFlag == TRUE) {
-        status = GatePeterson_destroy ();
+        /* Finalize NOTIFYSHMDRIVER */
+        if (SysMgr_state.notifyDriverShmInitFlag == TRUE) {
+            status = NotifyDriverShm_destroy ();
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-        if (status < 0) {
-            GT_setFailureReason (curTrace,
-                                 GT_4CLASS,
-                                 "SysMgr_destroy",
-                                 status,
-                                 "GatePeterson_destroy failed!");
-        }
-        else {
+            if (status < 0) {
+                GT_setFailureReason (curTrace,
+                                     GT_4CLASS,
+                                     "SysMgr_setup",
+                                     status,
+                                     "NotifyDriverShm_destroy failed!");
+            }
+            else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-            SysMgr_state.gatePetersonInitFlag = FALSE;
+                SysMgr_state.notifyDriverShmInitFlag = FALSE;
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-        }
+            }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-    }
+        }
 
-    /* Finalize NOTIFY */
-    if (SysMgr_state.notifyInitFlag == TRUE) {
-        status = Notify_destroy ();
+        /* Finalize SYSMGR */
+        if (SysMgr_state.gatePetersonInitFlag == TRUE) {
+            status = GatePeterson_destroy ();
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-        if (status < 0) {
-            GT_setFailureReason (curTrace,
-                                 GT_4CLASS,
-                                 "SysMgr_destroy",
-                                 status,
-                                 "Notify_destroy failed!");
-        }
-        else {
+            if (status < 0) {
+                GT_setFailureReason (curTrace,
+                                     GT_4CLASS,
+                                     "SysMgr_destroy",
+                                     status,
+                                     "GatePeterson_destroy failed!");
+            }
+            else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-            SysMgr_state.notifyInitFlag = FALSE;
+                SysMgr_state.gatePetersonInitFlag = FALSE;
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-        }
+            }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-    }
+        }
 
-    /* Finalize SharedRegion */
-    if (SysMgr_state.sharedRegionInitFlag == TRUE) {
-        status = SharedRegion_destroy ();
+        /* Finalize NOTIFY */
+        if (SysMgr_state.notifyInitFlag == TRUE) {
+            status = Notify_destroy ();
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-        if (status < 0) {
-            GT_setFailureReason (curTrace,
-                                 GT_4CLASS,
-                                 "SysMgr_destroy",
-                                 status,
-                                 "SharedRegion_destroy failed!");
-        }
-        else {
+            if (status < 0) {
+                GT_setFailureReason (curTrace,
+                                     GT_4CLASS,
+                                     "SysMgr_destroy",
+                                     status,
+                                     "Notify_destroy failed!");
+            }
+            else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-            SysMgr_state.sharedRegionInitFlag = FALSE;
+                SysMgr_state.notifyInitFlag = FALSE;
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-        }
+            }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-    }
+        }
 
-    /* Finalize PROCMGR */
-    if (SysMgr_state.procMgrInitFlag == TRUE) {
-        status = ProcMgr_destroy ();
+        /* Finalize SharedRegion */
+        if (SysMgr_state.sharedRegionInitFlag == TRUE) {
+            status = SharedRegion_destroy ();
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-        if (status < 0) {
-            GT_setFailureReason (curTrace,
-                                 GT_4CLASS,
-                                 "SysMgr_destroy",
-                                 status,
-                                 "ProcMgr_destroy failed!");
-        }
-        else {
+            if (status < 0) {
+                GT_setFailureReason (curTrace,
+                                     GT_4CLASS,
+                                     "SysMgr_destroy",
+                                     status,
+                                     "SharedRegion_destroy failed!");
+            }
+            else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-            SysMgr_state.procMgrInitFlag = FALSE;
+                SysMgr_state.sharedRegionInitFlag = FALSE;
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-        }
+            }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-    }
+        }
 
-    /* Finalize NAMESERVER */
-    if (SysMgr_state.nameServerInitFlag == TRUE) {
-        status = NameServer_destroy ();
+        /* Finalize PROCMGR */
+        if (SysMgr_state.procMgrInitFlag == TRUE) {
+            status = ProcMgr_destroy ();
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-        if (status < 0) {
-            GT_setFailureReason (curTrace,
-                                 GT_4CLASS,
-                                 "SysMgr_destroy",
-                                 status,
-                                 "NameServer_destroy failed!");
-        }
-        else {
+            if (status < 0) {
+                GT_setFailureReason (curTrace,
+                                     GT_4CLASS,
+                                     "SysMgr_destroy",
+                                     status,
+                                     "ProcMgr_destroy failed!");
+            }
+            else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-            SysMgr_state.nameServerInitFlag = FALSE;
+                SysMgr_state.procMgrInitFlag = FALSE;
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-        }
+            }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-    }
+        }
 
-    /* Finalize PROCMGR */
-    if (SysMgr_state.sysMemMgrInitFlag == TRUE) {
-        status = SysMemMgr_destroy ();
+        /* Finalize NAMESERVER */
+        if (SysMgr_state.nameServerInitFlag == TRUE) {
+            status = NameServer_destroy ();
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-        if (status < 0) {
-            GT_setFailureReason (curTrace,
-                                 GT_4CLASS,
-                                 "SysMgr_destroy",
-                                 status,
-                                 "SysMemMgr_destroy failed!");
-        }
-        else {
+            if (status < 0) {
+                GT_setFailureReason (curTrace,
+                                     GT_4CLASS,
+                                     "SysMgr_destroy",
+                                     status,
+                                     "NameServer_destroy failed!");
+            }
+            else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-            SysMgr_state.sysMemMgrInitFlag = FALSE;
+                SysMgr_state.nameServerInitFlag = FALSE;
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-        }
+            }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-    }
+        }
 
-    /* Destroy the multiProc */
-    MultiProc_destroy ();
+        /* Finalize PROCMGR */
+        if (SysMgr_state.sysMemMgrInitFlag == TRUE) {
+            status = SysMemMgr_destroy ();
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+            if (status < 0) {
+                GT_setFailureReason (curTrace,
+                                     GT_4CLASS,
+                                     "SysMgr_destroy",
+                                     status,
+                                     "SysMemMgr_destroy failed!");
+            }
+            else {
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+                SysMgr_state.sysMemMgrInitFlag = FALSE;
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+            }
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+        }
 
-    /* TBD: Protect from multiple threads. */
-    SysMgr_state.setupRefCount--;
-    /* This is needed at runtime so should not be in SYSLINK_BUILD_OPTIMIZE. */
-    if (SysMgr_state.setupRefCount > 1) {
-        /*! @retval SYSMGR_S_ALREADYSETUP Success: SysMgr module has been
-                                           already setup in this process */
-        status = SYSMGR_S_ALREADYSETUP;
-        GT_1trace (curTrace,
-                   GT_1CLASS,
-                   "SysMgr module has been already setup in this process.\n"
-                   "    RefCount: [%d]\n",
-                   SysMgr_state.setupRefCount);
-    }
-    else {
+        /* Destroy the multiProc */
+        MultiProc_destroy ();
+
         status = SysMgrDrv_ioctl (CMD_SYSMGR_DESTROY, &cmdArgs);
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
         if (status < 0) {
@@ -837,12 +823,11 @@ SysMgr_destroy (void)
                                  "API (through IOCTL) failed on kernel-side!");
         }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-    }
 
-    UsrUtilsDrv_destroy ();
+        UsrUtilsDrv_destroy ();
 
-    /* Close the driver handle. */
-    SysMgrDrv_close ();
+        /* Close the driver handle. */
+        SysMgrDrv_close ();
 
 
     } /* Reference count check */
