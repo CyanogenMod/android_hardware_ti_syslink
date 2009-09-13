@@ -242,7 +242,7 @@ typedef enum {
     ProcMgr_MapType_Phys     = 1u,
     /*!< Map/unmap to Physical address space */
     ProcMgr_MapType_Tiler    = 2u,
-    /*!< Map/unmap to Physical address space */
+    /*!< Map/unmap to TILER address space */
     ProcMgr_MapType_EndValue = 3u
     /*!< End delimiter indicating start of invalid values for this enum */
 } ProcMgr_MapType;
