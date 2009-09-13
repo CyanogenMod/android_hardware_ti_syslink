@@ -44,7 +44,7 @@ extern "C" {
 /*
  *  Function to Test use buffer functionality using Tiler and Syslink IPC
  */
-Int SyslinkUseBufferTest(Int);
+Int SyslinkUseBufferTest(Int, Bool);
 
 /*!
  *  @brief  Function to Test Physical to Virtual address translation for tiler address

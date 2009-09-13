@@ -48,6 +48,8 @@ Int main (Int argc, Char * argv [])
 {
     Int status = 0;
     Int testNo;
+    Int subTestNo;
+    Int procId;
 
     Osal_printf ("\n== Syslink Mem Utils Sample ==\n");
 
@@ -59,18 +61,29 @@ Int main (Int argc, Char * argv [])
                         "Syslink Virt to Phys.\n");
         Osal_printf ("\t./syslink_tilertest.out 2 : "
                         "Syslink Virt to Phys.Pages\n");
-          Osal_printf ("\t./syslink_tilertest.out 3 : "
+          Osal_printf ("\t./syslink_tilertest.out 3 1 : "
                         "Syslink Use Tiler Buffer on SysM3\n");
-          Osal_printf ("\t./syslink_tilertest.out 4 : "
+          Osal_printf ("\t./syslink_tilertest.out 3 2 : "
                         "Syslink Use Tiler Buffer on AppM3\n");
+          Osal_printf ("\t./syslink_tilertest.out 4 1 : "
+                        "Syslink Use Malloc Buffer on SysM3\n");
+          Osal_printf ("\t./syslink_tilertest.out 4 2 : "
+                        "Syslink Use Malloc Buffer on AppM3\n");
         goto exit;
     }
 
     testNo = atoi (argv[1]);
+    subTestNo = atoi (argv[2]);
+
+    /* Determine proc ID based on subtest number */
+    if(subTestNo == 1)
+        procId = 2;   // SysM3
+    if(subTestNo == 2)
+        procId = 3;   // AppM3
 
     /* Run SyslinkVirtToPhysTest test */
     if(testNo == 1) {
-        Osal_printf ("SyslinkVirtToPhysTest  invoked\n");
+        Osal_printf ("SyslinkVirtToPhysTest invoked.\n");
         status = SyslinkVirtToPhysTest();
         if (status < 0) {
             Osal_printf ("Error in SyslinkVirtToPhysTest test \n");
@@ -79,22 +92,22 @@ Int main (Int argc, Char * argv [])
 
     /* Run SyslinkVirtToPhysPagesTesttest */
     if(testNo == 2) {
-        Osal_printf ("SyslinkVirtToPhysPagesTest test invoked\n");
+        Osal_printf ("SyslinkVirtToPhysPagesTest test invoked.\n");
         status = SyslinkVirtToPhysPagesTest ();
         if (status < 0)
             Osal_printf ("Error in SyslinkVirtToPhysPagesTest test \n");
     }
 
     if(testNo == 3) {
-        Osal_printf ("SyslinkUseBufferTest on SysM3 invoked\n");
-        status = SyslinkUseBufferTest (2);
+        Osal_printf ("SyslinkUseBufferTest with TILER invoked.\n");
+        status = SyslinkUseBufferTest (procId, TRUE);
         if (status < 0)
             Osal_printf ("Error in SyslinkUseBufferTest test \n");
     }
 
     if(testNo == 4) {
-        Osal_printf ("SyslinkUseBufferTest on AppM3 invoked\n");
-        status = SyslinkUseBufferTest (3);
+        Osal_printf ("SyslinkUseBufferTest with Malloc invoked.\n");
+        status = SyslinkUseBufferTest (procId, FALSE);
         if (status < 0)
             Osal_printf ("Error in SyslinkUseBufferTest test \n");
     }

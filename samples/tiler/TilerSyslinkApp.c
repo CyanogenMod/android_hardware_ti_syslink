@@ -95,7 +95,7 @@ typedef struct {
  *
  *  @sa
  */
-Int SyslinkUseBufferTest (Int procId)
+Int SyslinkUseBufferTest (Int procId, Bool useTiler)
 {
     Int                             fd;
     void *                          mapBase;
@@ -129,8 +129,9 @@ Int SyslinkUseBufferTest (Int procId)
     Int                             count = 0;
     UInt32                          entry_point = 0;
     UInt                            i;
-    Ptr                             tilerPtr = NULL;
+    Ptr                             bufPtr = NULL;
     UInt                            usrSharedAddr;
+    ProcMgr_MapType                 mapType;
 
     SysMgr_getConfig (&config);
     status = SysMgr_setup (&config);
@@ -210,40 +211,60 @@ Int SyslinkUseBufferTest (Int procId)
         }
     }
 
-    Osal_printf("Opening /dev/mem.\n");
-    fd = open ("/dev/mem", O_RDWR|O_SYNC);
-
-    TilerMgr_Open();
-
-    if (fd) {
-
+    if(useTiler) {
+        TilerMgr_Open();
         Osal_printf("Calling tilerAlloc.\n");
-        tilerPtr = (Ptr)TilerMgr_Alloc(PIXEL_FMT_8BIT, mapSize, 1);
-
-        if(tilerPtr == NULL) {
+        bufPtr = (Ptr)TilerMgr_Alloc(PIXEL_FMT_8BIT, mapSize, 1);
+        if(bufPtr == NULL) {
             Osal_printf("Error: tilerAlloc returned null.\n");
             status = -1;
+
             return status;
         }
         else {
-            Osal_printf("tilerAlloc returned 0x%x.\n", (UInt)tilerPtr);
+            Osal_printf("tilerAlloc returned 0x%x.\n", (UInt)bufPtr);
         }
 
-        mapBase = mmap(0,  mapSize, PROT_READ | PROT_WRITE, MAP_SHARED, fd,
-                                                       (UInt)tilerPtr);
-        if(mapBase == (void *) -1) {
-            Osal_printf("Failed to do memory mapping \n");
+        mapType = ProcMgr_MapType_Tiler;
+    }
+    else {
+        Osal_printf("Calling malloc.\n");
+        bufPtr = (Ptr)malloc(mapSize);
+
+        if(bufPtr == NULL) {
+            Osal_printf("Error: malloc returned null.\n");
             return -1;
         }
-    }else{
-        Osal_printf("Failed opening /dev/mem file\n");
-        return -2;
+        else {
+            Osal_printf("malloc returned 0x%x.\n", (UInt)bufPtr);
+        }
+        mapType = ProcMgr_MapType_Virt;
     }
+
+    if(useTiler) {
+        Osal_printf("Opening /dev/mem.\n");
+        fd = open ("/dev/mem", O_RDWR|O_SYNC);
+        if (fd) {
+            mapBase = mmap(0,  mapSize, PROT_READ | PROT_WRITE, MAP_SHARED, fd,
+                                                       (UInt)bufPtr);
+            if(mapBase == (void *) -1) {
+                Osal_printf("Failed to do memory mapping \n");
+                return -1;
+            }
+        }
+        else {
+            Osal_printf("Failed opening /dev/mem file\n");
+            return -2;
+        }
+    }
+    else
+        mapBase = bufPtr;
+
     printf("map_base = 0x%x \n", (UInt32)mapBase);
     MpuAddr_list[0].mpuAddr = (UInt32)mapBase;
     MpuAddr_list[0].size = mapSize;
     status = SysLinkMemUtils_map (MpuAddr_list, 1, &mappedAddr,
-                            ProcMgr_MapType_Tiler, PROC_SYSM3);
+                            mapType, PROC_SYSM3);
     Osal_printf("MPU Address = 0x%x     Mapped Address = 0x%x\n",
                             MpuAddr_list[0].mpuAddr, mappedAddr);
 
@@ -290,8 +311,6 @@ Int SyslinkUseBufferTest (Int procId)
     Osal_printf ("Creating RcmClient instance %s.\n", remoteServerName);
     rcmClient_Params.callbackNotification = 0; /* disable asynchronous exec */
     rcmClient_Params.heapId = HEAPID; /* TODO test RCMCLIENT_DEFAULT_HEAPID*/
-
-//      curTrace = GT_TraceState_Enable | GT_TraceEnter_Enable | GT_TraceSetFailure_Enable | 0x000F0000;
 
     while ((rcmClientHandle == NULL) && (count++ < MAX_CREATE_ATTEMPTS)) {
         status = RcmClient_create (remoteServerName, &rcmClient_Params,
@@ -379,11 +398,22 @@ Int SyslinkUseBufferTest (Int procId)
 
     ///////////////////// Cleanup //////////////////////
 
-    Osal_printf("Freeing TILER buffer\n");
-    TilerMgr_Free((Int)tilerPtr);
+    if(useTiler) {
+        Osal_printf("Freeing TILER buffer\n");
+        TilerMgr_Free((Int)bufPtr);
 
-    TilerMgr_Close();
+        if (munmap(mapBase,mapSize) == -1)
+                Osal_printf("Memory Unmap failed.\n");
+        else
+            Osal_printf("Memory Unmap successful.\n");
+        close(fd);
 
+        TilerMgr_Close();
+    }
+    else {
+        SysLinkMemUtils_unmap(mappedAddr, PROC_SYSM3);
+        free(bufPtr);
+    }
     // send terminate message
 
     // allocate a remote command message
@@ -442,11 +472,10 @@ Int SyslinkUseBufferTest (Int procId)
     status = ProcMgr_close (&procMgrHandle_client);
     Osal_printf ("ProcMgr_close status: [0x%x]\n", status);
 
-    SysMgr_destroy();
+    status = SysMgr_destroy();
+    Osal_printf("SysMgr_destroy status: [0x%x]\n", status);
 
-    if (munmap(mapBase,mapSize) == -1)
-            Osal_printf("Memory Unmap failed \n");
-        close(fd);
+    Osal_printf ("SyslinkUseBufferTest done!\n");
 
 exit:
     return status;
