@@ -25,6 +25,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
 /* OSAL & Utils headers */
 #include <OsalPrint.h>
@@ -54,18 +56,26 @@ Int main (Int argc, Char * argv [])
     child_pid = fork();
     if (child_pid < 0) {
         Osal_printf("Spawn daemon failed!\n");
-        exit(1);     /* Failure */
+        exit(EXIT_FAILURE);     /* Failure */
     }
     /* If we got a good PID, then we can exit the parent process. */
     if (child_pid > 0) {
         Osal_printf("Spawn daemon succeeded!\n");
-        exit(0);    /* Succeess */
+        exit(EXIT_SUCCESS);    /* Succeess */
     }
+
+    /* Change file mode mask */
+    umask(0);
 
     /* Create a new SID for the child process */
     child_sid = setsid();
     if (child_sid < 0)
-        exit(0);
+        exit(EXIT_FAILURE);     /* Failure */
+
+    /* Change the current working directory */
+    if ((chdir("/")) < 0) {
+        exit(EXIT_FAILURE);     /* Failure */
+    }
 
     /* Close standard file descriptors */
     //close(STDIN_FILENO);
