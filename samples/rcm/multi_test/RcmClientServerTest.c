@@ -86,6 +86,15 @@ extern "C" {
  */
 #define BASE_ARM2DSP_INTID     55
 
+/*!
+ *  Definitions for additional application specified HeapBuf.
+ */
+#define SHAREDMEM2             0x80000000
+#define SHAREDMEMSIZE2         0x400000
+#define APP_HEAP_SHAREDBUF     0x2000
+#define APP_HEAP_HEAPNAME      "ApplicationHeap0"
+#define APP_HEAP_BLOCKSIZE     256
+
 /*RCM client test definitions*/
 typedef struct {
     Int a;
@@ -114,6 +123,8 @@ GatePeterson_Handle             gateHandle_client;
 GatePeterson_Handle             gateHandle_server;
 NameServerRemoteNotify_Handle   nsrnHandle;
 HeapBuf_Handle                  heapHandle = NULL;
+GatePeterson_Handle             gateHandle_app_heap;
+HeapBuf_Handle                  heapHandle_app_heap = NULL;
 MessageQTransportShm_Handle     transportShmHandle;
 ProcMgr_Handle                  procMgrHandle;
 UInt16                          remoteId;
@@ -362,6 +373,7 @@ Int ipc_setup (Int testCase)
     UInt16                          procId;
     UInt32                          shAddrBase;
     UInt32                          shAddrBase1;
+    UInt32                          shAddrBase2;
     UInt32                          curShAddr;
     UInt32                          nsrnEventNo;
     UInt32                          mqtEventNo;
@@ -394,6 +406,8 @@ Int ipc_setup (Int testCase)
     HeapBuf_Params                  heapbufParams;
     MessageQTransportShm_Params     msgqTransportParams;
 #endif /* if defined(SYSLINK_USE_SYSMGR) */
+    GatePeterson_Params             gateParams_app_heap;
+    HeapBuf_Params                  heapbufParams_app_heap;
     Int                             status = 0;
 
     Osal_printf ("ipc_setup: Setup IPC componnets \n");
@@ -433,6 +447,7 @@ Int ipc_setup (Int testCase)
     status = MultiProc_setup(&multiProcConfig);
     if (status < 0) {
         Osal_printf ("Error in MultiProc_setup [0x%x]\n", status);
+        goto exit;
     }
 #endif
 
@@ -443,268 +458,257 @@ Int ipc_setup (Int testCase)
     status = SysMgr_setup (&config);
     if (status < 0) {
         Osal_printf ("Error in SysMgr_setup [0x%x]\n", status);
+        goto exit;
     }
 #else /* if defined(SYSLINK_USE_SYSMGR) */
-    if (status >= 0) {
-        UsrUtilsDrv_setup ();
 
-        /* NameServer and NameServerRemoteNotify module setup */
-        status = NameServer_setup ();
-        if (status < 0) {
-            Osal_printf ("ipc_setup: Error in NameServer_setup [0x%x]\n",
-                            status);
-        }
-        else {
-            Osal_printf ("ipc_setup: NameServer_setup Status [0x%x]\n", status);
-            NameServerRemoteNotify_getConfig (&nsrConfig);
-            status = NameServerRemoteNotify_setup (&nsrConfig);
-            if (status < 0) {
-                Osal_printf ("ipc_setup: Error in NameServerRemoteNotify_setup "
-                            "[0x%x]\n", status);
-            }
-            else {
-                Osal_printf ("NameServerRemoteNotify_setup Status [0x%x]\n",
-                             status);
-            }
-        }
+    UsrUtilsDrv_setup ();
+
+    /* NameServer and NameServerRemoteNotify module setup */
+    status = NameServer_setup ();
+    if (status < 0) {
+        Osal_printf ("ipc_setup: Error in NameServer_setup [0x%x]\n",
+                        status);
+        goto exit;
     }
+    Osal_printf ("ipc_setup: NameServer_setup Status [0x%x]\n", status);
 
-    if (status >= 0) {
-        /*
-         *  Need to define the shared region. The IPC modules use this
-         *  to make portable pointers. All processors need to add this
-         *  same call with their base address of the shared memory region.
-         *  If the processor cannot access the memory, do not add it.
-         */
-        /* SharedRegion module setup */
-        sharedRegConfig.gateHandle = NULL;
-        sharedRegConfig.heapHandle = NULL;
-        sharedRegConfig.maxRegions = 4;
-        status = SharedRegion_setup(&sharedRegConfig);
-        if (status < 0) {
-            Osal_printf ("ipc_setup: Error in SharedRegion_setup."
-                        "Status [0x%x]\n", status);
-        }
-        else {
-            Osal_printf ("ipc_setup: SharedRegion_setup Status [0x%x]\n",
-                            status);
-        }
+    NameServerRemoteNotify_getConfig (&nsrConfig);
+    status = NameServerRemoteNotify_setup (&nsrConfig);
+    if (status < 0) {
+        Osal_printf ("ipc_setup: Error in NameServerRemoteNotify_setup "
+                    "[0x%x]\n", status);
+        goto exit;
     }
+    Osal_printf ("NameServerRemoteNotify_setup Status [0x%x]\n",
+                    status);
 
-    if (status >= 0) {
-        /* ListMPSharedMemory module setup */
-        ListMPSharedMemory_getConfig (&listMPSharedConfig);
-        status = ListMPSharedMemory_setup (&listMPSharedConfig);
-        if (status < 0) {
-            Osal_printf ("ipc_setup: Error in ListMPSharedMemory_setup."
-                         " Status [0x%x]\n",
-                         status);
-        }
-        else  {
-            Osal_printf ("ipc_setup: ListMPSharedMemory_setup Status [0x%x]\n",
-                         status);
+    /*
+     *  Need to define the shared region. The IPC modules use this
+     *  to make portable pointers. All processors need to add this
+     *  same call with their base address of the shared memory region.
+     *  If the processor cannot access the memory, do not add it.
+     */
 
-            /* HeapBuf module setup */
-            HeapBuf_getConfig (&heapbufConfig);
-            status = HeapBuf_setup (&heapbufConfig);
-            if (status < 0) {
-                Osal_printf ("ipc_setup: Error in HeapBuf_setup."
-                            "Status [0x%x]\n", status);
-            }
-            else {
-                Osal_printf ("ipc_setup: HeapBuf_setup Status [0x%x]\n",
-                                status);
-            }
-        }
+    /* SharedRegion module setup */
+    sharedRegConfig.gateHandle = NULL;
+    sharedRegConfig.heapHandle = NULL;
+    sharedRegConfig.maxRegions = 4;
+    status = SharedRegion_setup(&sharedRegConfig);
+    if (status < 0) {
+        Osal_printf ("ipc_setup: Error in SharedRegion_setup."
+                    "Status [0x%x]\n", status);
+        goto exit;
     }
+    Osal_printf ("ipc_setup: SharedRegion_setup Status [0x%x]\n",
+                        status);
 
-    if (status >= 0) {
-        /* GatePeterson module setup */
-        GatePeterson_getConfig (&gpConfig);
-        status = GatePeterson_setup (&gpConfig);
-        if (status < 0) {
-            Osal_printf ("ipc_setup: Error in GatePeterson_setup."
-                        "Status [0x%x]\n", status);
-        }
-        else {
-            Osal_printf ("ipc_setup: GatePeterson_setup Status [0x%x]\n",
-                            status);
-        }
+    /* ListMPSharedMemory module setup */
+    ListMPSharedMemory_getConfig (&listMPSharedConfig);
+    status = ListMPSharedMemory_setup (&listMPSharedConfig);
+    if (status < 0) {
+        Osal_printf ("ipc_setup: Error in ListMPSharedMemory_setup."
+                     " Status [0x%x]\n",
+                     status);
+        goto exit;
     }
+    Osal_printf ("ipc_setup: ListMPSharedMemory_setup Status [0x%x]\n",
+                     status);
 
-    if (status >= 0) {
-        /* Setup Notify module and NotifyDriverShm module */
-        Notify_getConfig (&notifyConfig);
-        notifyConfig.maxDrivers = 2;
-        status = Notify_setup (&notifyConfig);
-        if (status < 0) {
-            Osal_printf ("ipc_setup: Error in Notify_setup [0x%x]\n", status);
-        }
-        else {
-            Osal_printf ("ipc_setup: Notify_setup Status [0x%x]\n", status);
-            NotifyDriverShm_getConfig (&notifyDrvShmConfig);
-            status = NotifyDriverShm_setup (&notifyDrvShmConfig);
-            if (status < 0) {
-                Osal_printf ("ipc_setup: Error in NotifyDriverShm_setup "
-                            "[0x%x]\n", status);
-            }
-            else {
-                Osal_printf ("ipc_setup: NotifyDriverShm_setup Status [0x%x]\n",
-                                status);
-            }
-        }
+    /* HeapBuf module setup */
+    HeapBuf_getConfig (&heapbufConfig);
+    status = HeapBuf_setup (&heapbufConfig);
+    if (status < 0) {
+        Osal_printf ("ipc_setup: Error in HeapBuf_setup."
+                       "Status [0x%x]\n", status);
+        goto exit;
     }
+    Osal_printf ("ipc_setup: HeapBuf_setup Status [0x%x]\n",
+                     status);
 
-    if (status >= 0) {
-        /* Setup MessageQ module and MessageQTransportShm module */
-        MessageQ_getConfig (&messageqConfig);
-        status = MessageQ_setup (&messageqConfig);
-        if (status < 0) {
-            Osal_printf ("ipc_setup: Error in MessageQ_setup [0x%x]\n", status);
-        }
-        else {
-            Osal_printf ("ipc_setup: MessageQ_setup Status [0x%x]\n", status);
-            MessageQTransportShm_getConfig (&msgqTransportConfig);
-            status = MessageQTransportShm_setup (&msgqTransportConfig);
-            if (status < 0) {
-                Osal_printf ("ipc_setup: Error in MessageQTransportShm_setup "
-                            "[0x%x]\n", status);
-            }
-            else {
-                Osal_printf ("ipc_setup: MessageQTransportShm_setup Status "
-                            "[0x%x]\n", status);
-            }
-        }
+    /* GatePeterson module setup */
+    GatePeterson_getConfig (&gpConfig);
+    status = GatePeterson_setup (&gpConfig);
+    if (status < 0) {
+        Osal_printf ("ipc_setup: Error in GatePeterson_setup."
+                    "Status [0x%x]\n", status);
+        goto exit;
     }
+    Osal_printf ("ipc_setup: GatePeterson_setup Status [0x%x]\n",
+                    status);
+
+    /* Setup Notify module and NotifyDriverShm module */
+    Notify_getConfig (&notifyConfig);
+    notifyConfig.maxDrivers = 2;
+    status = Notify_setup (&notifyConfig);
+    if (status < 0) {
+        Osal_printf ("ipc_setup: Error in Notify_setup [0x%x]\n", status);
+        goto exit;
+    }
+    Osal_printf ("ipc_setup: Notify_setup Status [0x%x]\n", status);
+
+    NotifyDriverShm_getConfig (&notifyDrvShmConfig);
+    status = NotifyDriverShm_setup (&notifyDrvShmConfig);
+    if (status < 0) {
+        Osal_printf ("ipc_setup: Error in NotifyDriverShm_setup "
+                        "[0x%x]\n", status);
+        goto exit;
+    }
+    Osal_printf ("ipc_setup: NotifyDriverShm_setup Status [0x%x]\n",
+                      status);
+
+    /* Setup MessageQ module and MessageQTransportShm module */
+    MessageQ_getConfig (&messageqConfig);
+    status = MessageQ_setup (&messageqConfig);
+    if (status < 0) {
+        Osal_printf ("ipc_setup: Error in MessageQ_setup [0x%x]\n", status);
+        goto exit;
+    }
+    Osal_printf ("ipc_setup: MessageQ_setup Status [0x%x]\n", status);
+
+    MessageQTransportShm_getConfig (&msgqTransportConfig);
+    status = MessageQTransportShm_setup (&msgqTransportConfig);
+    if (status < 0) {
+        Osal_printf ("ipc_setup: Error in MessageQTransportShm_setup "
+                       "[0x%x]\n", status);
+        goto exit;
+    }
+    Osal_printf ("ipc_setup: MessageQTransportShm_setup Status "
+                       "[0x%x]\n", status);
+
 #endif /* if defined(SYSLINK_USE_SYSMGR) */
 
-    if (status >= 0) {
-        procId = MultiProc_getId (SYSM3_PROC_NAME);
-        remoteId = MultiProc_getId (procName);
+    procId = MultiProc_getId (SYSM3_PROC_NAME);
+    remoteId = MultiProc_getId (procName);
 
-        /* Open a handle to the ProcMgr instance. */
-        status = ProcMgr_open (&procMgrHandle,
-                           procId);
-        if (status < 0) {
-            Osal_printf ("Error in ProcMgr_open [0x%x]\n", status);
-        }
-        else {
-            Osal_printf ("ProcMgr_open Status [0x%x]\n", status);
-            /* Get the address of the shared region in kernel space. */
-            status = ProcMgr_translateAddr (procMgrHandle,
-                                            (Ptr) &shAddrBase,
-                                            ProcMgr_AddrType_MasterUsrVirt,
-                                            (Ptr) SHAREDMEM,
-                                            ProcMgr_AddrType_SlaveVirt);
-            if (status < 0) {
-                Osal_printf ("Error in ProcMgr_translateAddr [0x%x]\n",
-                             status);
-            }
-            else {
-                Osal_printf ("Virt address of shared address base #1:"
-                             " [0x%x]\n", shAddrBase);
-            }
-
-            if (status >= 0) {
-                /* Get the address of the shared region in kernel space. */
-                status = ProcMgr_translateAddr (procMgrHandle,
-                                                (Ptr) &shAddrBase1,
-                                                ProcMgr_AddrType_MasterUsrVirt,
-                                                (Ptr) SHAREDMEM1,
-                                                ProcMgr_AddrType_SlaveVirt);
-                if (status < 0) {
-                    Osal_printf ("Error in ProcMgr_translateAddr [0x%x]\n",
-                                 status);
-                }
-                else {
-                    Osal_printf ("Virt address of shared address base #2:"
-                                 " [0x%x]\n", shAddrBase1);
-                }
-            }
-        }
+    /* Open a handle to the ProcMgr instance. */
+    status = ProcMgr_open (&procMgrHandle, procId);
+    if (status < 0) {
+        Osal_printf ("Error in ProcMgr_open [0x%x]\n", status);
+        goto exit;
     }
+    Osal_printf ("ProcMgr_open Status [0x%x]\n", status);
 
-    if (status >= 0) {
-        curShAddr = shAddrBase;
-        /* Add the region to SharedRegion module. */
-        status = SharedRegion_add (0,
-                                   (Ptr) curShAddr,
-                                   SHAREDMEMSIZE);
-        if (status < 0) {
-            Osal_printf ("ipc_setup: Error in SharedRegion_add [0x%x]\n",
-                            status);
-        }
-        else {
-            Osal_printf ("SharedRegion_add [0x%x]\n", status);
-        }
+    /* Get the address of the shared region in kernel space. */
+    status = ProcMgr_translateAddr (procMgrHandle,
+                                    (Ptr) &shAddrBase,
+                                    ProcMgr_AddrType_MasterUsrVirt,
+                                    (Ptr) SHAREDMEM,
+                                    ProcMgr_AddrType_SlaveVirt);
+    if (status < 0) {
+        Osal_printf ("Error in ProcMgr_translateAddr [0x%x]\n",
+                       status);
+        goto exit;
     }
+    Osal_printf ("Virt address of shared address base #1:"
+                         " [0x%x]\n", shAddrBase);
 
-    if (status >= 0) {
-        /* Add the region to SharedRegion module. */
-        status = SharedRegion_add (1,
-                                   (Ptr) shAddrBase1,
-                                   SHAREDMEMSIZE1);
-        if (status < 0) {
-            Osal_printf ("ipc_setup: Error in SharedRegion_add1 [0x%x]\n",
-                            status);
-        }
-        else {
-            Osal_printf ("SharedRegion_add1 [0x%x]\n", status);
-        }
+    /* Get the address of the shared region in kernel space. */
+    status = ProcMgr_translateAddr (procMgrHandle,
+                                    (Ptr) &shAddrBase1,
+                                    ProcMgr_AddrType_MasterUsrVirt,
+                                    (Ptr) SHAREDMEM1,
+                                    ProcMgr_AddrType_SlaveVirt);
+    if (status < 0) {
+        Osal_printf ("Error in ProcMgr_translateAddr [0x%x]\n",
+                           status);
+        goto exit;
     }
+    Osal_printf ("Virt address of shared address base #2:"
+                            " [0x%x]\n", shAddrBase1);
+
+    /* Get the address of the shared region in kernel space. */
+    status = ProcMgr_translateAddr (procMgrHandle,
+                                    (Ptr) &shAddrBase2,
+                                    ProcMgr_AddrType_MasterUsrVirt,
+                                    (Ptr) SHAREDMEM2,
+                                    ProcMgr_AddrType_SlaveVirt);
+    if (status < 0) {
+        Osal_printf ("Error in ProcMgr_translateAddr [0x%x]\n", status);
+        goto exit;
+    }
+    Osal_printf ("Virt address of shared address base #3:"
+                    " [0x%x]\n", shAddrBase2);
+
+    curShAddr = shAddrBase;
+    /* Add the region to SharedRegion module. */
+    status = SharedRegion_add (0,
+                               (Ptr) curShAddr,
+                               SHAREDMEMSIZE);
+    if (status < 0) {
+        Osal_printf ("ipc_setup: Error in SharedRegion_add [0x%x]\n", status);
+        goto exit;
+    }
+    Osal_printf ("SharedRegion_add [0x%x]\n", status);
+
+    /* Add the region to SharedRegion module. */
+    status = SharedRegion_add (1,
+                               (Ptr) shAddrBase1,
+                               SHAREDMEMSIZE1);
+    if (status < 0) {
+        Osal_printf ("ipc_setup: Error in SharedRegion_add1 [0x%x]\n", status);
+        goto exit;
+    }
+    Osal_printf ("SharedRegion_add1 [0x%x]\n", status);
+
+    /* Add the region to SharedRegion module. */
+    status = SharedRegion_add (2,
+                               (Ptr) shAddrBase2,
+                               SHAREDMEMSIZE2);
+    if (status < 0) {
+        Osal_printf ("ipc_setup: Error in SharedRegion_add2 [0x%x]\n", status);
+        goto exit;
+    }
+    Osal_printf ("SharedRegion_add2 [0x%x]\n", status);
 
 #if !defined(SYSLINK_USE_SYSMGR)
-    if (status >= 0) {
-        /* Create instance of NotifyDriverShm */
-        NotifyDriverShm_Params_init (NULL, &notifyShmParams);
-        //notifyShmParams.sharedAddr= (UInt32)curShAddr;
-        //notifyShmParams.sharedAddrSize = 0x4000;
-        /* NotifyDriverShm_sharedMemReq (&notifyShmParams); */
-        notifyShmParams.numEvents          = 32;
-        notifyShmParams.numReservedEvents  = 0;
-        notifyShmParams.sendEventPollCount = (UInt32) -1;
-        notifyShmParams.recvIntId          = BASE_DSP2ARM_INTID;
-        notifyShmParams.sendIntId          = BASE_ARM2DSP_INTID;
-        notifyShmParams.remoteProcId       = procId;
+    /* Create instance of NotifyDriverShm */
+    NotifyDriverShm_Params_init (NULL, &notifyShmParams);
+    //notifyShmParams.sharedAddr= (UInt32)curShAddr;
+    //notifyShmParams.sharedAddrSize = 0x4000;
+    /* NotifyDriverShm_sharedMemReq (&notifyShmParams); */
+    notifyShmParams.numEvents          = 32;
+    notifyShmParams.numReservedEvents  = 0;
+    notifyShmParams.sendEventPollCount = (UInt32) -1;
+    notifyShmParams.recvIntId          = BASE_DSP2ARM_INTID;
+    notifyShmParams.sendIntId          = BASE_ARM2DSP_INTID;
+    notifyShmParams.remoteProcId       = procId;
 
-        if (testCase == 1) {
-            /* Increment the offset for the next allocation for MPU-SysM3 */
-            curShAddr += NOTIFYMEMSIZE;
-        }
-        else if (testCase == 2) {
-            /* Reset the address for the next allocation for MPU-AppM3 */
-            curShAddr = shAddrBase1;
-        }
-
-        /* Create instance of NotifyDriverShm */
-        notifyDrvHandle = NotifyDriverShm_create (
-                                                     "NOTIFYDRIVER_DUCATI",
-                                                     &notifyShmParams);
-        Osal_printf ("ipc_setup: NotifyDriverShm_create Handle: [0x%x]\n",
-                     notifyDrvHandle);
-        if (notifyDrvHandle == NULL) {
-            Osal_printf ("ipc_setup: Error in NotifyDriverShm_create\n");
-        }
+    if (testCase == 1) {
+        /* Increment the offset for the next allocation for MPU-SysM3 */
+        curShAddr += NOTIFYMEMSIZE;
+    }
+    else if (testCase == 2) {
+        /* Reset the address for the next allocation for MPU-AppM3 */
+        curShAddr = shAddrBase1;
     }
 
-    if (status >= 0) {
-        GatePeterson_Params_init (gateHandle_server, &gateParams);
-        gateParams.sharedAddrSize = GatePeterson_sharedMemReq (&gateParams);
-        gateParams.sharedAddr     = (Ptr)(curShAddr);
-        Osal_printf ("ipc_setup: Memory required for GatePeterson instance "
-                    "[0x%x] bytes \n",
-                     gateParams.sharedAddrSize);
-
-        gateHandle_server = GatePeterson_create (&gateParams);
-        if (gateHandle_server == NULL) {
-            Osal_printf ("ipc_setup: Error in GatePeterson_create [0x%x]\n",
-                            status);
-        }
-        else {
-            Osal_printf ("ipc_setup: GatePeterson_create Status [0x%x]\n",
-                            status);
-        }
+    /* Create instance of NotifyDriverShm */
+    notifyDrvHandle = NotifyDriverShm_create (
+                                              "NOTIFYDRIVER_DUCATI",
+                                              &notifyShmParams);
+    Osal_printf ("ipc_setup: NotifyDriverShm_create Handle: [0x%x]\n",
+                 notifyDrvHandle);
+    if (notifyDrvHandle == NULL) {
+        Osal_printf ("ipc_setup: Error in NotifyDriverShm_create\n");
+        goto exit;
     }
+
+    GatePeterson_Params_init (gateHandle_server, &gateParams);
+    gateParams.sharedAddrSize = GatePeterson_sharedMemReq (&gateParams);
+    gateParams.sharedAddr     = (Ptr)(curShAddr);
+    Osal_printf ("ipc_setup: Memory required for GatePeterson instance "
+                "[0x%x] bytes \n",
+                 gateParams.sharedAddrSize);
+
+    gateHandle_server = GatePeterson_create (&gateParams);
+    if (gateHandle_server == NULL) {
+        Osal_printf ("ipc_setup: Error in GatePeterson_create [0x%x]\n",
+                        status);
+        goto exit;
+    }
+    Osal_printf ("ipc_setup: GatePeterson_create Status [0x%x]\n",
+                    status);
 #endif
 
 #if defined(SYSLINK_USE_LOADER)
@@ -741,132 +745,170 @@ Int ipc_setup (Int testCase)
                 "image now. Press any key to continue ...\n");
     getchar ();
 
-    if (status >= 0) {
-        Osal_printf ("ipc_setup: Opening the Gate\n");
-        if (testCase == 1) {
-            curShAddr_temp = curShAddr + GATEPETERSONMEMSIZE + HEAPBUFMEMSIZE
-                                + NSRN_MEMSIZE + TRANSPORTMEMSIZE
-                                + MESSAGEQ_NS_MEMSIZE + HEAPBUF_NS_MEMSIZE;
-        }
-        else
-        {
-            curShAddr_temp = curShAddr + GATEPETERSONMEMSIZE + HEAPBUFMEMSIZE
-                                + NSRN_MEMSIZE + TRANSPORTMEMSIZE
-                                + MESSAGEQ_NS_MEMSIZE + HEAPBUF_NS_MEMSIZE
-                                + HEAPBUFMEMSIZE1;
-        }
-
-        GatePeterson_Params_init (gateHandle_client, &gateParams);
-        gateParams.sharedAddrSize = GatePeterson_sharedMemReq (&gateParams);
-        Osal_printf ("ipc_setup: Memory required for GatePeterson instance "
-                        "[0x%x] bytes \n",
-                        gateParams.sharedAddrSize);
-
-        do {
-            gateParams.sharedAddr     = (Ptr)(curShAddr_temp);
-            status = GatePeterson_open (&gateHandle_client,
-                                        &gateParams);
-        }
-        while ((status == GATEPETERSON_E_NOTFOUND) ||
-                (status == GATEPETERSON_E_VERSION));
-
-        if (status < 0) {
-            Osal_printf ("ipc_setup: Error in GatePeterson_open [0x%x]\n",
-                            status);
-        }
-        else {
-            Osal_printf ("ipc_setup: GatePeterson_open Status [0x%x]\n",
-                            status);
-        }
+    Osal_printf ("ipc_setup: Opening the Gate\n");
+    if (testCase == 1) {
+        curShAddr_temp = curShAddr + GATEPETERSONMEMSIZE + HEAPBUFMEMSIZE
+                            + NSRN_MEMSIZE + TRANSPORTMEMSIZE
+                            + MESSAGEQ_NS_MEMSIZE + HEAPBUF_NS_MEMSIZE;
+    }
+    else
+    {
+        curShAddr_temp = curShAddr + GATEPETERSONMEMSIZE + HEAPBUFMEMSIZE
+                            + NSRN_MEMSIZE + TRANSPORTMEMSIZE
+                            + MESSAGEQ_NS_MEMSIZE + HEAPBUF_NS_MEMSIZE
+                            + HEAPBUFMEMSIZE1;
     }
 
-    if (status >= 0) {
-        /* Increment the offset for the next allocation */
-        curShAddr += GATEPETERSONMEMSIZE;
+    GatePeterson_Params_init (gateHandle_client, &gateParams);
+    gateParams.sharedAddrSize = GatePeterson_sharedMemReq (&gateParams);
+    Osal_printf ("ipc_setup: Memory required for GatePeterson instance "
+                    "[0x%x] bytes \n",
+                    gateParams.sharedAddrSize);
 
-        /* Create the heap. */
-        HeapBuf_Params_init(NULL, &heapbufParams);
-        if (testCase == 1)
-            heapbufParams.name       = HEAPNAME_SYSM3;
-        else if (testCase == 2)
-            heapbufParams.name       = HEAPNAME_APPM3;
-        heapbufParams.sharedAddr     = (Ptr)(curShAddr);
-        heapbufParams.align          = 128;
-        heapbufParams.numBlocks      = 4;
-        heapbufParams.blockSize      = MSGSIZE;
-        heapbufParams.gate           = (Gate_Handle) gateHandle_client;
-        heapbufParams.sharedAddrSize = HeapBuf_sharedMemReq (&heapbufParams,
-                    &heapbufParams.sharedBufSize);
-        heapbufParams.sharedBuf      = (Ptr)(curShAddr + \
-                                                heapbufParams.sharedAddrSize);
-        heapHandle = HeapBuf_create (&heapbufParams);
-        if (heapHandle == NULL) {
-            Osal_printf ("ipc_setup: Error in HeapBuf_create\n");
-        }
-        else {
-            Osal_printf ("ipc_setup: HeapBuf_create Handle [0x%x]\n",
-                            heapHandle);
-        }
+    do {
+        gateParams.sharedAddr     = (Ptr)(curShAddr_temp);
+        status = GatePeterson_open (&gateHandle_client,
+                                    &gateParams);
+    }
+    while ((status == GATEPETERSON_E_NOTFOUND) ||
+            (status == GATEPETERSON_E_VERSION));
 
-        /* Register this heap with MessageQ */
-        if (testCase == 1)
-            MessageQ_registerHeap (heapHandle, HEAPID_SYSM3);
-        else if (testCase == 2)
-            MessageQ_registerHeap (heapHandle, HEAPID_APPM3);
+    if (status < 0) {
+        Osal_printf ("ipc_setup: Error in GatePeterson_open [0x%x]\n",
+                        status);
+        goto exit;
+    }
+    Osal_printf ("ipc_setup: GatePeterson_open Status [0x%x]\n",
+                        status);
+
+    /* Increment the offset for the next allocation */
+    curShAddr += GATEPETERSONMEMSIZE;
+
+    /* Create the heap. */
+    HeapBuf_Params_init(NULL, &heapbufParams);
+    if (testCase == 1)
+        heapbufParams.name       = HEAPNAME_SYSM3;
+    else if (testCase == 2)
+        heapbufParams.name       = HEAPNAME_APPM3;
+    heapbufParams.sharedAddr     = (Ptr)(curShAddr);
+    heapbufParams.align          = 128;
+    heapbufParams.numBlocks      = 4;
+    heapbufParams.blockSize      = MSGSIZE;
+    heapbufParams.gate           = (Gate_Handle) gateHandle_client;
+    heapbufParams.sharedAddrSize = HeapBuf_sharedMemReq (&heapbufParams,
+                                    &heapbufParams.sharedBufSize);
+    heapbufParams.sharedBuf      = (Ptr)(curShAddr +
+                                    heapbufParams.sharedAddrSize);
+    heapHandle = HeapBuf_create (&heapbufParams);
+    if (heapHandle == NULL) {
+        Osal_printf ("ipc_setup: Error in HeapBuf_create\n");
+        goto exit;
+    }
+    Osal_printf ("ipc_setup: HeapBuf_create Handle [0x%x]\n",
+                  heapHandle);
+
+    /* Register this heap with MessageQ */
+    if (testCase == 1)
+        MessageQ_registerHeap (heapHandle, HEAPID_SYSM3);
+    else if (testCase == 2)
+        MessageQ_registerHeap (heapHandle, HEAPID_APPM3);
     }
 
-    if (status >= 0) {
-        /* Increment the offset for the next allocation */
-        curShAddr += HEAPBUFMEMSIZE;
-        /*
-         *  Create the NameServerRemote implementation that is used to
-         *  communicate with the remote processor. It uses some shared
-         *  memory and the Notify module.
-         *
-         *  Note that this implementation uses Notify to communicate, so
-         *  interrupts need to be enabled. On BIOS, that does not occur
-         *  until after main returns.
-         */
-        NameServerRemoteNotify_Params_init (NULL, &nsrParams);
-        nsrParams.notifyDriver  = notifyDrvHandle;
-        nsrParams.notifyEventNo = nsrnEventNo;
-        nsrParams.sharedAddr    = (Ptr)curShAddr;
-        nsrParams.gate          = (Ptr)gateHandle_client;
-        nsrParams.sharedAddrSize  = NSRN_MEMSIZE;
-        nsrnHandle = NameServerRemoteNotify_create (remoteId, &nsrParams);
-        if (nsrnHandle == NULL) {
-            Osal_printf ("ipc_setup: Error in NotifyDriverShm_create\n");
-        }
-        else {
-            Osal_printf ("ipc_setup: NameServerRemoteNotify_create handle "
-                        "[0x%x]\n", nsrnHandle);
-        }
+    /* Increment the offset for the next allocation */
+    curShAddr += HEAPBUFMEMSIZE;
+    /*
+     *  Create the NameServerRemote implementation that is used to
+     *  communicate with the remote processor. It uses some shared
+     *  memory and the Notify module.
+     *
+     *  Note that this implementation uses Notify to communicate, so
+     *  interrupts need to be enabled. On BIOS, that does not occur
+     *  until after main returns.
+     */
+    NameServerRemoteNotify_Params_init (NULL, &nsrParams);
+    nsrParams.notifyDriver  = notifyDrvHandle;
+    nsrParams.notifyEventNo = nsrnEventNo;
+    nsrParams.sharedAddr    = (Ptr)curShAddr;
+    nsrParams.gate      = (Ptr)gateHandle_client;
+    nsrParams.sharedAddrSize  = NSRN_MEMSIZE;
+    nsrnHandle = NameServerRemoteNotify_create (remoteId, &nsrParams);
+    if (nsrnHandle == NULL) {
+        Osal_printf ("ipc_setup: Error in NotifyDriverShm_create\n");
+        goto exit;
     }
+    Osal_printf ("ipc_setup: NameServerRemoteNotify_create handle "
+                     "[0x%x]\n", nsrnHandle);
 
-    if (status >= 0) {
-        /* Increment the offset for the next allocation */
-        curShAddr += NSRN_MEMSIZE;
+    /* Increment the offset for the next allocation */
+    curShAddr += NSRN_MEMSIZE;
 
-        MessageQTransportShm_Params_init (NULL, &msgqTransportParams);
+    MessageQTransportShm_Params_init (NULL, &msgqTransportParams);
 
-        msgqTransportParams.sharedAddr = (Ptr)curShAddr;
-        msgqTransportParams.gate = (Gate_Handle) gateHandle_client;
-        msgqTransportParams.notifyEventNo = mqtEventNo;
-        msgqTransportParams.notifyDriver = notifyDrvHandle;
-        msgqTransportParams.sharedAddrSize =
+    msgqTransportParams.sharedAddr = (Ptr)curShAddr;
+    msgqTransportParams.gate = (Gate_Handle) gateHandle_client;
+    msgqTransportParams.notifyEventNo = mqtEventNo;
+    msgqTransportParams.notifyDriver = notifyDrvHandle;
+    msgqTransportParams.sharedAddrSize =
                  MessageQTransportShm_sharedMemReq (&msgqTransportParams);
 
-        transportShmHandle = MessageQTransportShm_create (remoteId,
-                                                        &msgqTransportParams);
-        if (transportShmHandle == NULL) {
-            Osal_printf ("ipc_setup: Error in MessageQTransportShm_create\n");
-        }
-        else {
-            Osal_printf ("ipc_setup: MessageQTransportShm_create handle "
-                        "[0x%x]\n", transportShmHandle);
-        }
+    transportShmHandle = MessageQTransportShm_create (remoteId,
+                                        &msgqTransportParams);
+    if (transportShmHandle == NULL) {
+        Osal_printf ("ipc_setup: Error in MessageQTransportShm_create\n");
+        goto exit;
     }
+    Osal_printf ("ipc_setup: MessageQTransportShm_create handle "
+                   "[0x%x]\n", transportShmHandle);
+
 #endif
+
+    GatePeterson_Params_init (gateHandle_client, &gateParams_app_heap);
+    gateParams_app_heap.sharedAddrSize =
+                       GatePeterson_sharedMemReq (&gateParams_app_heap);
+    Osal_printf ("ipc_setup: Memory required for GatePeterson instance "
+                    "[0x%x] bytes \n",
+                    gateParams_app_heap.sharedAddrSize);
+
+    do {
+        gateParams_app_heap.sharedAddr     = (Ptr)(shAddrBase2);
+        status = GatePeterson_open (&gateHandle_app_heap,
+                                    &gateParams_app_heap);
+    }
+    while ((status == GATEPETERSON_E_NOTFOUND) ||
+            (status == GATEPETERSON_E_VERSION));
+
+    if (status < 0) {
+        Osal_printf ("ipc_setup: Error in GatePeterson_open [0x%x]\n",
+                      status);
+        goto exit;
+    }
+    Osal_printf ("ipc_setup: GatePeterson_open Status [0x%x]\n", status);
+
+    /* Increment the offset for the next allocation */
+    curShAddr += GATEPETERSONMEMSIZE;
+
+    /* Create the heap. */
+    HeapBuf_Params_init(NULL, &heapbufParams_app_heap);
+    heapbufParams_app_heap.name           = APP_HEAP_HEAPNAME;
+    heapbufParams_app_heap.sharedAddr     = (Ptr)
+                              (shAddrBase2 + GATEPETERSONMEMSIZE);
+    heapbufParams_app_heap.align          = 128;
+    heapbufParams_app_heap.numBlocks      = 4;
+    heapbufParams_app_heap.blockSize      = APP_HEAP_BLOCKSIZE;
+    heapbufParams_app_heap.gate           = (Gate_Handle) gateHandle_client;
+    heapbufParams_app_heap.sharedAddrSize = HeapBuf_sharedMemReq
+          (&heapbufParams_app_heap, &heapbufParams_app_heap.sharedBufSize);
+    heapbufParams_app_heap.sharedBuf      = (Ptr)
+                      (shAddrBase2 + APP_HEAP_SHAREDBUF);
+
+    status = HeapBuf_open (&heapHandle_app_heap, &heapbufParams_app_heap);
+    if(status < 0) {
+        Osal_printf ("ipc_setup: Error in HeapBuf_create\n");
+        goto exit;
+    }
+    Osal_printf ("ipc_setup: HeapBuf_create Handle [0x%x]\n",
+                            heapHandle_app_heap);
+
 exit:
     Osal_printf ("ipc_setup: Leaving ipc_setup()\n");
     return status;
@@ -892,10 +934,9 @@ Void RcmServerThreadFxn(Void *arg)
         Osal_printf ("RcmServerThreadFxn: Error in RCM Server module get "
                     "config \n");
         goto exit;
-    } else {
-        Osal_printf ("RcmServerThreadFxn: RCM Client module get config "
-                    "passed \n");
     }
+    Osal_printf ("RcmServerThreadFxn: RCM Client module get config "
+                    "passed \n");
 
     /* rcm client module setup*/
     Osal_printf ("RcmServerThreadFxn: RCM Server module setup.\n");
@@ -903,9 +944,8 @@ Void RcmServerThreadFxn(Void *arg)
     if (status < 0) {
         Osal_printf ("RcmServerThreadFxn: Error in RCM Server module setup \n");
         goto exit;
-    } else {
-        Osal_printf ("RcmServerThreadFxn: RCM Server module setup passed \n");
     }
+    Osal_printf ("RcmServerThreadFxn: RCM Server module setup passed \n");
 
     /* rcm client module params init*/
     Osal_printf ("RcmServerThreadFxn: rcm client module params init.\n");
@@ -914,10 +954,9 @@ Void RcmServerThreadFxn(Void *arg)
         Osal_printf ("RcmServerThreadFxn: Error in RCM Server instance params "
                         "init \n");
         goto exit;
-    } else {
-        Osal_printf ("RcmServerThreadFxn: RCM Server instance params init "
-                        "passed \n");
     }
+    Osal_printf ("RcmServerThreadFxn: RCM Server instance params init "
+                   "passed \n");
 
     /* create the RcmServer instance */
     Osal_printf ("RcmServerThreadFxn: Creating RcmServer instance.\n");
@@ -926,9 +965,8 @@ Void RcmServerThreadFxn(Void *arg)
     if (status < 0) {
         Osal_printf ("RcmServerThreadFxn: Error in RCM Server create.\n");
         goto exit;
-    } else {
-        Osal_printf ("RcmServerThreadFxn: RCM Server Create passed \n");
     }
+    Osal_printf ("RcmServerThreadFxn: RCM Server Create passed \n");
 
     sem_init (&serverThreadSync, 0, 0);
 
@@ -938,12 +976,14 @@ Void RcmServerThreadFxn(Void *arg)
                                     &fxnIdx);
     if ((status < 0) || (fxnIdx == 0xFFFFFFFF)) {
         Osal_printf ("Add symbol failed.\n");
+        goto exit;
     }
 
     Osal_printf ("Registering remote function - 2\n");
     status = RcmServer_addSymbol (rcmServerHandle, "fxnExit", fxnExit, &fxnIdx);
     if ((status < 0) || (fxnIdx == 0xFFFFFFFF)) {
         Osal_printf ("Add symbol failed.\n");
+        goto exit;
     }
 
     Osal_printf ("Start RCM server thread \n");
@@ -951,27 +991,13 @@ Void RcmServerThreadFxn(Void *arg)
     if (status < 0) {
         Osal_printf ("Error in RCM Server start.\n");
         goto exit;
-    } else {
-        Osal_printf ("RCM Server start passed \n");
     }
+    Osal_printf ("RCM Server start passed \n");
 
     Osal_printf ("Started RCM server thread. Reset the waitLoop to zero "
         "on the Ducati-side to continue the test...\n");
 
     sem_wait (&serverThreadSync);
-
-    /* Unregister the remote functions */
-    Osal_printf ("RcmServerThreadFxn: Unregistering remote function - 1\n");
-    status = RcmServer_removeSymbol (rcmServerHandle, "fxnDouble");
-    if (status < 0) {
-        Osal_printf ("RcmServerThreadFxn: Remove symbol failed.\n");
-    }
-
-    Osal_printf ("RcmServerThreadFxn: Unregistering remote function - 2\n");
-    status = RcmServer_removeSymbol (rcmServerHandle, "fxnExit");
-    if (status < 0) {
-        Osal_printf ("RcmServerThreadFxn: Remove symbol failed.\n");
-    }
 
     sem_post (&serverThreadWait);
 
@@ -1001,11 +1027,9 @@ Void RcmClientThreadFxn(Void *arg)
         Osal_printf ("RcmClientThreadFxn: Error in RCM Client module get "
                     "config \n");
         goto exit;
-    } else {
-        Osal_printf ("RcmClientThreadFxn: RCM Client module get config "
-                    "passed \n");
     }
-
+    Osal_printf ("RcmClientThreadFxn: RCM Client module get config "
+                   "passed \n");
     cfgParams.defaultHeapBlockSize = MSGSIZE;
 
     /* rcm client module setup*/
@@ -1014,9 +1038,8 @@ Void RcmClientThreadFxn(Void *arg)
     if (status < 0) {
         Osal_printf ("RcmClientThreadFxn: Error in RCM Client module setup \n");
         goto exit;
-    } else {
-        Osal_printf ("RcmClientThreadFxn: RCM Client module setup passed \n");
     }
+    Osal_printf ("RcmClientThreadFxn: RCM Client module setup passed \n");
 
     /* rcm client module params init*/
     Osal_printf ("RcmClientThreadFxn: RCM Client module params init.\n");
@@ -1025,10 +1048,9 @@ Void RcmClientThreadFxn(Void *arg)
         Osal_printf ("RcmClientThreadFxn: Error in RCM Client instance params "
                         "init \n");
         goto exit;
-    } else {
-        Osal_printf ("RcmClientThreadFxn: RCM Client instance params init "
-                        "passed \n");
     }
+    Osal_printf ("RcmClientThreadFxn: RCM Client instance params init "
+                    "passed \n");
 
     /* create an rcm client instance */
     Osal_printf ("RcmClientThreadFxn: Creating RcmClient instance \n");
@@ -1052,10 +1074,10 @@ Void RcmClientThreadFxn(Void *arg)
                                 "create \n");
                 goto exit;
             }
-        } else {
-            Osal_printf ("RcmClientThreadFxn: RCM Client create passed \n");
         }
+        Osal_printf ("RcmClientThreadFxn: RCM Client create passed \n");
     }
+
     if (MAX_CREATE_ATTEMPTS <= count) {
         Osal_printf ("RcmClientThreadFxn: Timeout... could not connect with"
                         "remote server\n");
@@ -1126,30 +1148,34 @@ Int RcmTestCleanup (Int testCase)
     /* delete the rcm client */
     Osal_printf ("RcmTestCleanup: Delete RCM client instance \n");
     status = RcmClient_delete (&rcmClientHandle);
-    if (status < 0) {
+    if (status < 0)
         Osal_printf ("RcmTestCleanup: Error in RCM Client instance delete\n");
-    }
 
     /* rcm client module destroy*/
     Osal_printf ("RcmTestCleanup: Destroy RCM client module \n");
     status = RcmClient_destroy ();
-    if (status < 0) {
+    if (status < 0)
         Osal_printf ("RcmTestCleanup: Error in RCM Client module destroy \n");
-    }
 
     /* delete the rcm client */
     Osal_printf ("RcmTestCleanup: Delete RCM server instance \n");
     status = RcmServer_delete (&rcmServerHandle);
-    if (status < 0) {
+    if (status < 0)
         Osal_printf ("RcmTestCleanup: Error in RCM Server instance delete\n");
-    }
 
     /* rcm client module destroy*/
     Osal_printf ("RcmTestCleanup: Destroy RCM server module \n");
     status = RcmServer_destroy ();
-    if (status < 0) {
+    if (status < 0)
         Osal_printf ("RcmTestCleanup: Error in RCM Server module destroy \n");
-    }
+
+    status = GatePeterson_close (&gateHandle_app_heap);
+    Osal_printf ("GatePeterson_close status: [0x%x]\n", status);
+
+    status = HeapBuf_delete (&heapHandle_app_heap);
+    Osal_printf ("HeapBuf_delete status: [0x%x]\n", status);
+
+    SharedRegion_remove (2);
 
     /* Finalize modules */
 #if defined (SYSLINK_USE_SYSMGR)

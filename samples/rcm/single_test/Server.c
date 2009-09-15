@@ -4,7 +4,7 @@
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
  *  You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  *  Unless required by applicable law or agreed to in writing, software
@@ -208,7 +208,8 @@ Void RcmServerThreadFxn (Void *arg)
     String_cpy (multiProcConfig.nameList [3], "AppM3");
     status = MultiProc_setup (&multiProcConfig);
     if (status < 0) {
-            Osal_printf ("Error in MultiProc_setup [0x%x]\n", status);
+        Osal_printf ("Error in MultiProc_setup [0x%x]\n", status);
+        goto exit;
     }
 #endif
 
@@ -217,183 +218,158 @@ Void RcmServerThreadFxn (Void *arg)
     status = SysMgr_setup (&config);
     if (status < 0) {
         Osal_printf ("Error in SysMgr_setup [0x%x]\n", status);
+        goto exit;
     }
 #else /* if defined(SYSLINK_USE_SYSMGR) */
-    if (status >= 0) {
-        UsrUtilsDrv_setup ();
 
-        /* NameServer and NameServerRemoteNotify module setup */
-        status = NameServer_setup ();
-        if (status < 0) {
-            Osal_printf ("Error in NameServer_setup [0x%x]\n", status);
-        }
-        else {
-            Osal_printf ("NameServer_setup Status [0x%x]\n", status);
-            NameServerRemoteNotify_getConfig (&nsrConfig);
-            status = NameServerRemoteNotify_setup (&nsrConfig);
-            if (status < 0) {
-                Osal_printf ("Error in NameServerRemoteNotify_setup [0x%x]\n",
-                             status);
-            }
-            else {
-                Osal_printf ("NameServerRemoteNotify_setup Status [0x%x]\n",
-                             status);
-            }
-        }
+    UsrUtilsDrv_setup ();
+
+    /* NameServer and NameServerRemoteNotify module setup */
+    status = NameServer_setup ();
+    if (status < 0) {
+        Osal_printf ("Error in NameServer_setup [0x%x]\n", status);
+        goto exit;
     }
+    Osal_printf ("NameServer_setup Status [0x%x]\n", status);
 
-    if (status >= 0) {
+    NameServerRemoteNotify_getConfig (&nsrConfig);
+    status = NameServerRemoteNotify_setup (&nsrConfig);
+    if (status < 0) {
+        Osal_printf ("Error in NameServerRemoteNotify_setup [0x%x]\n",
+                        status);
+        goto exit;
+    }
+    Osal_printf ("NameServerRemoteNotify_setup Status [0x%x]\n",
+                     status);
+
         /*
          *  Need to define the shared region. The IPC modules use this
          *  to make portable pointers. All processors need to add this
          *  same call with their base address of the shared memory region.
          *  If the processor cannot access the memory, do not add it.
          */
-        /* SharedRegion module setup */
-        sharedRegConfig.gateHandle = NULL;
-        sharedRegConfig.heapHandle = NULL;
-        sharedRegConfig.maxRegions = 4;
-        status = SharedRegion_setup (&sharedRegConfig);
-        if (status < 0) {
-            Osal_printf ("Error in SharedRegion_setup. Status [0x%x]\n",
-                         status);
-        }
-        else {
-            Osal_printf ("SharedRegion_setup Status [0x%x]\n", status);
-        }
+
+    /* SharedRegion module setup */
+    sharedRegConfig.gateHandle = NULL;
+    sharedRegConfig.heapHandle = NULL;
+    sharedRegConfig.maxRegions = 4;
+    status = SharedRegion_setup (&sharedRegConfig);
+    if (status < 0) {
+        Osal_printf ("Error in SharedRegion_setup. Status [0x%x]\n",
+                     status);
+        goto exit;
     }
+    Osal_printf ("SharedRegion_setup Status [0x%x]\n", status);
 
-    if (status >= 0) {
-        /* ListMPSharedMemory module setup */
-        ListMPSharedMemory_getConfig (&listMPSharedConfig);
-        status = ListMPSharedMemory_setup (&listMPSharedConfig);
-        if (status < 0) {
-            Osal_printf ("Error in ListMPSharedMemory_setup."
-                         " Status [0x%x]\n",
-                         status);
+    /* ListMPSharedMemory module setup */
+    ListMPSharedMemory_getConfig (&listMPSharedConfig);
+    status = ListMPSharedMemory_setup (&listMPSharedConfig);
+    if (status < 0) {
+        Osal_printf ("Error in ListMPSharedMemory_setup."
+                       " Status [0x%x]\n", status);
+        goto exit;
         }
-        else  {
-            Osal_printf ("ListMPSharedMemory_setup Status [0x%x]\n",
-                         status);
+    Osal_printf ("ListMPSharedMemory_setup Status [0x%x]\n", status);
 
-            /* HeapBuf module setup */
-            HeapBuf_getConfig (&heapbufConfig);
-            status = HeapBuf_setup (&heapbufConfig);
-            if (status < 0) {
-                Osal_printf ("Error in HeapBuf_setup. Status [0x%x]\n",
-                status);
-            }
-            else {
-                Osal_printf ("HeapBuf_setup Status [0x%x]\n", status);
-            }
-        }
+    /* HeapBuf module setup */
+    HeapBuf_getConfig (&heapbufConfig);
+    status = HeapBuf_setup (&heapbufConfig);
+    if (status < 0) {
+    Osal_printf ("Error in HeapBuf_setup. Status [0x%x]\n",
+         status);
+         goto exit;
     }
+    Osal_printf ("HeapBuf_setup Status [0x%x]\n", status);
 
-    if (status >= 0) {
-        /* GatePeterson module setup */
-        GatePeterson_getConfig (&gpConfig);
-        status = GatePeterson_setup (&gpConfig);
-        if (status < 0) {
-            Osal_printf ("Error in GatePeterson_setup. Status [0x%x]\n",
-                         status);
-        }
-        else {
-            Osal_printf ("GatePeterson_setup Status [0x%x]\n", status);
-        }
+    /* GatePeterson module setup */
+    GatePeterson_getConfig (&gpConfig);
+    status = GatePeterson_setup (&gpConfig);
+    if (status < 0) {
+        Osal_printf ("Error in GatePeterson_setup. Status [0x%x]\n",
+                        status);
+        goto exit;
     }
+    Osal_printf ("GatePeterson_setup Status [0x%x]\n", status);
 
-    if (status >= 0) {
-        /* Setup Notify module and NotifyDriverShm module */
-        Notify_getConfig (&notifyConfig);
-        notifyConfig.maxDrivers = 2;
-        status = Notify_setup (&notifyConfig);
-        if (status < 0) {
-            Osal_printf ("Error in Notify_setup [0x%x]\n", status);
-        }
-        else {
-            Osal_printf ("Notify_setup Status [0x%x]\n", status);
-            NotifyDriverShm_getConfig (&notifyDrvShmConfig);
-            status = NotifyDriverShm_setup (&notifyDrvShmConfig);
-            if (status < 0) {
-                Osal_printf ("Error in NotifyDriverShm_setup [0x%x]\n",
-                             status);
-            }
-            else {
-                Osal_printf ("NotifyDriverShm_setup Status [0x%x]\n", status);
-            }
-        }
+    /* Setup Notify module and NotifyDriverShm module */
+    Notify_getConfig (&notifyConfig);
+    notifyConfig.maxDrivers = 2;
+    status = Notify_setup (&notifyConfig);
+    if (status < 0) {
+        Osal_printf ("Error in Notify_setup [0x%x]\n", status);
+        goto exit;
     }
+    Osal_printf ("Notify_setup Status [0x%x]\n", status);
 
-    if (status >= 0) {
-        /* Setup MessageQ module and MessageQTransportShm module */
-        MessageQ_getConfig (&messageqConfig);
-        status = MessageQ_setup (&messageqConfig);
-        if (status < 0) {
-            Osal_printf ("Error in MessageQ_setup [0x%x]\n", status);
-        }
-        else {
-            Osal_printf ("MessageQ_setup Status [0x%x]\n", status);
-            MessageQTransportShm_getConfig (&msgqTransportConfig);
-            status = MessageQTransportShm_setup (&msgqTransportConfig);
-            if (status < 0) {
-                Osal_printf ("Error in MessageQTransportShm_setup [0x%x]\n",
-                             status);
-            }
-            else {
-                Osal_printf ("MessageQTransportShm_setup Status [0x%x]\n",
-                             status);
-            }
-        }
+    NotifyDriverShm_getConfig (&notifyDrvShmConfig);
+    status = NotifyDriverShm_setup (&notifyDrvShmConfig);
+    if (status < 0) {
+        Osal_printf ("Error in NotifyDriverShm_setup [0x%x]\n",
+                       status);
+        goto exit;
     }
-#endif /* if defined(SYSLINK_USE_SYSMGR) */
+    Osal_printf ("NotifyDriverShm_setup Status [0x%x]\n", status);
 
-    if (status >= 0) {
-        /* Open a handle to the ProcMgr instance. */
-        procId = MultiProc_getId (SYSM3_PROC_NAME);
-        remoteId_server = MultiProc_getId (procName);
-        /* Open a handle to the ProcMgr instance. */
-        status = ProcMgr_open (&procMgrHandle_server,
-                               procId);
-        if (status < 0) {
-            Osal_printf ("Error in ProcMgr_open [0x%x]\n", status);
-        }
-        else {
-            Osal_printf ("ProcMgr_open Status [0x%x]\n", status);
-            /* Get the address of the shared region in kernel space. */
-            status = ProcMgr_translateAddr (procMgrHandle_server,
-                                            (Ptr) &shAddrBase,
-                                            ProcMgr_AddrType_MasterUsrVirt,
-                                            (Ptr) SHAREDMEM,
-                                            ProcMgr_AddrType_SlaveVirt);
-            if (status < 0) {
-                Osal_printf ("Error in ProcMgr_translateAddr [0x%x]\n",
-                             status);
-            }
-            else {
-                Osal_printf ("Virt address of shared address base #1:"
-                             " [0x%x]\n", shAddrBase);
-            }
-
-            if (status >= 0) {
-                /* Get the address of the shared region in kernel space. */
-                status = ProcMgr_translateAddr (procMgrHandle_server,
-                                                (Ptr) &shAddrBase1,
-                                                ProcMgr_AddrType_MasterUsrVirt,
-                                                (Ptr) SHAREDMEM1,
-                                                ProcMgr_AddrType_SlaveVirt);
-                if (status < 0) {
-                    Osal_printf ("Error in ProcMgr_translateAddr [0x%x]\n",
-                                 status);
-                }
-                else {
-                    Osal_printf ("Virt address of shared address base #2:"
-                                 " [0x%x]\n", shAddrBase1);
-                }
-            }
-        }
+    /* Setup MessageQ module and MessageQTransportShm module */
+    MessageQ_getConfig (&messageqConfig);
+    status = MessageQ_setup (&messageqConfig);
+    if (status < 0) {
+        Osal_printf ("Error in MessageQ_setup [0x%x]\n", status);
+        goto exit;
     }
+    Osal_printf ("MessageQ_setup Status [0x%x]\n", status);
 
-    if (status >= 0) {
+    MessageQTransportShm_getConfig (&msgqTransportConfig);
+    status = MessageQTransportShm_setup (&msgqTransportConfig);
+    if (status < 0) {
+        Osal_printf ("Error in MessageQTransportShm_setup [0x%x]\n",
+                        status);
+        goto exit;
+    }
+    Osal_printf ("MessageQTransportShm_setup Status [0x%x]\n",
+                      status);
+
+#endif /* if !defined(SYSLINK_USE_SYSMGR) */
+
+    /* Open a handle to the ProcMgr instance. */
+    procId = MultiProc_getId (SYSM3_PROC_NAME);
+    remoteId_server = MultiProc_getId (procName);
+    /* Open a handle to the ProcMgr instance. */
+    status = ProcMgr_open (&procMgrHandle_server,
+                           procId);
+        if (status < 0) {
+        Osal_printf ("Error in ProcMgr_open [0x%x]\n", status);
+        goto exit;
+    }
+    Osal_printf ("ProcMgr_open Status [0x%x]\n", status);
+
+    /* Get the address of the shared region in kernel space. */
+    status = ProcMgr_translateAddr (procMgrHandle_server,
+                                    (Ptr) &shAddrBase,
+                                    ProcMgr_AddrType_MasterUsrVirt,
+                                    (Ptr) SHAREDMEM,
+                                    ProcMgr_AddrType_SlaveVirt);
+    if (status < 0) {
+        Osal_printf ("Error in ProcMgr_translateAddr [0x%x]\n",
+                     status);
+        goto exit;
+    }
+    Osal_printf ("Virt address of shared address base #1:"
+                     " [0x%x]\n", shAddrBase);
+
+    /* Get the address of the shared region in kernel space. */
+    status = ProcMgr_translateAddr (procMgrHandle_server,
+                                    (Ptr) &shAddrBase1,
+                                    ProcMgr_AddrType_MasterUsrVirt,
+                                    (Ptr) SHAREDMEM1,
+                                    ProcMgr_AddrType_SlaveVirt);
+    if (status < 0) {
+        Osal_printf ("Error in ProcMgr_translateAddr [0x%x]\n", status);
+        goto exit;
+    }
+    Osal_printf ("Virt address of shared address base #2:"
+                            " [0x%x]\n", shAddrBase1);
+
         curShAddr = shAddrBase;
         /* Add the region to SharedRegion module. */
         status = SharedRegion_add (0,
@@ -401,57 +377,51 @@ Void RcmServerThreadFxn (Void *arg)
                                    SHAREDMEMSIZE);
         if (status < 0) {
             Osal_printf ("Error in SharedRegion_add [0x%x]\n", status);
+            goto exit;
         }
-        else {
-            Osal_printf ("SharedRegion_add [0x%x]\n", status);
-        }
-    }
+    Osal_printf ("SharedRegion_add [0x%x]\n", status);
 
-    if (status >= 0) {
-        /* Add the region to SharedRegion module. */
-        status = SharedRegion_add (1,
-                                   (Ptr) shAddrBase1,
-                                   SHAREDMEMSIZE1);
-        if (status < 0) {
-            Osal_printf ("Error in SharedRegion_add1 [0x%x]\n", status);
-        }
-        else {
-            Osal_printf ("SharedRegion_add1 [0x%x]\n", status);
-        }
+    /* Add the region to SharedRegion module. */
+    status = SharedRegion_add (1,
+                               (Ptr) shAddrBase1,
+                               SHAREDMEMSIZE1);
+    if (status < 0) {
+        Osal_printf ("Error in SharedRegion_add1 [0x%x]\n", status);
+        goto exit;
     }
+    Osal_printf ("SharedRegion_add1 [0x%x]\n", status);
 
 #if !defined(SYSLINK_USE_SYSMGR)
-    if (status >= 0) {
-        /* Create instance of NotifyDriverShm */
-        NotifyDriverShm_Params_init (NULL, &notifyShmParams);
-        //notifyShmParams.sharedAddr= (UInt32)curShAddr;
-        //notifyShmParams.sharedAddrSize = 0x4000;
-        /* NotifyDriverShm_sharedMemReq (&notifyShmParams); */
-        notifyShmParams.numEvents          = 32;
-        notifyShmParams.numReservedEvents  = 0;
-        notifyShmParams.sendEventPollCount = (UInt32) -1;
-        notifyShmParams.recvIntId          = BASE_DSP2ARM_INTID;
-        notifyShmParams.sendIntId          = BASE_ARM2DSP_INTID;
-        notifyShmParams.remoteProcId       = procId;
+    /* Create instance of NotifyDriverShm */
+    NotifyDriverShm_Params_init (NULL, &notifyShmParams);
+    //notifyShmParams.sharedAddr= (UInt32)curShAddr;
+    //notifyShmParams.sharedAddrSize = 0x4000;
+    /* NotifyDriverShm_sharedMemReq (&notifyShmParams); */
+    notifyShmParams.numEvents          = 32;
+    notifyShmParams.numReservedEvents  = 0;
+    notifyShmParams.sendEventPollCount = (UInt32) -1;
+    notifyShmParams.recvIntId          = BASE_DSP2ARM_INTID;
+    notifyShmParams.sendIntId          = BASE_ARM2DSP_INTID;
+    notifyShmParams.remoteProcId       = procId;
 
-        if (testCase == 1) {
-            /* Increment the offset for the next allocation for MPU-SysM3 */
-            curShAddr += NOTIFYMEMSIZE;
-        }
-        else if (testCase == 2) {
-            /* Reset the address for the next allocation for MPU-AppM3 */
-            curShAddr = shAddrBase1;
-        }
+    if (testCase == 1) {
+        /* Increment the offset for the next allocation for MPU-SysM3 */
+        curShAddr += NOTIFYMEMSIZE;
+    }
+    else if (testCase == 2) {
+        /* Reset the address for the next allocation for MPU-AppM3 */
+        curShAddr = shAddrBase1;
+    }
 
-        /* Create instance of NotifyDriverShm */
-        notifyDrvHandle_server = NotifyDriverShm_create (
-                                                     "NOTIFYDRIVER_DUCATI",
-                                                     &notifyShmParams);
-        Osal_printf ("NotifyDriverShm_create Handle: [0x%x]\n",
-                     notifyDrvHandle_server);
-        if (notifyDrvHandle_server == NULL) {
-            Osal_printf ("Error in NotifyDriverShm_create\n");
-        }
+    /* Create instance of NotifyDriverShm */
+    notifyDrvHandle_server = NotifyDriverShm_create (
+                                             "NOTIFYDRIVER_DUCATI",
+                                             &notifyShmParams);
+    Osal_printf ("NotifyDriverShm_create Handle: [0x%x]\n",
+                 notifyDrvHandle_server);
+    if (notifyDrvHandle_server == NULL) {
+        Osal_printf ("Error in NotifyDriverShm_create\n");
+        goto exit;
     }
 #endif
 
@@ -480,7 +450,7 @@ Void RcmServerThreadFxn (Void *arg)
                     appm3_image_name);
         Osal_printf ("APPM3 Load: uProcId = %d\n", uProcId);
         status = ProcMgr_load (procMgrHandle_server, appm3_image_name, 2,
-                              &appm3_image_name, &entry_point, &fileId, 
+                              &appm3_image_name, &entry_point, &fileId,
                               uProcId);
 #endif
 #if defined(SYSLINK_USE_LOADER) || defined(SYSLINK_USE_SYSMGR)
@@ -494,82 +464,72 @@ Void RcmServerThreadFxn (Void *arg)
 #endif
     }
 
-
 #if !defined(SYSLINK_USE_SYSMGR)
-    if (status >= 0) {
-        GatePeterson_Params_init (gateHandle_server, &gateParams);
-        gateParams.sharedAddrSize = GatePeterson_sharedMemReq (&gateParams);
-        gateParams.sharedAddr     = (Ptr)(curShAddr);
+    GatePeterson_Params_init (gateHandle_server, &gateParams);
+    gateParams.sharedAddrSize = GatePeterson_sharedMemReq (&gateParams);
+    gateParams.sharedAddr     = (Ptr)(curShAddr);
 
-        Osal_printf ("Memory required for GatePeterson instance [0x%x]"
+    Osal_printf ("Memory required for GatePeterson instance [0x%x]"
                  " bytes \n",
                  gateParams.sharedAddrSize);
 
-        gateHandle_server = GatePeterson_create (&gateParams);
-        if (gateHandle_server == NULL) {
-            Osal_printf ("Error in GatePeterson_create [0x%x]\n", status);
-        }
-        else {
-            Osal_printf ("GatePeterson_create Status [0x%x]\n", status);
-        }
+    gateHandle_server = GatePeterson_create (&gateParams);
+    if (gateHandle_server == NULL) {
+        Osal_printf ("Error in GatePeterson_create [0x%x]\n", status);
+        goto exit;
     }
+    Osal_printf ("GatePeterson_create Status [0x%x]\n", status);
 
-    if (status >= 0) {
-        /* Increment the offset for the next allocation */
-        curShAddr = curShAddr + HEAPBUFMEMSIZE + GATEPETERSONMEMSIZE;
+    /* Increment the offset for the next allocation */
+    curShAddr = curShAddr + HEAPBUFMEMSIZE + GATEPETERSONMEMSIZE;
 
-        /*
-         *  Create the NameServerRemote implementation that is used to
-         *  communicate with the remote processor. It uses some shared
-         *  memory and the Notify module.
-         *
-         *  Note that this implementation uses Notify to communicate, so
-         *  interrupts need to be enabled. On BIOS, that does not occur
-         *  until after main returns.
-         */
-        NameServerRemoteNotify_Params_init (NULL, &nsrParams);
-        nsrParams.notifyDriver  = notifyDrvHandle_server;
-        nsrParams.notifyEventNo = nsrnEventNo;
-        nsrParams.sharedAddr    = (Ptr)curShAddr;
-        nsrParams.gate          = (Ptr)gateHandle_server;
-        nsrParams.sharedAddrSize  = NSRN_MEMSIZE;
-        nsrnHandle_server = NameServerRemoteNotify_create (remoteId_server, &nsrParams);
-        if (nsrnHandle_server == NULL) {
-            Osal_printf ("Error in NotifyDriverShm_create\n");
-        }
-        else {
-            Osal_printf ("NameServerRemoteNotify_create handle [0x%x]\n",
+    /*
+     *  Create the NameServerRemote implementation that is used to
+     *  communicate with the remote processor. It uses some shared
+     *  memory and the Notify module.
+     *
+     *  Note that this implementation uses Notify to communicate, so
+     *  interrupts need to be enabled. On BIOS, that does not occur
+     *  until after main returns.
+     */
+    NameServerRemoteNotify_Params_init (NULL, &nsrParams);
+    nsrParams.notifyDriver  = notifyDrvHandle_server;
+    nsrParams.notifyEventNo = nsrnEventNo;
+    nsrParams.sharedAddr    = (Ptr)curShAddr;
+    nsrParams.gate          = (Ptr)gateHandle_server;
+    nsrParams.sharedAddrSize  = NSRN_MEMSIZE;
+    nsrnHandle_server = NameServerRemoteNotify_create (remoteId_server, &nsrParams);
+    if (nsrnHandle_server == NULL) {
+        Osal_printf ("Error in NotifyDriverShm_create\n");
+        goto exit;
+    }
+    Osal_printf ("NameServerRemoteNotify_create handle [0x%x]\n",
                          nsrnHandle_server);
-        }
-    }
 
     Osal_printf ("\nPlease break the platform and load the Ducati image now."
-        "Press any key to continue ...\n");
+                   "Press any key to continue ...\n");
     getchar ();
 
-    if (status >= 0) {
-        /* Increment the offset for the next allocation */
-        curShAddr += NSRN_MEMSIZE;
+    /* Increment the offset for the next allocation */
+    curShAddr += NSRN_MEMSIZE;
 
-        MessageQTransportShm_Params_init (NULL, &msgqTransportParams);
+    MessageQTransportShm_Params_init (NULL, &msgqTransportParams);
 
-        msgqTransportParams.sharedAddr = (Ptr)curShAddr;
-        msgqTransportParams.gate = (Gate_Handle) gateHandle_server;
-        msgqTransportParams.notifyEventNo = mqtEventNo;
-        msgqTransportParams.notifyDriver = notifyDrvHandle_server;
-        msgqTransportParams.sharedAddrSize =
-                 MessageQTransportShm_sharedMemReq (&msgqTransportParams);
+    msgqTransportParams.sharedAddr = (Ptr)curShAddr;
+    msgqTransportParams.gate = (Gate_Handle) gateHandle_server;
+    msgqTransportParams.notifyEventNo = mqtEventNo;
+    msgqTransportParams.notifyDriver = notifyDrvHandle_server;
+    msgqTransportParams.sharedAddrSize =
+             MessageQTransportShm_sharedMemReq (&msgqTransportParams);
 
-        transportShmHandle_server = MessageQTransportShm_create (remoteId_server,
-                                                        &msgqTransportParams);
-        if (transportShmHandle_server == NULL) {
-            Osal_printf ("Error in MessageQTransportShm_create\n");
-        }
-        else {
-            Osal_printf ("MessageQTransportShm_create handle [0x%x]\n",
-                         transportShmHandle_server);
-        }
+    transportShmHandle_server = MessageQTransportShm_create (remoteId_server,
+                                                    &msgqTransportParams);
+    if (transportShmHandle_server == NULL) {
+        Osal_printf ("Error in MessageQTransportShm_create\n");
+        goto exit;
     }
+    Osal_printf ("MessageQTransportShm_create handle [0x%x]\n",
+                     transportShmHandle_server);
 #endif
 
     /* Get default config for rcm client module */
@@ -578,9 +538,8 @@ Void RcmServerThreadFxn (Void *arg)
     if (status < 0) {
         Osal_printf ("Error in RCM Server module get config \n");
         goto exit;
-    } else {
-        Osal_printf ("RCM Client module get config passed \n");
     }
+    Osal_printf ("RCM Client module get config passed \n");
 
     /* rcm client module setup*/
     Osal_printf ("RCM Server module setup.\n");
@@ -588,9 +547,8 @@ Void RcmServerThreadFxn (Void *arg)
     if (status < 0) {
         Osal_printf ("Error in RCM Server module setup \n");
         goto exit;
-    } else {
-        Osal_printf ("RCM Server module setup passed \n");
     }
+    Osal_printf ("RCM Server module setup passed \n");
 
     /* rcm client module params init*/
     Osal_printf ("rcm client module params init.\n");
@@ -598,9 +556,8 @@ Void RcmServerThreadFxn (Void *arg)
     if (status < 0) {
         Osal_printf ("Error in RCM Server instance params init \n");
         goto exit;
-    } else {
-        Osal_printf ("RCM Server instance params init passed \n");
     }
+    Osal_printf ("RCM Server instance params init passed \n");
 
     /* create the RcmServer instance */
     Osal_printf ("Creating RcmServer instance.\n");
@@ -609,9 +566,8 @@ Void RcmServerThreadFxn (Void *arg)
     if (status < 0) {
         Osal_printf ("Error in RCM Server create.\n");
         goto exit;
-    } else {
-        Osal_printf ("RCM Server Create passed \n");
     }
+    Osal_printf ("RCM Server Create passed \n");
 
     sem_init (&serverThreadSync, 0, 0);
 
@@ -621,12 +577,14 @@ Void RcmServerThreadFxn (Void *arg)
                                     &fxnIdx);
     if ((status < 0) || (fxnIdx == 0xFFFFFFFF)) {
         Osal_printf ("Add symbol failed.\n");
+        goto exit;
     }
 
     Osal_printf ("Registering remote function - 2\n");
     status = RcmServer_addSymbol (rcmServerHandle, "fxnExit", fxnExit, &fxnIdx);
     if ((status < 0) || (fxnIdx == 0xFFFFFFFF)) {
         Osal_printf ("Add symbol failed.\n");
+        goto exit;
     }
 
     Osal_printf ("Start RCM server thread \n");
@@ -634,25 +592,10 @@ Void RcmServerThreadFxn (Void *arg)
     if (status < 0) {
         Osal_printf ("Error in RCM Server start.\n");
         goto exit;
-    } else {
-        Osal_printf ("RCM Server start passed \n");
     }
-
+    Osal_printf ("RCM Server start passed \n");
 
     sem_wait (&serverThreadSync);
-
-    /* Unregister the remote functions */
-    Osal_printf ("Unregistering remote function - 1\n");
-    status = RcmServer_removeSymbol (rcmServerHandle, "fxnDouble");
-    if (status < 0) {
-        Osal_printf ("Remove symbol failed.\n");
-    }
-
-    Osal_printf ("Unregistering remote function - 2\n");
-    status = RcmServer_removeSymbol (rcmServerHandle, "fxnExit");
-    if (status < 0) {
-        Osal_printf ("Remove symbol failed.\n");
-    }
 
     sem_post (&mainThreadWait);
 
@@ -673,16 +616,14 @@ Void RcmServerCleanup (Void)
     /* delete the rcm client */
     Osal_printf ("Delete RCM server instance \n");
     status = RcmServer_delete (&rcmServerHandle);
-    if (status < 0) {
-     Osal_printf ("Error in RCM Server instance delete\n");
-    }
+    if (status < 0)
+        Osal_printf ("Error in RCM Server instance delete\n");
 
     /* rcm client module destroy*/
     Osal_printf ("Destroy RCM server module \n");
     status = RcmServer_destroy ();
-    if (status < 0) {
-     Osal_printf ("Error in RCM Server module destroy \n");
-    }
+    if (status < 0)
+        Osal_printf ("Error in RCM Server module destroy \n");
 
     /* Finalize modules */
 #if defined (SYSLINK_USE_SYSMGR)
