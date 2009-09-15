@@ -160,10 +160,10 @@
 /*
  * RCM message descriptors
  */
-#define RCMSERVER_DESC_RCM_MSG      0x1     /* RCMSERVER execution message */
-#define RCMSERVER_DESC_DPC          0x2     /* Deferred Procedure Call */
-#define RCMSERVER_DESC_SYM_ADD      0x3     /* Symbol add message */
-#define RCMSERVER_DESC_SYM_IDX      0x4     /* Query symbox index */
+#define RcmClient_Desc_RCM_MSG      0x1     /* RCMSERVER execution message */
+#define RcmClient_Desc_DPC          0x2     /* Deferred Procedure Call */
+#define RcmClient_Desc_SYM_ADD      0x3     /* Symbol add message */
+#define RcmClient_Desc_SYM_IDX      0x4     /* Query symbox index */
 
 #define RCMSERVER_HIGH_PRIORITY     0xFF
 #define RCMSERVER_REGULAR_PRIORITY  0x01

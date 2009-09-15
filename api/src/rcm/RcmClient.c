@@ -85,6 +85,12 @@ typedef struct RcmClient_Object_tag {
     MessageQ_QueueId serverMsgQ; /* server message queue id*/
     UInt16  heapId; /* heap used for message allocation */
     Bool cbNotify; /* callback notification */
+    UInt16  msgId; /* last used message id */
+    GateMutex_Handle gate; /* message id gate */
+    OsalSemaphore_Handle mbxLock; /* mailbox lock */
+    OsalSemaphore_Handle queueLock; /* message queue lock */
+    List_Handle recipients; /* list of waiting recipients */
+    List_Handle newMail; /* list of undelivered messages */
 } RcmClient_Object;
 
 /* structure for RcmClient module state */
@@ -93,14 +99,8 @@ typedef struct RcmClient_ModuleObject_tag {
     /* Ref. count for number of times setup/destroy were called in this process */
     RcmClient_Config defaultCfg; /* Default config values */
     RcmClient_Params defaultInst_params; /* Default instance creation parameters */
-    UInt16  msgId; /* last used message id */
-    GateMutex_Handle gate; /* message id gate */
     UInt16 heapIdAry[RCMCLIENT_HEAPID_ARRAY_LENGTH];
     /* RCM Client default heap array */
-    OsalSemaphore_Handle mbxLock; /* mailbox lock */
-    OsalSemaphore_Handle queueLock; /* message queue lock */
-    List_Handle recipients; /* list of waiting recipients */
-    List_Handle newMail; /* list of undelivered messages */
 } RcmClient_ModuleObject;
 
 /* =============================================================================
@@ -120,12 +120,6 @@ RcmClient_ModuleObject RcmClient_module_obj =
     .defaultCfg.maxNameLen = MAX_NAME_LEN,
     .defaultCfg.defaultHeapIdArrayLength = RCMCLIENT_HEAPID_ARRAY_LENGTH,
     .defaultCfg.defaultHeapBlockSize = RCMCLIENT_HEAPID_ARRAY_BLOCKSIZE,
-    .msgId = 0xFFFF,
-    .gate = NULL,
-    .mbxLock = NULL,
-    .queueLock = NULL,
-    .recipients = NULL,
-    .newMail = NULL,
     .setupRefCount = 0,
     .defaultInst_params.heapId = RCMCLIENT_DEFAULT_HEAPID,
     .defaultInst_params.callbackNotification = false
@@ -145,7 +139,7 @@ RcmClient_ModuleObject* RcmClient_module = &RcmClient_module_obj;
  *  private functions
  * =============================================================================
  */
-static UInt16 genMsgId(void);
+static UInt16 genMsgId(RcmClient_Handle handle);
 static inline RcmClient_Packet *getPacketAddr(RcmClient_Message *msg);
 static inline RcmClient_Packet *getPacketAddrMsgqMsg(MessageQ_Msg msg);
 static inline RcmClient_Packet *getPacketAddrElem(List_Elem *elem);
@@ -202,10 +196,8 @@ Int RcmClient_getConfig (RcmClient_Config *cfgParams)
  */
 Int RcmClient_setup(const RcmClient_Config *config)
 {
-    List_Params  listParams;
     Int status = RCMCLIENT_SOK;
     Int i;
-    Int retval = 0;
 
     GT_1trace (curTrace, GT_ENTER, "RcmClient_setup", config);
 
@@ -259,113 +251,11 @@ Int RcmClient_setup(const RcmClient_Config *config)
                 /* TODO setup of default heaps for proc ID */
                 RcmClient_module->heapIdAry[i] = 0xFFFF;
             }
-
-            /* create a gate instance */
-            RcmClient_module->gate = GateMutex_create();
-            GT_assert (curTrace, (RcmClient_module->gate != NULL));
-            if (RcmClient_module->gate == NULL) {
-                GT_setFailureReason (curTrace,
-                             GT_4CLASS,
-                             "GateMutex_create",
-                             status,
-                             "Unable to create mutex");
-                status = RCMCLIENT_EOBJECT;
-                goto gate_fail;
-            }
-
-            /* create the mailbox lock */
-            RcmClient_module->mbxLock = OsalSemaphore_create(OsalSemaphore_Type_Counting, 1);
-            GT_assert (curTrace, (RcmClient_module->mbxLock != NULL));
-            if (RcmClient_module->mbxLock ==  NULL) {
-                GT_setFailureReason (curTrace,
-                             GT_4CLASS,
-                             "OsalSemaphore_create",
-                             status,
-                             "Unable to create mbx lock");
-                status = RCMCLIENT_EOBJECT;
-                goto mbxLock_fail;
-            }
-
-            /* create the message queue lock */
-            RcmClient_module->queueLock = OsalSemaphore_create(OsalSemaphore_Type_Counting, 1);
-            GT_assert (curTrace, (RcmClient_module->queueLock != NULL));
-            if (RcmClient_module->queueLock ==  NULL) {
-                GT_setFailureReason (curTrace,
-                             GT_4CLASS,
-                             "OsalSemaphore_create",
-                             status,
-                             "Unable to create queue lock");
-                status = RCMCLIENT_EOBJECT;
-                goto queueLock_fail;
-            }
-
-            /* create the return message recipient list */
-            List_Params_init(&listParams);
-            RcmClient_module->recipients = List_create(&listParams);
-            GT_assert (curTrace, (RcmClient_module->recipients != NULL));
-            if (RcmClient_module->recipients == NULL) {
-                GT_setFailureReason (curTrace,
-                             GT_4CLASS,
-                             "List_create",
-                             status,
-                             "Unable to create recipients list");
-                status = RCMCLIENT_EOBJECT;
-                goto recipients_fail;
-            }
-
-            /* create list of undelivered messages (new mail) */
-            RcmClient_module->newMail = List_create(&listParams);
-            GT_assert (curTrace, (RcmClient_module->newMail != NULL));
-            if (RcmClient_module->newMail == NULL) {
-                GT_setFailureReason (curTrace,
-                             GT_4CLASS,
-                             "List_create",
-                             status,
-                             "Unable to create new mail list");
-                status = RCMCLIENT_EOBJECT;
-                goto newMail_fail;
-            }
-            goto exit;
         }
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
     }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
 
-newMail_fail:
-    retval = List_delete(&(RcmClient_module->recipients));
-
-recipients_fail:
-    retval = OsalSemaphore_delete(&(RcmClient_module->queueLock));
-    if (retval < 0){
-        GT_setFailureReason (curTrace,
-                     GT_4CLASS,
-                     "OsalSemaphore_delete",
-                     status,
-                     "queue lock delete failed");
-        status = RCMCLIENT_ERESOURCE;
-    }
-
-queueLock_fail:
-    retval = OsalSemaphore_delete(&(RcmClient_module->mbxLock));
-    if (retval < 0){
-        GT_setFailureReason (curTrace,
-                     GT_4CLASS,
-                     "OsalSemaphore_delete",
-                     retval,
-                     "mbx lock delete failed");
-        status = RCMCLIENT_ERESOURCE;
-    }
-
-mbxLock_fail:
-    GateMutex_delete(&(RcmClient_module->gate));
-
-    GT_1trace (curTrace, GT_LEAVE, "RcmClient_setup", status);
-
-gate_fail:
-    /* TODO Default heap cleanup */
-
-    GT_1trace (curTrace, GT_LEAVE, "RcmClient_setup", status);
-exit:
     /* @retval RCMCLIENT_SOK Operation Successful */
     return status;
 }
@@ -381,8 +271,6 @@ exit:
 Int RcmClient_destroy(void)
 {
     Int status = RCMCLIENT_SOK;
-    List_Elem *elem = NULL;
-    Int retval = 0;
 
     GT_0trace (curTrace, GT_ENTER, "RcmClient_destroy");
 
@@ -402,59 +290,8 @@ Int RcmClient_destroy(void)
                    "    RefCount: [%d]\n",
                    RcmClient_module->setupRefCount);
     }
-    else {
-        if (RcmClient_module->newMail) {
-            while (!(List_empty(RcmClient_module->newMail))) {
-                elem = List_get(RcmClient_module->newMail);
-                retval = List_remove(RcmClient_module->newMail, elem);
-            }
-            retval = List_delete(&(RcmClient_module->newMail));
-        }
-        RcmClient_module->newMail = NULL;
-
-        if (RcmClient_module->recipients) {
-            while (!(List_empty(RcmClient_module->recipients))) {
-                elem = List_get(RcmClient_module->recipients);
-                retval = List_remove(RcmClient_module->recipients, elem);
-            }
-            retval = List_delete(&(RcmClient_module->recipients));
-        }
-        RcmClient_module->recipients = NULL;
-
-        if (RcmClient_module->queueLock) {
-            retval = OsalSemaphore_delete(&(RcmClient_module->queueLock));
-            if (retval < 0){
-                GT_setFailureReason (curTrace,
-                             GT_4CLASS,
-                             "OsalSemaphore_delete",
-                             retval,
-                             "queue lock delete failed");
-                status = RCMCLIENT_ERESOURCE;
-            }
-            RcmClient_module->queueLock = NULL;
-        }
-
-        if (RcmClient_module->mbxLock) {
-            retval = OsalSemaphore_delete(&(RcmClient_module->mbxLock));
-            if (retval < 0){
-                GT_setFailureReason (curTrace,
-                             GT_4CLASS,
-                             "OsalSemaphore_delete",
-                             retval,
-                             "mbx lock delete failed");
-                status = RCMCLIENT_ERESOURCE;
-            }
-            RcmClient_module->mbxLock = NULL;
-        }
-
-        if (NULL != RcmClient_module->gate) {
-            GateMutex_delete(&(RcmClient_module->gate));
-            RcmClient_module->gate = NULL;
-        }
-    }
 
     GT_1trace (curTrace, GT_LEAVE, "RcmClient_destroy", status);
-
     /* @retval RCMCLIENT_SOK Operation Successful */
     return status;
 }
@@ -471,6 +308,7 @@ Int RcmClient_create(String server,
     MessageQ_Params msgQParams;
     UInt16 procId;
     RcmClient_Object *handle = NULL;
+    List_Params  listParams;
     Int retval = 0;
     Int status = RCMCLIENT_SOK;
 
@@ -584,8 +422,107 @@ Int RcmClient_create(String server,
         }
         handle->heapId = RcmClient_module->heapIdAry[procId];
     }
+
+    /* create a gate instance */
+    handle->gate = GateMutex_create();
+    GT_assert (curTrace, (handle->gate != NULL));
+    if (handle->gate == NULL) {
+        GT_setFailureReason (curTrace,
+                        GT_4CLASS,
+                        "GateMutex_create",
+                        status,
+                        "Unable to create mutex");
+        status = RCMCLIENT_EOBJECT;
+        goto gate_fail;
+    }
+
+    /* create the mailbox lock */
+    handle->mbxLock = OsalSemaphore_create(OsalSemaphore_Type_Counting, 1);
+    GT_assert (curTrace, (handle->mbxLock != NULL));
+    if (handle->mbxLock ==  NULL) {
+        GT_setFailureReason (curTrace,
+                        GT_4CLASS,
+                        "OsalSemaphore_create",
+                        status,
+                        "Unable to create mbx lock");
+        status = RCMCLIENT_EOBJECT;
+        goto mbxLock_fail;
+    }
+
+    /* create the message queue lock */
+    handle->queueLock = OsalSemaphore_create(OsalSemaphore_Type_Counting, 1);
+    GT_assert (curTrace, (handle->queueLock != NULL));
+    if (handle->queueLock ==  NULL) {
+        GT_setFailureReason (curTrace,
+                        GT_4CLASS,
+                        "OsalSemaphore_create",
+                        status,
+                        "Unable to create queue lock");
+        status = RCMCLIENT_EOBJECT;
+        goto queueLock_fail;
+    }
+
+    /* create the return message recipient list */
+    List_Params_init(&listParams);
+    handle->recipients = List_create(&listParams);
+    GT_assert (curTrace, (handle->recipients != NULL));
+    if (handle->recipients == NULL) {
+            GT_setFailureReason (curTrace,
+                        GT_4CLASS,
+                        "List_create",
+                        status,
+                        "Unable to create recipients list");
+            status = RCMCLIENT_EOBJECT;
+            goto recipients_fail;
+    }
+
+    /* create list of undelivered messages (new mail) */
+    handle->newMail = List_create(&listParams);
+    GT_assert (curTrace, (handle->newMail != NULL));
+    if (handle->newMail == NULL) {
+        GT_setFailureReason (curTrace,
+                        GT_4CLASS,
+                        "List_create",
+                        status,
+                        "Unable to create new mail list");
+        status = RCMCLIENT_EOBJECT;
+        goto newMail_fail;
+    }
+
     *rcmclientHandle = (RcmClient_Handle)handle;
     goto exit;
+
+newMail_fail:
+    retval = List_delete(&(handle->recipients));
+
+recipients_fail:
+    retval = OsalSemaphore_delete(&(handle->queueLock));
+    if (retval < 0){
+        GT_setFailureReason (curTrace,
+                     GT_4CLASS,
+                     "OsalSemaphore_delete",
+                     status,
+                     "queue lock delete failed");
+        status = RCMCLIENT_ERESOURCE;
+    }
+
+queueLock_fail:
+    retval = OsalSemaphore_delete(&(handle->mbxLock));
+    if (retval < 0){
+        GT_setFailureReason (curTrace,
+                     GT_4CLASS,
+                     "OsalSemaphore_delete",
+                     retval,
+                     "mbx lock delete failed");
+        status = RCMCLIENT_ERESOURCE;
+    }
+
+mbxLock_fail:
+    GateMutex_delete(&(handle->gate));
+
+gate_fail:
+    /* TODO Default heap cleanup */
+    GT_1trace (curTrace, GT_LEAVE, "RcmClient_setup", status);
 
 serverMsgQ_fail:
     retval = MessageQ_delete(&(handle->msgQ));
@@ -615,6 +552,7 @@ exit:
  */
 Int RcmClient_delete(RcmClient_Handle *handlePtr)
 {
+    List_Elem *elem = NULL;
     Int retval = 0;
     Int status = RCMCLIENT_SOK;
 
@@ -637,6 +575,55 @@ Int RcmClient_delete(RcmClient_Handle *handlePtr)
               "RcmClient_delete: invalid argument\n");
         status = RCMCLIENT_EHANDLE;
         goto exit;
+    }
+
+    if ((*handlePtr)->newMail) {
+        while (!(List_empty((*handlePtr)->newMail))) {
+            elem = List_get((*handlePtr)->newMail);
+            retval = List_remove((*handlePtr)->newMail, elem);
+        }
+        retval = List_delete(&((*handlePtr)->newMail));
+    }
+    (*handlePtr)->newMail = NULL;
+
+    if ((*handlePtr)->recipients) {
+        while (!(List_empty((*handlePtr)->recipients))) {
+            elem = List_get((*handlePtr)->recipients);
+            retval = List_remove((*handlePtr)->recipients, elem);
+        }
+        retval = List_delete(&((*handlePtr)->recipients));
+    }
+    (*handlePtr)->recipients = NULL;
+
+    if ((*handlePtr)->queueLock) {
+        retval = OsalSemaphore_delete(&((*handlePtr)->queueLock));
+        if (retval < 0){
+            GT_setFailureReason (curTrace,
+                        GT_4CLASS,
+                        "OsalSemaphore_delete",
+                        retval,
+                        "queue lock delete failed");
+            status = RCMCLIENT_ERESOURCE;
+        }
+        (*handlePtr)->queueLock = NULL;
+    }
+
+    if ((*handlePtr)->mbxLock) {
+        retval = OsalSemaphore_delete(&((*handlePtr)->mbxLock));
+        if (retval < 0){
+            GT_setFailureReason (curTrace,
+                        GT_4CLASS,
+                        "OsalSemaphore_delete",
+                        retval,
+                        "mbx lock delete failed");
+            status = RCMCLIENT_ERESOURCE;
+        }
+        (*handlePtr)->mbxLock = NULL;
+    }
+
+    if (NULL != (*handlePtr)->gate) {
+        GateMutex_delete(&((*handlePtr)->gate));
+        (*handlePtr)->gate = NULL;
     }
 
     if ((*handlePtr)->cbNotify) {
@@ -795,7 +782,7 @@ RcmClient_Message *RcmClient_alloc(RcmClient_Handle handle, UInt32 dataSize)
 
     /* initialize the packet structure */
     packet->desc = 0;
-    packet->msgId = genMsgId();
+    packet->msgId = genMsgId(handle);
     packet->message.fxnIdx = RCMCLIENT_INVALID_FUNCTION_INDEX;
     packet->message.result = 0;
     packet->message.dataSize = dataSize;
@@ -846,7 +833,7 @@ Int RcmClient_exec(RcmClient_Handle handle,
 
     /* classify this message */
     packet = getPacketAddr(rcmMsg);
-    packet->desc |= RCMCLIENT_DESC_RCM_MSG << RCMCLIENT_DESC_TYPE_SHIFT;
+    packet->desc |= RcmClient_Desc_RCM_MSG << RCMCLIENT_DESC_TYPE_SHIFT;
     msgId = packet->msgId;
 
     /* set the return address to this instance's message queue */
@@ -932,7 +919,7 @@ Int RcmClient_execAsync(RcmClient_Handle handle,
 
     /* classify this message */
     packet = getPacketAddr(rcmMsg);
-    packet->desc |= RCMCLIENT_DESC_RCM_MSG << RCMCLIENT_DESC_TYPE_SHIFT;
+    packet->desc |= RcmClient_Desc_RCM_MSG << RCMCLIENT_DESC_TYPE_SHIFT;
 
     /* set the return address to this instance's message queue */
     msgqInst = (MessageQ_Handle)handle->msgQ;
@@ -998,7 +985,7 @@ Int RcmClient_execDpc(RcmClient_Handle handle,
 
     /* classify this message */
     packet = getPacketAddr(rcmMsg);
-    packet->desc |= RCMCLIENT_DESC_DPC << RCMCLIENT_DESC_TYPE_SHIFT;
+    packet->desc |= RcmClient_Desc_DPC << RCMCLIENT_DESC_TYPE_SHIFT;
     msgId = packet->msgId;
 
     /* set the return address to this instance's message queue */
@@ -1073,7 +1060,7 @@ Int RcmClient_execNoWait(RcmClient_Handle handle,
 
     /* classify this message */
     packet = getPacketAddr(rcmMsg);
-    packet->desc |= RCMCLIENT_DESC_RCM_MSG << RCMCLIENT_DESC_TYPE_SHIFT;
+    packet->desc |= RcmClient_Desc_RCM_MSG << RCMCLIENT_DESC_TYPE_SHIFT;
     *msgId = packet->msgId;
 
     /* set the return address to this instance's message queue */
@@ -1180,7 +1167,7 @@ Int RcmClient_getSymbolIndex(RcmClient_Handle handle,
 
     /* classify this message */
     packet = getPacketAddr(rcmMsg);
-    packet->desc |= RCMCLIENT_DESC_SYM_IDX << RCMCLIENT_DESC_TYPE_SHIFT;
+    packet->desc |= RcmClient_Desc_SYM_IDX << RCMCLIENT_DESC_TYPE_SHIFT;
     msgId = packet->msgId;
 
     /* set the return address to this instance's message queue */
@@ -1312,7 +1299,7 @@ exit:
  * Purpose:
  * To generate unique MsgIDs for the RCM messages
  */
-UInt16 genMsgId(void)
+UInt16 genMsgId(RcmClient_Handle handle)
 {
     UInt32 key;
     UInt16 msgId;
@@ -1331,11 +1318,19 @@ UInt16 genMsgId(void)
         goto exit;
     }
 
+    if (NULL == handle) {
+        GT_0trace(curTrace,
+              GT_4CLASS,
+              "genMsgId: invalid argument\n");
+        status = RCMCLIENT_EHANDLE;
+        goto exit;
+    }
+
     /* generate a new message id */
-    key = GateMutex_enter(RcmClient_module->gate);
-    msgId = (RcmClient_module->msgId == 0xFFFF ? RcmClient_module->msgId = 1
-                        : ++(RcmClient_module->msgId));
-    GateMutex_leave(RcmClient_module->gate, key);
+    key = GateMutex_enter(handle->gate);
+    msgId = (handle->msgId == 0xFFFF ? handle->msgId = 1
+                        : ++(handle->msgId));
+    GateMutex_leave(handle->gate, key);
 
 exit:
     GT_1trace (curTrace, GT_LEAVE, "genMsgId", status);
@@ -1402,23 +1397,23 @@ Int getReturnMsg(RcmClient_Handle handle,
     while (!messageFound) {
 
         /* acquire the mailbox lock */
-        retval = OsalSemaphore_pend(RcmClient_module->mbxLock, OSALSEMAPHORE_WAIT_FOREVER);
+        retval = OsalSemaphore_pend(handle->mbxLock, OSALSEMAPHORE_WAIT_FOREVER);
         if (retval < 0) {
             GT_setFailureReason (curTrace,
                          GT_4CLASS,
                          "OsalSemaphore_pend",
                          retval,
-                         "RcmClient_module->mbxLock pend fails");
+                         "handle->mbxLock pend fails");
             status = RCMCLIENT_ERESOURCE;
             goto exit;
         }
 
         /* search new mail list for message */
         elem = NULL;
-        while ((elem = List_next(RcmClient_module->newMail, elem)) != NULL) {
+        while ((elem = List_next(handle->newMail, elem)) != NULL) {
             packet = getPacketAddrElem(elem);
             if (msgId == packet->msgId) {
-                retval = List_remove(RcmClient_module->newMail, elem);
+                retval = List_remove(handle->newMail, elem);
                 if (retval < 0) {
                     GT_setFailureReason (curTrace,
                                  GT_4CLASS,
@@ -1431,13 +1426,13 @@ Int getReturnMsg(RcmClient_Handle handle,
                 }
                 returnMsg = &packet->message;
                 messageFound = TRUE;
-                retval = OsalSemaphore_post(RcmClient_module->mbxLock);
+                retval = OsalSemaphore_post(handle->mbxLock);
                 if (retval < 0) {
                     GT_setFailureReason (curTrace,
                                  GT_4CLASS,
                                  "OsalSemphore post",
                                  retval,
-                                 "RcmClient_module->mbxLock post fails");
+                                 "handle->mbxLock post fails");
                     status = RCMCLIENT_ERESOURCE;
                     goto exit;
                 }
@@ -1446,7 +1441,7 @@ Int getReturnMsg(RcmClient_Handle handle,
         }
 
         /* attempt the message queue lock */
-        queueLockAcquired = OsalSemaphore_pend(RcmClient_module->queueLock,
+        queueLockAcquired = OsalSemaphore_pend(handle->queueLock,
                                     OSALSEMAPHORE_WAIT_NONE);
         if ((queueLockAcquired <0) && (queueLockAcquired !=
                         OSALSEMAPHORE_E_WAITNONE)) {
@@ -1454,7 +1449,7 @@ Int getReturnMsg(RcmClient_Handle handle,
                          GT_4CLASS,
                          "OsalSemaphore_pend",
                          status,
-                         "RcmClient_module->queueLock fails");
+                         "handle->queueLock fails");
             status = RCMCLIENT_ERESOURCE;
             goto exit;
         }
@@ -1474,7 +1469,7 @@ Int getReturnMsg(RcmClient_Handle handle,
                                      GT_4CLASS,
                                      "MessageQ_get",
                                      retval,
-                                     "RcmClient_module->MessageQ get fails");
+                                     "handle->MessageQ get fails");
                         status = RCMCLIENT_EGETMSG;
                         goto exit;
                     }
@@ -1489,7 +1484,7 @@ Int getReturnMsg(RcmClient_Handle handle,
 
                         /* search wait list for new mailman */
                         elem = NULL;
-                        while ((elem = List_next(RcmClient_module->recipients, elem)) != NULL) {
+                        while ((elem = List_next(handle->recipients, elem)) != NULL) {
                             recipient = (Recipient *)elem;
                             if (NULL == recipient->msg) {
                                 retval = OsalSemaphore_post(recipient->event);
@@ -1507,25 +1502,25 @@ Int getReturnMsg(RcmClient_Handle handle,
                         }
 
                         /* release the message queue lock */
-                        retval = OsalSemaphore_post(RcmClient_module->queueLock);
+                        retval = OsalSemaphore_post(handle->queueLock);
                         if (retval < 0) {
                             GT_setFailureReason (curTrace,
                                          GT_4CLASS,
                                          "Osal Semaphore post",
                                          retval,
-                                         "RcmClient_module->queueLock post fails");
+                                         "handle->queueLock post fails");
                             status = RCMCLIENT_ERESOURCE;
                             goto exit;
                         }
 
                         /* release the mailbox lock */
-                        retval = OsalSemaphore_post(RcmClient_module->mbxLock);
+                        retval = OsalSemaphore_post(handle->mbxLock);
                         if (retval < 0) {
                             GT_setFailureReason (curTrace,
                                          GT_4CLASS,
                                          "Osal Semaphore post",
                                          retval,
-                                         "RcmClient_module->mbxLock post fails");
+                                         "handle->mbxLock post fails");
                             status = RCMCLIENT_ERESOURCE;
                         }
                         goto exit;
@@ -1539,7 +1534,7 @@ Int getReturnMsg(RcmClient_Handle handle,
                     elem = NULL;
                     messageDelivered = FALSE;
                     while ((elem = List_next
-                        (RcmClient_module->recipients, elem)) != NULL) {
+                        (handle->recipients, elem)) != NULL) {
                         recipient = (Recipient *)elem;
                         if (recipient->msgId == packet->msgId) {
                             recipient->msg = &packet->message;
@@ -1563,7 +1558,7 @@ Int getReturnMsg(RcmClient_Handle handle,
                         /* use the elem in the MessageQ hdr */
                         elem = (List_Elem *)&packet->msgqHeader;
                         retval = List_put
-                            (RcmClient_module->newMail, elem);
+                            (handle->newMail, elem);
                         if (retval < 0) {
                             GT_setFailureReason (curTrace,
                                          GT_4CLASS,
@@ -1580,7 +1575,7 @@ Int getReturnMsg(RcmClient_Handle handle,
                                      GT_4CLASS,
                                      "MessageQ_get",
                                      retval,
-                                     "RcmClient_module->MessageQ get fails");
+                                     "handle->MessageQ get fails");
                         status = RCMCLIENT_EGETMSG;
                         goto exit;
                     }
@@ -1591,13 +1586,13 @@ Int getReturnMsg(RcmClient_Handle handle,
                  */
 
                 /* release the mailbox lock */
-                retval = OsalSemaphore_post(RcmClient_module->mbxLock);
+                retval = OsalSemaphore_post(handle->mbxLock);
                 if (retval < 0) {
                     GT_setFailureReason (curTrace,
                                  GT_4CLASS,
                                  "OsalSemaphore_post",
                                  retval,
-                                 "uRcmClient_module->mbxLock"
+                                 "uhandle->mbxLock"
                                     "post fails");
                     status = RCMCLIENT_ERESOURCE;
                     goto exit;
@@ -1610,7 +1605,7 @@ Int getReturnMsg(RcmClient_Handle handle,
                                     GT_4CLASS,
                                     "MessageQ_get",
                                     retval,
-                                    "RcmClient_module->MessageQ get fails");
+                                    "handle->MessageQ get fails");
                        status = RCMCLIENT_EGETMSG;
                        goto exit;
                    }
@@ -1623,14 +1618,14 @@ Int getReturnMsg(RcmClient_Handle handle,
                 }
 
                 /* acquire the mailbox lock */
-                retval = OsalSemaphore_pend(RcmClient_module->mbxLock,
+                retval = OsalSemaphore_pend(handle->mbxLock,
                                 OSALSEMAPHORE_WAIT_FOREVER);
                 if (retval < 0) {
                     GT_setFailureReason (curTrace,
                                  GT_4CLASS,
                                  "OsalSemaphore_pend",
                                  retval,
-                                 "RcmClient_module->queueLock fails");
+                                 "handle->queueLock fails");
                     status = RCMCLIENT_ERESOURCE;
                 }
             }
@@ -1653,16 +1648,16 @@ Int getReturnMsg(RcmClient_Handle handle,
 
             /* add recipient to wait list */
             elem = (List_Elem *)&self;
-            List_put(RcmClient_module->recipients, elem);
+            List_put(handle->recipients, elem);
 
             /* release the mailbox lock */
-            retval = OsalSemaphore_post(RcmClient_module->mbxLock);
+            retval = OsalSemaphore_post(handle->mbxLock);
             if (retval < 0) {
                 GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "OsalSemaphore_post",
                              retval,
-                             "uRcmClient_module->mbxLock"
+                             "handle->mbxLock"
                              "post fails");
                 status = RCMCLIENT_ERESOURCE;
                 goto exit;
@@ -1682,14 +1677,14 @@ Int getReturnMsg(RcmClient_Handle handle,
             }
 
             /* acquire the mailbox lock */
-            retval = OsalSemaphore_pend(RcmClient_module->mbxLock,
+            retval = OsalSemaphore_pend(handle->mbxLock,
                             OSALSEMAPHORE_WAIT_FOREVER);
             if (retval < 0) {
                 GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "OsalSemaphore_pend",
                              retval,
-                             "RcmClient_module->mbxLock pend fails");
+                             "handle->mbxLock pend fails");
                 status = RCMCLIENT_ERESOURCE;
                 goto exit;
             }
@@ -1701,7 +1696,7 @@ Int getReturnMsg(RcmClient_Handle handle,
             }
 
             /* remove recipient from wait list */
-            retval = List_remove(RcmClient_module->recipients, elem);
+            retval = List_remove(handle->recipients, elem);
             if (retval < 0) {
                 GT_setFailureReason (curTrace,
                              GT_4CLASS,
@@ -1724,13 +1719,13 @@ Int getReturnMsg(RcmClient_Handle handle,
             }
 
             /* release the mailbox lock */
-            retval = OsalSemaphore_post(RcmClient_module->mbxLock);
+            retval = OsalSemaphore_post(handle->mbxLock);
             if (retval < 0){
                 GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "OsalSemaphore_post",
                              retval,
-                             "uRcmClient_module->mbxLock post fails");
+                             "handle->mbxLock post fails");
                 status = RCMCLIENT_ERESOURCE;
             }
         }

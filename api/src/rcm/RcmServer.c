@@ -401,8 +401,7 @@ Int RcmServer_delete(RcmServer_Handle *handlePtr)
         goto exit;
     }
 
-    if ((*handlePtr)->thread)
-    {
+    if ((*handlePtr)->thread) {
         retval = pthread_cancel((*handlePtr)->thread);
         if (retval < 0)
         {
@@ -429,12 +428,12 @@ Int RcmServer_delete(RcmServer_Handle *handlePtr)
     if ((*handlePtr)->msgQ) {
         retval = MessageQ_delete(&((*handlePtr)->msgQ));
         if (retval < 0)
-	{
-		GT_0trace (curTrace,
-		           GT_4CLASS,
-		           "RcmServer_delete: Error in MessageQ_delete\n");
-		status = RCMSERVER_ECLEANUP;
-        	goto exit;
+    {
+        GT_0trace (curTrace,
+                   GT_4CLASS,
+                   "RcmServer_delete: Error in MessageQ_delete\n");
+        status = RCMSERVER_ECLEANUP;
+            goto exit;
         }
     }
 
@@ -731,15 +730,15 @@ Void *RcmServer_serverRunFxn(IArg arg)
             retval = pthread_setcancelstate(PTHREAD_CANCEL_DISABLE,
                                                 &cancelState);
 			retval = MessageQ_get(handle->msgQ, &msgqMsg, WAIT_NONE);
-			if ((retval < 0) && (retval != MESSAGEQ_E_TIMEOUT)) {
-				GT_setFailureReason (curTrace,
-							 GT_4CLASS,
-							 "MessageQ_get",
-           	                 retval,
-           	                 "RcmClient_module->MessageQ get fails");
-				status = RCMSERVER_EGETMSG;
-				goto exit;
-			}
+            if ((retval < 0) && (retval != MESSAGEQ_E_TIMEOUT)) {
+                GT_setFailureReason (curTrace,
+                                GT_4CLASS,
+                                "MessageQ_get",
+                                retval,
+                                "RcmClient_module->MessageQ get fails");
+                status = RCMSERVER_EGETMSG;
+                goto exit;
+            }
         } while (NULL == msgqMsg);
 
         packet = (RcmServer_Packet *)msgqMsg;
@@ -752,7 +751,7 @@ Void *RcmServer_serverRunFxn(IArg arg)
         /* process the given message */
         switch (messageType) {
 
-        case RCMSERVER_DESC_RCM_MSG:
+        case RcmClient_Desc_RCM_MSG:
             execMsg(handle, rcmMsg);
 
             retval = MessageQ_put(MessageQ_getReplyQueue
@@ -768,7 +767,7 @@ Void *RcmServer_serverRunFxn(IArg arg)
             }
             break;
 
-        case RCMSERVER_DESC_DPC:
+        case RcmClient_Desc_DPC:
             fxn = getFxnAddr(handle, rcmMsg->fxnIdx);
             /* TODO: copy the context into a buffer */
 
@@ -787,10 +786,10 @@ Void *RcmServer_serverRunFxn(IArg arg)
             (*fxn)(0, NULL);
             break;
 
-        case RCMSERVER_DESC_SYM_ADD:
+        case RcmClient_Desc_SYM_ADD:
             break;
 
-        case RCMSERVER_DESC_SYM_IDX:
+        case RcmClient_Desc_SYM_IDX:
             name = (String)rcmMsg->data;
             fxnIdx = getSymbolIndex(handle, name);
             if (fxnIdx == 0xFFFF) {

@@ -160,10 +160,10 @@
 /*
  * RCM message descriptors
  */
-#define RCMCLIENT_DESC_RCM_MSG          0x1 /*  RcmClient execution message */
-#define RCMCLIENT_DESC_DPC              0x2 /*  Deferred Procedure Call */
-#define RCMCLIENT_DESC_SYM_ADD          0x3 /*  Symbol add message */
-#define RCMCLIENT_DESC_SYM_IDX          0x4 /*  Query symbox index */
+#define RcmClient_Desc_RCM_MSG          0x1 /*  RcmClient execution message */
+#define RcmClient_Desc_DPC              0x2 /*  Deferred Procedure Call */
+#define RcmClient_Desc_SYM_ADD          0x3 /*  Symbol add message */
+#define RcmClient_Desc_SYM_IDX          0x4 /*  Query symbox index */
 
 /*
  * RCM client default heap ID
