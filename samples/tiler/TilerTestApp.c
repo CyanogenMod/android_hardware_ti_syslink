@@ -73,13 +73,17 @@ Int main (Int argc, Char * argv [])
     }
 
     testNo = atoi (argv[1]);
-    subTestNo = atoi (argv[2]);
 
-    /* Determine proc ID based on subtest number */
-    if(subTestNo == 1)
-        procId = 2;   // SysM3
-    if(subTestNo == 2)
-        procId = 3;   // AppM3
+    if(argc > 2)
+    {
+        subTestNo = atoi (argv[2]);
+
+        /* Determine proc ID based on subtest number */
+        if(subTestNo == 1)
+            procId = 2;   // SysM3
+        if(subTestNo == 2)
+            procId = 3;   // AppM3
+    }
 
     /* Run SyslinkVirtToPhysTest test */
     if(testNo == 1) {
