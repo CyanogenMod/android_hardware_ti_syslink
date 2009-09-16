@@ -712,7 +712,10 @@ Int ipc_setup (Int testCase)
 #endif
 
 #if defined(SYSLINK_USE_LOADER)
-    image_name = "./RCMSrvClnt_MPUSYS_Test_Core0.xem3";
+    if (testCase == 1)
+        image_name = "./RCMSrvClnt_MPUSYS_Test_Core0.xem3";
+    else if (testCase == 2)
+        image_name = "./Notify_MPUSYS_reroute_Test_Core0.xem3";
     uProcId = MultiProc_getId (SYSM3_PROC_NAME);
     status = ProcMgr_load (procMgrHandle, image_name, 2, &image_name,
                             &entry_point, &fileId, uProcId);

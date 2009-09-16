@@ -611,7 +611,10 @@ Int CreateRcmClient(Int testCase)
     Osal_printf("remoteId_client = %d\n", remoteId_client);
 
 #if defined(SYSLINK_USE_LOADER)
-    sysm3_image_name = "./RCMServer_MPUSYS_Test_Core0.xem3";
+    if (testCase == 1)
+        sysm3_image_name = "./RCMServer_MPUSYS_Test_Core0.xem3";
+    else if (testCase == 2)
+        sysm3_image_name = "./Notify_MPUSYS_reroute_Test_Core0.xem3";
     uProcId = remoteId_client;
     Osal_printf ("SYSM3 Load: loading the SYSM3 image %s\n", sysm3_image_name);
     Osal_printf ("SYSM3 Load: uProcId = %d\n", uProcId);

@@ -426,7 +426,10 @@ Void RcmServerThreadFxn (Void *arg)
 #endif
 
 #if defined(SYSLINK_USE_LOADER)
-    sysm3_image_name = "./RCMClient_MPUSYS_Test_Core0.xem3";
+    if (testCase == 1)
+        sysm3_image_name = "./RCMClient_MPUSYS_Test_Core0.xem3";
+    else if (testCase == 2)
+        sysm3_image_name = "./Notify_MPUSYS_reroute_Test_Core0.xem3";
     uProcId = PROC_SYSM3;
     Osal_printf ("loading the image %s\n", sysm3_image_name);
     Osal_printf ("uProcId = %d\n", uProcId);
