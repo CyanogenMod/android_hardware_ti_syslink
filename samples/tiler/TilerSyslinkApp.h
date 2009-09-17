@@ -56,6 +56,10 @@ Int SyslinkVirtToPhysTest(void);
  */
 Int SyslinkVirtToPhysPagesTest(void);
 
+/*!
+ *  @brief  Function to Test repeated mapping and unmapping of addresses to Ducati virtual space
+ */
+Int SyslinkMapUnMapTest(UInt);
 
 #if defined (__cplusplus)
 }

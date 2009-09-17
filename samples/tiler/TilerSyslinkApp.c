@@ -32,6 +32,7 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <stdint.h>
+#include <time.h>
 
 /* Standard headers */
 #include <Std.h>
@@ -90,7 +91,9 @@ typedef struct {
  *  @brief       Function to Test use buffer functionality using Tiler and
  *               Syslink IPC
  *
- *  @param     The Proc ID with which this functionality is verified
+ *  @param procId       The Proc ID with which this functionality is verified
+ *  @param useTiler     Flag to enable TILER allocation
+ *  @param numTrials    Number of times to run use buffer test
  *
  *  @sa
  */
@@ -504,9 +507,8 @@ exit:
 }
 
 /*!
- *  @brief       Function to test the retreival of Pages for
+ *  @brief       Function to test the retrieval of Pages for
  *               both Tiler and non-Tiler buffers
- *
  *
  *  @param     void
  *
@@ -572,7 +574,6 @@ Int SyslinkVirtToPhysPagesTest(void)
  *  @brief       Function to test the retrieval phsical address for
  *               a given Co-Processor virtual address.
  *
- *
  *  @param     void
  *
  *  @sa
@@ -592,6 +593,128 @@ Int SyslinkVirtToPhysTest(void)
         remoteAddr += 4096;
         numOfIterations--;
     }while (numOfIterations > 0);
+    return 0;
+}
+
+/*!
+ *  @brief       Function to test multiple calls to map/unmap
+ *
+ *  @param   numTrials  Number of times to call map/unmap
+ *
+ *  @sa
+ */
+Int SyslinkMapUnMapTest(UInt numTrials)
+{
+    Ptr                             bufPtr;
+    UInt                            bufSize;
+    UInt                            i;
+    SyslinkMemUtils_MpuAddrToMap    MpuAddr_list[1];
+    UInt32                          mappedAddr;
+    Int                             status = 0;
+    SysMgr_Config                   config;
+    ProcMgr_Handle                  procMgrHandle_client;
+    UInt                            usrSharedAddr;
+
+    // Randomize
+    srand(time(NULL));
+
+    SysMgr_getConfig (&config);
+    status = SysMgr_setup (&config);
+    if (status < 0) {
+        Osal_printf ("Error in SysMgr_setup [0x%x]\n", status);
+    }
+
+    /* Open a handle to the ProcMgr instance. */
+    status = ProcMgr_open (&procMgrHandle_client,
+                           PROC_SYSM3);
+    if (status < 0) {
+        Osal_printf ("Error in ProcMgr_open [0x%x]\n", status);
+    }
+    else {
+        Osal_printf ("ProcMgr_open Status [0x%x]\n", status);
+
+        status = ProcMgr_translateAddr (procMgrHandle_client,
+                                        (Ptr) &usrSharedAddr,
+                                        ProcMgr_AddrType_MasterUsrVirt,
+                                        (Ptr) SHAREDMEM,
+                                        ProcMgr_AddrType_SlaveVirt);
+
+        status = SharedRegion_add (0,
+                           (Ptr) usrSharedAddr,
+                           SHAREDMEMSIZE);
+        if (status < 0) {
+            Osal_printf ("Error in SharedRegion_add [0x%x]\n", status);
+        }
+        else {
+            Osal_printf ("SharedRegion_add [0x%x]\n", status);
+        }
+
+        status = ProcMgr_translateAddr (procMgrHandle_client,
+                                        (Ptr) &usrSharedAddr,
+                                        ProcMgr_AddrType_MasterUsrVirt,
+                                        (Ptr) SHAREDMEM1,
+                                        ProcMgr_AddrType_SlaveVirt);
+
+        status = SharedRegion_add (1,
+                           (Ptr) usrSharedAddr,
+                           SHAREDMEMSIZE);
+        if (status < 0) {
+            Osal_printf ("Error in SharedRegion_add [0x%x]\n", status);
+        }
+        else {
+            Osal_printf ("SharedRegion_add [0x%x]\n", status);
+        }
+
+        for(i = 0; i < numTrials; i++) {
+
+            // Generate random size to allocate (up to 64K)
+            bufSize = (rand() & 0xFFFF);
+            if(bufSize == 0)
+                bufSize = 1;
+
+            Osal_printf("Calling malloc with size %d.\n", bufSize);
+            bufPtr = (Ptr)malloc(bufSize);
+
+            if(bufPtr == NULL) {
+                Osal_printf("Error: malloc returned null.\n");
+                return -1;
+            }
+            else {
+                Osal_printf("malloc returned 0x%x.\n", (UInt)bufPtr);
+            }
+
+            MpuAddr_list[0].mpuAddr = (UInt32)bufPtr;
+            MpuAddr_list[0].size = bufSize;
+            status = SysLinkMemUtils_map (MpuAddr_list, 1, &mappedAddr,
+                                    ProcMgr_MapType_Virt, PROC_SYSM3);
+            if(status < 0) {
+                Osal_printf("SysLinkMemUtils_map failed with status [0x%x].\n", status);
+                return -2;
+            }
+            Osal_printf("MPU Address = 0x%x     Mapped Address = 0x%x\n",
+                                    MpuAddr_list[0].mpuAddr, mappedAddr);
+
+            status = SysLinkMemUtils_unmap(mappedAddr, PROC_SYSM3);
+            if(status < 0) {
+                Osal_printf("SysLinkMemUtils_unmap failed with status [0x%x].\n", status);
+                return -3;
+            }
+
+            free(bufPtr);
+        }
+    }
+
+    /* Finalize modules */
+    SharedRegion_remove (0);
+    SharedRegion_remove (1);
+
+    status = ProcMgr_close (&procMgrHandle_client);
+    Osal_printf ("ProcMgr_close status: [0x%x]\n", status);
+
+    status = SysMgr_destroy();
+    Osal_printf("SysMgr_destroy status: [0x%x]\n", status);
+
+    Osal_printf("Map/UnMap test passed!\n");
     return 0;
 }
 

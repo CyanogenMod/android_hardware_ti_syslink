@@ -70,6 +70,8 @@ Int main (Int argc, Char * argv [])
                         "Syslink Use Malloc Buffer on SysM3\n");
           Osal_printf ("\t./syslink_tilertest.out 4 2 [# trials]: "
                         "Syslink Use Malloc Buffer on AppM3\n");
+          Osal_printf ("\t./syslink_tilertest.out 5: "
+                        "Syslink Map/UnMap test\n");
           Osal_printf ("\t[# trials] is optional, defaults to 1\n");
         goto exit;
     }
@@ -86,6 +88,7 @@ Int main (Int argc, Char * argv [])
         if(subTestNo == 2)
             procId = 3;   // AppM3
     }
+
     if(argc > 3)
         numTrials = atoi (argv[2]);
     else
@@ -120,6 +123,13 @@ Int main (Int argc, Char * argv [])
         status = SyslinkUseBufferTest (procId, FALSE, numTrials);
         if (status < 0)
             Osal_printf ("Error in SyslinkUseBufferTest test \n");
+    }
+
+    if(testNo == 5) {
+        Osal_printf ("SyslinkMapUnMapTest with Malloc invoked.\n");
+        status = SyslinkMapUnMapTest ();
+        if (status < 0)
+            Osal_printf ("Error in SyslinkMapUnMapTest test \n");
     }
 
 exit:
