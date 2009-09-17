@@ -50,6 +50,7 @@ Int main (Int argc, Char * argv [])
     Int testNo;
     Int subTestNo;
     Int procId;
+    UInt numTrials;
 
     Osal_printf ("\n== Syslink Mem Utils Sample ==\n");
 
@@ -61,14 +62,15 @@ Int main (Int argc, Char * argv [])
                         "Syslink Virt to Phys.\n");
         Osal_printf ("\t./syslink_tilertest.out 2 : "
                         "Syslink Virt to Phys.Pages\n");
-          Osal_printf ("\t./syslink_tilertest.out 3 1 : "
+          Osal_printf ("\t./syslink_tilertest.out 3 1 [# trials]: "
                         "Syslink Use Tiler Buffer on SysM3\n");
-          Osal_printf ("\t./syslink_tilertest.out 3 2 : "
+          Osal_printf ("\t./syslink_tilertest.out 3 2 [# trials]: "
                         "Syslink Use Tiler Buffer on AppM3\n");
-          Osal_printf ("\t./syslink_tilertest.out 4 1 : "
+          Osal_printf ("\t./syslink_tilertest.out 4 1 [# trials]: "
                         "Syslink Use Malloc Buffer on SysM3\n");
-          Osal_printf ("\t./syslink_tilertest.out 4 2 : "
+          Osal_printf ("\t./syslink_tilertest.out 4 2 [# trials]: "
                         "Syslink Use Malloc Buffer on AppM3\n");
+          Osal_printf ("\t[# trials] is optional, defaults to 1\n");
         goto exit;
     }
 
@@ -84,6 +86,10 @@ Int main (Int argc, Char * argv [])
         if(subTestNo == 2)
             procId = 3;   // AppM3
     }
+    if(argc > 3)
+        numTrials = atoi (argv[2]);
+    else
+        numTrials = 1;
 
     /* Run SyslinkVirtToPhysTest test */
     if(testNo == 1) {
@@ -104,14 +110,14 @@ Int main (Int argc, Char * argv [])
 
     if(testNo == 3) {
         Osal_printf ("SyslinkUseBufferTest with TILER invoked.\n");
-        status = SyslinkUseBufferTest (procId, TRUE);
+        status = SyslinkUseBufferTest (procId, TRUE, numTrials);
         if (status < 0)
             Osal_printf ("Error in SyslinkUseBufferTest test \n");
     }
 
     if(testNo == 4) {
         Osal_printf ("SyslinkUseBufferTest with Malloc invoked.\n");
-        status = SyslinkUseBufferTest (procId, FALSE);
+        status = SyslinkUseBufferTest (procId, FALSE, numTrials);
         if (status < 0)
             Osal_printf ("Error in SyslinkUseBufferTest test \n");
     }
