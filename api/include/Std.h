@@ -28,6 +28,7 @@
 #include <std_linux.h>
 #endif
 #include <unistd.h>
+#include <stdbool.h>
 
 #if defined (__cplusplus)
 extern "C" {
@@ -47,7 +48,7 @@ typedef long double       LDouble;
 typedef void              Void;
 
 
-typedef unsigned short    Bool;
+typedef bool              Bool;
 typedef void            * Ptr;       /* data pointer */
 typedef void            * Handle;    /* data pointer */
 typedef char            * String;    /* null terminated string */
