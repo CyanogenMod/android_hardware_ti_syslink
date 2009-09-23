@@ -157,7 +157,7 @@ static inline Bool Atomic_cmpmask_and_lt(Atomic * var, UInt32 mask, UInt32 val)
     UInt32 cur = 0;
 
     pthread_mutex_lock (&Atomic_lock);
-    ret = *var;
+    cur = *var;
     if ((cur & mask) == mask) {
         if (cur >= val) {
             ret = FALSE;
@@ -186,7 +186,7 @@ static inline Bool Atomic_cmpmask_and_gt(Atomic * var, UInt32 mask, UInt32 val)
     UInt32 cur = 0;
 
     pthread_mutex_lock (&Atomic_lock);
-    ret = *var;
+    cur = *var;
     if ((cur & mask) == mask) {
         if (cur < val) {
             ret = FALSE;
