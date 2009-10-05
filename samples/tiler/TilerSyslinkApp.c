@@ -218,7 +218,7 @@ Int SyslinkUseBufferTest (Int procId, Bool useTiler, UInt numTrials)
 
     ///////////////////////// Set up RCM /////////////////////////
 
-        /* Get default config for rcm client module */
+    /* Get default config for rcm client module */
     Osal_printf ("Get default config for rcm client module.\n");
     status = RcmClient_getConfig(&cfgParams);
     if (status < 0) {
@@ -252,14 +252,15 @@ Int SyslinkUseBufferTest (Int procId, Bool useTiler, UInt numTrials)
 
     if(procId == procIdSysM3) {
         remoteServerName = RCM_SERVER_NAME_SYSM3;
+        rcmClient_Params.heapId = HEAPID_SYSM3;
     }
     else {
         remoteServerName = RCM_SERVER_NAME_APPM3;
+        rcmClient_Params.heapId = HEAPID_APPM3;
     }
     /* create an rcm client instance */
     Osal_printf ("Creating RcmClient instance %s.\n", remoteServerName);
     rcmClient_Params.callbackNotification = 0; /* disable asynchronous exec */
-    rcmClient_Params.heapId = HEAPID; /* TODO test RCMCLIENT_DEFAULT_HEAPID*/
 
     while ((rcmClientHandle == NULL) && (count++ < MAX_CREATE_ATTEMPTS)) {
         status = RcmClient_create (remoteServerName, &rcmClient_Params,

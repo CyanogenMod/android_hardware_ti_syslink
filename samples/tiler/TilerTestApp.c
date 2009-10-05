@@ -58,41 +58,53 @@ Int main (Int argc, Char * argv [])
     {
         Osal_printf ("Usage: ./syslink_tilertest.out <Test#> <Sub Test#>\n"
                         "Options:\n");
-        Osal_printf ("\t./syslink_tilertest.out 1 : "
-                        "Syslink Virt to Phys.\n");
-        Osal_printf ("\t./syslink_tilertest.out 2 : "
-                        "Syslink Virt to Phys.Pages\n");
+        Osal_printf ("\t./syslink_tilertest.out 1: "
+                        "\n\t\tSyslink Virt to Phys.\n");
+        Osal_printf ("\t./syslink_tilertest.out 2: "
+                        "\n\t\tSyslink Virt to Phys.Pages\n");
           Osal_printf ("\t./syslink_tilertest.out 3 1 [# trials]: "
-                        "Syslink Use Tiler Buffer on SysM3\n");
+                        "\n\t\tSyslink Use Tiler Buffer on SysM3\n");
           Osal_printf ("\t./syslink_tilertest.out 3 2 [# trials]: "
-                        "Syslink Use Tiler Buffer on AppM3\n");
+                        "\n\t\tSyslink Use Tiler Buffer on AppM3\n");
           Osal_printf ("\t./syslink_tilertest.out 4 1 [# trials]: "
-                        "Syslink Use Malloc Buffer on SysM3\n");
+                        "\n\t\tSyslink Use Malloc Buffer on SysM3\n");
           Osal_printf ("\t./syslink_tilertest.out 4 2 [# trials]: "
-                        "Syslink Use Malloc Buffer on AppM3\n");
-          Osal_printf ("\t./syslink_tilertest.out 5: "
-                        "Syslink Map/UnMap test\n");
+                        "\n\t\tSyslink Use Malloc Buffer on AppM3\n");
+          Osal_printf ("\t./syslink_tilertest.out 5 [# trials]: "
+                        "\n\t\tSyslink Map/UnMap test\n");
           Osal_printf ("\t[# trials] is optional, defaults to 1\n");
         goto exit;
     }
 
     testNo = atoi (argv[1]);
 
-    if(argc > 2)
-    {
-        subTestNo = atoi (argv[2]);
+    switch(testNo) {
+    case 3:
+    case 4:
+        if(argc > 2)
+        {
+            subTestNo = atoi (argv[2]);
 
-        /* Determine proc ID based on subtest number */
-        if(subTestNo == 1)
-            procId = 2;   // SysM3
-        if(subTestNo == 2)
-            procId = 3;   // AppM3
+            /* Determine proc ID based on subtest number */
+            if(subTestNo == 1)
+                procId = 2;   // SysM3
+            if(subTestNo == 2)
+                procId = 3;   // AppM3
+        }
+
+        if(argc > 3)
+            numTrials = atoi (argv[3]);
+        else
+            numTrials = 1;
+        break;
+
+    case 5:
+        if(argc > 2)
+            numTrials = atoi (argv[2]);
+        else
+            numTrials = 1;
+        break;
     }
-
-    if(argc > 3)
-        numTrials = atoi (argv[2]);
-    else
-        numTrials = 1;
 
     /* Run SyslinkVirtToPhysTest test */
     if(testNo == 1) {
@@ -127,11 +139,13 @@ Int main (Int argc, Char * argv [])
 
     if(testNo == 5) {
         Osal_printf ("SyslinkMapUnMapTest with Malloc invoked.\n");
-        status = SyslinkMapUnMapTest ();
+        status = SyslinkMapUnMapTest (numTrials);
         if (status < 0)
             Osal_printf ("Error in SyslinkMapUnMapTest test \n");
     }
 
+    if(status < 0)
+        Osal_printf("Exiting with status 0x%x\n", status);
 exit:
     Osal_printf ("\n== Sample End ==\n");
     return status;
