@@ -244,29 +244,37 @@ OsalSemaphore_pend(OsalSemaphore_Handle semHandle, UInt32 timeout)
 #endif /* #if !defined(SYSLINK_BUILD_OPTIMIZE) */
         /* Different handling for no-timeout case. */
         if (timeout == OSALSEMAPHORE_WAIT_NONE) {
-            osStatus = sem_wait(&(semObj->lock));
+            osStatus = sem_trywait(&(semObj->lock));
             GT_assert (curTrace, (osStatus == 0));
-            if (semObj->value == 0) {
-                /*! @retVal OSALSEMAPHORE_E_WAITNONE WAIT_NONE timeout value was
-                            provided, but semaphore was not available. */
-                status = OSALSEMAPHORE_E_WAITNONE ;
-                GT_setFailureReason (curTrace,
-                                     GT_4CLASS,
-                                     "OsalSemaphore_pend",
-                                     status,
-                                     "WAIT_NONE timeout value was provided, but"
-                                     " semaphore was not available.");
+            if (osStatus != 0) {
+                if (errno == EAGAIN) {
+                    /*! @retVal semaphore was not available. */
+                    status = OSALSEMAPHORE_E_WAITNONE;
+                    GT_setFailureReason (curTrace,
+                                         GT_4CLASS,
+                                         "OsalSemaphore_pend",
+                                         status,
+                                         "WAIT_NONE timeout value was provided,"
+                                         " semaphore was not available.");
+                }
+                else {
+                    status = OSALSEMAPHORE_E_RESOURCE;
+                    GT_setFailureReason (curTrace,
+                                  GT_4CLASS,
+                                  "OsalSemaphore_pend",
+                                  status,
+                                  "Failure in sem_trywait()");
+                }
             }
-            else {
-                if (OSALSEMAPHORE_TYPE_VALUE(semObj->semType)
-                    ==  OsalSemaphore_Type_Binary) {
+            else if(semObj->value > 0) {
+                if (OSALSEMAPHORE_TYPE_VALUE (semObj->semType)
+                        ==  OsalSemaphore_Type_Binary) {
                     semObj->value = 0;
                 }
                 else {
                     semObj->value--;
                 }
             }
-            GT_assert (curTrace, (osStatus == 0));
         }
         /* Finite and infinite timeout cases */
         else {
@@ -283,25 +291,30 @@ OsalSemaphore_pend(OsalSemaphore_Handle semHandle, UInt32 timeout)
             }
 
             osStatus = sem_timedwait(&(semObj->lock), &absTimeout);
-            if (osStatus == -1) {
+            GT_assert (curTrace, (osStatus == 0));
+            if (osStatus != 0) {
                 if (errno == ETIMEDOUT) {
                     status = OSALSEMAPHORE_E_WAITNONE;
-                    GT_1trace (curTrace, GT_LEAVE, "sem_timedwait() timed out", errno);
-                } else {
+                    GT_1trace (curTrace,
+                               GT_LEAVE,
+                               "sem_timedwait() timed out",
+                               osStatus);
+                }
+                else {
                     status = OSALSEMAPHORE_E_RESOURCE;
                     GT_setFailureReason (curTrace,
-                                     GT_4CLASS,
-                                     "OsalSemaphore_pend",
-                                     status,
-                                     "Failure in sem_timedwait()");
+                                  GT_4CLASS,
+                                  "OsalSemaphore_pend",
+                                  status,
+                                  "Failure in sem_timedwait()");
                 }
             }
-
-            if (semObj->value != 0) {
+            else if(semObj->value > 0) {
                 if (OSALSEMAPHORE_TYPE_VALUE (semObj->semType)
                         ==  OsalSemaphore_Type_Binary) {
                     semObj->value = 0;
-                } else {
+                }
+                else {
                     semObj->value--;
                 }
             }
@@ -347,14 +360,21 @@ OsalSemaphore_post (OsalSemaphore_Handle semHandle)
     }
     else {
 #endif /* #if !defined(SYSLINK_BUILD_OPTIMIZE) */
-            osStatus = sem_post(&(semObj->lock));
-            GT_assert (curTrace, (osStatus == 0));
-        if (    OSALSEMAPHORE_TYPE_VALUE (semObj->semType)
-            ==  OsalSemaphore_Type_Binary) {
+        if (OSALSEMAPHORE_TYPE_VALUE (semObj->semType)
+                ==  OsalSemaphore_Type_Binary) {
             semObj->value = 1;
         }
         else {
             semObj->value++;
+        }
+        osStatus = sem_post(&(semObj->lock));
+        GT_assert (curTrace, (osStatus == 0));
+        if (osStatus != 0) {
+            status = OSALSEMAPHORE_E_RESOURCE;
+            GT_1trace (curTrace,
+                       GT_LEAVE,
+                       "Error in sem_post",
+                       osStatus);
         }
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
     }
