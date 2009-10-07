@@ -72,6 +72,7 @@ typedef struct RcmClient_Packet_tag{
  * recipient list elem structure
  */
 typedef struct Recipient_tag {
+    List_Elem elem;
     UInt16 msgId;
     RcmClient_Message *msg;
     OsalSemaphore_Handle event;
