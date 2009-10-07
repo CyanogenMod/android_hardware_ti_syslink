@@ -13,83 +13,55 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
+#   ============================================================================
+#   @file   Makefile
 #
-#  syslink/usr/src/Makefile
+#   @brief  Makefile for user-side RCM Multi Test samples
 #
-#  SysLink RCM MultiTest sample Makefile.
-#
+#   ============================================================================
 
 PROJROOT = ../..
 
 include $(PROJROOT)/make/start.mk
 
-# Do not change above "include" line(s)
+INCLUDE=-I $(PROJROOT)/../api/include -I $(PROJROOT)/inc
+LDPATH=$(PROJROOT)/../target/lib $(PROJROOT)/../target/usr/lib
+LDFLAGS = $(addprefix -L, $(LDPATH))
 
-# Arguments to tools, will move to make system once finalized.
-
-CFLAGS         = 
-CDEFS          = 
-#Uncomment the below line to use sys manager
-CDEFS          += SYSLINK_USE_SYSMGR
-#CDEFS          += SYSLINK_USE_LOADER
-ifeq ($(BUILD),udeb)
-CDEFS          += DEBUG 
-endif
-
-EXEC_ARGS      = 
-ST_LIB_ARGS    = 
-SH_LIB_ARGS    = 
-
-# Define this macro if target runs in kernel mode
-#__KERNEL__ = 1
-
-# Target name and extension
-# static library        (ST_LIB): filename.a
-# shared library soname (SH_LIB): filename.so.maj_ver.min_ver
-# executable            (EXEC)  : filename.out
-
-TARGETNAME  = rcm_multitest
+CFLAGS=-Wall -g -O2 $(INCLUDE) -finline-functions -D$(PROCFAMILY) $(LDFLAGS)
+CFLAGS += -DSYSLINK_USE_SYSMGR
+#CFLAGS += -DSYSLINK_USE_LOADER
 
 
-# TARGETTYPE must be EXEC, ST_LIB or SH_LIB in upper case.
+LIBS = -lutils -lnotify -lipc -lprocmgr -lrcm -lpthread -lrt
+LIBS += -lsysmgr -lsysmemmgr
 
-TARGETTYPE  = EXEC
+all: rcm_multitest.out rcm_multithreadtest.out rcm_multiclienttest.out
 
-# install directory relative to the HOSTTARGET directory
-HOSTRELEASE = syslink
+rcm_multitest.out:
+	$(CC) $(CFLAGS) -o rcm_multitest.out RcmClientServerTest.c $(LIBS)
 
-# install directory relative to the root filesystem
-ROOTFSRELEASE = syslink
+rcm_multithreadtest.out:
+	$(CC) $(CFLAGS) -o rcm_multithreadtest.out RcmMultiThreadTest.c $(LIBS)
 
-# Folders in which gmake will run before building current target
+rcm_multiclienttest.out:
+	$(CC) $(CFLAGS) -o rcm_multiclienttest.out RcmMultiClientTest.c $(LIBS)
 
-SUBMODULES  = \
+install1: rcm_multitest.out
+	$(INSTALL) -D $< $(TARGETDIR)/syslink/$<
+	$(STRIP) -s $(TARGETDIR)/syslink/$<
 
-# Filename must not begin with '.', '/' or '\'
+install2: rcm_multithreadtest.out
+	$(INSTALL) -D $< $(TARGETDIR)/syslink/$<
+	$(STRIP) -s $(TARGETDIR)/syslink/$<
 
-SOURCES     = \
-RcmClientServerTest.c
+install3: rcm_multiclienttest.out
+	$(INSTALL) -D $< $(TARGETDIR)/syslink/$<
+	$(STRIP) -s $(TARGETDIR)/syslink/$<
 
-# Search path for include files
+install: install1 install2 install3
 
-INCLUDES    = \
-    $(PROJROOT)/../api/include \
-    $(PROJROOT)/inc
-
-
-# Libraries needed for linking.
-
-ST_LIBS        = 
-SH_LIBS        = pthread rt utils procmgr ipc rcm notify
-#Uncomment the below line to use sys manager
-SH_LIBS        += sysmgr sysmemmgr
-
-# Search path for library (and linker command) files.
-# Current folder and target folder are included by default.
-
-LIBINCLUDES =
-
-
-# Do not change below "include" line(s)
-
-include $(PROJROOT)/make/build.mk
+clean:
+	\rm -f rcm_multitest.out
+	\rm -f rcm_multithreadtest.out
+	\rm -f rcm_multiclienttest.out
