@@ -847,8 +847,6 @@ void trackIoctlCommandFlow(Int fd)
 
 Void displayIoctlInfo(Int fd, UInt32 cmd, Ptr args)
 {
-    UInt32 ioc_nr = _IOC_NR(cmd);
-
     switch (fd >> 16) {
     case MULTIPROC:
         GT_0trace (curTrace, GT_2CLASS,
@@ -918,7 +916,7 @@ Void displayIoctlInfo(Int fd, UInt32 cmd, Ptr args)
 
     GT_4trace (curTrace, GT_2CLASS,
         "IOCTL cmd : %x, IOCTL ioc_nr: %x(%d) args: %p\n",
-            cmd, ioc_nr, ioc_nr, args);
+            cmd, _IOC_NR(cmd), _IOC_NR(cmd), args);
 }
 
 

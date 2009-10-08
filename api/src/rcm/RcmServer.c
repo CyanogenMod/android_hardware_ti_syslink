@@ -280,7 +280,6 @@ Int RcmServer_create(String name,
     Int i;
     RcmServer_Object *handle = NULL;
     Int status = RCMSERVER_SOK;
-    Int retval = 0;
 
     GT_0trace (curTrace, GT_ENTER, "RcmServer_create");
 
