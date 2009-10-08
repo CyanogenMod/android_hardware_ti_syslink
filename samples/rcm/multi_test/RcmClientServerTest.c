@@ -1216,11 +1216,11 @@ Int RcmTestCleanup (Int testCase)
     else
         Osal_printf ("GatePeterson_close status: [0x%x]\n", status);
 
-    status = HeapBuf_delete (&heapHandle_app_heap);
+    status = HeapBuf_close (&heapHandle_app_heap);
     if (status < 0)
-        Osal_printf ("Error in HeapBuf_delete [0x%x]\n", status);
+        Osal_printf ("Error in HeapBuf_close [0x%x]\n", status);
     else
-        Osal_printf ("HeapBuf_delete status: [0x%x]\n", status);
+        Osal_printf ("HeapBuf_close status: [0x%x]\n", status);
 
     SharedRegion_remove (2);
 
