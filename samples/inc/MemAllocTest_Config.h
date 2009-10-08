@@ -30,7 +30,8 @@ extern "C" {
 /* App defines */
 #define MAX_CREATE_ATTEMPTS         0xFFFF
 #define MSGSIZE                     256
-#define HEAPID                      0
+#define HEAPID_SYSM3                0
+#define HEAPID_APPM3                1
 
 #define RCM_SERVER_NAME_SYSM3       "MemAllocServerSysM3"
 #define RCM_SERVER_NAME_APPM3       "MemAllocServerAppM3"
