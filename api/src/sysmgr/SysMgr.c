@@ -36,6 +36,8 @@
 #include <SysMgrDrv.h>
 #include <SysMgrDrvDefs.h>
 #include <UsrUtilsDrv.h>
+#include <ProcMgr.h>
+
 
 #if defined (__cplusplus)
 extern "C" {
@@ -835,6 +837,137 @@ SysMgr_destroy (void)
     GT_1trace (curTrace, GT_LEAVE, "SysMgr_destroy", status);
 
     /*! @retval SYSMGR_SUCCESS Operation successful */
+    return status;
+}
+
+
+/*!
+ *  @brief      Function to invoke load callback.
+ *
+ *  @param      procId  Processor Id
+ *
+ *  @sa         SysMgr_startCallback, SysMgr_stopCallback
+ */
+Int32
+SysMgr_loadCallback (ProcMgr_ProcId procId)
+{
+    Int32             status = SYSMGR_SUCCESS;
+    SysMgrDrv_CmdArgs cmdArgs;
+
+    GT_0trace (curTrace, GT_ENTER, "SysMgr_loadCallback");
+
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+    if (procId >= PROC_END) {
+        GT_setFailureReason (curTrace,
+                                 GT_7CLASS,
+                                 "SysMgr_loadCallback",
+                                 SYSMGR_E_INVALIDARG,
+                                 "SysMgr_loadCallback INVALID PROC_ID");
+        return SYSMGR_E_INVALIDARG;
+    }
+#endif
+
+    cmdArgs.args.procId = procId;
+    status = SysMgrDrv_ioctl (CMD_SYSMGR_LOADCALLBACK, &cmdArgs);
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+    if (status < 0) {
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "SysMgr_loadCallback",
+                             status,
+                             "API (through IOCTL) failed on kernel-side!");
+    }
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+
+    GT_1trace (curTrace, GT_LEAVE, "SysMgr_loadCallback", status);
+
+    return status;
+}
+
+
+/*!
+ *  @brief      Function to start callback.
+ *
+ *  @param      procId  Processor Id
+ *
+ *  @sa         SysMgr_loadCallback, SysMgr_stopCallback
+ */
+Int32
+SysMgr_startCallback (ProcMgr_ProcId procId)
+{
+    Int32             status = SYSMGR_SUCCESS;
+    SysMgrDrv_CmdArgs cmdArgs;
+
+    GT_0trace (curTrace, GT_ENTER, "SysMgr_startCallback");
+
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+    if (procId >= PROC_END) {
+        GT_setFailureReason (curTrace,
+                             GT_7CLASS,
+                             "SysMgr_startCallback",
+                             SYSMGR_E_INVALIDARG,
+                             "SysMgr_startCallback INVALID PROC_ID");
+        return SYSMGR_E_INVALIDARG;
+    }
+#endif
+
+    cmdArgs.args.procId = procId;
+    status = SysMgrDrv_ioctl (CMD_SYSMGR_STARTCALLBACK, &cmdArgs);
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+    if (status < 0) {
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "SysMgr_startCallback",
+                             status,
+                             "API (through IOCTL) failed on kernel-side!");
+    }
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+
+    GT_1trace (curTrace, GT_LEAVE, "SysMgr_startCallback", status);
+
+    return status;
+}
+
+/*!
+ *  @brief      Function to stop callback.
+ *
+ *  @param      procId  Processor Id
+ *
+ *  @sa         SysMgr_loadCallback, SysMgr_startCallback
+ */
+Int32
+SysMgr_stopCallback (ProcMgr_ProcId procId)
+{
+    Int32             status = SYSMGR_SUCCESS;
+    SysMgrDrv_CmdArgs cmdArgs;
+
+    GT_0trace (curTrace, GT_ENTER, "SysMgr_stopCallback");
+
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+    if (procId >= PROC_END) {
+        GT_setFailureReason (curTrace,
+                                 GT_7CLASS,
+                                 "SysMgr_stopCallback",
+                                 SYSMGR_E_INVALIDARG,
+                                 "SysMgr_stopCallback INVALID PROC_ID");
+        return SYSMGR_E_INVALIDARG;
+    }
+#endif
+
+    cmdArgs.args.procId = procId;
+    status = SysMgrDrv_ioctl (CMD_SYSMGR_STOPCALLBACK, &cmdArgs);
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+    if (status < 0) {
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "SysMgr_stopCallback",
+                             status,
+                             "API (through IOCTL) failed on kernel-side!");
+    }
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+
+    GT_1trace (curTrace, GT_LEAVE, "SysMgr_stopCallback", status);
+
     return status;
 }
 

@@ -23,7 +23,7 @@ LDFLAGS = $(addprefix -L, $(LDPATH))
 
 CFLAGS=-Wall -g -O2 $(INCLUDE) -finline-functions -D$(PROCFAMILY) $(LDFLAGS)
 
-LIBS = -lutils -lipc -lprocmgr -lomap4430proc
+LIBS = -lutils -lipc -lprocmgr -lomap4430proc -lsysmgr -lnotify -lsysmemmgr
 
 all: ducati_load.out
 

@@ -98,13 +98,13 @@ INCLUDES    = \
 # Libraries needed for linking.
 
 #SH_LIBS        = pthread utils
-SH_LIBS        = utils
+SH_LIBS        = utils sysmgr
 ST_LIBS        = gcc
 
 # Search path for library (and linker command) files.
 # Current folder and target folder are included by default.
 
-LIBINCLUDES = \
+LIBINCLUDES += \
 	  $(PROJROOT)/api/src/utils
 	
 

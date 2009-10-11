@@ -222,6 +222,17 @@ SysMgr_setup (const SysMgr_Config * config);
 Int32
 SysMgr_destroy (void);
 
+/* Function to SysMgr load callback */
+Int32
+SysMgr_loadCallback (ProcMgr_ProcId procId);
+
+/* Function to SysMgr start callback */
+Int32
+SysMgr_startCallback (ProcMgr_ProcId procId);
+
+/* Function to SysMgr stop callback */
+Int32
+SysMgr_stopCallback (ProcMgr_ProcId procId);
 
 #if defined (__cplusplus)
 }

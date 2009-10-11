@@ -24,7 +24,7 @@ LDFLAGS = $(addprefix -L, $(LDPATH))
 CFLAGS=-Wall -g -O2 $(INCLUDE) -finline-functions -D$(PROCFAMILY) $(LDFLAGS)
 CFLAGS += -DSYSLINK_TRACE_ENABLE
 
-LIBS =  -lutils -lipc -lprocmgr
+LIBS =  -lutils -lipc -lprocmgr -lsysmgr -lnotify -lsysmemmgr
 
 all: heapBufApp.out
 

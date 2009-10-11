@@ -53,7 +53,10 @@ extern "C" {
  */
 enum SysMgrDrvCmd {
     SYSMGR_SETUP = SYSMGR_BASE_CMD,
-    SYSMGR_DESTROY
+    SYSMGR_DESTROY,
+    SYSMGR_LOADCALLBACK,
+    SYSMGR_STARTCALLBACK,
+    SYSMGR_STOPCALLBACK
 };
 
 /*!
@@ -70,6 +73,24 @@ enum SysMgrDrvCmd {
                 _IOWR(SYSMGR_IOC_MAGIC, SYSMGR_DESTROY, \
                 struct SysMgrDrv_CmdArgs)
 
+/*!
+ *  @brief  Command for Load callback
+ */
+#define CMD_SYSMGR_LOADCALLBACK \
+                _IOWR(SYSMGR_IOC_MAGIC, SYSMGR_LOADCALLBACK, \
+                struct SysMgrDrv_CmdArgs)
+/*!
+ *  @brief  Command for Start callback
+ */
+#define CMD_SYSMGR_STARTCALLBACK \
+                _IOWR(SYSMGR_IOC_MAGIC, SYSMGR_STARTCALLBACK, \
+                struct SysMgrDrv_CmdArgs)
+/*!
+ *  @brief  Command for Stop callback
+ */
+#define CMD_SYSMGR_STOPCALLBACK \
+                _IOWR(SYSMGR_IOC_MAGIC, SYSMGR_STOPCALLBACK, \
+                struct SysMgrDrv_CmdArgs)
 
 /*  ----------------------------------------------------------------------------
  *  Command arguments for SysMgr
@@ -84,6 +105,7 @@ typedef struct SysMgrDrv_CmdArgs {
             SysMgr_Config * config;
         } setup;
 
+        Int32 procId;
     } args;
 
     Int32 apiStatus;
