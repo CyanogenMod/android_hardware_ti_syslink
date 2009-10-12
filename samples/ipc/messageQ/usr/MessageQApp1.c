@@ -756,7 +756,14 @@ MessageQApp_shutdown (Void)
 
     stop_params.proc_id = MessageQApp_procId;
     status = ProcMgr_stop (MessageQApp_procMgrHandle, &stop_params);
-    Osal_printf ("ProcMgr_stop status: [0x%x]\n", status);
+    Osal_printf ("ProcMgr_stop status for proc_id %d : [0x%x]\n",
+    stop_params.proc_id, status);
+    MessageQApp_procId = MultiProc_getId ("SysM3");
+
+    stop_params.proc_id = MessageQApp_procId;
+    status = ProcMgr_stop (MessageQApp_procMgrHandle, &stop_params);
+    Osal_printf ("ProcMgr_stop status for proc_id %d : [0x%x]\n",
+    stop_params.proc_id, status);
 
     status = ProcMgr_close (&MessageQApp_procMgrHandle);
     Osal_printf ("ProcMgr_close status: [0x%x]\n", status);
