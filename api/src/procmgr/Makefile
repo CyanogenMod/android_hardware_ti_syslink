@@ -105,7 +105,8 @@ ST_LIBS        = gcc
 # Current folder and target folder are included by default.
 
 LIBINCLUDES += \
-	  $(PROJROOT)/api/src/utils
+	  $(PROJROOT)/api/src/utils \
+	  $(PROJROOT)/api/src/sysmgr
 	
 
 

@@ -72,16 +72,17 @@ SUBMODULES	+= ipc
 endif
 
 ifeq ($(PROCFAMILY),OMAP_4430)
-SUBMODULES	+= procmgr
-endif
-
-ifeq ($(PROCFAMILY),OMAP_4430)
 SUBMODULES	+= sysmgr
 endif
 
 ifeq ($(PROCFAMILY),OMAP_4430)
 SUBMODULES	+= sysmemmgr
 endif
+
+ifeq ($(PROCFAMILY),OMAP_4430)
+SUBMODULES	+= procmgr
+endif
+
 
 ifeq ($(PROCFAMILY),OMAP_4430)
 SUBMODULES	+= rcm
