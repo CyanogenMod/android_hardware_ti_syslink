@@ -1,0 +1,56 @@
+Steps to Build syslink & bridge:
+--------------------------------
+1st Method:
+----------
+	1. sh build_directions.sh
+	2. Enter the Prefix path ( e.g., /omap_data/development/Imtiaz/omap_dev/userspace-syslink/target)
+	3. Enter the Tiler-Userspace Path  (e.g., /omap_data/development/Imtiaz/omap_dev/tiler-userspace)
+	4. Enter the Toolchain Path ( e.g., /omap_data/omapts/arm-2008q3-72/bin )
+	5. First the script will build the libmemgr.so and install it in $(PREFIX)/lib folder.
+	6. Second the Syslink APIs, daemons and samples will be built and installed in $(PREFIX)/lib folder.
+	7. Third the bridge APIs and samples will be built and installed in $(PREFIX)/lib folder.
+
+
+2nd Method:
+----------
+	Prequisites:
+	------------
+	export ARCH=arm
+	export PATH=/omap_data/omapts/arm-2008q3-72/bin:$PATH
+	export CROSS_COMPILE=arm-none-linux-gnueabi-
+	export CC=arm-none-linux-gnueabi-
+
+	Then follow the below steps:
+	To build only syslink:
+	---------------------
+	1. cd syslink
+	2. sh autogen.sh
+	3. ./configure --host=arm-none-linux-gnueabi- --prefix=<PREFIX PATH>
+	4. make TILER_INC_PATH=/omap_data/development/Imtiaz/omap_dev/tiler-userspace/memmgr
+	5. make install
+	6. cd -
+
+	To build only bridge:
+	---------------------
+	1. cd bridge
+	2. sh autogen.sh
+	3. ./configure --host=arm-none-linux-gnueabi- --prefix=<PREFIX PATH>
+	4. make
+	5. make install
+	6. cd -
+
+Steps to build only the syslink APIs:
+-------------------------------------
+	Prequisites:
+	------------
+	export ARCH=arm
+	export PATH=/omap_data/omapts/arm-2008q3-72/bin:$PATH
+	export CROSS_COMPILE=arm-none-linux-gnueabi-
+	export CC=arm-none-linux-gnueabi-
+	1. cd syslink
+	2. sh autogen.sh
+	3. ./configure --host=arm-none-linux-gnueabi- --prefix=<PREFIX PATH>
+	4. cd api
+	5. make clean
+	6. make
+	7. make install
