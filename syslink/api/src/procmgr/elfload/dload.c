@@ -58,35 +58,67 @@
 #include "c60_dynamic.h"
 #endif
 
+#define PAGE_SIZE_4KB                   0x1000
+#define PAGE_SIZE_64KB                  0x10000
+#define PAGE_SIZE_1MB                   0x100000
+#define PAGE_SIZE_16MB                  0x1000000
+
+
 #define DUCATI_BOOTVECS_ADDR            0x0
+#define PHYS_BOOTVECS_ADDR              0x88000000
 #define DUCATI_BOOTVECS_LEN             0x4000
-#define MPU_BOOTVECS_ADDR               0x87200000
 
-#define DUCATI_EXTMEM_SYSM3_ADDR        0x4000
-#define MPU_EXTMEM_SYSM3_ADDR           0x87204000
-#define DUCATI_EXTMEM_SYSM3_LEN         0x1FC000
+#define DUCATI_MEM_CODE_SYSM3_ADDR      0x4000
+#define PHYS_MEM_CODE_SYSM3_ADDR        PHYS_BOOTVECS_ADDR + DUCATI_BOOTVECS_LEN
+#define DUCATI_MEM_CODE_SYSM3_LEN       0x1FC000
 
-#define DUCATI_EXTMEM_APPM3_ADDR        0x10000000
-#define MPU_EXTMEM_APPM3_ADDR           0x87400000
-#define DUCATI_EXTMEM_APPM3_LEN         0x200000
+#define DUCATI_MEM_UNUSED_1_ADDR        0x200000
+#define PHYS_MEM_UNUSED_1_ADDR          PHYS_MEM_CODE_SYSM3_ADDR + DUCATI_MEM_CODE_SYSM3_LEN
+#define DUCATI_MEM_UNUSED_1_LEN         0x600000
 
-#define DUCATI_PRIVATE_SYSM3_DATA_ADDR  0x84000000
-#define MPU_PRIVATE_SYSM3_DATA_ADDR     0x87600000
-#define DUCATI_PRIVATE_SYSM3_DATA_LEN   0x200000
+#define DUCATI_MEM_CODE_APPM3_ADDR      0x800000
+#define PHYS_MEM_CODE_APPM3_ADDR        PHYS_MEM_UNUSED_1_ADDR + DUCATI_MEM_UNUSED_1_LEN
+#define DUCATI_MEM_CODE_APPM3_LEN       0x200000
 
-#define DUCATI_PRIVATE_APPM3_DATA_ADDR  0x8A000000
-#define MPU_PRIVATE_APPM3_DATA_ADDR     0x87800000
-#define DUCATI_PRIVATE_APPM3_DATA_LEN   0x200000
+#define DUCATI_MEM_UNUSED_2_ADDR        0xa00000
+#define PHYS_MEM_UNUSED_2_ADDR          PHYS_MEM_CODE_APPM3_ADDR + DUCATI_MEM_CODE_APPM3_LEN
+#define DUCATI_MEM_UNUSED_2_LEN         0x600000
 
-#define DUCATI_SHARED_M3_DATA_ADDR      0x90000000
-#define MPU_SHARED_M3_DATA_ADDR         0x87A00000
-#define DUCATI_SHARED_M3_DATA_LEN       0x100000
+#define DUCATI_MEM_CONST_SYSM3_ADDR     0x80000000
+#define PHYS_MEM_CONST_SYSM3_ADDR       PHYS_MEM_UNUSED_2_ADDR  + DUCATI_MEM_UNUSED_2_LEN
+#define DUCATI_MEM_CONST_SYSM3_LEN      0x100000
 
-#define DUCATI_SHARED_IPC_ADDR          0x98000000
-#define MPU_SHARED_IPC_ADDR             0x87B00000
-#define DUCATI_SHARED_IPC_LEN           0x100000
+#define DUCATI_MEM_CONST_APPM3_ADDR     0x80100000
+#define PHYS_MEM_CONST_APPM3_ADDR       PHYS_MEM_CONST_SYSM3_ADDR + DUCATI_MEM_CONST_SYSM3_LEN
+#define DUCATI_MEM_CONST_APPM3_LEN      0x100000
 
+#define DUCATI_MEM_HEAP_SYSM3_ADDR      0x80200000
+#define PHYS_MEM_HEAP_SYSM3_ADDR        PHYS_MEM_CONST_APPM3_ADDR + DUCATI_MEM_CONST_APPM3_LEN
+#define DUCATI_MEM_HEAP_SYSM3_LEN       0x100000
 
+#define DUCATI_MEM_HEAP_APPM3_ADDR      0x80300000
+#define PHYS_MEM_HEAP_APPM3_ADDR        PHYS_MEM_HEAP_SYSM3_ADDR + DUCATI_MEM_HEAP_SYSM3_LEN
+#define DUCATI_MEM_HEAP_APPM3_LEN       0x1000000
+
+#define DUCATI_MEM_MPU_DUCATI_SHMEM_ADDR    0x81300000
+#define PHYS_MEM_MPU_DUCATI_SHMEM_ADDR      PHYS_MEM_HEAP_APPM3_ADDR + DUCATI_MEM_HEAP_APPM3_LEN
+#define DUCATI_MEM_MPU_DUCATI_SHMEM_LEN     0xC00000
+
+#define DUCATI_MEM_IPC_SHMEM_ADDR       0x81F00000
+#define PHYS_MEM_IPC_SHMEM_ADDR         PHYS_MEM_MPU_DUCATI_SHMEM_ADDR + DUCATI_MEM_MPU_DUCATI_SHMEM_LEN
+#define DUCATI_MEM_IPC_SHMEM_LEN        0x100000
+
+#define DUCATI_MEM_IPC_HEAP0_ADDR       0xA0000000
+#define PHYS_MEM_IPC_HEAP0_ADDR         PHYS_MEM_IPC_SHMEM_ADDR + DUCATI_MEM_IPC_SHMEM_LEN
+#define DUCATI_MEM_IPC_HEAP0_LEN        0x55000
+
+#define DUCATI_MEM_IPC_HEAP1_ADDR       0xA0055000
+#define PHYS_MEM_IPC_HEAP1_ADDR         PHYS_MEM_IPC_HEAP0_ADDR + DUCATI_MEM_IPC_HEAP0_LEN
+#define DUCATI_MEM_IPC_HEAP1_LEN        0x55000
+
+#define DUCATI_MEM_IPC_HEAP2_ADDR       0xA00AA000
+#define PHYS_MEM_IPC_HEAP2_ADDR         PHYS_MEM_IPC_HEAP1_ADDR + DUCATI_MEM_IPC_HEAP1_LEN
+#define DUCATI_MEM_IPC_HEAP2_LEN        0x56000
 
 
 /*---------------------------------------------------------------------------*/
@@ -155,20 +187,21 @@ int get_section_no(unsigned long target_addr);
 
 static struct  mem_entry memory_regions[] = {
 
-	/* BootVecs regions */
-	{DUCATI_BOOTVECS_ADDR,MPU_BOOTVECS_ADDR, DUCATI_BOOTVECS_LEN,0},
-	/*  EXTMEM_CORE0: 0x4000 to 0xFFFFF */
-	{DUCATI_EXTMEM_SYSM3_ADDR, MPU_EXTMEM_SYSM3_ADDR, DUCATI_EXTMEM_SYSM3_LEN,0},
-	/*  EXTMEM_CORE1: 0x10000000 to 0x100FFFFF */
-	{DUCATI_EXTMEM_APPM3_ADDR, MPU_EXTMEM_APPM3_ADDR, DUCATI_EXTMEM_APPM3_LEN,0},
-	/*  PRIVATE_SYSM3_DATA*/
-	{DUCATI_PRIVATE_SYSM3_DATA_ADDR, MPU_PRIVATE_SYSM3_DATA_ADDR, DUCATI_PRIVATE_SYSM3_DATA_LEN,0},
-	/*  PRIVATE_APPM3_DATA*/
-	{DUCATI_PRIVATE_APPM3_DATA_ADDR, MPU_PRIVATE_APPM3_DATA_ADDR, DUCATI_PRIVATE_APPM3_DATA_LEN,0},
-	/*  SHARED_M3_DATA*/
-	{DUCATI_SHARED_M3_DATA_ADDR, MPU_SHARED_M3_DATA_ADDR, DUCATI_SHARED_M3_DATA_LEN,0},
-	/*  IPC*/
-	{DUCATI_SHARED_IPC_ADDR, MPU_SHARED_IPC_ADDR, DUCATI_SHARED_IPC_LEN,0},
+
+	{DUCATI_BOOTVECS_ADDR,PHYS_BOOTVECS_ADDR, DUCATI_BOOTVECS_LEN,0},
+	{DUCATI_MEM_CODE_SYSM3_ADDR, PHYS_MEM_CODE_SYSM3_ADDR, DUCATI_MEM_CODE_SYSM3_LEN,0},
+	{DUCATI_MEM_UNUSED_1_ADDR, PHYS_MEM_UNUSED_1_ADDR, DUCATI_MEM_UNUSED_1_LEN,0},
+	{DUCATI_MEM_CODE_APPM3_ADDR, PHYS_MEM_CODE_APPM3_ADDR, DUCATI_MEM_CODE_APPM3_LEN,0},
+	{DUCATI_MEM_UNUSED_2_ADDR, PHYS_MEM_UNUSED_2_ADDR, DUCATI_MEM_UNUSED_2_LEN,0},
+	{DUCATI_MEM_CONST_SYSM3_ADDR, PHYS_MEM_CONST_SYSM3_ADDR, DUCATI_MEM_CONST_SYSM3_LEN,0},
+	{DUCATI_MEM_CONST_APPM3_ADDR, PHYS_MEM_CONST_APPM3_ADDR, DUCATI_MEM_CONST_APPM3_LEN,0},
+	{DUCATI_MEM_HEAP_SYSM3_ADDR, PHYS_MEM_HEAP_SYSM3_ADDR, DUCATI_MEM_HEAP_SYSM3_LEN,0},
+	{DUCATI_MEM_HEAP_APPM3_ADDR, PHYS_MEM_HEAP_APPM3_ADDR, DUCATI_MEM_HEAP_APPM3_LEN,0},
+	{DUCATI_MEM_MPU_DUCATI_SHMEM_ADDR, PHYS_MEM_MPU_DUCATI_SHMEM_ADDR, DUCATI_MEM_MPU_DUCATI_SHMEM_LEN,0},
+	{DUCATI_MEM_IPC_SHMEM_ADDR, PHYS_MEM_IPC_SHMEM_ADDR, DUCATI_MEM_IPC_SHMEM_LEN,0},
+	{DUCATI_MEM_IPC_HEAP0_ADDR, PHYS_MEM_IPC_HEAP0_ADDR, DUCATI_MEM_IPC_HEAP0_LEN,0},
+	{DUCATI_MEM_IPC_HEAP1_ADDR, PHYS_MEM_IPC_HEAP1_ADDR, DUCATI_MEM_IPC_HEAP1_LEN,0},
+	{DUCATI_MEM_IPC_HEAP2_ADDR, PHYS_MEM_IPC_HEAP2_ADDR, DUCATI_MEM_IPC_HEAP2_LEN,0},
 
 };
 
@@ -582,8 +615,14 @@ static BOOL load_static_segment(LOADER_FILE_DESC *fd,
                                     memory_regions[j].size,
                                     PROT_READ | PROT_WRITE, MAP_SHARED, mem_fd,
                                     memory_regions[j].mpu_phys_addr);
+			printf("=============================================\n");
+			printf("memory_regions[%d].mpu_virt_addr is 0x%x\n",j, (unsigned int)memory_regions[j].mpu_virt_addr);
+			printf("memory_regions[%d].ducati_virt_addr is 0x%x\n",j, (unsigned int)memory_regions[j].ducati_virt_addr);
+			printf("memory_regions[%d].mpu_phys_addr is 0x%x\n",j,(unsigned int)memory_regions[j].mpu_phys_addr);
+			printf("memory_regions[%d].size is 0x%x\n",j,(unsigned int)memory_regions[j].size);
+
             if( memory_regions[j].mpu_virt_addr == (unsigned long)(-1)) {
-                printf("Failed to do memory mapping for \n");
+                printf("Failed to do memory mapping for section [%d]\n",j);
                 return FALSE;
             }
         }
@@ -615,7 +654,8 @@ static BOOL load_static_segment(LOADER_FILE_DESC *fd,
       printf("targ_req.align %d\n", targ_req.align);
       printf("targ_req.segment 0x%x\n", (UInt32) targ_req.segment);
       printf("targ_req.offset 0x%x\n", targ_req.offset);
-      printf("targ_req.flip_endian 0x%x\n", targ_req.flip_endian);
+
+
 
       /*---------------------------------------------------------------------*/
       /* Ask the client side of the dynamic loader to allocate target memory */
@@ -632,14 +672,21 @@ static BOOL load_static_segment(LOADER_FILE_DESC *fd,
       /*---------------------------------------------------------------------*/
       if (seg[i].phdr.p_filesz)
       {
+
          seg_no = get_section_no(
                     (unsigned long)(targ_req.segment->target_address));
+         if(seg_no == -1){
+				printf("DLOAD ERROR: The given segment is out of range ... Exiting... \n");
+				return FALSE;
+			}
          seg_offset = targ_req.segment->target_address - \
             ((void *)memory_regions[seg_no].ducati_virt_addr);
-         memset((void *)(memory_regions[seg_no].mpu_virt_addr + seg_offset), 0,
-            targ_req.segment->memsz_in_bytes);
-         fseek(targ_req.fp,targ_req.offset,SEEK_SET);
-         fread((void *)(memory_regions[seg_no].mpu_virt_addr + seg_offset),
+	        memset((void *)(memory_regions[seg_no].mpu_virt_addr + seg_offset), 0,
+	        targ_req.segment->memsz_in_bytes);
+
+		 fseek(targ_req.fp,targ_req.offset,SEEK_SET);
+
+		 fread((void *)(memory_regions[seg_no].mpu_virt_addr + seg_offset),
             targ_req.segment->objsz_in_bytes,1,targ_req.fp);
       }
    }
@@ -3090,6 +3137,8 @@ for(i=0; i< num_entries; i++){
 		continue;
 
 }
+	if(i == num_entries)
+		i = -1;
 return i;
 
 
