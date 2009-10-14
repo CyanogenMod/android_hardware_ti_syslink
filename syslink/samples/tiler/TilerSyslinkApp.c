@@ -375,7 +375,7 @@ Int SyslinkUseBufferTest (Int procId, Bool useTiler, UInt numTrials)
 
         // allocate a remote command message
         Osal_printf("Allocating RCM message\n");
-        rcmMsgSize = sizeof(RcmClient_Message) + sizeof(RCM_Remote_FxnArgs);
+        rcmMsgSize = sizeof(RCM_Remote_FxnArgs);
         rcmMsg = RcmClient_alloc (rcmClientHandle, rcmMsgSize);
         if (rcmMsg == NULL) {
             Osal_printf("Error allocating RCM message\n");
@@ -442,7 +442,7 @@ Int SyslinkUseBufferTest (Int procId, Bool useTiler, UInt numTrials)
     //////////////////////// Shutdown RCM /////////////////////
 
     // allocate a remote command message
-    rcmMsgSize = sizeof(RcmClient_Message) + sizeof(RCM_Remote_FxnArgs);
+    rcmMsgSize = sizeof(RCM_Remote_FxnArgs);
     rcmMsg = RcmClient_alloc (rcmClientHandle, rcmMsgSize);
     if (rcmMsg == NULL) {
         Osal_printf ("Error allocating RCM message\n");
