@@ -82,6 +82,10 @@ ifeq ($(PROCFAMILY),OMAP_3430)
 CFLAGS += -mapcs -mno-sched-prolog -mabi=aapcs-linux -mno-thumb-interwork -march=armv7-a -msoft-float -Uarm -D"KBUILD_STR(s)=\#s" -D"KBUILD_BASENAME=KBUILD_STR($(basename $(TARGETNAME)))" -D"KBUILD_MODNAME=KBUILD_STR($(basename $(TARGETNAME)))"  -DMODULE -D__LINUX_ARM_ARCH__=7 
 endif
 
+ifeq ($(PROCFAMILY),OMAP_4430)
+CFLAGS += -mapcs -mno-sched-prolog -mabi=aapcs-linux -mno-thumb-interwork -march=armv7-a -msoft-float -Uarm -D"KBUILD_STR(s)=\#s" -D"KBUILD_BASENAME=KBUILD_STR($(basename $(TARGETNAME)))" -D"KBUILD_MODNAME=KBUILD_STR($(basename $(TARGETNAME)))"  -DMODULE -D__LINUX_ARM_ARCH__=7 
+endif
+
 #   Code generation
 CFLAGS += -fno-common
 #   Macros
@@ -126,7 +130,7 @@ endif
 endif
 
 #LIBINCLUDES += $(TARGETDIR) $(TGTROOT)/lib $(TGTROOT)/usr/lib
-LIBINCLUDES += $(TARGETDIR)/lib 
+LIBINCLUDES += $(TARGETDIR)/lib $(TARGETDIR)/usr/lib 
 SRCDIRS :=  $(sort $(dir $(SOURCES)))
 OBJDIRS :=  $(addprefix $(BUILDDIR),$(SRCDIRS)) $(BUILDDIR)
 

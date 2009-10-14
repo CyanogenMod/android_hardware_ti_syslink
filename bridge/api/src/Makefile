@@ -57,7 +57,7 @@ SH_SONAME =
 
 # Folders in which gmake will run before building current target
 
-ifeq ($(PROCFAMILY),OMAP_3430)
+ifeq ($(PROCFAMILY),OMAP_4430)
 SUBMODULES	+= bridge \
 qos 
 endif
