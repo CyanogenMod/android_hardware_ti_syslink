@@ -206,7 +206,7 @@ Int TestExec (Void)
     for (loop = 1; loop <= LOOP_COUNT; loop++) {
 
         // allocate a remote command message
-        rcmMsgSize = sizeof(RcmClient_Message) + sizeof(RCM_Remote_FxnArgs);
+        rcmMsgSize = sizeof(RCM_Remote_FxnArgs);
 
         Osal_printf ("TestExec: calling RcmClient_alloc \n");
         rcmMsg = RcmClient_alloc (rcmClientHandle, rcmMsgSize);
@@ -259,7 +259,7 @@ Int TestExecDpc (Void)
     for (loop = 1; loop <= LOOP_COUNT; loop++) {
 
         // allocate a remote command message
-        rcmMsgSize = sizeof(RcmClient_Message) + sizeof(RCM_Remote_FxnArgs);
+        rcmMsgSize = sizeof(RCM_Remote_FxnArgs);
 
         Osal_printf ("TestExecDpc: calling RcmClient_alloc \n");
         rcmMsg = RcmClient_alloc (rcmClientHandle, rcmMsgSize);
@@ -316,7 +316,7 @@ Int TestExecNoWait(void)
          */
         for (job = 1; job <= JOB_COUNT; job++) {
             // allocate a remote command message
-            rcmMsgSize = sizeof(RcmClient_Message) + sizeof(RCM_Remote_FxnArgs);
+            rcmMsgSize = sizeof(RCM_Remote_FxnArgs);
             Osal_printf ("TestExecNoWait: calling RcmClient_alloc \n");
             rcmMsg = RcmClient_alloc (rcmClientHandle, rcmMsgSize);
             if (rcmMsg == NULL) {
@@ -451,7 +451,10 @@ Int ipc_setup (Int testCase)
     }
 #endif
 
-
+    /* size (in bytes) of RCM header including the messageQ header */
+    /* RcmClient_Message member data[1] is the start of the payload */
+    Osal_printf ("Size of RCM header in bytes = %d \n",
+                            RcmClient_getHeaderSize());
 
 #if defined(SYSLINK_USE_SYSMGR)
     SysMgr_getConfig (&config);
@@ -1022,9 +1025,6 @@ Void RcmServerThreadFxn(Void *arg)
     }
     Osal_printf ("RCM Server start passed \n");
 
-    Osal_printf ("Started RCM server thread. Reset the waitLoop to zero "
-        "on the Ducati-side to continue the test...\n");
-
     sem_wait (&serverThreadSync);
 
     sem_post (&serverThreadWait);
@@ -1147,9 +1147,8 @@ Int RcmTestCleanup (Int testCase)
     Osal_printf ("\nEntering RcmTestCleanup()\n");
 
     // send terminate message
-
     // allocate a remote command message
-    rcmMsgSize = sizeof(RcmClient_Message) + sizeof(RCM_Remote_FxnArgs);
+    rcmMsgSize = sizeof(RCM_Remote_FxnArgs);
     rcmMsg = RcmClient_alloc (rcmClientHandle, rcmMsgSize);
     if (rcmMsg == NULL) {
         Osal_printf ("RcmTestCleanup: Error allocating RCM message\n");
