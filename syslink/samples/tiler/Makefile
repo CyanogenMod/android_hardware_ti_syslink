@@ -87,7 +87,7 @@ SH_LIBS        += sysmgr sysmemmgr
 # Search path for library (and linker command) files.
 # Current folder and target folder are included by default.
 
-LIBINCLUDES =
+LIBINCLUDES += $(TILER_INC_PATH)/../ $(TILER_INC_PATH)
 
 
 # Do not change below "include" line(s)

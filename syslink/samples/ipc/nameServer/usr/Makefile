@@ -18,7 +18,7 @@ PROJROOT=../../..
 include $(PROJROOT)/make/start.mk
 
 INCLUDE=-I $(PROJROOT)/../api/include -I $(PROJROOT)/inc
-LDPATH=$(PROJROOT)/../target/lib $(PROJROOT)/../target/usr/lib
+LDPATH=$(TARGETDIR)/lib $(TARGETDIR)/usr/lib
 LDFLAGS = $(addprefix -L, $(LDPATH))
 
 CFLAGS=-Wall -g -O2 $(INCLUDE) -finline-functions -D$(PROCFAMILY) $(LDFLAGS)
