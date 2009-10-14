@@ -20,8 +20,8 @@ PROJROOT=../..
 include $(PROJROOT)/make/start.mk
 
 INCLUDE=-I $(PROJROOT)/inc -I $(PROJROOT)/../TARGET/host/include
-LDPATH=$(TARGETDIR)/lib
-LDFLAGS = -L $(LDPATH)  -L $(PROJROOT)/src/qos
+LDPATH=$(TARGETDIR)/lib $(TARGETDIR)/usr/lib $(PROJROOT)/src/qos
+LDFLAGS = $(addprefix -L, $(LDPATH))
 CFLAGS=-Wall -g -O2 $(INCLUDE) -finline-functions -D$(PROCFAMILY) $(LDFLAGS)
 
 LIBS = -lbridge -lpthread -lqos
