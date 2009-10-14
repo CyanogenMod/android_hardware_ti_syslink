@@ -881,6 +881,21 @@ Int RcmClientCleanup (Int testCase)
     Osal_printf ("RcmClientCleanup: calling RcmClient_free \n");
     RcmClient_free (rcmClientHandle, rcmMsg);
 
+    // Shutdown RCM server
+    Osal_printf ("RcmClientCleanup: calling RcmClient_shutdownServer \n");
+    status = RcmClient_shutdownServer (rcmClientHandle);
+    if (status < 0) {
+        Osal_printf ("RcmClientCleanup: Error in RcmClient_shutdownServer.\n");
+        goto exit;
+    }
+    if (status == RCMCLIENT_SCLIENTSATTACHED) {
+        Osal_printf ("RcmClientCleanup: Server not shutdown"
+                     "Clients still attached.\n");
+    }
+    else {
+        Osal_printf ("RcmClientCleanup: Server shutdown successful \n");
+    }
+
     /* delete the rcm client */
     Osal_printf ("Delete RCM client instance \n");
     status = RcmClient_delete (&rcmClientHandle);
@@ -905,7 +920,11 @@ Int RcmClientCleanup (Int testCase)
     SharedRegion_remove (1);
 
     stop_params.proc_id = remoteId_client;
-    ProcMgr_stop(procMgrHandle_client, &stop_params);
+    status = ProcMgr_stop(procMgrHandle_client, &stop_params);
+    if (status < 0)
+        Osal_printf("Error in ProcMgr_stop [0x%x]\n", status);
+    else
+        Osal_printf("ProcMgr_stop status: [0x%x]\n", status);
 
     status = ProcMgr_close (&procMgrHandle_client);
     if (status < 0)
@@ -913,8 +932,13 @@ Int RcmClientCleanup (Int testCase)
     else
         Osal_printf ("ProcMgr_close status: [0x%x]\n", status);
 
-    SysMgr_destroy ();
+    status = SysMgr_destroy ();
+    if (status < 0)
+        Osal_printf("Error in SysMgr_destroy [0x%x]\n", status);
+    else
+        Osal_printf("SysMgr_destroy status: [0x%x]\n", status);
 #else /* if defined (SYSLINK_USE_SYSMGR) */
+
     status = MessageQTransportShm_delete (&transportShmHandle_client);
     if (status < 0)
         Osal_printf ("Error in MessageQTransportShm_delete [0x%x]\n"

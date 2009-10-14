@@ -1278,8 +1278,23 @@ Int RcmTestCleanup (Int testCase)
     }
 
     // return message to the heap
-    Osal_printf("RcmTestCleanup: calling RcmClient_free \n");
+    Osal_printf("RcmTestCleanup: Calling RcmClient_free \n");
     RcmClient_free (rcmClientHandle, rcmMsg);
+
+    // Shutdown RCM server
+    Osal_printf ("Calling RcmClient_shutdownServer \n");
+    status = RcmClient_shutdownServer (rcmClientHandle);
+    if (status < 0) {
+        Osal_printf ("Error in RcmClient_shutdownServer.\n");
+        goto exit;
+    }
+    if (status == RCMCLIENT_SCLIENTSATTACHED) {
+        Osal_printf ("Server not shutdown"
+                     "Clients still attached.\n");
+    }
+    else {
+        Osal_printf ("Server shutdown successful \n");
+    }
 
     /* delete the rcm client */
     Osal_printf("RcmTestCleanup: Delete RCM client instance \n");
@@ -1337,7 +1352,11 @@ Int RcmTestCleanup (Int testCase)
     SharedRegion_remove (1);
 
     stop_params.proc_id = remoteId;
-    ProcMgr_stop(procMgrHandle, &stop_params);
+    status = ProcMgr_stop(procMgrHandle, &stop_params);
+    if (status < 0)
+        Osal_printf("Error in ProcMgr_stop [0x%x]\n", status);
+    else
+        Osal_printf("ProcMgr_stop status: [0x%x]\n", status);
 
     status = ProcMgr_close (&procMgrHandle);
     if (status < 0)
@@ -1345,7 +1364,11 @@ Int RcmTestCleanup (Int testCase)
     else
         Osal_printf("ProcMgr_close status: [0x%x]\n", status);
 
-    SysMgr_destroy ();
+    status = SysMgr_destroy ();
+    if (status < 0)
+        Osal_printf("Error in SysMgr_destroy [0x%x]\n", status);
+    else
+        Osal_printf("SysMgr_destroy status: [0x%x]\n", status);
  #else /* if defined (SYSLINK_USE_SYSMGR) */
 
     status = MessageQTransportShm_delete (&transportShmHandle);
@@ -1407,7 +1430,6 @@ Int RcmTestCleanup (Int testCase)
         Osal_printf("Error in ProcMgr_close [0x%x]\n", status);
     else
         Osal_printf("ProcMgr_close status: [0x%x]\n", status);
-
 
     status = MessageQTransportShm_destroy ();
     if (status < 0)

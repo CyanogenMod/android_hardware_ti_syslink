@@ -1194,6 +1194,7 @@ Void RcmClientThreadFxn(Void *arg)
         rcmClientHandles[i] = NULL;
         while ((rcmClientHandles[i] == NULL) &&
             (count++ < MAX_CREATE_ATTEMPTS)) {
+            Osal_printf("RcmClientThreadFxn: Creating Client #%d\n", i);
             status = RcmClient_create (remoteServerName, &rcmClient_Params,
                                         &rcmClientHandles[i]);
             if (status < 0) {
@@ -1304,8 +1305,24 @@ Int RcmTestCleanup (Int testCase)
         Osal_printf("RcmTestCleanup: calling RcmClient_free \n");
         RcmClient_free (rcmClientHandle, rcmMsg);
 
-        /* delete the rcm client */
         for(i = 0; i < numLocalClients; i++) {
+
+            // Shutdown RCM server
+            Osal_printf ("Calling RcmClient_shutdownServer \n");
+            status = RcmClient_shutdownServer (rcmClientHandles[i]);
+            if (status < 0) {
+                Osal_printf ("Error in RcmClient_shutdownServer.\n");
+                goto exit;
+            }
+            if (status == RCMCLIENT_SCLIENTSATTACHED) {
+                Osal_printf ("Server not shutdown"
+                             "Clients still attached.\n");
+            }
+            else {
+                Osal_printf ("Server shutdown successful \n");
+            }
+
+            /* Delete the rcm client */
             Osal_printf("Delete RCM client instance %i\n");
             status = RcmClient_delete (&rcmClientHandles[i]);
             if (status < 0)
@@ -1319,7 +1336,7 @@ Int RcmTestCleanup (Int testCase)
             sizeof(rcmClientHandles[0]));
     }
 
-    /* rcm client module destroy*/
+    /* rcm client module destroy */
     Osal_printf("Destroy RCM client module \n");
     status = RcmClient_destroy ();
     if (status < 0)
@@ -1328,7 +1345,7 @@ Int RcmTestCleanup (Int testCase)
     else
         Osal_printf("RcmClient_destroy status: [0x%x]\n", status);
 
-    /* delete the rcm client */
+    /* delete the rcm server */
     Osal_printf("Delete RCM server instance \n");
     status = RcmServer_delete (&rcmServerHandle);
     if (status < 0)
@@ -1337,7 +1354,7 @@ Int RcmTestCleanup (Int testCase)
     else
         Osal_printf("RcmServer_delete status: [0x%x]\n", status);
 
-    /* rcm client module destroy*/
+    /* rcm server module destroy */
     Osal_printf("Destroy RCM server module \n");
     status = RcmServer_destroy ();
     if (status < 0)
@@ -1366,7 +1383,11 @@ Int RcmTestCleanup (Int testCase)
     SharedRegion_remove (1);
 
     stop_params.proc_id = remoteId;
-    ProcMgr_stop(procMgrHandle, &stop_params);
+    status = ProcMgr_stop(procMgrHandle, &stop_params);
+    if (status < 0)
+        Osal_printf("Error in ProcMgr_stop [0x%x]\n", status);
+    else
+        Osal_printf("ProcMgr_stop status: [0x%x]\n", status);
 
     status = ProcMgr_close (&procMgrHandle);
     if (status < 0)
@@ -1374,7 +1395,11 @@ Int RcmTestCleanup (Int testCase)
     else
         Osal_printf("ProcMgr_close status: [0x%x]\n", status);
 
-    SysMgr_destroy ();
+    status = SysMgr_destroy ();
+    if (status < 0)
+        Osal_printf("Error in SysMgr_destroy [0x%x]\n", status);
+    else
+        Osal_printf("SysMgr_destroy status: [0x%x]\n", status);
  #else /* if defined (SYSLINK_USE_SYSMGR) */
 
     status = MessageQTransportShm_delete (&transportShmHandle);
