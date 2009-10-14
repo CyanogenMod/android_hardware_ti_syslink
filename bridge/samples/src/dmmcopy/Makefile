@@ -20,7 +20,7 @@ PROJROOT=../..
 include $(PROJROOT)/make/start.mk
 
 INCLUDE=-I $(PROJROOT)/inc -I $(PROJROOT)/../TARGET/host/include
-LDPATH=$(PROJROOT)/lib
+LDPATH=$(TARGETDIR)/lib
 LDFLAGS = -L $(LDPATH)
 CFLAGS=-Wall -g -O2 $(INCLUDE) -finline-functions -D$(PROCFAMILY) $(LDFLAGS)
 

@@ -92,7 +92,7 @@ uuidutil.c \
 # Current folder and target folder are included by default.
 #	$(CURDIR)/../../mpu/lib/cee
 
-LIBINCLUDES = $(TARGETDIR)
+LIBINCLUDES =
 #LIBINCLUDES =  \
 #	$(HOME)/omap/release/arm4/deb
 
