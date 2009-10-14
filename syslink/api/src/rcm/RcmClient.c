@@ -495,7 +495,7 @@ Int RcmClient_create(String server,
         goto newMail_fail;
     }
 
-    rcmMsg = RcmClient_alloc(handle, sizeof(RcmClient_Message));
+    rcmMsg = RcmClient_alloc(handle, sizeof(UInt32));
     packet = getPacketAddr(rcmMsg);
     packet->desc |= RcmClient_Desc_CONNECT << RCMCLIENT_DESC_TYPE_SHIFT;
     msgId = packet->msgId;
@@ -1344,7 +1344,7 @@ Int RcmClient_shutdownServer(RcmClient_Handle handle)
     }
 
     /* allocate a message */
-    rcmMsg = RcmClient_alloc(handle, sizeof(RcmClient_Message));
+    rcmMsg = RcmClient_alloc(handle, sizeof(UInt32));
 
     /* classify this message */
     packet = getPacketAddr(rcmMsg);
