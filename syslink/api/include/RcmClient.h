@@ -257,6 +257,9 @@ Int RcmClient_addSymbol (RcmClient_Handle        handle,
                          RcmClient_RemoteFuncPtr address,
                          UInt32 *                fxn_idx);
 
+/* Function returns size (in bytes) of RCM header. */
+Int RcmClient_getHeaderSize (Void);
+
 /*
  * Function allocates memory for RCM message on heap,
  * populates MessageQ and RCM message.

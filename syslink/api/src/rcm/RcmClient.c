@@ -737,6 +737,27 @@ Int RcmClient_addSymbol(RcmClient_Handle        handle,
 
 
 /*
+ *  ======== RcmClient_getHeaderSize ========
+ * Purpose:
+ * Returns size (in chars) of RCM header.
+ */
+Int RcmClient_getHeaderSize (Void)
+{
+    Int headerSize;
+
+    GT_0trace (curTrace, GT_ENTER, "RcmClient_getHeaderSize");
+
+    /* size (in bytes) of RCM header including the messageQ header */
+    /* We deduct sizeof(UInt32) as "data[1]" is the start of the payload */
+    headerSize = sizeof (RcmClient_Packet) - sizeof (UInt32);
+
+    GT_1trace (curTrace, GT_LEAVE, "RcmClient_getHeaderSize", status);
+
+    return headerSize;
+}
+
+
+/*
  *  ======== RcmClient_alloc ========
  * Purpose:
  * Allocates memory for RCM message on heap, populates MessageQ and RCM message.
@@ -770,6 +791,7 @@ RcmClient_Message *RcmClient_alloc(RcmClient_Handle handle, UInt32 dataSize)
     }
 
     /* total memory size (in chars) needed for headers and payload */
+    /* We deduct sizeof(UInt32) as "data[1]" is the start of the payload */
     totalSize = sizeof(RcmClient_Packet) - sizeof(UInt32) + dataSize;
 
     /* allocate the message */
@@ -795,6 +817,7 @@ exit:
     GT_1trace (curTrace, GT_LEAVE, "RcmClient_alloc", status);
     return rcmMsg;
 }
+
 
 /*
  *  ======== RcmClient_exec ========
