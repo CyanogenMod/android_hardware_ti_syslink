@@ -310,6 +310,11 @@ Int RcmClient_create(String server,
     UInt16 procId;
     RcmClient_Object *handle = NULL;
     List_Params  listParams;
+    RcmClient_Message *rcmMsg;
+    RcmClient_Packet *packet;
+    UInt16 msgId;
+    MessageQ_Handle msgqInst;
+    MessageQ_Msg msgqMsg;
     Int retval = 0;
     Int status = RCMCLIENT_SOK;
 
@@ -489,6 +494,41 @@ Int RcmClient_create(String server,
         status = RCMCLIENT_EOBJECT;
         goto newMail_fail;
     }
+
+    rcmMsg = RcmClient_alloc(handle, sizeof(RcmClient_Message));
+    packet = getPacketAddr(rcmMsg);
+    packet->desc |= RcmClient_Desc_CONNECT << RCMCLIENT_DESC_TYPE_SHIFT;
+    msgId = packet->msgId;
+
+    /* set the return address to this instance's message queue */
+    msgqInst = (MessageQ_Handle)handle->msgQ;
+    msgqMsg = (MessageQ_Msg)packet;
+    MessageQ_setReplyQueue(msgqInst, msgqMsg);
+
+    /* send the message to the server */
+    retval = MessageQ_put(handle->serverMsgQ, msgqMsg);
+    if (retval < 0) {
+        GT_setFailureReason (curTrace,
+                     GT_4CLASS,
+                     "MessageQ_put",
+                     retval,
+                     "Message put fails");
+        status = RCMCLIENT_ESENDMSG;
+        goto serverMsgQ_fail;
+    }
+
+    /* get the return message from the server */
+    status = getReturnMsg(handle, msgId, rcmMsg);
+    if (status < 0) {
+        GT_setFailureReason (curTrace,
+                     GT_4CLASS,
+                     "getReturnMsg",
+                     status,
+                     "Get return message failed");
+        goto serverMsgQ_fail;
+    }
+
+    RcmClient_free(handle, rcmMsg);
 
     *rcmclientHandle = (RcmClient_Handle)handle;
     goto exit;
@@ -1265,6 +1305,103 @@ Int RcmClient_removeSymbol(RcmClient_Handle handle, String funcName)
     }
 
     GT_1trace (curTrace, GT_LEAVE, "RcmClient_removeSymbol", status);
+    return status;
+}
+
+/*
+ *  ======== RcmClient_shutdownServer ========
+ * Purpose:
+ * Sends a shutdown message to the server
+ */
+Int RcmClient_shutdownServer(RcmClient_Handle handle)
+{
+
+    RcmClient_Message *rcmMsg;
+    RcmClient_Packet *packet;
+    UInt16 msgId;
+    MessageQ_Handle msgqInst;
+    MessageQ_Msg msgqMsg;
+    Int retval = 0;
+    Int status = RCMCLIENT_SOK;
+
+    if (RcmClient_module->setupRefCount == 0) {
+        /*! @retval FRAMEQ_E_INVALIDSTATE Modules is invalidstate*/
+        status = RCMCLIENT_EINVALIDSTATE;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "RcmClient_shutdownServer",
+                             status,
+                             "Modules is invalidstate!");
+        goto exit;
+    }
+
+    if (NULL == handle) {
+        GT_0trace(curTrace,
+              GT_4CLASS,
+              "RcmClient_shutdownServer: invalid argument\n");
+        status = RCMCLIENT_EHANDLE;
+        goto exit;
+    }
+
+    /* allocate a message */
+    rcmMsg = RcmClient_alloc(handle, sizeof(RcmClient_Message));
+
+    /* classify this message */
+    packet = getPacketAddr(rcmMsg);
+    packet->desc |= RcmClient_Desc_SHUTDOWN << RCMCLIENT_DESC_TYPE_SHIFT;
+    msgId = packet->msgId;
+
+    /* set the return address to this instance's message queue */
+    msgqInst = (MessageQ_Handle)handle->msgQ;
+    msgqMsg = (MessageQ_Msg)packet;
+    MessageQ_setReplyQueue(msgqInst, msgqMsg);
+
+    /* send the message to the server */
+    retval = MessageQ_put(handle->serverMsgQ, msgqMsg);
+    if (retval < 0) {
+        GT_setFailureReason (curTrace,
+                     GT_4CLASS,
+                     "MessageQ_put",
+                     retval,
+                     "Message put fails");
+        status = RCMCLIENT_ESENDMSG;
+        goto exit;
+    }
+
+    /* get the return message from the server */
+    status = getReturnMsg(handle, msgId, rcmMsg);
+    if (status < 0) {
+        GT_setFailureReason (curTrace,
+                     GT_4CLASS,
+                     "getReturnMsg",
+                     status,
+                     "Get return message failed");
+        goto exit;
+    }
+
+    /* extract return value and free message */
+    packet = getPacketAddr(rcmMsg);
+    retval = (UInt32)packet->message.result;
+    RcmClient_free(handle, rcmMsg);
+
+    /* check to see if the RCM server was shutdown */
+    if (retval > 0) {
+        status = RCMCLIENT_SCLIENTSATTACHED;
+        GT_1trace (curTrace,
+                   GT_4CLASS,
+                   "Server shutdown not done. %d clients still attached",
+                   retval);
+    }
+    else {
+        status = RCMCLIENT_SOK;
+        GT_1trace (curTrace,
+                   GT_4CLASS,
+                   "Server shutdown done",
+                   retval);
+    }
+
+exit:
+    GT_1trace (curTrace, GT_LEAVE, "RcmClient_shutdownServer", status);
     return status;
 }
 

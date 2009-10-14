@@ -73,6 +73,9 @@
 /* The module/ driver is already cleaned up */
 #define RCMCLIENT_SALREADYCLEANEDUP     RCMCLIENT_MAKE_SUCCESS(2)
 
+/* The server thread was not shutdown as there are attached clients */
+#define RCMCLIENT_SCLIENTSATTACHED      RCMCLIENT_MAKE_SUCCESS(3)
+
 /*
  *  FAILURE Codes
  *
@@ -164,6 +167,8 @@
 #define RcmClient_Desc_DPC              0x2 /*  Deferred Procedure Call */
 #define RcmClient_Desc_SYM_ADD          0x3 /*  Symbol add message */
 #define RcmClient_Desc_SYM_IDX          0x4 /*  Query symbox index */
+#define RcmClient_Desc_SHUTDOWN         0x5 /*  RcmServer shutdown message */
+#define RcmClient_Desc_CONNECT          0x6 /*  RcmClient connected message */
 
 /*
  * RCM client default heap ID
@@ -301,6 +306,9 @@ Int RcmClient_getSymbolIndex (RcmClient_Handle  handle,
 
 /* Function removes symbol (remote function) from registry */
 Int RcmClient_removeSymbol (RcmClient_Handle handle, String funcName);
+
+/* Sends a shutdown message to the server */
+Int RcmClient_shutdownServer(RcmClient_Handle handle);
 
 /*
  * Function waits till invoked remote function completes

@@ -164,6 +164,8 @@
 #define RcmClient_Desc_DPC          0x2     /* Deferred Procedure Call */
 #define RcmClient_Desc_SYM_ADD      0x3     /* Symbol add message */
 #define RcmClient_Desc_SYM_IDX      0x4     /* Query symbox index */
+#define RcmClient_Desc_SHUTDOWN     0x5     /* RcmServer shutdown message */
+#define RcmClient_Desc_CONNECT      0x6     /* RcmClient connected message */
 
 #define RCMSERVER_HIGH_PRIORITY     0xFF
 #define RCMSERVER_REGULAR_PRIORITY  0x01
