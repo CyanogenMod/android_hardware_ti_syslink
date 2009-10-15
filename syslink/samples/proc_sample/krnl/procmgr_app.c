@@ -101,26 +101,26 @@ static struct proc4430_mem_entry mem_entries [NUM_MEM_ENTRIES] =
 {
 	{
 		"DUCATI_SHM",	/* NAME	     : Name of the memory region */
-		0x87B00000,	/* PHYSADDR	     : Physical address */
-		0x98000000,	/* SLAVEVIRTADDR  : Slave virtual address */
+		0x8B000000,	/* PHYSADDR	     : Physical address */
+		0xA0000000,	/* SLAVEVIRTADDR  : Slave virtual address */
 		(u32) -1u,	/* MASTERVIRTADDR : Master virtual address (if known) */
-		0x80000,	/* SIZE	     : Size of the memory region */
+		0x55000,	/* SIZE	     : Size of the memory region */
 		true,		/* SHARE	     : Shared access memory? */
 	},
 	{
 		"DUCATI_SHM1",	/* NAME	     : Name of the memory region */
-		0x87B80000,	/* PHYSADDR	     : Physical address */
-		0x98080000,	/* SLAVEVIRTADDR  : Slave virtual address */
+		0x8B055000,	/* PHYSADDR	     : Physical address */
+		0xA0055000,	/* SLAVEVIRTADDR  : Slave virtual address */
 		(u32) -1u,	/* MASTERVIRTADDR : Master virtual address (if known) */
-		0x80000,	/* SIZE	     : Size of the memory region */
+		0x55000,	/* SIZE	     : Size of the memory region */
 		true,		/* SHARE	     : Shared access memory? */
 	},
 	{
 		"DUCATI_SWDMM",	/* NAME	     : Name of the memory region */
-		0x87C00000,	/* PHYSADDR	     : Physical address */
-		0x80000000,	/* SLAVEVIRTADDR  : Slave virtual address */
+		0x8A300000,	/* PHYSADDR	     : Physical address */
+		0x81300000,	/* SLAVEVIRTADDR  : Slave virtual address */
 		(u32) -1u,	/* MASTERVIRTADDR : Master virtual address (if known) */
-		0x400000,	/* SIZE	     : Size of the memory region */
+		0xC00000,	/* SIZE	     : Size of the memory region */
 		true,		/* SHARE	     : Shared access memory? */
 	}
 };
