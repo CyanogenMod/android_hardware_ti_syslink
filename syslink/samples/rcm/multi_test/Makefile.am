@@ -37,10 +37,16 @@ API_LIBS = \
 	$(LDPATH)/rcm/librcm.la
 
 
-bin_PROGRAMS =  rcm_multitest.out
+bin_PROGRAMS =  rcm_multitest.out rcm_multithreadtest.out rcm_multiclienttest.out
 
 rcm_multitest_out_SOURCES = RcmClientServerTest.c
+rcm_multithreadtest_out_SOURCES = RcmMultiThreadTest.c
+rcm_multiclienttest_out_SOURCES = RcmMultiClientTest.c
 
 rcm_multitest_out_CPPFLAGS = $(AM_CLFAGS)
+rcm_multithreadtest_out_CPPFLAGS = $(AM_CLFAGS)
+rcm_multiclienttest_out_CPPFLAGS = $(AM_CLFAGS)
 
 rcm_multitest_out_LDADD = $(API_LIBS)
+rcm_multithreadtest_out_LDADD = $(API_LIBS)
+rcm_multiclienttest_out_LDADD = $(API_LIBS)

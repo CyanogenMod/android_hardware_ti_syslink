@@ -19,7 +19,7 @@ INCLUDE= \
 	-I $(PROJROOT)/../target/host/include
 
 
-CFLAGS = -Wall -g -O2 $(INCLUDE) -finline-functions -D$(PROCFAMILY)
+AM_CFLAGS = -Wall -g -O2 $(INCLUDE) -finline-functions -D$(PROCFAMILY)
 
 
 

@@ -2,9 +2,7 @@
 
 DIR=`dirname $0`
 HOST=arm-none-linux-gnueabi
-# 0) Gather requirements
-# =============================================================================
-
+# Gather requirements
 # path to target filesystem
 echo "Enter PREFIX (currently '$PREFIX'):\c"
 read VALUE
@@ -15,17 +13,9 @@ echo "Enter path to tiler-userspace (currently '$TILER_USERSPACE'):\c"
 read VALUE
 export TILER_USERSPACE=${VALUE:=$TILER_USERSPACE}
 
+# path to userspace-space git root
 export USERSPACE_SYSLINK=`readlink -f $DIR`
 
-#.. first find gcc
-TOOL=`which ${HOST}-gcc`
-if [ ! -e $TOOL ]
-then
-	echo "Could not find gcc"
-exit
-fi
-
-TOOLBIN=`dirname $TOOL`
 echo "Enter tool path (currently '$TOOL'):\c"
 read VALUE
 TOOLBIN=${VALUE:=$TOOLBIN}
@@ -62,65 +52,94 @@ exit
 fi
 echo Found libpthread.so in $LIBPTHREAD
 
+#... Uncomment below if you want to enable DEBUG option.
+# ENABLE_DEBUG=--enable-debug
 
-# 1) Building memmgr
-# =============================================================================
+echo "	"
+echo "Following are the 2 Build options available:"
+echo "--------------------------------------------"
+echo "1--------------> Build Syslink Only"
+echo "2--------------> Build Bridge Only"
+echo "Any other Option to exit from Build system"
+echo "	"
+echo "Enter your option:"
+read VALUE
+case $VALUE in
+        1)
+		# Building memmgr
+		echo "							   "
+		echo "*****************************************************"
+		echo "        Building tiler memmgr APIs and Samples	   "
+		echo "*****************************************************"
+		echo "							   "
+		cd ${TILER_USERSPACE}/memmgr
+		./bootstrap.sh
+		./configure --prefix ${PREFIX}/target --bindir ${PREFIX}/target/syslink \
+		--host ${HOST} --build i686-pc-linux-gnu
+		make clean > /dev/null 2>&1
+		make
+		if [[ $? -ne 0 ]] ; then
+		    exit 1
+		fi
+		make install
+		if [[ $? -ne 0 ]] ; then
+		    exit 1
+		fi
+		# Building syslink
+		#.. need libgcc.a, librt.so and libpthread.so
+		mkdir -p ${PREFIX}/target/lib
+		cp $LIBGCC ${PREFIX}/target/lib
+		cp `dirname $LIBRT`/librt*.so* ${PREFIX}/target/lib
+		cp `dirname $LIBPTHREAD`/libpthread*.so* ${PREFIX}/target/lib
+		#.. syslink prefix needs a target subdirectory,
+		#so we will create link to the parent
+		cd ${USERSPACE_SYSLINK}/syslink
+		echo "							  "
+		echo "****************************************************"
+		echo "      Building Syslink APIs and Samples		  "
+		echo "****************************************************"
+		echo "							  "
+		./autogen.sh
+		./configure --prefix ${PREFIX}/target --bindir ${PREFIX}/target/syslink \
+		--host ${HOST} ${ENABLE_DEBUG}  --build i686-pc-linux-gnu
+		export TILER_INC_PATH=${TILER_USERSPACE}/memmgr
+		make clean > /dev/null 2>&1
+		make
+		if [[ $? -ne 0 ]] ; then
+		    exit 1
+		fi
+		make install
+		if [[ $? -ne 0 ]] ; then
+		    exit 1
+		fi
 
-#.. uncomment to include our unit tests as well
-ENABLE_UNIT_TESTS=--enable-unit-tests
+		;; # End of case 1
 
-#.. uncomment to export the tilermgr.h header - this is currently needed by
-#   syslink
-ENABLE_TILERMGR=--enable-tilermgr
+	2)
 
-echo "										       "
-echo "            *********************************************************************"
-echo "			          Building tiler memmgr APIs and Samples	       "
-echo "            *********************************************************************"
-echo "										       "
-cd ${TILER_USERSPACE}/memmgr
-./bootstrap.sh
-./configure --prefix ${PREFIX} --host ${HOST} ${ENABLE_UNIT_TESTS} ${ENABLE_TILERMGR}
-make
-make install
+		# Building tesla bridge
+		echo "	  						  "
+		echo "****************************************************"
+		echo "	    Building Bridge APIs and Samples		  "
+		echo "****************************************************"
+		echo "							  "
+		cd ${USERSPACE_SYSLINK}/bridge
+		./autogen.sh
+		./configure --prefix ${PREFIX}/target --bindir ${PREFIX}/target/dspbridge \
+		--host ${HOST} ${ENABLE_DEBUG}  --build i686-pc-linux-gnu
+		make clean > /dev/null 2>&1
+		make
+		if [[ $? -ne 0 ]] ; then
+		    exit 1
+		fi
+		make install
+		if [[ $? -ne 0 ]] ; then
+		    exit 1
+		fi
+		cd -
+		;; # End of case 2
 
-# 2) Building syslink
-# =============================================================================
-
-#.. need libgcc.a, librt.so and libpthread.so
-mkdir -p ${PREFIX}/lib
-cp $LIBGCC ${PREFIX}/lib
-cp `dirname $LIBRT`/librt*.so* ${PREFIX}/lib
-cp `dirname $LIBPTHREAD`/libpthread*.so* ${PREFIX}/lib
-
-#.. syslink prefix needs a target subdirectory, so we will create link to the
-#   parent
-
-ln -s ${PREFIX} ${PREFIX}/target
-
-cd ${USERSPACE_SYSLINK}/syslink
-echo "										       "
-echo "            *********************************************************************"
-echo "			           Building Syslink APIs and Samples		       "
-echo "            *********************************************************************"
-echo "										       "
-./autogen.sh
-./configure --prefix ${PREFIX} --host ${HOST}
-export TILER_INC_PATH=${TILER_USERSPACE}/memmgr
-make
-make install
-
-# 3) Building tesla bridge
-# =============================================================================
-echo "										       "
-echo "		  *********************************************************************"
-echo "				    Building Bridge APIs and Samples		       "
-echo "		  *********************************************************************"
-echo "										       "
-cd ${USERSPACE_SYSLINK}/bridge
-./autogen.sh
-./configure --prefix ${PREFIX} --host ${HOST}
-make
-make install
-
-cd -
+	*)	echo " Exiting from the build system....... "
+		exit 1
+		;;
+	esac

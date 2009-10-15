@@ -17,7 +17,8 @@ AC_SEARCH_LIBS([pthread_create], [pthread])
 AC_SEARCH_LIBS([clock_gettime],[rt])
 
 #To disable buidling static libraries
-#AC_DISABLE_STATIC
+AC_DISABLE_STATIC
+#The below MACRO is required to build Shared libraries
 AC_PROG_LIBTOOL
 
 # Checks for header files.
