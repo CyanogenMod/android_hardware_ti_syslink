@@ -42,16 +42,16 @@ extern "C" {
 
 /*
  *  The shared memory is going to split between
- *  Notify:       0x98000000 - 0x98004000
- *  Gatepeterson: 0x98004000 - 0x98005000
- *  HeapMultiBuf: 0x98005000 - 0x98009000
- *  transport:    0x98009000 - 0x9800B000
- *  NameServer:   0x9800B000 - 0x9800C000
- *  HeapBuf:      0x9800C000 - 0x9800E000
- *  List:         0x9800E000 - 0x98010000
+ *  Notify:       0xA0000000 - 0xA0004000
+ *  Gatepeterson: 0xA0004000 - 0xA0005000
+ *  HeapMultiBuf: 0xA0005000 - 0xA0009000
+ *  transport:    0xA0009000 - 0xA000B000
+ *  NameServer:   0xA000B000 - 0xA000C000
+ *  HeapBuf:      0xA000C000 - 0xA000E000
+ *  List:         0xA000E000 - 0xA0010000
  */
 
-#define SHAREDMEM               0x98000000
+#define SHAREDMEM               0xA0000000
 #define SHAREDMEMSIZE           0x1B000
 
 /* Memory for the Notify Module */

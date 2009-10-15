@@ -77,7 +77,7 @@ extern "C" {
 /*!
  *  @brief  shared memory size
  */
-#define SHAREDMEM               0x98000000
+#define SHAREDMEM               0xA0000000
 #define SHAREDMEMSIZE           0x1B000
 
 /* Memory for the Notify Module */

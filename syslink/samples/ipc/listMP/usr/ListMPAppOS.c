@@ -54,7 +54,7 @@ extern "C" {
 /*!
  *  @brief  shared memory base address
  */
-#define SHAREDMEM               0x98000000
+#define SHAREDMEM               0xA0000000
 
 
 

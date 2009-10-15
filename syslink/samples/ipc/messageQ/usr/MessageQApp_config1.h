@@ -46,11 +46,11 @@ extern "C" {
 
 /*
  *  The shared memory is going to split between
- *  Notify:       0x98000000 - 0x98003FFF
- *  GatePeterson: 0x98080000 - 0x98080FFF
- *  HeapBuf:      0x98081000 - 0x98084FFF
- *  MessageQ NS:  0x98085000 - 0x98085FFF
- *  Transport:    0x98086000 - 0x98087FFF
+ *  Notify:       0xA0000000 - 0xA0003FFF
+ *  GatePeterson: 0xA0055000 - 0xA0055FFF
+ *  HeapBuf:      0xA0056000 - 0xA0059FFF
+ *  MessageQ NS:  0xA005A000 - 0xA005AFFF
+ *  Transport:    0xA005B000 - 0xA005CFFF
  */
 
 /* Memory for the MPU - SysM3 Shared Objects */

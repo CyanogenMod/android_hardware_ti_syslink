@@ -82,16 +82,16 @@ extern "C" {
 #define MAX_RUNTIMEENTRIES 10u
 /*
  *  The shared memory is going to split between
- *  Notify:       0x90000000 - 0x90004000
- *  HeapBuf:      0x90004000 - 0x90008000
- *  Transport:    0x90008000 - 0x9000A000
- *  GatePeterson: 0x9000A000 - 0x9000B000
- *  MessageQ NS:  0x9000B000 - 0x9000C000
- *  HeapBuf NS:   0x9000C000 - 0x9000D000
- *  NameServer:   0x9000D000 - 0x9000E000
- *  Gatepeterson1:0x9000E000 - 0x9000F000
+ *  Notify:       0xA0000000 - 0xA0004000
+ *  HeapBuf:      0xA0004000 - 0xA0008000
+ *  Transport:    0xA0008000 - 0xA000A000
+ *  GatePeterson: 0xA000A000 - 0xA000B000
+ *  MessageQ NS:  0xA000B000 - 0xA000C000
+ *  HeapBuf NS:   0xA000C000 - 0xA000D000
+ *  NameServer:   0xA000D000 - 0xA000E000
+ *  Gatepeterson1:0xA000E000 - 0xA000F000
  */
-#define SHAREDMEM               0x98000000
+#define SHAREDMEM               0xA0000000
 #define SHAREDMEMSIZE           0xF000
 
 ProcMgr_Handle gatePetersonApp_procMgrHandle = NULL;
