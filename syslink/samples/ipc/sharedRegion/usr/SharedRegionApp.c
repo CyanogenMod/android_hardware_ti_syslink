@@ -116,7 +116,15 @@ sharedRegionApp_startup (Void)
 
     Osal_printf ("Entered sharedRegionApp_startup\n");
 
-#if !defined(SYSLINK_USE_SYSMGR)
+#if defined(SYSLINK_USE_SYSMGR)
+    SysMgr_getConfig (&config);
+    status = SysMgr_setup (&config);
+    if (status < 0) {
+        Osal_printf ("Error in SysMgr_setup [0x%x]\n", status);
+    }
+#else /* if defined(SYSLINK_USE_SYSMGR) */
+    UsrUtilsDrv_setup ();
+
     multiProcConfig.maxProcessors = 4;
     multiProcConfig.id = 0;
     String_cpy (multiProcConfig.nameList [0], "MPU");
@@ -127,16 +135,6 @@ sharedRegionApp_startup (Void)
     if (status < 0) {
         Osal_printf ("Error in MultiProc_setup [0x%x]\n", status);
     }
-#endif
-
-#if defined(SYSLINK_USE_SYSMGR)
-    SysMgr_getConfig (&config);
-    status = SysMgr_setup (&config);
-    if (status < 0) {
-        Osal_printf ("Error in SysMgr_setup [0x%x]\n", status);
-    }
-#else /* if defined(SYSLINK_USE_SYSMGR) */
-    UsrUtilsDrv_setup ();
 
     NameServerParams.maxNameLen           = MAX_NAME_LENGTH;
     NameServerParams.maxRuntimeEntries = MAX_VALUE_LENGTH;
@@ -185,9 +183,9 @@ sharedRegionApp_execute (Void)
 {
     UInt32              usrVirtAddress = sharedRegionApp_shAddrBase;
     SharedRegion_SRPtr  srPtr;
-    UInt32                 Index = (~0);
-    SharedRegion_Info info_set;
-    SharedRegion_Info info_get;
+    UInt32              Index = (~0);
+    SharedRegion_Info   info_set;
+    SharedRegion_Info   info_get;
 
 
     info_set.isValid = 1;
@@ -196,49 +194,49 @@ sharedRegionApp_execute (Void)
 
     usrVirtAddress += 0x100;
 
-    Osal_printf ("usr vitual address   =  [0x%x]\n", usrVirtAddress);
+    Osal_printf ("User virtual address  =  [0x%x]\n", usrVirtAddress);
     srPtr = SharedRegion_getSRPtr((Ptr)usrVirtAddress,0);
-    Osal_printf ("shared region pointer =  [0x%x]\n", srPtr);
+    Osal_printf ("SharedRegion pointer  =  [0x%x]\n", srPtr);
     usrVirtAddress = (UInt32)SharedRegion_getPtr(srPtr);
-    Osal_printf ("usr vitual pointer   =  [0x%x]\n", usrVirtAddress);
-
+    Osal_printf ("User virtual pointer  =  [0x%x]\n", usrVirtAddress);
 
     usrVirtAddress += 0x200;
 
-    Osal_printf ("usr vitual address   =  [0x%x]\n", usrVirtAddress);
+    Osal_printf ("User virtual address  =  [0x%x]\n", usrVirtAddress);
     srPtr = SharedRegion_getSRPtr((Ptr)usrVirtAddress,0);
-    Osal_printf ("shared region pointer =  [0x%x]\n", srPtr);
+    Osal_printf ("SharedRegion pointer  =  [0x%x]\n", srPtr);
     usrVirtAddress = (UInt32)SharedRegion_getPtr(srPtr);
-    Osal_printf ("usr vitual pointer   =  [0x%x]\n", usrVirtAddress);
+    Osal_printf ("User virtual pointer  =  [0x%x]\n", usrVirtAddress);
 
     Index = SharedRegion_getIndex((Ptr)usrVirtAddress);
-    Osal_printf ("usr vitual address = [0x%x] is in"
+    Osal_printf ("User virtual address [0x%x] is in"
         " table entry with index = [0x%x]\n", usrVirtAddress, Index);
 
 
     SharedRegion_setTableInfo (2, MultiProc_getId("SysM3"), &info_set);
     SharedRegion_getTableInfo (2, MultiProc_getId("SysM3"), &info_get);
-    Osal_printf ("usr vitual pointer in table with index 2 is [0x%x]\n"
+    Osal_printf ("User virtual pointer in table with index 2 is [0x%x]\n"
                  " with size [0x%x]\n", info_get.base, info_get.len);
 
 
     usrVirtAddress += 0x6000;
 
-    Osal_printf ("usr vitual address   =  [0x%x]\n", usrVirtAddress);
+    Osal_printf ("User virtual address  =  [0x%x]\n", usrVirtAddress);
     srPtr = SharedRegion_getSRPtr((Ptr)usrVirtAddress,0);
-    Osal_printf ("usr region pointer =  [0x%x]\n", srPtr);
+    Osal_printf ("User region pointer   =  [0x%x]\n", srPtr);
     usrVirtAddress = (UInt32)SharedRegion_getPtr(srPtr);
-    Osal_printf ("usr vitual pointer   =  [0x%x]\n", usrVirtAddress);
+    Osal_printf ("User virtual pointer  =  [0x%x]\n", usrVirtAddress);
 
 
     Osal_printf ("Passing an address which is not in any of the SharedRegion"
         " areas registered\n");
     usrVirtAddress += 0x200000;
-    Osal_printf ("usr vitual address   =  [0x%x]\n", usrVirtAddress);
+    Osal_printf ("User virtual address  =  [0x%x]\n", usrVirtAddress);
     srPtr = SharedRegion_getSRPtr((Ptr)usrVirtAddress,0);
-    Osal_printf ("usr region pointer =  [0x%x]\n", srPtr);
+    Osal_printf ("User region pointer   =  [0x%x]\n", srPtr);
     usrVirtAddress = (UInt32)SharedRegion_getPtr(srPtr);
-    Osal_printf ("usr vitual pointer   =  [0x%x]\n", usrVirtAddress);
+    Osal_printf ("User virtual pointer  =  [0x%x]\n", usrVirtAddress);
+
     return (0);
 }
 
@@ -260,12 +258,15 @@ sharedRegionApp_shutdown (Void)
 #else /* if defined (SYSLINK_USE_SYSMGR) */
     status = NameServer_destroy();
     Osal_printf ("NameServer_destroy status: [0x%x]\n", status);
+
     status = MultiProc_destroy ();
     Osal_printf ("Multiproc_destroy status: [0x%x]\n", status);
+
     UsrUtilsDrv_destroy ();
 #endif /* if defined(SYSLINK_USE_SYSMGR) */
 
     Osal_printf ("Leaving sharedRegionApp_shutdown\n");
+
     return (0);
 }
 

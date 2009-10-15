@@ -46,6 +46,7 @@
 #if defined (SYSLINK_USE_SYSMGR)
 #include <SysMgr.h>
 #else /* if defined (SYSLINK_USE_SYSMGR) */
+#include <UsrUtilsDrv.h>
 #include <MultiProc.h>
 #include <NameServer.h>
 #endif /* if defined(SYSLINK_USE_SYSMGR) */
@@ -199,6 +200,8 @@ NameServer_Handle NameServerApp_setup()
     nameServerParams.maxValueLen       = MAX_RUNTIMEENTRIES;
     nameServerParams.checkExisting     = TRUE; /* Checsk if exists */
     nameServerParams.gate              = NULL;
+
+    UsrUtilsDrv_setup ();
 
     multiProcConfig.maxProcessors = 4;
     multiProcConfig.id = 0;

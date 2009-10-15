@@ -152,20 +152,6 @@ MessageQApp_startup (UInt32 sharedAddr)
 
     MessageQApp_shAddrBase = sharedAddr;
 
-    /* Get and set GPP MultiProc ID by name. */
-#if !defined(SYSLINK_USE_SYSMGR)
-    multiProcConfig.maxProcessors = 4;
-    multiProcConfig.id = 0;
-    String_cpy (multiProcConfig.nameList [0], "MPU");
-    String_cpy (multiProcConfig.nameList [1], "Tesla");
-    String_cpy (multiProcConfig.nameList [2], "SysM3");
-    String_cpy (multiProcConfig.nameList [3], "AppM3");
-    status = MultiProc_setup(&multiProcConfig);
-    if (status < 0) {
-        Osal_printf ("Error in MultiProc_setup [0x%x]\n", status);
-    }
-#endif
-
 #if defined(SYSLINK_USE_SYSMGR)
     SysMgr_getConfig (&config);
     status = SysMgr_setup (&config);
@@ -175,6 +161,18 @@ MessageQApp_startup (UInt32 sharedAddr)
 #else /* if defined(SYSLINK_USE_SYSMGR) */
     if (status >= 0) {
        UsrUtilsDrv_setup ();
+
+        /* Get and set GPP MultiProc ID by name. */
+        multiProcConfig.maxProcessors = 4;
+        multiProcConfig.id = 0;
+        String_cpy (multiProcConfig.nameList [0], "MPU");
+        String_cpy (multiProcConfig.nameList [1], "Tesla");
+        String_cpy (multiProcConfig.nameList [2], "SysM3");
+        String_cpy (multiProcConfig.nameList [3], "AppM3");
+        status = MultiProc_setup(&multiProcConfig);
+        if (status < 0) {
+            Osal_printf ("Error in MultiProc_setup [0x%x]\n", status);
+        }
 
         /* NameServer and NameServerRemoteNotify module setup */
         status = NameServer_setup ();

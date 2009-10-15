@@ -192,7 +192,15 @@ ListMPApp_startup (UInt32 sharedAddr)
 
     Osal_printf ("\nEntered ListMPApp_startup\n");
 
-#if !defined(SYSLINK_USE_SYSMGR)
+#if defined(SYSLINK_USE_SYSMGR)
+    SysMgr_getConfig (&config);
+    status = SysMgr_setup (&config);
+    if (status < 0) {
+        Osal_printf ("Error in SysMgr_setup [0x%x]\n", status);
+    }
+#else /* if defined(SYSLINK_USE_SYSMGR) */
+    UsrUtilsDrv_setup ();
+
     multiProcConfig.maxProcessors = 4;
     multiProcConfig.id = 0;
     String_cpy (multiProcConfig.nameList [0], "MPU");
@@ -203,16 +211,7 @@ ListMPApp_startup (UInt32 sharedAddr)
     if (status < 0) {
         Osal_printf ("Error in MultiProc_setup [0x%x]\n", status);
     }
-#endif
 
-#if defined(SYSLINK_USE_SYSMGR)
-    SysMgr_getConfig (&config);
-    status = SysMgr_setup (&config);
-    if (status < 0) {
-        Osal_printf ("Error in SysMgr_setup [0x%x]\n", status);
-    }
-#else /* if defined(SYSLINK_USE_SYSMGR) */
-    UsrUtilsDrv_setup ();
     NameServer_setup();
 #endif /* if defined(SYSLINK_USE_SYSMGR) */
 

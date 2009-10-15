@@ -216,7 +216,15 @@ Handle GatePeterson_app_startup()
 
     Osal_printf ("Entering GatePeterson Application Startup\n");
 
-#if !defined(SYSLINK_USE_SYSMGR)
+#if defined(SYSLINK_USE_SYSMGR)
+    SysMgr_getConfig (&config);
+    status = SysMgr_setup (&config);
+    if (status < 0) {
+        Osal_printf ("Error in SysMgr_setup [0x%x]\n", status);
+    }
+#else /* if defined(SYSLINK_USE_SYSMGR) */
+    UsrUtilsDrv_setup ();
+
     multiProcConfig.maxProcessors = 4;
     multiProcConfig.id = 0;
     String_cpy (multiProcConfig.nameList [0], "MPU");
@@ -227,16 +235,6 @@ Handle GatePeterson_app_startup()
     if (status < 0) {
         Osal_printf ("Error in MultiProc_setup [0x%x]\n", status);
     }
-#endif
-
-#if defined(SYSLINK_USE_SYSMGR)
-    SysMgr_getConfig (&config);
-    status = SysMgr_setup (&config);
-    if (status < 0) {
-        Osal_printf ("Error in SysMgr_setup [0x%x]\n", status);
-    }
-#else /* if defined(SYSLINK_USE_SYSMGR) */
-    UsrUtilsDrv_setup ();
 
     /*    Below function is called with out opening driver, why?
         NameServer_Params_init(&NameServerParams);

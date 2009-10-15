@@ -125,11 +125,19 @@ HeapBufApp_startup (Void)
     NameServer_Params         NameServerParams;
     String                    Gate_Name = "TESTGATE";
     UInt16                    Remote_procId;
-    UInt16                    myproc_id;
+    UInt16                    myProcId;
 
     Osal_printf ("Entered HeapBuf startup\n");
 
-#if !defined(SYSLINK_USE_SYSMGR)
+#if defined(SYSLINK_USE_SYSMGR)
+    SysMgr_getConfig (&config);
+    status = SysMgr_setup (&config);
+    if (status < 0) {
+        Osal_printf ("Error in SysMgr_setup [0x%x]\n", status);
+    }
+#else /* if defined(SYSLINK_USE_SYSMGR) */
+    UsrUtilsDrv_setup ();
+
     multiProcConfig.maxProcessors = 4;
     multiProcConfig.id = 0;
     String_cpy (multiProcConfig.nameList [0], "MPU");
@@ -140,27 +148,6 @@ HeapBufApp_startup (Void)
     if (status < 0) {
         Osal_printf ("Error in MultiProc_setup [0x%x]\n", status);
     }
-#endif
-
-    myproc_id = MultiProc_getId("MPU");
-
-    /* All the addres translation need proc manager handle. So open it */
-    HeapBufApp_Prochandle = (Handle)open (PROCMGR_DRIVER_NAME, O_SYNC | O_RDWR);
-    if (HeapBufApp_Prochandle < 0) {
-        Osal_printf ("Error in proc manager open");
-        goto exit;
-    }
-    Osal_printf ("HeapBufApp_Prochandle = 0x%x\n", HeapBufApp_Prochandle);
-
-
-#if defined(SYSLINK_USE_SYSMGR)
-    SysMgr_getConfig (&config);
-    status = SysMgr_setup (&config);
-    if (status < 0) {
-        Osal_printf ("Error in SysMgr_setup [0x%x]\n", status);
-    }
-#else /* if defined(SYSLINK_USE_SYSMGR) */
-    UsrUtilsDrv_setup ();
 
     /* This will set up the NameServer. NameServer will be used internally by
      *  many modules internally (optinally we can disable it usage in modules)
@@ -173,6 +160,9 @@ HeapBufApp_startup (Void)
         Osal_printf ("Error in NameServer_setup [0x%x]\n", status);
     }
 #endif /* if defined(SYSLINK_USE_SYSMGR) */
+
+    myProcId = MultiProc_getId("MPU");
+    Osal_printf ("MultiProc_getId(MPU) = 0x%x]\n", myProcId);
 
     /* Get MultiProc ID by name for the remote processor. */
     Remote_procId = MultiProc_getId ("SysM3");
@@ -252,7 +242,7 @@ HeapBufApp_startup (Void)
                     Osal_printf ("Error in GatePeterson_setup [0x%x]\n", status);
                 }
                 else {
-		    HeapBuf_getConfig (&cfgHeapBufParams);					
+                    HeapBuf_getConfig (&cfgHeapBufParams);
                     cfgHeapBufParams.maxNameLen     = MAX_NAME_LENGTH;
                     cfgHeapBufParams.trackMaxAllocs = TRUE;
                     status = HeapBuf_setup(&cfgHeapBufParams);
@@ -266,7 +256,7 @@ HeapBufApp_startup (Void)
         }
     }
 #endif /* if !defined(SYSLINK_USE_SYSMGR) */
-exit:
+
     return 0;
 }
 
