@@ -4,7 +4,7 @@
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
  *  You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  *  Unless required by applicable law or agreed to in writing, software
@@ -50,35 +50,35 @@ extern "C" {
 
 /*
  *  The shared memory is going to split between
- *  Notify:             0x98000000 - 0x98004000
- *  Gatepeterson:       0x98004000 - 0x98005000
- *  HEAPBUFMEM:         0x98005000 - 0x98009000
- *  NSRN_MEM:           0x98009000 - 0x9800A000
- *  transport:          0x9000A000 - 0x9000C000
- *  MESSAGEQ_NS_MEM:    0x9000C000 - 0x9000D000
- *  HEAPBUF_NS_MEM:     0x9000D000 - 0x9000E000
- *  HEAPBUFMEM1:        0x9000E000 - 0x90012000
- *  GATEPETERSONMEM1:   0x90012000 - 0x90013000
- *  HEAPMEM:            0x90013000 - 0x90014000
- *  HEAPMEM1:           0x90014000 - 0x90015000
- *  List:               0x98011000 - 0x98012000
- *  List1:              0x98012000 - 0x98013000
- *  DMMSHAREDMEM:       0x90017000 - 0x90018000
- *  DMMSHAREDMEM1:      0x90018000 - 0x90019000
- *  HEAPMBMEM_CTRL:     0x90019000 - 0x9001A000
- *   HEAPMBMEM_BUFS:    0x9001A000 - 0x9001D000
+ *  Notify:             0xA0000000 - 0xA0004000
+ *  Gatepeterson:       0xA0004000 - 0xA0005000
+ *  HEAPBUFMEM:         0xA0005000 - 0xA0009000
+ *  NSRN_MEM:           0xA0009000 - 0xA000A000
+ *  transport:          0xA000A000 - 0xA000C000
+ *  MESSAGEQ_NS_MEM:    0xA000C000 - 0xA000D000
+ *  HEAPBUF_NS_MEM:     0xA000D000 - 0xA000E000
+ *  HEAPBUFMEM1:        0xA000E000 - 0xA0012000
+ *  GATEPETERSONMEM1:   0xA0012000 - 0xA0013000
+ *  HEAPMEM:            0xA0013000 - 0xA0014000
+ *  HEAPMEM1:           0xA0014000 - 0xA0015000
+ *  List:               0xA0015000 - 0xA0016000
+ *  List1:              0xA0016000 - 0xA0017000
+ *  HEAPMBMEM_CTRL:     0xA0017000 - 0xA0018000
+ *  HEAPMBMEM:          0xA0018000 - 0xA001B000
+ *  HEAPMBMEM1_CTRL:    0xA001B000 - 0xA001C000
+ *  HEAPMBMEM1:         0xA001C000 - 0xA001F000
  */
 
 /* Shared Memory Area for MPU - SysM3 */
-#define SHAREDMEM                   0x98000000
-#define SHAREDMEMSIZE               0x7F000
+#define SHAREDMEM                   0xA0000000
+#define SHAREDMEMSIZE               0x54000
 
 /* Shared Memory Area for MPU - AppM3 */
-#define SHAREDMEM1                  0x98080000
-#define SHAREDMEMSIZE1              0x7F000
+#define SHAREDMEM1                  0xA0055000
+#define SHAREDMEMSIZE1              0x54000
 
 /* Memory for the Notify Module */
-#define NOTIFYMEM                   0x98000000
+#define NOTIFYMEM                   0xA0000000
 #define NOTIFYMEMSIZE               0x4000
 
 /* Memory a GatePeterson instance */
