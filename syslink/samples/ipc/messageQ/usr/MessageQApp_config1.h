@@ -54,12 +54,12 @@ extern "C" {
  */
 
 /* Memory for the MPU - SysM3 Shared Objects */
-#define SHAREDMEM0               0x98000000
-#define SHAREDMEMSIZE0           0x7F000
+#define SHAREDMEM0               0xA0000000
+#define SHAREDMEMSIZE0           0x54000
 
 /* Memory for MPU - AppM3 Shared Objects */
-#define SHAREDMEM               0x98080000
-#define SHAREDMEMSIZE           0x7F000
+#define SHAREDMEM               0xA0055000
+#define SHAREDMEMSIZE           0x54000
 
 /* Memory a GatePeterson instance */
 #define GATEPETERSONMEM         (SHAREDMEM)

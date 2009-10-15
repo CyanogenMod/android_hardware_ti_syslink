@@ -32,12 +32,12 @@ extern "C" {
 
 
 /* App defines */
-#define MSGSIZE                  256u
-#define NSRN_NOTIFY_EVENTNO        7u
-#define TRANSPORT_NOTIFY_EVENTNO   8u
-#define HEAPID                     0u
-#define HEAPNAME             "SysMgrHeap0"
-#define DIEMESSAGE             0xFFFF
+#define MSGSIZE                     256u
+#define NSRN_NOTIFY_EVENTNO         7u
+#define TRANSPORT_NOTIFY_EVENTNO    8u
+#define HEAPID                      0u
+#define HEAPNAME                    "SysMgrHeap0"
+#define DIEMESSAGE                  0xFFFF
 
 #define DSP_MESSAGEQNAME            "Q0"
 #define ARM_MESSAGEQNAME            "Q1"
@@ -45,34 +45,34 @@ extern "C" {
 
 /*
  *  The shared memory is going to split between
- *  Notify:       0x98000000 - 0x98003FFF
- *  GatePeterson: 0x98004000 - 0x98004FFF
- *  HeapBuf:      0x98005000 - 0x98008FFF
- *  MessageQ NS:  0x98009000 - 0x98009FFF
- *  Transport:    0x9800A000 - 0x9800BFFF
+ *  Notify:       0xA0000000 - 0xA0003FFF
+ *  GatePeterson: 0xA0004000 - 0xA0004FFF
+ *  HeapBuf:      0xA0005000 - 0xA0008FFF
+ *  MessageQ NS:  0xA0009000 - 0xA0009FFF
+ *  Transport:    0xA000A000 - 0xA000BFFF
  */
-#define SHAREDMEM               0x98000000
-#define SHAREDMEMSIZE              0x7F000
+#define SHAREDMEM               0xA0000000
+#define SHAREDMEMSIZE           0x54000
 
 /* Memory for the Notify Module */
-#define NOTIFYMEM               0x98000000
-#define NOTIFYMEMSIZE               0x4000
+#define NOTIFYMEM               0xA0000000
+#define NOTIFYMEMSIZE           0x4000
 
 /* Memory a GatePeterson instance */
-#define GATEPETERSONMEM         0x98004000
-#define GATEPETERSONMEMSIZE         0x1000
+#define GATEPETERSONMEM         0xA0004000
+#define GATEPETERSONMEMSIZE     0x1000
 
 /* Memory a HeapBuf instance */
-#define HEAPBUFMEM              0x98005000
-#define HEAPBUFMEMSIZE              0x4000
+#define HEAPBUFMEM              0xA0005000
+#define HEAPBUFMEMSIZE          0x4000
 
 /* Memory for NameServerRemoteNotify */
-#define NSRN_MEM                0x98009000
+#define NSRN_MEM                0xA0009000
 #define NSRN_MEMSIZE            0x1000
 
 /* Memory a Transport instance */
-#define TRANSPORTMEM            0x9800A000
-#define TRANSPORTMEMSIZE            0x2000
+#define TRANSPORTMEM            0xA000A000
+#define TRANSPORTMEMSIZE        0x2000
 
 
 #if defined (__cplusplus)
