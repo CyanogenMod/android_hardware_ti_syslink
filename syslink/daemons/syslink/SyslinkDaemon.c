@@ -31,9 +31,12 @@
 /* OSAL & Utils headers */
 #include <OsalPrint.h>
 
-/* RCM headers */
-#include <RcmServer.h>
+/* IPC headers */
+#include <SysMgr.h>
+#include <ProcMgr.h>
 
+/* Sample headers */
+#include <MemMgrServer_config.h>
 
 
 /*
@@ -41,14 +44,212 @@
  */
 Void MemMgrThreadFxn();
 
+
 #if defined (__cplusplus)
 extern "C" {
 #endif /* defined (__cplusplus) */
 
 
+/*
+ *  ======== ipc_setup ========
+ */
+Int ipc_setup(Char * sysM3ImageName, Char * appM3ImageName)
+{
+    SysMgr_Config                   config;
+    ProcMgr_StopParams              stopParams;
+    ProcMgr_StartParams             start_params;
+    ProcMgr_Handle                  procMgrHandle_server;
+    UInt32                          entry_point = 0;
+    UInt16                          remoteIdSysM3;
+    UInt16                          remoteIdAppM3;
+    UInt32                          shAddrBase;
+    UInt32                          shAddrBase1;
+    UInt16                          procId;
+#if defined (SYSLINK_USE_LOADER)
+    Char                            uProcId;
+    UInt32                          fileId;
+#endif
+
+    Int                             status = 0;
+    Bool                            appM3Client = FALSE;
+
+    if(appM3ImageName != NULL)
+        appM3Client = TRUE;
+    else
+        appM3Client = FALSE;
+
+    SysMgr_getConfig (&config);
+    status = SysMgr_setup (&config);
+    if (status < 0) {
+        Osal_printf ("Error in SysMgr_setup [0x%x]\n", status);
+        goto exit;
+    }
+
+    /* Get MultiProc IDs by name. */
+    remoteIdSysM3 = MultiProc_getId (SYSM3_PROC_NAME);
+    Osal_printf ("MultiProc_getId remoteId: [0x%x]\n", remoteIdSysM3);
+    remoteIdAppM3 = MultiProc_getId (APPM3_PROC_NAME);
+    Osal_printf ("MultiProc_getId remoteId: [0x%x]\n", remoteIdAppM3);
+    procId = remoteIdSysM3;
+    Osal_printf ("MultiProc_getId procId: [0x%x]\n", procId);
+
+    printf("RCM procId= %d\n", procId);
+    /* Open a handle to the ProcMgr instance. */
+    status = ProcMgr_open (&procMgrHandle_server,
+                           procId);
+    if (status < 0) {
+        Osal_printf ("Error in ProcMgr_open [0x%x]\n", status);
+        goto exit_sysmgr_destroy;
+    }
+    else {
+        Osal_printf ("ProcMgr_open status [0x%x]\n", status);
+        /* Get the address of the shared region in kernel space. */
+        status = ProcMgr_translateAddr (procMgrHandle_server,
+                                        (Ptr) &shAddrBase,
+                                        ProcMgr_AddrType_MasterUsrVirt,
+                                        (Ptr) SHAREDMEM,
+                                        ProcMgr_AddrType_SlaveVirt);
+        if (status < 0) {
+            Osal_printf ("Error in ProcMgr_translateAddr [0x%x]\n",
+                         status);
+            goto exit_procmgr_close;
+        }
+        else {
+            Osal_printf ("Virt address of shared address base #1:"
+                         " [0x%x]\n", shAddrBase);
+        }
+
+        if (status >= 0) {
+            /* Get the address of the shared region in kernel space. */
+            status = ProcMgr_translateAddr (procMgrHandle_server,
+                                            (Ptr) &shAddrBase1,
+                                            ProcMgr_AddrType_MasterUsrVirt,
+                                            (Ptr) SHAREDMEM1,
+                                            ProcMgr_AddrType_SlaveVirt);
+            if (status < 0) {
+                Osal_printf ("Error in ProcMgr_translateAddr [0x%x]\n",
+                             status);
+                goto exit_procmgr_close;
+            }
+            else {
+                Osal_printf ("Virt address of shared address base #2:"
+                             " [0x%x]\n", shAddrBase1);
+            }
+        }
+    }
+    if (status >= 0) {
+        /* Add the region to SharedRegion module. */
+        status = SharedRegion_add (SHAREDMEMNUMBER,
+                                   (Ptr) shAddrBase,
+                                   SHAREDMEMSIZE);
+        if (status < 0) {
+            Osal_printf ("Error in SharedRegion_add [0x%x]\n", status);
+            goto exit_procmgr_close;
+        }
+    }
+
+    if (status >= 0) {
+        /* Add the region to SharedRegion module. */
+        status = SharedRegion_add (SHAREDMEMNUMBER1,
+                                   (Ptr) shAddrBase1,
+                                   SHAREDMEMSIZE1);
+        if (status < 0) {
+            Osal_printf ("Error in SharedRegion_add1 [0x%x]\n", status);
+            goto exit_procmgr_close;
+        }
+    }
+
+
+#if defined(SYSLINK_USE_LOADER)
+    Osal_printf ("SYSM3 Load: loading the SYSM3 image %s\n",
+                sysM3ImageName);
+    Osal_printf ("SYSM3 Load: uProcId = %d\n", uProcId);
+
+    status = ProcMgr_load (procMgrHandle_server, sysM3ImageName, 2,
+                            &sysM3ImageName, &entry_point, &fileId,
+                            remoteIdSysM3);
+    if(status < 0) {
+        Osal_printf ("Error in ProcMgr_load, status [0x%x]\n", status);
+        goto exit_procmgr_close;
+    }
+
+#endif
+    start_params.proc_id = remoteIdSysM3;
+    Osal_printf("Starting ProcMgr for procID = %d\n", start_params.proc_id);
+    status  = ProcMgr_start(procMgrHandle_server, entry_point, &start_params);
+    if(status < 0) {
+        Osal_printf ("Error in ProcMgr_start, status [0x%x]\n", status);
+        goto exit_procmgr_close;
+    }
+
+    if(appM3Client) {
+#if defined(SYSLINK_USE_LOADER)
+        Osal_printf ("APPM3 Load: loading the APPM3 image %s\n",
+                    appM3ImageName);
+        Osal_printf ("APPM3 Load: uProcId = %d\n", uProcId);
+        status = ProcMgr_load (procMgrHandle_server, appM3ImageName, 2,
+                              &appM3ImageName, &entry_point, &fileId,
+                              remoteIdAppM3);
+        if(status < 0) {
+            Osal_printf ("Error in ProcMgr_load, status [0x%x]\n", status);
+            goto exit_procmgr_stop_sysm3;
+        }
+#endif
+        start_params.proc_id = remoteIdAppM3;
+        Osal_printf("Starting ProcMgr for procID = %d\n", start_params.proc_id);
+        status  = ProcMgr_start(procMgrHandle_server, entry_point,
+                                &start_params);
+        if(status < 0) {
+            Osal_printf ("Error in ProcMgr_start, status [0x%x]\n", status);
+            goto exit_procmgr_stop_sysm3;
+        }
+    }
+
+    Osal_printf("IPC setup completed successfully!\n");
+    return 0;
+
+exit_procmgr_stop_appm3:
+    if(appM3Client) {
+        stopParams.proc_id = remoteIdAppM3;
+        status = ProcMgr_stop(procMgrHandle_server, &stopParams);
+        if (status < 0) {
+            Osal_printf ("Error in ProcMgr_stop(%d): status = 0x%x\n",
+                stopParams.proc_id, status);
+            goto exit;
+        }
+    }
+
+exit_procmgr_stop_sysm3:
+    stopParams.proc_id = remoteIdSysM3;
+    status = ProcMgr_stop(procMgrHandle_server, &stopParams);
+    if (status < 0) {
+        Osal_printf ("Error in ProcMgr_stop(%d): status = 0x%x\n",
+            stopParams.proc_id, status);
+        goto exit;
+    }
+
+exit_procmgr_close:
+    status = ProcMgr_close(&procMgrHandle_server);
+    if (status < 0) {
+        Osal_printf ("Error in ProcMgr_close: status = 0x%x\n", status);
+        goto exit;
+    }
+
+exit_sysmgr_destroy:
+    status = SysMgr_destroy();
+    if (status < 0) {
+        Osal_printf ("Error in SysMgr_destroy: status = 0x%x\n", status);
+        goto exit;
+    }
+exit:
+    return (-1);
+}
+
+
 Int main (Int argc, Char * argv [])
 {
     pid_t child_pid, child_sid;
+    Int status;
 
     Osal_printf("Spawning TILER server daemon...\n");
 
@@ -82,8 +283,26 @@ Int main (Int argc, Char * argv [])
     //close(STDOUT_FILENO);
     //close(STDERR_FILENO);
 
-    // Launch!
-    MemMgrThreadFxn();
+    // Determine args
+    switch(argc) {
+    case 0:
+    case 1:
+        // TODO: How to handle?
+        status = -1;
+        break;
+    case 2:     // load SysM3 only
+        status = ipc_setup(argv[1], NULL);
+        break;
+    case 3:     // load AppM3 and SysM3
+    default:
+        status = ipc_setup(argv[1], argv[2]);
+        break;
+    }
+
+    if(status < 0)
+        return (-1);        // Quit if there was a setup error
+    else
+        MemMgrThreadFxn();
 
     return 0;
 }

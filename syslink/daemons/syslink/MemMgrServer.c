@@ -49,9 +49,6 @@
 #include <MemMgrServer_config.h>
 #include <tilermgr.h>
 
-#define MEMMGRSERVER_DEBUG  1
-#define Debug_printf if(MEMMGRSERVER_DEBUG) Osal_printf
-
 #if defined (__cplusplus)
 extern "C" {
 #endif /* defined (__cplusplus) */
@@ -178,7 +175,7 @@ UInt getStride(Ptr bufPtr)
 static
 Int32 fxnMemMgr_Debug(UInt32 dataSize, UInt32 *data)
 {
-    Debug_printf("Executing MemMgr_Debug\n");
+    Osal_printf("Executing MemMgr_Debug\n");
 
     // To be implemented (optional)
 
@@ -197,22 +194,22 @@ Int32 fxnMemMgr_Alloc(UInt32 dataSize, UInt32 *data)
     MemMgrBlock *params;
     Ptr allocedPtr;
 
-    Debug_printf("Executing MemMgr_Alloc with params:\n");
-    Debug_printf("\tnumBuffers = %d\n", args->numBuffers);
+    Osal_printf("Executing MemMgr_Alloc with params:\n");
+    Osal_printf("\tnumBuffers = %d\n", args->numBuffers);
     for(i = 0; i < args->numBuffers; i++) {
-        Debug_printf("\tparams[%d].pixelFormat = %d\n", i,
+        Osal_printf("\tparams[%d].pixelFormat = %d\n", i,
                         args->params[i].pixelFormat);
-        Debug_printf("\tparams[%d].width = %d\n", i, args->params[i].width);
-        Debug_printf("\tparams[%d].height = %d\n", i, args->params[i].height);
-        Debug_printf("\tparams[%d].length = %d\n", i, args->params[i].length);
-        Debug_printf("\tparams[%d].securityZone = %d\n", i,
+        Osal_printf("\tparams[%d].width = %d\n", i, args->params[i].width);
+        Osal_printf("\tparams[%d].height = %d\n", i, args->params[i].height);
+        Osal_printf("\tparams[%d].length = %d\n", i, args->params[i].length);
+        Osal_printf("\tparams[%d].securityZone = %d\n", i,
                         args->params[i].securityZone);
     }
 
     params = (MemMgrBlock *) malloc(sizeof(MemMgrBlock) * args->numBuffers);
 
     if(params == NULL) {
-        Debug_printf("Error allocating array of MemMgrBlock params.\n");
+        Osal_printf("Error allocating array of MemMgrBlock params.\n");
         return (Int32)NULL;
     }
 
@@ -240,16 +237,16 @@ Int32 fxnMemMgr_Alloc(UInt32 dataSize, UInt32 *data)
         case PIXEL_FMT_8BIT:
         case PIXEL_FMT_16BIT:
         case PIXEL_FMT_32BIT:
-            Debug_printf("fxnMemMgr_Alloc: calling TilerMgr_Alloc.\n");
+            Osal_printf("fxnMemMgr_Alloc: calling TilerMgr_Alloc.\n");
             args->params[i].ptr = (Ptr)TilerMgr_Alloc(params[i].pixelFormat,
                                             params[i].width, params[i].height);
             break;
         case PIXEL_FMT_PAGE:
-            Debug_printf("fxnMemMgr_Alloc: calling TilerMgr_PageModeAlloc.\n");
+            Osal_printf("fxnMemMgr_Alloc: calling TilerMgr_PageModeAlloc.\n");
             args->params[i].ptr = (Ptr)TilerMgr_PageModeAlloc(params[i].length);
             break;
         default:    // Invalid case
-            Debug_printf("fxnMemMgr_Alloc: Invalid pixel format.\n");
+            Osal_printf("fxnMemMgr_Alloc: Invalid pixel format.\n");
             args->params[i].ptr = NULL;
             break;
         }
@@ -259,7 +256,7 @@ Int32 fxnMemMgr_Alloc(UInt32 dataSize, UInt32 *data)
     allocedPtr = args->params[0].ptr;
     free(params);
 
-    Debug_printf("fxnMemMgr_Alloc done.\n");
+    Osal_printf("fxnMemMgr_Alloc done.\n");
     return (Int32) allocedPtr; // Return first buffer pointer
 }
 
@@ -275,26 +272,26 @@ Int32 fxnMemMgr_Free(UInt32 dataSize, UInt32 *data)
     FreeArgs *args = (FreeArgs *)data;
     UInt32 status;
 
-    Debug_printf("Executing MemMgr_Free with params:\n");
-    Debug_printf("\tbufPtr = 0x%x\n", args->bufPtr);
+    Osal_printf("Executing MemMgr_Free with params:\n");
+    Osal_printf("\tbufPtr = 0x%x\n", args->bufPtr);
 
     switch(getAccessMode(args->bufPtr)) {
     case PIXEL_FMT_8BIT:
     case PIXEL_FMT_16BIT:
     case PIXEL_FMT_32BIT:
-        Debug_printf("fxnMemAlloc_Free: calling TilerMgr_Free.\n");
+        Osal_printf("fxnMemAlloc_Free: calling TilerMgr_Free.\n");
         status = TilerMgr_Free((Int)args->bufPtr);
         break;
     case PIXEL_FMT_PAGE:
-        Debug_printf("fxnMemAlloc_Free: calling TilerMgr_PageModeFree.\n");
+        Osal_printf("fxnMemAlloc_Free: calling TilerMgr_PageModeFree.\n");
         status = TilerMgr_PageModeFree((Int)args->bufPtr);
         break;
     default:    // Invalid case
-        Debug_printf("fxnMemAlloc_Free: Invalid pointer.\n");
+        Osal_printf("fxnMemAlloc_Free: Invalid pointer.\n");
         break;
     }
 
-    Debug_printf("fxnMemMgr_Free done.\n");
+    Osal_printf("fxnMemMgr_Free done.\n");
     return status;
 }
 
@@ -308,9 +305,9 @@ Int32 fxnTilerMem_ConvertToTilerSpace(UInt32 dataSize, UInt32 *data)
     ConvertToTilerSpaceArgs *args = (ConvertToTilerSpaceArgs *)data;
     UInt32 addr;
 
-    Debug_printf("Executing TilerMem_ConvertToTilerSpace with params:\n");
-    Debug_printf("\tbufPtr = 0x%x\n", args->bufPtr);
-    Debug_printf("\trotationAndMirroring = 0x%x\n", args->rotationAndMirroring);
+    Osal_printf("Executing TilerMem_ConvertToTilerSpace with params:\n");
+    Osal_printf("\tbufPtr = 0x%x\n", args->bufPtr);
+    Osal_printf("\trotationAndMirroring = 0x%x\n", args->rotationAndMirroring);
 
     //Stubbed out pending implementation
     /*addr = TilerMem_ConvertToTilerSpace(args->bufPtr,
@@ -331,8 +328,8 @@ Int32 fxnTilerMem_ConvertPageModeToTilerSpace(UInt32 dataSize, UInt32 *data)
                                         (ConvertPageModeToTilerSpaceArgs *)data;
     UInt32 addr;
 
-    Debug_printf("Executing TilerMem_ConvertPageModeToTilerSpace with params:\n");
-    Debug_printf("\tbufPtr = 0x%x\n", args->bufPtr);
+    Osal_printf("Executing TilerMem_ConvertPageModeToTilerSpace with params:\n");
+    Osal_printf("\tbufPtr = 0x%x\n", args->bufPtr);
 
     //Stubbed out pending implementation
     //addr = TilerMem_ConvertPageModeToTilerSpace(args->bufPtr);
@@ -367,190 +364,49 @@ Void MemMgrThreadFxn()
     RcmServer_Params                rcmServer_Params;
     Char *                          rcmServerName = RCMSERVER_NAME;
     UInt                            fxnIdx;
-    UInt16                          procId;
-    UInt16                          remoteIdSysM3;
-    UInt16                          remoteIdAppM3;
-    UInt32                          shAddrBase;
-    UInt32                          shAddrBase1;
-    SysMgr_Config                   config;
-    UInt32 entry_point = 0;
-    ProcMgr_StartParams             start_params;
-    ProcMgr_Handle                  procMgrHandle_server;
     Int                             num_of_funcs;
     Int                             i;
     sem_t                           semDaemonWait;
-#if defined (SYSLINK_USE_LOADER)
-    Char *                          sysm3_image_name;
-    Char *                          appm3_image_name;
-    Char                            uProcId;
-    UInt32                          fileId;
-#endif
-    Bool                            sysM3Client = FALSE;
-    Bool                            appM3Client = FALSE;
-
-#if defined (LOAD_SYSM3)
-    sysM3Client = TRUE;
-#else
-    sysM3Client = FALSE;
-#endif
-
-#if defined (LOAD_APPM3)
-    appM3Client = TRUE;
-#else
-    appM3Client = FALSE;
-#endif
-
-    SysMgr_getConfig (&config);
-    status = SysMgr_setup (&config);
-    if (status < 0) {
-        Debug_printf ("Error in SysMgr_setup [0x%x]\n", status);
-    }
-
-
-    /* Get MultiProc IDs by name. */
-    remoteIdSysM3 = MultiProc_getId (SYSM3_PROC_NAME);
-    Debug_printf ("MultiProc_getId remoteId: [0x%x]\n", remoteIdSysM3);
-    remoteIdAppM3 = MultiProc_getId (APPM3_PROC_NAME);
-    Debug_printf ("MultiProc_getId remoteId: [0x%x]\n", remoteIdAppM3);
-    procId = MultiProc_getId (SYSM3_PROC_NAME);
-    Debug_printf ("MultiProc_getId procId: [0x%x]\n", procId);
-
-    printf("RCM procId= %d\n", procId);
-    /* Open a handle to the ProcMgr instance. */
-    status = ProcMgr_open (&procMgrHandle_server,
-                           procId);
-    if (status < 0) {
-        Debug_printf ("Error in ProcMgr_open [0x%x]\n", status);
-    }
-    else {
-        Debug_printf ("ProcMgr_open Status [0x%x]\n", status);
-        /* Get the address of the shared region in kernel space. */
-        status = ProcMgr_translateAddr (procMgrHandle_server,
-                                        (Ptr) &shAddrBase,
-                                        ProcMgr_AddrType_MasterUsrVirt,
-                                        (Ptr) SHAREDMEM,
-                                        ProcMgr_AddrType_SlaveVirt);
-        if (status < 0) {
-            Debug_printf ("Error in ProcMgr_translateAddr [0x%x]\n",
-                         status);
-        }
-        else {
-            Debug_printf ("Virt address of shared address base #1:"
-                         " [0x%x]\n", shAddrBase);
-        }
-
-        if (status >= 0) {
-            /* Get the address of the shared region in kernel space. */
-            status = ProcMgr_translateAddr (procMgrHandle_server,
-                                            (Ptr) &shAddrBase1,
-                                            ProcMgr_AddrType_MasterUsrVirt,
-                                            (Ptr) SHAREDMEM1,
-                                            ProcMgr_AddrType_SlaveVirt);
-            if (status < 0) {
-                Debug_printf ("Error in ProcMgr_translateAddr [0x%x]\n",
-                             status);
-            }
-            else {
-                Debug_printf ("Virt address of shared address base #2:"
-                             " [0x%x]\n", shAddrBase1);
-            }
-        }
-    }
-    if (status >= 0) {
-        /* Add the region to SharedRegion module. */
-        status = SharedRegion_add (0,
-                                   (Ptr) shAddrBase,
-                                   SHAREDMEMSIZE);
-        if (status < 0) {
-            Debug_printf ("Error in SharedRegion_add [0x%x]\n", status);
-        }
-    }
-
-    if (status >= 0) {
-        /* Add the region to SharedRegion module. */
-        status = SharedRegion_add (1,
-                                   (Ptr) shAddrBase1,
-                                   SHAREDMEMSIZE1);
-        if (status < 0) {
-            Debug_printf ("Error in SharedRegion_add1 [0x%x]\n", status);
-        }
-    }
-
-
-#if defined(SYSLINK_USE_LOADER)
-    if(sysM3Client) {
-        sysm3_image_name = SYSM3_FILE_NAME;
-        Debug_printf ("loading the image %s\n", sysm3_image_name);
-        Debug_printf ("uProcId = %d\n", uProcId);
-
-        status = ProcMgr_load (procMgrHandle_server, sysm3_image_name, 2,
-                                &sysm3_image_name, &entry_point, &fileId,
-                                remoteIdSysM3);
-    }
-#endif
-    start_params.proc_id = remoteIdSysM3;
-    Debug_printf("Starting ProcMgr for procID = %d\n", start_params.proc_id);
-    status  = ProcMgr_start(procMgrHandle_server, entry_point, &start_params);
-    Debug_printf ("ProcMgr_start Status [0x%x]\n", status);
-
-//    system("./ducati_load.out -p 2 MemMgrMpuSysM3_Client.xem3");
-
-    if(appM3Client) {
-#if defined(SYSLINK_USE_LOADER)
-        appm3_image_name = APPM3_FILE_NAME;
-        Debug_printf ("APPM3 Load: loading the APPM3 image %s\n",
-                    appm3_image_name);
-        Debug_printf ("APPM3 Load: uProcId = %d\n", uProcId);
-        status = ProcMgr_load (procMgrHandle_server, appm3_image_name, 2,
-                              &appm3_image_name, &entry_point, &fileId,
-                              remoteIdAppM3);
-#endif
-        start_params.proc_id = remoteIdAppM3;
-        Debug_printf("Starting ProcMgr for procID = %d\n", start_params.proc_id);
-        status  = ProcMgr_start(procMgrHandle_server, entry_point,
-                                &start_params);
-        Debug_printf ("ProcMgr_start Status [0x%x]\n", status);
-    }
 
     /* Get default config for rcm client module */
-    Debug_printf ("Get default config for RCM server module.\n");
+    Osal_printf ("Get default config for RCM server module.\n");
     status = RcmServer_getConfig (&cfgParams);
     if (status < 0) {
-        Debug_printf ("Error in RCM Server module get config \n");
-        goto exit;
+        Osal_printf ("Error in RCM Server module get config \n");
+            goto exit;
     } else {
-        Debug_printf ("RCM Client module get config passed \n");
+        Osal_printf ("RCM Client module get config passed \n");
     }
 
     /* rcm client module setup*/
-    Debug_printf ("RCM Server module setup.\n");
+    Osal_printf ("RCM Server module setup.\n");
     status = RcmServer_setup (&cfgParams);
     if (status < 0) {
-        Debug_printf ("Error in RCM Server module setup \n");
+        Osal_printf ("Error in RCM Server module setup \n");
         goto exit;
     } else {
-        Debug_printf ("RCM Server module setup passed \n");
+        Osal_printf ("RCM Server module setup passed \n");
     }
 
     /* rcm client module params init*/
-    Debug_printf ("rcm client module params init.\n");
+    Osal_printf ("rcm client module params init.\n");
     status = RcmServer_Params_init (NULL, &rcmServer_Params);
     if (status < 0) {
-        Debug_printf ("Error in RCM Server instance params init \n");
-        goto exit;
+        Osal_printf ("Error in RCM Server instance params init \n");
+        goto exit_rcmserver_destroy;
     } else {
-        Debug_printf ("RCM Server instance params init passed \n");
+        Osal_printf ("RCM Server instance params init passed \n");
     }
 
     /* create the RcmServer instance */
-    Debug_printf ("Creating RcmServer instance with name %s.\n", rcmServerName);
+    Osal_printf ("Creating RcmServer instance with name %s.\n", rcmServerName);
     status = RcmServer_create (rcmServerName, &rcmServer_Params,
                                 &rcmServerHandle);
     if (status < 0) {
-        Debug_printf ("Error in RCM Server create.\n");
-        goto exit;
+        Osal_printf ("Error in RCM Server create.\n");
+        goto exit_rcmserver_destroy;
     } else {
-        Debug_printf ("RCM Server Create passed \n");
+        Osal_printf ("RCM Server Create passed \n");
     }
 
     num_of_funcs = sizeof(MemMgrFxns)/sizeof(struct MemMgr_func_info);
@@ -558,28 +414,28 @@ Void MemMgrThreadFxn()
         status = RcmServer_addSymbol (rcmServerHandle, MemMgrFxns[i].name,
                             MemMgrFxns[i].func_ptr, &fxnIdx);
         /* Register the remote functions */
-        Debug_printf ("Registering remote function %s with index %d\n",
+        Osal_printf ("Registering remote function %s with index %d\n",
                         MemMgrFxns[i].name, fxnIdx);
         if (status < 0)
-            Debug_printf ("Add symbol failed with status 0x%08x.\n", status);
+            Osal_printf ("Add symbol failed with status 0x%08x.\n", status);
     }
 
-    Debug_printf ("Start RCM server thread \n");
+    Osal_printf ("Start RCM server thread \n");
 
     status = RcmServer_start(rcmServerHandle);
     if (status < 0) {
-        Debug_printf ("Error in RCM Server start.\n");
-        goto exit;
+        Osal_printf ("Error in RCM Server start.\n");
+        goto exit_rcmserver_delete;
     } else {
-        Debug_printf ("RCM Server start passed \n");
+        Osal_printf ("RCM Server start passed \n");
     }
     status = TilerMgr_Open();
     if (status < 0) {
-        Debug_printf ("Error in TilerMgr_Open: status = 0x%x\n", status);
-        goto exit;
+        Osal_printf ("Error in TilerMgr_Open: status = 0x%x\n", status);
+        goto exit_rcmserver_remove_symbol;
     }
 
-    Debug_printf ("\nDone initializing RCM server.  Ready to receive requests "
+    Osal_printf ("\nDone initializing RCM server.  Ready to receive requests "
                     "from Ducati.\n");
 
     // wait for commands
@@ -588,42 +444,38 @@ Void MemMgrThreadFxn()
 
     status = TilerMgr_Close();
     if (status < 0) {
-        Debug_printf ("Error in TilerMgr_Close: status = 0x%x\n", status);
+        Osal_printf ("Error in TilerMgr_Close: status = 0x%x\n", status);
+    }
+
+exit_rcmserver_remove_symbol:
+    for (i = 0; i < num_of_funcs; i++) {
+        /* Unregister the remote functions */
+        status = RcmServer_removeSymbol (rcmServerHandle, MemMgrFxns[i].name);
+        if (status < 0) {
+            Osal_printf ("Remove symbol %s failed.\n", MemMgrFxns[i].name);
+        }
+    }
+
+exit_rcmserver_delete:
+    status = RcmServer_delete(&rcmServerHandle);
+    if (status < 0) {
+        Osal_printf ("Error in RcmServer_delete: status = 0x%x\n", status);
         goto exit;
     }
 
-    for (i = 0; i < num_of_funcs; i++) {
-        /* Unregister the remote functions */
-        Debug_printf ("Unregistering remote function - %d\n", i);
-        status = RcmServer_removeSymbol (rcmServerHandle, MemMgrFxns[i].name);
-     if (status < 0)
-        Debug_printf ("Remove symbol failed.\n");
+exit_rcmserver_destroy:
+    status = RcmServer_destroy();
+    if (status < 0) {
+        Osal_printf ("Error in RcmServer_destroy: status = 0x%x\n", status);
+        goto exit;
     }
 
+
 exit:
-    Debug_printf ("Leaving RCM server test thread function \n");
+    Osal_printf ("Leaving RCM server test thread function \n");
     return;
 }
 
-/*
- *  ======== RcmServerCleanup ========
- */
-Void MemMgrCleanup (Void)
-{
-    /* delete the rcm client */
-    Debug_printf ("Delete RCM server instance \n");
-    status = RcmServer_delete (&rcmServerHandle);
-    if (status < 0) {
-        Debug_printf ("Error in RCM Server instance delete\n");
-    }
-
-    /* rcm client module destroy*/
-    Debug_printf ("Destroy RCM server module \n");
-    status = RcmServer_destroy ();
-    if (status < 0) {
-        Debug_printf ("Error in RCM Server module destroy \n");
-    }
-}
 
 #if defined (__cplusplus)
 }

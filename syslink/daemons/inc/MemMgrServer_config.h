@@ -61,14 +61,14 @@ extern "C" {
  */
 
 /* Shared Memory Area for MPU - SysM3 */
-#define SHAREDMEM                   0x98000000
-//#define SHAREDMEMSIZE               0xC000
-#define SHAREDMEMSIZE               0x80000
+#define SHAREDMEM               0xA0000000
+#define SHAREDMEMSIZE           0x54000
+#define SHAREDMEMNUMBER             0
 
 /* Shared Memory Area for MPU - AppM3 */
-#define SHAREDMEM1                  0x98080000
-//#define SHAREDMEMSIZE1              0x1F000
-#define SHAREDMEMSIZE1              0x80000
+#define SHAREDMEM1               0xA0055000
+#define SHAREDMEMSIZE1           0x54000
+#define SHAREDMEMNUMBER1            1
 
 /* Memory for the Notify Module */
 #define NOTIFYMEM                   SHAREDMEM
