@@ -63,6 +63,7 @@
 #include <platform_mem.h>
 #include <procmgr.h>
 #include <procmgr_drvdefs.h>
+#include <ducatienabler.h>
 #if !defined (SYSLINK_USE_SYSMGR)
 #include <proc4430.h>
 #else
@@ -335,6 +336,7 @@ int procmgrapp_execute(void)
 		printk(KERN_ERR "PROC_MGR_ADDRTYPE_SLAVEVIRT  [0x%x]\n",
 			src_args.proc_info.mem_entries[i].addr[PROC_MGR_ADDRTYPE_SLAVEVIRT]);
 	}
+	ducati_setup();
 
 	printk(KERN_ERR "size  [0x%x]\n",
 					src_args.proc_info.mem_entries[i].size);
