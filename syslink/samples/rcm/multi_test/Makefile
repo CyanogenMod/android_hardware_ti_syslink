@@ -36,7 +36,7 @@ CFLAGS += -DSYSLINK_USE_SYSMGR
 LIBS = -lutils -lnotify -lipc -lprocmgr -lrcm -lpthread -lrt
 LIBS += -lsysmgr -lsysmemmgr
 
-all: rcm_multitest.out rcm_multithreadtest.out rcm_multiclienttest.out
+all: rcm_multitest.out rcm_multithreadtest.out rcm_multiclienttest.out rcm_daemontest.out
 
 rcm_multitest.out:
 	$(CC) $(CFLAGS) -o rcm_multitest.out RcmClientServerTest.c $(LIBS)
@@ -46,6 +46,9 @@ rcm_multithreadtest.out:
 
 rcm_multiclienttest.out:
 	$(CC) $(CFLAGS) -o rcm_multiclienttest.out RcmMultiClientTest.c $(LIBS)
+
+rcm_daemontest.out:
+	$(CC) $(CFLAGS) -DSYSLINK_USE_DAEMON -o rcm_daemontest.out RcmMultiThreadTest.c $(LIBS)
 
 install1: rcm_multitest.out
 	$(INSTALL) -D $< $(TARGETDIR)/syslink/$<
@@ -59,9 +62,14 @@ install3: rcm_multiclienttest.out
 	$(INSTALL) -D $< $(TARGETDIR)/syslink/$<
 	$(STRIP) -s $(TARGETDIR)/syslink/$<
 
-install: install1 install2 install3
+install4: rcm_daemontest.out
+	$(INSTALL) -D $< $(TARGETDIR)/syslink/$<
+	$(STRIP) -s $(TARGETDIR)/syslink/$<
+
+install: install1 install2 install3 install4
 
 clean:
 	\rm -f rcm_multitest.out
 	\rm -f rcm_multithreadtest.out
 	\rm -f rcm_multiclienttest.out
+	\rm -f rcm_daemontest.out
