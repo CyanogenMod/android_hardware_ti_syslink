@@ -49,6 +49,15 @@ extern "C" {
 #define APPM3_PROC_NAME             "AppM3"
 
 /*
+ *  Definitions for additional application specified HeapBuf.
+ */
+#define SHAREDMEM2             0x81300000
+#define SHAREDMEMSIZE2         0xC00000
+#define APP_HEAP_SHAREDBUF     0x2000
+#define APP_HEAP_HEAPNAME      "ApplicationHeap0"
+#define APP_HEAP_BLOCKSIZE     256
+
+/*
  *  The shared memory is going to split between
  *  Notify:             0xA0000000 - 0xA0004000
  *  Gatepeterson:       0xA0004000 - 0xA0005000

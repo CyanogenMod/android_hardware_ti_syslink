@@ -86,14 +86,6 @@ extern "C" {
  */
 #define BASE_ARM2DSP_INTID     55
 
-/*!
- *  Definitions for additional application specified HeapBuf.
- */
-#define SHAREDMEM2             0x80000000
-#define SHAREDMEMSIZE2         0x400000
-#define APP_HEAP_SHAREDBUF     0x2000
-#define APP_HEAP_HEAPNAME      "ApplicationHeap0"
-#define APP_HEAP_BLOCKSIZE     256
 
 /*RCM client test definitions*/
 typedef struct {
@@ -730,7 +722,9 @@ Int ipc_setup (Int testCase)
     }
     Osal_printf ("ProcMgr_load SysM3 image Status [0x%x]\n", status);
 #endif
+
 #if defined(SYSLINK_USE_SYSMGR) ||(SYSLINK_USE_LOADER)
+#if !defined(SYSLINK_USE_DAEMON)    // Do not call ProcMgr_start if using daemon
     start_params.proc_id = MultiProc_getId (SYSM3_PROC_NAME);
     Osal_printf ("SYSM3 Load: start_params.proc_id = %d\n",
                 start_params.proc_id);
@@ -740,6 +734,7 @@ Int ipc_setup (Int testCase)
         goto exit;
     }
     Osal_printf ("ProcMgr_start SysM3 Status [0x%x]\n", status);
+#endif
 #endif
 
     /*FIXME: */
@@ -758,7 +753,9 @@ Int ipc_setup (Int testCase)
         }
         Osal_printf("ProcMgr_load AppM3 image Status [0x%x]\n",status);
 #endif /* defined(SYSLINK_USE_LOADER) */
+
 #if defined(SYSLINK_USE_SYSMGR) ||(SYSLINK_USE_LOADER)
+#if !defined(SYSLINK_USE_DAEMON)    // Do not call ProcMgr_start if using daemon
         start_params.proc_id = MultiProc_getId (APPM3_PROC_NAME);
         Osal_printf("APPM3 Load: start_params.proc_id = %d\n",
                     start_params.proc_id);
@@ -768,6 +765,7 @@ Int ipc_setup (Int testCase)
             goto exit;
         }
         Osal_printf ("ProcMgr_start AppM3 Status [0x%x]\n", status);
+#endif
 #endif
     }
 

@@ -89,15 +89,6 @@ extern "C" {
  */
 #define BASE_ARM2DSP_INTID     55
 
-/*!
- *  Definitions for additional application specified HeapBuf.
- */
-#define SHAREDMEM2             0x80000000
-#define SHAREDMEMSIZE2         0x400000
-#define APP_HEAP_SHAREDBUF     0x2000
-#define APP_HEAP_HEAPNAME      "ApplicationHeap0"
-#define APP_HEAP_BLOCKSIZE     256
-
 /*RCM client test definitions*/
 typedef struct {
     Int a;
@@ -365,7 +356,7 @@ Int TestExecDpc (Void)
     }
 
 exit:
-    Osal_printf("Leaving TestexecDpc ()\n");
+    Osal_printf("TestExecDpc: Leaving TestexecDpc ()\n");
     return status;
 }
 
@@ -453,8 +444,10 @@ Int ipc_setup (Int testCase)
     UInt32                          nsrnEventNo;
     UInt32                          mqtEventNo;
 #if defined(SYSLINK_USE_LOADER) || defined(SYSLINK_USE_SYSMGR)
+#if !defined(SYSLINK_USE_DAEMON)
     UInt32                          entry_point = 0;
     ProcMgr_StartParams             start_params;
+#endif
 #endif
 #if defined(SYSLINK_USE_LOADER)
     Char *                          image_name;
@@ -521,21 +514,21 @@ Int ipc_setup (Int testCase)
     String_cpy (multiProcConfig.nameList [3], "AppM3");
     status = MultiProc_setup(&multiProcConfig);
     if (status < 0) {
-        Osal_printf("Error in MultiProc_setup [0x%x]\n", status);
+        Osal_printf("ipc_setup: Error in MultiProc_setup [0x%x]\n", status);
         goto exit;
     }
 #endif
 
     /* size (in bytes) of RCM header including the messageQ header */
     /* RcmClient_Message member data[1] is the start of the payload */
-    Osal_printf ("Size of RCM header in bytes = %d \n",
+    Osal_printf ("ipc_setup: Size of RCM header in bytes = %d \n",
                             RcmClient_getHeaderSize());
 
 #if defined(SYSLINK_USE_SYSMGR)
     SysMgr_getConfig (&config);
     status = SysMgr_setup (&config);
     if (status < 0) {
-        Osal_printf("Error in SysMgr_setup [0x%x]\n", status);
+        Osal_printf("ipc_setup: Error in SysMgr_setup [0x%x]\n", status);
         goto exit;
     }
 #else /* if defined(SYSLINK_USE_SYSMGR) */
@@ -558,7 +551,7 @@ Int ipc_setup (Int testCase)
                     "[0x%x]\n", status);
         goto exit;
     }
-    Osal_printf("NameServerRemoteNotify_setup Status [0x%x]\n",
+    Osal_printf("ipc_setup: NameServerRemoteNotify_setup Status [0x%x]\n",
                     status);
 
     /*
@@ -662,10 +655,10 @@ Int ipc_setup (Int testCase)
     /* Open a handle to the ProcMgr instance. */
     status = ProcMgr_open (&procMgrHandle, procId);
     if (status < 0) {
-        Osal_printf("Error in ProcMgr_open [0x%x]\n", status);
+        Osal_printf("ipc_setup: Error in ProcMgr_open [0x%x]\n", status);
         goto exit;
     }
-    Osal_printf("ProcMgr_open Status [0x%x]\n", status);
+    Osal_printf("ipc_setup: ProcMgr_open Status [0x%x]\n", status);
 
     /* Get the address of the shared region in kernel space. */
     status = ProcMgr_translateAddr (procMgrHandle,
@@ -674,11 +667,11 @@ Int ipc_setup (Int testCase)
                                     (Ptr) SHAREDMEM,
                                     ProcMgr_AddrType_SlaveVirt);
     if (status < 0) {
-        Osal_printf("Error in ProcMgr_translateAddr [0x%x]\n",
+        Osal_printf("ipc_setup: Error in ProcMgr_translateAddr [0x%x]\n",
                        status);
         goto exit;
     }
-    Osal_printf("Virt address of shared address base #1:"
+    Osal_printf("ipc_setup: Virt address of shared address base #1:"
                          " [0x%x]\n", shAddrBase);
 
     /* Get the address of the shared region in kernel space. */
@@ -688,11 +681,11 @@ Int ipc_setup (Int testCase)
                                     (Ptr) SHAREDMEM1,
                                     ProcMgr_AddrType_SlaveVirt);
     if (status < 0) {
-        Osal_printf("Error in ProcMgr_translateAddr [0x%x]\n",
+        Osal_printf("ipc_setup: Error in ProcMgr_translateAddr [0x%x]\n",
                            status);
         goto exit;
     }
-    Osal_printf("Virt address of shared address base #2:"
+    Osal_printf("ipc_setup: Virt address of shared address base #2:"
                             " [0x%x]\n", shAddrBase1);
 
     /* Get the address of the shared region in kernel space. */
@@ -702,10 +695,11 @@ Int ipc_setup (Int testCase)
                                     (Ptr) SHAREDMEM2,
                                     ProcMgr_AddrType_SlaveVirt);
     if (status < 0) {
-        Osal_printf("Error in ProcMgr_translateAddr [0x%x]\n", status);
+        Osal_printf("ipc_setup: Error in ProcMgr_translateAddr [0x%x]\n",
+                    status);
         goto exit;
     }
-    Osal_printf("Virt address of shared address base #3:"
+    Osal_printf("ipc_setup: Virt address of shared address base #3:"
                     " [0x%x]\n", shAddrBase2);
 
     curShAddr = shAddrBase;
@@ -717,7 +711,7 @@ Int ipc_setup (Int testCase)
         Osal_printf("ipc_setup: Error in SharedRegion_add [0x%x]\n", status);
         goto exit;
     }
-    Osal_printf("SharedRegion_add [0x%x]\n", status);
+    Osal_printf("ipc_setup: SharedRegion_add [0x%x]\n", status);
 
     /* Add the region to SharedRegion module. */
     status = SharedRegion_add (1,
@@ -727,7 +721,7 @@ Int ipc_setup (Int testCase)
         Osal_printf("ipc_setup: Error in SharedRegion_add1 [0x%x]\n", status);
         goto exit;
     }
-    Osal_printf("SharedRegion_add1 [0x%x]\n", status);
+    Osal_printf("ipc_setup: SharedRegion_add1 [0x%x]\n", status);
 
     /* Add the region to SharedRegion module. */
     status = SharedRegion_add (2,
@@ -737,7 +731,7 @@ Int ipc_setup (Int testCase)
         Osal_printf("ipc_setup: Error in SharedRegion_add2 [0x%x]\n", status);
         goto exit;
     }
-    Osal_printf("SharedRegion_add2 [0x%x]\n", status);
+    Osal_printf("ipc_setup: SharedRegion_add2 [0x%x]\n", status);
 
 #if !defined(SYSLINK_USE_SYSMGR)
     /* Create instance of NotifyDriverShm */
@@ -791,7 +785,7 @@ Int ipc_setup (Int testCase)
 
 #if defined(SYSLINK_USE_LOADER)
     if (testCase == 1)
-        image_name = "./RCMSrvClnt_MPUSYS_Test_Core0.xem3";
+        image_name = "./RCMSrvClntMultiThread_MPUSYS_Test_Core0.xem3";
     else if (testCase == 2)
         image_name = "./Notify_MPUSYS_reroute_Test_Core0.xem3";
     uProcId = MultiProc_getId (SYSM3_PROC_NAME);
@@ -802,18 +796,25 @@ Int ipc_setup (Int testCase)
             status);
         goto exit;
     }
-    Osal_printf("SYSM3: ProcMgr_load Status [0x%x]\n",status);
+    Osal_printf("ipc_setup: SYSM3: ProcMgr_load Status [0x%x]\n",status);
 #endif
+
 #if defined(SYSLINK_USE_SYSMGR) ||(SYSLINK_USE_LOADER)
+#if !defined(SYSLINK_USE_DAEMON)    // Do not call ProcMgr_start if using daemon
     start_params.proc_id = MultiProc_getId (SYSM3_PROC_NAME);
     status = ProcMgr_start (procMgrHandle, entry_point, &start_params);
-    Osal_printf("SYSM3: ProcMgr_start Status [0x%x]\n", status);
+    if (status < 0) {
+        Osal_printf ("ipc_setup: Error in ProcMgr_start SysM3 [0x%x]\n", status);
+        goto exit;
+    }
+    Osal_printf ("ProcMgr_start SysM3 Status [0x%x]\n", status);
+#endif
 #endif
 
     /*FIXME: */
     if(testCase == 2) {
 #if defined(SYSLINK_USE_LOADER)
-        image_name = "./RCMSrvClnt_MPUAPP_Test_Core1.xem3";
+        image_name = "./RCMSrvClntMultiThread_MPUAPP_Test_Core1.xem3";
         uProcId = MultiProc_getId (APPM3_PROC_NAME);
         status = ProcMgr_load (procMgrHandle, image_name, 2, &image_name,
                                 &entry_point, &fileId, uProcId);
@@ -824,10 +825,17 @@ Int ipc_setup (Int testCase)
         }
         Osal_printf("APPM3: ProcMgr_load Status [0x%x]\n",status);
 #endif /* defined(SYSLINK_USE_LOADER) */
+
 #if defined(SYSLINK_USE_SYSMGR) ||(SYSLINK_USE_LOADER)
+#if !defined(SYSLINK_USE_DAEMON)    // Do not call ProcMgr_start if using daemon
         start_params.proc_id = MultiProc_getId (APPM3_PROC_NAME);
         status = ProcMgr_start (procMgrHandle, entry_point, &start_params);
-        Osal_printf("APPM3: ProcMgr_start Status [0x%x]\n", status);
+        if (status < 0) {
+            Osal_printf ("Error in ProcMgr_start AppM3 [0x%x]\n", status);
+            goto exit;
+        }
+        Osal_printf ("ProcMgr_start AppM3 Status [0x%x]\n", status);
+#endif
 #endif
     }
 
@@ -1065,19 +1073,21 @@ Void RcmServerThreadFxn(Void *arg)
     sem_init (&serverThreadSync, 0, 0);
 
     /* Register the remote functions */
-    Osal_printf("Registering remote function - fxnDouble\n");
+    Osal_printf("RcmServerThreadFxn: Registering remote function -"
+                " fxnDouble\n");
     status = RcmServer_addSymbol (rcmServerHandle, "fxnDouble", fxnDouble,
                                     &fxnIdx);
     if ((status < 0) || (fxnIdx == 0xFFFFFFFF)) {
-        Osal_printf("Add symbol failed.\n");
+        Osal_printf("RcmServerThreadFxn: Add symbol failed.\n");
         goto exit;
     }
 
-    Osal_printf("Registering remote function - fxnGetParams\n");
+    Osal_printf("RcmServerThreadFxn: Registering remote function"
+                " - fxnGetParams\n");
     status = RcmServer_addSymbol (rcmServerHandle, "fxnGetParams",
         fxnGetParams, &fxnIdx);
     if ((status < 0) || (fxnIdx == 0xFFFFFFFF)) {
-        Osal_printf("Add symbol failed.\n");
+        Osal_printf("RcmServerThreadFxn: Add symbol failed.\n");
         goto exit;
     }
 
@@ -1253,7 +1263,7 @@ Int RcmTestCleanup (Int testCase)
     ProcMgr_StopParams      stop_params;
 #endif
 
-    Osal_printf("\nEntering RcmTestCleanup()\n");
+    Osal_printf("\nRcmTestCleanup: Entering RcmTestCleanup()\n");
 
     // send terminate message
     // allocate a remote command message
@@ -1282,18 +1292,18 @@ Int RcmTestCleanup (Int testCase)
     RcmClient_free (rcmClientHandle, rcmMsg);
 
     // Shutdown RCM server
-    Osal_printf ("Calling RcmClient_shutdownServer \n");
+    Osal_printf ("RcmClientCleanup: calling RcmClient_shutdownServer \n");
     status = RcmClient_shutdownServer (rcmClientHandle);
     if (status < 0) {
-        Osal_printf ("Error in RcmClient_shutdownServer.\n");
+        Osal_printf ("RcmClientCleanup: Error in RcmClient_shutdownServer.\n");
         goto exit;
     }
     if (status == RCMCLIENT_SCLIENTSATTACHED) {
-        Osal_printf ("Server not shutdown"
+        Osal_printf ("RcmClientCleanup: Server not shutdown"
                      "Clients still attached.\n");
     }
     else {
-        Osal_printf ("Server shutdown successful \n");
+        Osal_printf ("RcmClientCleanup: Server shutdown successful \n");
     }
 
     /* delete the rcm client */
@@ -1303,46 +1313,51 @@ Int RcmTestCleanup (Int testCase)
         Osal_printf("RcmTestCleanup: Error in RCM Client instance delete\n"
                             , status);
     else
-        Osal_printf("RcmClient_delete status: [0x%x]\n", status);
+        Osal_printf("RcmTestCleanup: RcmClient_delete status: [0x%x]\n", status);
 
-    /* rcm client module destroy*/
-    Osal_printf("Destroy RCM client module \n");
+    /* rcm client module destroy */
+    Osal_printf("RcmTestCleanup: Destroy RCM client module \n");
     status = RcmClient_destroy ();
     if (status < 0)
-        Osal_printf("Error in RCM Client module destroy [0x%x]\n"
-                            , status);
+        Osal_printf("RcmTestCleanup: Error in RCM Client module destroy"
+                    " [0x%x]\n", status);
     else
-        Osal_printf("RcmClient_destroy status: [0x%x]\n", status);
+        Osal_printf("RcmTestCleanup: RcmClient_destroy status: [0x%x]\n",
+                    status);
 
-    /* delete the rcm client */
-    Osal_printf("Delete RCM server instance \n");
+    /* delete the rcm server */
+    Osal_printf("RcmTestCleanup: Delete RCM server instance \n");
     status = RcmServer_delete (&rcmServerHandle);
     if (status < 0)
-        Osal_printf("Error in RCM Server instance delete [0x%x]\n"
-                            , status);
+        Osal_printf("RcmTestCleanup: Error in RCM Server instance delete"
+                    " [0x%x]\n", status);
     else
-        Osal_printf("RcmServer_delete status: [0x%x]\n", status);
+        Osal_printf("RcmTestCleanup: RcmServer_delete status: [0x%x]\n",
+                    status);
 
-    /* rcm client module destroy*/
-    Osal_printf("estroy RCM server module \n");
+    /* rcm server module destroy */
+    Osal_printf("RcmTestCleanup: Destroy RCM server module \n");
     status = RcmServer_destroy ();
     if (status < 0)
-        Osal_printf("Error in RCM Server module destroy  [0x%x]\n"
-                            , status);
+        Osal_printf("RcmTestCleanup: Error in RCM Server module destroy"
+                    " [0x%x]\n", status);
     else
-        Osal_printf("RcmServer_destroy status: [0x%x]\n", status);
+        Osal_printf("RcmTestCleanup: RcmServer_destroy status: [0x%x]\n",
+                    status);
 
     status = GatePeterson_close (&gateHandle_app_heap);
     if (status < 0)
-        Osal_printf("Error in GatePeterson_close [0x%x]\n", status);
+        Osal_printf("RcmTestCleanup: Error in GatePeterson_close [0x%x]\n",
+                    status);
     else
-        Osal_printf("GatePeterson_close status: [0x%x]\n", status);
+        Osal_printf("RcmTestCleanup: GatePeterson_close status: [0x%x]\n",
+                    status);
 
     status = HeapBuf_close (&heapHandle_app_heap);
     if (status < 0)
-        Osal_printf("Error in HeapBuf_close [0x%x]\n", status);
+        Osal_printf("RcmTestCleanup: Error in HeapBuf_close [0x%x]\n", status);
     else
-        Osal_printf("HeapBuf_close status: [0x%x]\n", status);
+        Osal_printf("RcmTestCleanup: HeapBuf_close status: [0x%x]\n", status);
 
     SharedRegion_remove (2);
 
@@ -1354,160 +1369,180 @@ Int RcmTestCleanup (Int testCase)
     stop_params.proc_id = remoteId;
     status = ProcMgr_stop(procMgrHandle, &stop_params);
     if (status < 0)
-        Osal_printf("Error in ProcMgr_stop [0x%x]\n", status);
+        Osal_printf("RcmTestCleanup: Error in ProcMgr_stop [0x%x]\n", status);
     else
-        Osal_printf("ProcMgr_stop status: [0x%x]\n", status);
+        Osal_printf("RcmTestCleanup: ProcMgr_stop status: [0x%x]\n", status);
 
     status = ProcMgr_close (&procMgrHandle);
     if (status < 0)
-        Osal_printf("Error in ProcMgr_close [0x%x]\n", status);
+        Osal_printf("RcmTestCleanup: Error in ProcMgr_close [0x%x]\n", status);
     else
-        Osal_printf("ProcMgr_close status: [0x%x]\n", status);
+        Osal_printf("RcmTestCleanup: ProcMgr_close status: [0x%x]\n", status);
 
     status = SysMgr_destroy ();
     if (status < 0)
-        Osal_printf("Error in SysMgr_destroy [0x%x]\n", status);
+        Osal_printf("RcmTestCleanup: Error in SysMgr_destroy [0x%x]\n", status);
     else
-        Osal_printf("SysMgr_destroy status: [0x%x]\n", status);
+        Osal_printf("RcmTestCleanup: SysMgr_destroy status: [0x%x]\n", status);
  #else /* if defined (SYSLINK_USE_SYSMGR) */
 
     status = MessageQTransportShm_delete (&transportShmHandle);
     if (status < 0)
-        Osal_printf("Error in MessageQTransportShm_delete [0x%x]\n"
-                            , status);
+        Osal_printf("RcmTestCleanup: Error in MessageQTransportShm_delete"
+                    " [0x%x]\n", status);
     else
-        Osal_printf("MessageQTransportShm_delete status: [0x%x]\n"
-                            , status);
+        Osal_printf("RcmTestCleanup: MessageQTransportShm_delete status:"
+                    " [0x%x]\n", status);
 
     status = NameServerRemoteNotify_delete (&nsrnHandle);
     if (status < 0)
-        Osal_printf("Error in NameServerRemoteNotify_delete [0x%x]\n"
-                            , status);
+        Osal_printf("RcmTestCleanup: Error in NameServerRemoteNotify_delete"
+                    " [0x%x]\n", status);
     else
-        Osal_printf("NameServerRemoteNotify_delete status: [0x%x]\n"
-                            , status);
+        Osal_printf("RcmTestCleanup: NameServerRemoteNotify_delete status:"
+                    "[0x%x]\n", status);
 
     if (testCase == 1)
         status = MessageQ_unregisterHeap (HEAPID_SYSM3);
     else if (testCase == 2)
         status = MessageQ_unregisterHeap (HEAPID_APPM3);
     if (status < 0)
-        Osal_printf("Error in MessageQ_unregisterHeap [0x%x]\n"
+        Osal_printf("RcmTestCleanup: Error in MessageQ_unregisterHeap [0x%x]\n"
                             , status);
     else
-        Osal_printf("MessageQ_unregisterHeap status: [0x%x]\n"
+        Osal_printf("RcmTestCleanup: MessageQ_unregisterHeap status: [0x%x]\n"
                             , status);
 
     status = HeapBuf_delete (&heapHandle);
     if (status < 0)
-        Osal_printf("Error in HeapBuf_delete [0x%x]\n", status);
+        Osal_printf("RcmTestCleanup: Error in HeapBuf_delete [0x%x]\n", status);
     else
-        Osal_printf("HeapBuf_delete status: [0x%x]\n", status);
+        Osal_printf("RcmTestCleanup: HeapBuf_delete status: [0x%x]\n", status);
 
     status = NotifyDriverShm_delete (&notifyDrvHandle);
     if (status < 0)
-        Osal_printf("Error in NotifyDriverShm_delete [0x%x]\n", status);
+        Osal_printf("RcmTestCleanup: Error in NotifyDriverShm_delete [0x%x]\n",
+                    status);
     else
-        Osal_printf("NotifyDriverShm_delete status: [0x%x]\n", status);
+        Osal_printf("RcmTestCleanup: NotifyDriverShm_delete status: [0x%x]\n",
+                    status);
 
     SharedRegion_remove (0);
     SharedRegion_remove (1);
 
     status = GatePeterson_close (&gateHandle_client);
     if (status < 0)
-        Osal_printf("Error in GatePeterson_close [0x%x]\n", status);
+        Osal_printf("RcmTestCleanup: Error in GatePeterson_close [0x%x]\n",
+                    status);
     else
-        Osal_printf("GatePeterson_close status: [0x%x]\n", status);
+        Osal_printf("RcmTestCleanup: GatePeterson_close status: [0x%x]\n",
+                    status);
 
     status = GatePeterson_delete (&gateHandle_server);
     if (status < 0)
-        Osal_printf("Error in GatePeterson_delete [0x%x]\n", status);
+        Osal_printf("RcmTestCleanup: Error in GatePeterson_delete [0x%x]\n",
+                    status);
     else
-        Osal_printf("GatePeterson_delete status: [0x%x]\n", status);
+        Osal_printf("RcmTestCleanup: GatePeterson_delete status: [0x%x]\n",
+                    status);
 
     status = ProcMgr_close (&procMgrHandle);
     if (status < 0)
-        Osal_printf("Error in ProcMgr_close [0x%x]\n", status);
+        Osal_printf("RcmTestCleanup: Error in ProcMgr_close [0x%x]\n", status);
     else
-        Osal_printf("ProcMgr_close status: [0x%x]\n", status);
+        Osal_printf("RcmTestCleanup: ProcMgr_close status: [0x%x]\n", status);
 
     status = MessageQTransportShm_destroy ();
     if (status < 0)
-        Osal_printf("Error in MessageQTransportShm_destroy [0x%x]\n"
-                            , status);
+        Osal_printf("RcmTestCleanup: Error in MessageQTransportShm_destroy"
+                    " [0x%x]\n", status);
     else
-        Osal_printf("MessageQTransportShm_destroy status: [0x%x]\n"
-                            , status);
+        Osal_printf("RcmTestCleanup: MessageQTransportShm_destroy status:"
+                    " [0x%x]\n", status);
 
     status = MessageQ_destroy ();
     if (status < 0)
-        Osal_printf("Error in MessageQ_destroy [0x%x]\n", status);
+        Osal_printf("RcmTestCleanup: Error in MessageQ_destroy [0x%x]\n",
+                    status);
     else
-        Osal_printf("MessageQ_destroy status: [0x%x]\n", status);
+        Osal_printf("RcmTestCleanup: MessageQ_destroy status: [0x%x]\n",
+                    status);
 
     status = NotifyDriverShm_destroy ();
     if (status < 0)
-        Osal_printf("Error in NotifyDriverShm_destroy [0x%x]\n", status);
+        Osal_printf("RcmTestCleanup: Error in NotifyDriverShm_destroy [0x%x]\n",
+                    status);
     else
-        Osal_printf("NotifyDriverShm_destroy status: [0x%x]\n", status);
+        Osal_printf("RcmTestCleanup: NotifyDriverShm_destroy status: [0x%x]\n",
+                    status);
 
     status = Notify_destroy ();
     if (status < 0)
-        Osal_printf("Error in Notify_destroy [0x%x]\n", status);
+        Osal_printf("RcmTestCleanup: Error in Notify_destroy [0x%x]\n", status);
     else
-        Osal_printf("Notify_destroy status: [0x%x]\n", status);
+        Osal_printf("RcmTestCleanup: Notify_destroy status: [0x%x]\n", status);
 
     status = HeapBuf_destroy ();
     if (status < 0)
-        Osal_printf("Error in HeapBuf_destroy [0x%x]\n", status);
+        Osal_printf("RcmTestCleanup: Error in HeapBuf_destroy [0x%x]\n",
+                    status);
     else
-        Osal_printf("HeapBuf_destroy status: [0x%x]\n", status);
+        Osal_printf("RcmTestCleanup: HeapBuf_destroy status: [0x%x]\n",
+                    status);
 
     status = ListMPSharedMemory_destroy ();
     if (status < 0)
-        Osal_printf("Error in ListMPSharedMemory_destroy [0x%x]\n"
-                            , status);
+        Osal_printf("RcmTestCleanup: Error in ListMPSharedMemory_destroy"
+                    " [0x%x]\n", status);
     else
-        Osal_printf("ListMPSharedMemory_destroy status: [0x%x]\n"
-                            , status);
+        Osal_printf("RcmTestCleanup: ListMPSharedMemory_destroy status:"
+                    " [0x%x]\n", status);
 
     status = GatePeterson_destroy ();
     if (status < 0)
-        Osal_printf("Error in GatePeterson_destroy [0x%x]\n", status);
+        Osal_printf("RcmTestCleanup: Error in GatePeterson_destroy [0x%x]\n",
+                    status);
     else
-        Osal_printf("GatePeterson_destroy status: [0x%x]\n", status);
+        Osal_printf("RcmTestCleanup: GatePeterson_destroy status: [0x%x]\n",
+                    status);
 
     status = SharedRegion_destroy ();
     if (status < 0)
-        Osal_printf("Error in SharedRegion_destroy [0x%x]\n", status);
+        Osal_printf("RcmTestCleanup: Error in SharedRegion_destroy [0x%x]\n",
+                    status);
     else
-        Osal_printf("SharedRegion_destroy status: [0x%x]\n", status);
+        Osal_printf("RcmTestCleanup: SharedRegion_destroy status: [0x%x]\n",
+                    status);
 
     status = NameServerRemoteNotify_destroy ();
     if (status < 0)
-        Osal_printf("Error in NameServerRemoteNotify_destroy [0x%x]\n"
-                            , status);
+        Osal_printf("RcmTestCleanup: Error in NameServerRemoteNotify_destroy"
+                    " [0x%x]\n", status);
     else
-        Osal_printf("NameServerRemoteNotify_destroy status: [0x%x]\n"
-                            , status);
+        Osal_printf("RcmTestCleanup: NameServerRemoteNotify_destroy status:"
+                    " [0x%x]\n", status);
 
     status = NameServer_destroy ();
     if (status < 0)
-        Osal_printf("Error in NameServer_destroy [0x%x]\n", status);
+        Osal_printf("RcmTestCleanup: Error in NameServer_destroy [0x%x]\n",
+                    status);
     else
-        Osal_printf("NameServer_destroy status: [0x%x]\n", status);
+        Osal_printf("RcmTestCleanup: NameServer_destroy status: [0x%x]\n",
+                    status);
 
     UsrUtilsDrv_destroy ();
 
     status = MultiProc_destroy ();
     if (status < 0)
-        Osal_printf("Error in Multiproc_destroy [0x%x]\n", status);
+        Osal_printf("RcmTestCleanup: Error in Multiproc_destroy [0x%x]\n",
+                    status);
     else
-    Osal_printf("Multiproc_destroy status: [0x%x]\n", status);
+        Osal_printf("RcmTestCleanup: Multiproc_destroy status: [0x%x]\n",
+                    status);
 #endif /* if !defined(SYSLINK_USE_SYSMGR) */
 
 exit:
-    Osal_printf("Leaving RcmTestCleanup()\n");
+    Osal_printf("RcmTestCleanup: Leaving RcmTestCleanup()\n");
     return status;
 }
 
