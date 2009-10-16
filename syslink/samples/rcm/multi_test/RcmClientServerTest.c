@@ -1248,6 +1248,15 @@ Int RcmTestCleanup (Int testCase)
     else
         Osal_printf("ProcMgr_stop status: [0x%x]\n", status);
 
+    if (testCase == 2) {
+        stop_params.proc_id = PROC_SYSM3;
+        status = ProcMgr_stop(procMgrHandle, &stop_params);
+        if (status < 0)
+            Osal_printf("Error in ProcMgr_stop [0x%x]\n", status);
+        else
+            Osal_printf("ProcMgr_stop status: [0x%x]\n", status);
+    }
+
     status = ProcMgr_close (&procMgrHandle);
     if (status < 0)
         Osal_printf ("Error in ProcMgr_close [0x%x]\n", status);

@@ -177,7 +177,8 @@ Void RcmServerThreadFxn (Void *arg)
     NameServerRemoteNotify_Params   nsrParams;
     MessageQTransportShm_Params     msgqTransportParams;
 #endif /* if defined(SYSLINK_USE_SYSMGR) */
-    Int                             testCase = (Int) arg;
+
+    testCase = (Int) arg;
 
     switch(testCase) {
     case 1:
@@ -634,6 +635,7 @@ Void RcmServerCleanup (Void)
     ProcMgr_StopParams stop_params;
 #endif
 
+
     /* delete the rcm client */
     Osal_printf ("Delete RCM server instance \n");
     status = RcmServer_delete (&rcmServerHandle);
@@ -658,7 +660,20 @@ Void RcmServerCleanup (Void)
     SharedRegion_remove (1);
 
     stop_params.proc_id = remoteId_server;
-    ProcMgr_stop(procMgrHandle_server, &stop_params);
+    status = ProcMgr_stop(procMgrHandle_server, &stop_params);
+    if (status < 0)
+        Osal_printf("Error in ProcMgr_stop [0x%x]\n", status);
+    else
+        Osal_printf("ProcMgr_stop status: [0x%x]\n", status);
+
+    if (testCase == 2) {
+        stop_params.proc_id = PROC_SYSM3;
+        status = ProcMgr_stop(procMgrHandle_server, &stop_params);
+        if (status < 0)
+            Osal_printf("Error in ProcMgr_stop [0x%x]\n", status);
+        else
+            Osal_printf("ProcMgr_stop status: [0x%x]\n", status);
+    }
 
     status = ProcMgr_close (&procMgrHandle_server);
     if (status < 0)
@@ -666,7 +681,12 @@ Void RcmServerCleanup (Void)
     else
         Osal_printf ("ProcMgr_close status: [0x%x]\n", status);
 
-    SysMgr_destroy ();
+    status = SysMgr_destroy ();
+    if (status < 0)
+        Osal_printf("Error in SysMgr_destroy [0x%x]\n", status);
+    else
+        Osal_printf("SysMgr_destroy status: [0x%x]\n", status);
+
  #else /* if defined (SYSLINK_USE_SYSMGR) */
     status = MessageQTransportShm_delete (&transportShmHandle_server);
     if (status < 0)
