@@ -42,29 +42,27 @@ extern "C" {
  *  The shared memory is going to split between
  *
  *  MPU - SysM3 sample
- *  Notify:       0x98000000 - 0x98003FFF
- *  GatePeterson: 0x98004000 - 0x98004FFF
- *  HeapBuf:      0x98005000 - 0x98008FFF
- *  MessageQ NS:  0x98009000 - 0x98009FFF
- *  Transport:    0x9800A000 - 0x9800BFFF
+ *  Notify:       0xA0000000 - 0xA0003FFF
+ *  GatePeterson: 0xA0004000 - 0xA0004FFF
+ *  HeapBuf:      0xA0005000 - 0xA0008FFF
+ *  MessageQ NS:  0xA0009000 - 0xA0009FFF
+ *  Transport:    0xA000A000 - 0xA000BFFF
  *
  *  MPU - AppM3 sample
- *  Notify:       0x98000000 - 0x98003FFF
- *  GatePeterson: 0x98080000 - 0x98080FFF
- *  HeapBuf:      0x98081000 - 0x98084FFF
- *  MessageQ NS:  0x98085000 - 0x98085FFF
- *  Transport:    0x98086000 - 0x98087FFF
+ *  Notify:       0xA0000000 - 0xA0003FFF
+ *  GatePeterson: 0xA0055000 - 0xA0055FFF
+ *  HeapBuf:      0xA0056000 - 0xA0059FFF
+ *  MessageQ NS:  0xA005A000 - 0xA005AFFF
+ *  Transport:    0xA005B000 - 0xA005CFFF
  */
 
 /* Shared Memory Area for MPU - SysM3 */
-#define SHAREDMEM                   0x98000000
-//#define SHAREDMEMSIZE               0xC000
-#define SHAREDMEMSIZE               0x80000
+#define SHAREDMEM                   0xA0000000
+#define SHAREDMEMSIZE               0x55000
 
 /* Shared Memory Area for MPU - AppM3 */
-#define SHAREDMEM1                  0x98080000
-//#define SHAREDMEMSIZE1              0x1F000
-#define SHAREDMEMSIZE1              0x80000
+#define SHAREDMEM1                  0xA0055000
+#define SHAREDMEMSIZE1              0x55000
 
 /* Memory for the Notify Module */
 #define NOTIFYMEM                   SHAREDMEM
