@@ -215,7 +215,6 @@ exit_procmgr_stop_appm3:
         if (status < 0) {
             Osal_printf ("Error in ProcMgr_stop(%d): status = 0x%x\n",
                 stopParams.proc_id, status);
-            goto exit;
         }
     }
 
@@ -225,21 +224,18 @@ exit_procmgr_stop_sysm3:
     if (status < 0) {
         Osal_printf ("Error in ProcMgr_stop(%d): status = 0x%x\n",
             stopParams.proc_id, status);
-        goto exit;
     }
 
 exit_procmgr_close:
     status = ProcMgr_close(&procMgrHandle_server);
     if (status < 0) {
         Osal_printf ("Error in ProcMgr_close: status = 0x%x\n", status);
-        goto exit;
     }
 
 exit_sysmgr_destroy:
     status = SysMgr_destroy();
     if (status < 0) {
         Osal_printf ("Error in SysMgr_destroy: status = 0x%x\n", status);
-        goto exit;
     }
 exit:
     return (-1);
@@ -250,6 +246,8 @@ Int main (Int argc, Char * argv [])
 {
     pid_t child_pid, child_sid;
     Int status;
+    FILE *fp;
+    Bool calledIpcSetup = false;
 
     Osal_printf("Spawning TILER server daemon...\n");
 
@@ -261,7 +259,6 @@ Int main (Int argc, Char * argv [])
     }
     /* If we got a good PID, then we can exit the parent process. */
     if (child_pid > 0) {
-        Osal_printf("Spawn daemon succeeded!\n");
         exit(EXIT_SUCCESS);    /* Succeess */
     }
 
@@ -287,22 +284,51 @@ Int main (Int argc, Char * argv [])
     switch(argc) {
     case 0:
     case 1:
-        // TODO: How to handle?
         status = -1;
+        Osal_printf("Invalid arguments to Daemon.  Usage:\n");
+        Osal_printf("\tRunning SysM3 only:\n\t\t./syslink_daemon.out <SysM3 image file>\n");
+        Osal_printf("\tRunning SysM3 and AppM4:\n\t\t./syslink_daemon.out <SysM3 image file> <AppM3 image file>\n");
+        Osal_printf("\t(full paths must be provided for image files)\n");
         break;
     case 2:     // load SysM3 only
-        status = ipc_setup(argv[1], NULL);
+        // Test for file's presence
+        fp = fopen(argv[1], "rb");
+        if(fp != NULL) {
+            fclose(fp);
+            status = ipc_setup(argv[1], NULL);
+            calledIpcSetup = true;
+        }
+        else
+            Osal_printf("File %s could not be opened.\n", argv[1]);
         break;
     case 3:     // load AppM3 and SysM3
     default:
-        status = ipc_setup(argv[1], argv[2]);
+        // Test for file's presence
+        fp = fopen(argv[1], "rb");
+        if(fp != NULL) {
+            fclose(fp);
+            fp = fopen(argv[2], "rb");
+            if(fp != NULL) {
+                fclose(fp);
+                status = ipc_setup(argv[1], argv[2]);
+                calledIpcSetup = true;
+            }
+            else
+                Osal_printf("File %s could not be opened.\n", argv[2]);
+        }
+        else
+            Osal_printf("File %s could not be opened.\n", argv[1]);
         break;
     }
-
-    if(status < 0)
-        return (-1);        // Quit if there was a setup error
-    else
-        MemMgrThreadFxn();
+    if(calledIpcSetup) {
+        if(status < 0) {
+            Osal_printf("ipc_setup failed!\n");
+            return (-1);        // Quit if there was a setup error
+        } else {
+            Osal_printf("ipc_setup succeeded!\n");
+            MemMgrThreadFxn();
+        }
+    }
 
     return 0;
 }
