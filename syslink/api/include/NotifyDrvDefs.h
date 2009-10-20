@@ -123,7 +123,7 @@ typedef struct NotifyDrv_EventPacket_tag {
     /*!< List element header */
     UInt32             pid;
     /* Process identifier */
-    UInt16             procId;
+    UInt32             procId;
     /*!< Processor identifier */
     UInt32             eventNo;
     /*!< Event number used for the registration */
