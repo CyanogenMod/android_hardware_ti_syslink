@@ -615,11 +615,11 @@ static BOOL load_static_segment(LOADER_FILE_DESC *fd,
                                     memory_regions[j].size,
                                     PROT_READ | PROT_WRITE, MAP_SHARED, mem_fd,
                                     memory_regions[j].mpu_phys_addr);
-			printf("=============================================\n");
-			printf("memory_regions[%d].mpu_virt_addr is 0x%x\n",j, (unsigned int)memory_regions[j].mpu_virt_addr);
-			printf("memory_regions[%d].ducati_virt_addr is 0x%x\n",j, (unsigned int)memory_regions[j].ducati_virt_addr);
-			printf("memory_regions[%d].mpu_phys_addr is 0x%x\n",j,(unsigned int)memory_regions[j].mpu_phys_addr);
-			printf("memory_regions[%d].size is 0x%x\n",j,(unsigned int)memory_regions[j].size);
+            printf("=============================================\n");
+            printf("memory_regions[%d].mpu_virt_addr is 0x%x\n",j, (unsigned int)memory_regions[j].mpu_virt_addr);
+            printf("memory_regions[%d].ducati_virt_addr is 0x%x\n",j, (unsigned int)memory_regions[j].ducati_virt_addr);
+            printf("memory_regions[%d].mpu_phys_addr is 0x%x\n",j,(unsigned int)memory_regions[j].mpu_phys_addr);
+            printf("memory_regions[%d].size is 0x%x\n",j,(unsigned int)memory_regions[j].size);
 
             if( memory_regions[j].mpu_virt_addr == (unsigned long)(-1)) {
                 printf("Failed to do memory mapping for section [%d]\n",j);
@@ -676,19 +676,26 @@ static BOOL load_static_segment(LOADER_FILE_DESC *fd,
          seg_no = get_section_no(
                     (unsigned long)(targ_req.segment->target_address));
          if(seg_no == -1){
-				printf("DLOAD ERROR: The given segment is out of range ... Exiting... \n");
-				return FALSE;
-			}
+            printf("DLOAD ERROR: The given segment is out of range ... Exiting... \n");
+            return FALSE;
+         }
          seg_offset = targ_req.segment->target_address - \
             ((void *)memory_regions[seg_no].ducati_virt_addr);
-	        memset((void *)(memory_regions[seg_no].mpu_virt_addr + seg_offset), 0,
-	        targ_req.segment->memsz_in_bytes);
+         memset((void *)(memory_regions[seg_no].mpu_virt_addr + seg_offset), 0,
+            targ_req.segment->memsz_in_bytes);
 
-		 fseek(targ_req.fp,targ_req.offset,SEEK_SET);
+         fseek(targ_req.fp,targ_req.offset,SEEK_SET);
 
-		 fread((void *)(memory_regions[seg_no].mpu_virt_addr + seg_offset),
+         fread((void *)(memory_regions[seg_no].mpu_virt_addr + seg_offset),
             targ_req.segment->objsz_in_bytes,1,targ_req.fp);
       }
+   }
+
+   /* Unmap the mapped section */
+   for (j = 0; j < num_mem_entries; j++){
+      if(memory_regions[j].mpu_virt_addr)
+         munmap((void *)memory_regions[j].mpu_virt_addr,memory_regions[j].size);
+      memory_regions[j].mpu_virt_addr = 0;
    }
 
    close(mem_fd);
