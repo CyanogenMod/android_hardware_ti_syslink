@@ -31,7 +31,7 @@ LDFLAGS = $(addprefix -L, $(LDPATH))
 CFLAGS=-Wall -g -O2 $(INCLUDE) -finline-functions -D$(PROCFAMILY) $(LDFLAGS)
 CFLAGS += -DSYSLINK_TRACE_ENABLE
 CFLAGS += -DSYSLINK_USE_SYSMGR
-#CFLAGS += -DSYSLINK_USE_LOADER
+CFLAGS += -DSYSLINK_USE_LOADER
 
 
 LIBS = -lutils -lnotify -lipc -lprocmgr

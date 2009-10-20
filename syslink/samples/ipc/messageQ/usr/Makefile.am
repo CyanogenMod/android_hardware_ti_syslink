@@ -29,8 +29,8 @@ INCLUDE = \
 AM_CFLAGS = -Wall -g -O2 $(INCLUDE)-finline-functions -D$(PROCFAMILY)
 AM_CFLAGS += -DSYSLINK_TRACE_ENABLE
 AM_CFLAGS += -DSYSLINK_USE_SYSMGR
-#TO enable loader uncomment the below flag.
-#CFLAGS += -DSYSLINK_USE_LOADER
+#TO disable loader comment the below flag.
+AM_CFLAGS += -DSYSLINK_USE_LOADER
 
 LDPATH=$(PROJROOT)/../api/src
 

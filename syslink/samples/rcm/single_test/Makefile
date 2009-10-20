@@ -29,7 +29,7 @@ include $(PROJROOT)/make/start.mk
 CFLAGS         = 
 CDEFS          = 
 #Uncomment the below line to use sys manager
-#CDEFS          += SYSLINK_USE_LOADER
+CDEFS          += SYSLINK_USE_LOADER
 CDEFS          += SYSLINK_USE_SYSMGR
 ifeq ($(BUILD),udeb)
 CDEFS          += DEBUG 
