@@ -41,11 +41,11 @@
  *  Post Office Box 655303
  *  Dallas, Texas 75265
  *  Contact information:
- *  http://www-k.ext.ti.com/sc/technical-support/product-information-centers.htm?
- *  DCMP=TIHomeTracking&HQS=Other+OT+home_d_contact
+ *  http://www-k.ext.ti.com/sc/technical-support/product-information-centers.htm
+ *  ?DCMP=TIHomeTracking&HQS=Other+OT+home_d_contact
  *  ============================================================================
  */
-//#define SYSLINK_USE_SYSMGR
+/*#define SYSLINK_USE_SYSMGR*/
 
 #include <linux/autoconf.h>
 #include <linux/spinlock.h>
@@ -53,8 +53,8 @@
 #include <linux/init.h>
 #include <linux/fs.h>
 #include <linux/mm.h>
-#include <asm/uaccess.h>
-#include <asm/io.h>
+#include <linux/uaccess.h>
+#include <linux/io.h>
 #include <asm/pgtable.h>
 #include <linux/types.h>
 
@@ -64,18 +64,18 @@
 #include <procmgr.h>
 #include <procmgr_drvdefs.h>
 #include <ducatienabler.h>
-#if !defined (SYSLINK_USE_SYSMGR)
+#if !defined(SYSLINK_USE_SYSMGR)
 #include <proc4430.h>
 #else
 #include <sysmgr.h>
-#endif /* if !defined (SYSLINK_USE_SYSMGR) */
+#endif /* if !defined(SYSLINK_USE_SYSMGR) */
 
 /** ============================================================================
  *  Macros and types
  *  ============================================================================
  */
-	
-#if !defined (SYSLINK_USE_SYSMGR)
+
+#if !defined(SYSLINK_USE_SYSMGR)
 /*
  *  Number of slave memory entries for OMAP4430.
  */
@@ -91,20 +91,21 @@
 /*
  *  handle to the procmgr instance used.
  */
-void *procmgrapp_handle	   = NULL;
+void *procmgrapp_handle;
 
 
-#if !defined (SYSLINK_USE_SYSMGR)
+#if !defined(SYSLINK_USE_SYSMGR)
 /*
  *  Array of memory entries for OMAP4430
  */
-static struct proc4430_mem_entry mem_entries [NUM_MEM_ENTRIES] =
+static struct proc4430_mem_entry mem_entries[NUM_MEM_ENTRIES] =
 {
 	{
 		"DUCATI_SHM",	/* NAME	     : Name of the memory region */
 		0x8B000000,	/* PHYSADDR	     : Physical address */
 		0xA0000000,	/* SLAVEVIRTADDR  : Slave virtual address */
-		(u32) -1u,	/* MASTERVIRTADDR : Master virtual address (if known) */
+		(u32) -1u,
+		/* MASTERVIRTADDR : Master virtual address (if known) */
 		0x55000,	/* SIZE	     : Size of the memory region */
 		true,		/* SHARE	     : Shared access memory? */
 	},
@@ -112,7 +113,8 @@ static struct proc4430_mem_entry mem_entries [NUM_MEM_ENTRIES] =
 		"DUCATI_SHM1",	/* NAME	     : Name of the memory region */
 		0x8B055000,	/* PHYSADDR	     : Physical address */
 		0xA0055000,	/* SLAVEVIRTADDR  : Slave virtual address */
-		(u32) -1u,	/* MASTERVIRTADDR : Master virtual address (if known) */
+		(u32) -1u,
+		/* MASTERVIRTADDR : Master virtual address (if known) */
 		0x55000,	/* SIZE	     : Size of the memory region */
 		true,		/* SHARE	     : Shared access memory? */
 	},
@@ -120,7 +122,8 @@ static struct proc4430_mem_entry mem_entries [NUM_MEM_ENTRIES] =
 		"DUCATI_SWDMM",	/* NAME	     : Name of the memory region */
 		0x8A300000,	/* PHYSADDR	     : Physical address */
 		0x81300000,	/* SLAVEVIRTADDR  : Slave virtual address */
-		(u32) -1u,	/* MASTERVIRTADDR : Master virtual address (if known) */
+		(u32) -1u,
+		/* MASTERVIRTADDR : Master virtual address (if known) */
 		0xC00000,	/* SIZE	     : Size of the memory region */
 		true,		/* SHARE	     : Shared access memory? */
 	}
@@ -130,39 +133,39 @@ static struct proc4430_mem_entry mem_entries [NUM_MEM_ENTRIES] =
 /*!
  *  @brief  handle to the Processor instance used.
  */
-void *procmgr_app_proc_handle   = NULL;
+void *procmgr_app_proc_handle;
 
 /*!
  *  @brief  handle to the PwrMgr instance used.
  */
-void *procmgrapp_pwrhandle	= NULL;
+void *procmgrapp_pwrhandle;
 
 /*!
  *  @brief  handle to the Loader instance used.
  */
-void *procmgrapp_loaderhandle = NULL;
+void *procmgrapp_loaderhandle;
 
 /*!
  *  @brief  File ID of the file loaded.
  */
-u32 procmgr_app_file_id	   = 0;
+u32 procmgr_app_file_id;
 
 /** ============================================================================
  *  Forward declarations of internal functions
  *  ============================================================================
  */
 /* Function to perform startup operations when SysMgr is not used. */
-int _procmgrapp_sys_startup(void);
+static int _procmgrapp_sys_startup(void);
 
 /* Function to perform shutdown operations when SysMgr is not used. */
-int  _procmgrapp_sys_shutdown(void);
+static int _procmgrapp_sys_shutdown(void);
 
 #endif /* if !defined (SYSLINK_USE_SYSMGR) */
 
 /*!
  *  @brief  handle to the Processor instance opned.
  */
-void *procmgr_app_open_handle   = NULL;
+void *procmgr_app_open_handle;
 
 /** ============================================================================
  *  Functions
@@ -176,12 +179,12 @@ int procmgrapp_startup(void)
 	int status = 0;
 	struct proc_mgr_attach_params attach_params;
 	enum proc_mgr_state state;
-#if defined (SYSLINK_USE_SYSMGR)
+#if defined(SYSLINK_USE_SYSMGR)
 	u16 proc_id = multiproc_get_id("SysM3");
 #endif /* if defined (SYSLINK_USE_SYSMGR) */
 	printk(KERN_ERR "Entered ProcMgrApp_startup\n");
 
-#if !defined (SYSLINK_USE_SYSMGR)
+#if !defined(SYSLINK_USE_SYSMGR)
 	status = _procmgrapp_sys_startup();
 #else /* if !defined (SYSLINK_USE_SYSMGR) */
 	status = proc_mgr_open(&procmgrapp_handle, proc_id);
@@ -209,7 +212,7 @@ exit:
 	return status;
 }
 
-#if !defined (SYSLINK_USE_SYSMGR)
+#if !defined(SYSLINK_USE_SYSMGR)
 /*!
  *  @brief  Function to perform startup operations when SysMgr is not used.
  */
@@ -244,10 +247,10 @@ int _procmgrapp_sys_startup(void)
 
 	multiprocconfig.max_processors = 4;
 	multiprocconfig.id             = 0;
-	strcpy (multiprocconfig.name_list [0], "MPU");
-	strcpy (multiprocconfig.name_list [1], "Tesla");
-	strcpy (multiprocconfig.name_list [2], "SysM3");
-	strcpy (multiprocconfig.name_list [3], "AppM3");
+	strcpy(multiprocconfig.name_list[0], "MPU");
+	strcpy(multiprocconfig.name_list[1], "Tesla");
+	strcpy(multiprocconfig.name_list[2], "SysM3");
+	strcpy(multiprocconfig.name_list[3], "AppM3");
 
 	multiproc_setup(&multiprocconfig);
 
@@ -267,7 +270,7 @@ int _procmgrapp_sys_startup(void)
 		status = -1;
 		goto exit;
 	}
-		
+
 	printk(KERN_ERR "proc4430_create procmgr_app_proc_handle: [0x%x]\n",
 				(u32)procmgr_app_proc_handle);
 	/* Initialize parameters */
@@ -300,7 +303,7 @@ int procmgrapp_execute(void)
 	struct proc_mgr_cmd_args_open src_args;
 
 	src_args.proc_id = multiproc_get_id("SysM3");
-#if !defined (SYSLINK_USE_SYSMGR)
+#if !defined(SYSLINK_USE_SYSMGR)
 	status = proc_mgr_open(&(src_args.handle),
 							src_args.proc_id);
 	if (status < 0) {
@@ -314,27 +317,33 @@ int procmgrapp_execute(void)
 #endif /* if !defined (SYSLINK_USE_SYSMGR) */
 
 
-	printk(KERN_ERR "procmgrapp_execute proc4430_handle [0x%x]\n", (u32)src_args.handle);
+	printk(KERN_ERR "procmgrapp_execute proc4430_handle [0x%x]\n",
+		(u32)src_args.handle);
 	status = proc_mgr_get_proc_info(src_args.handle,
 			&(src_args.proc_info));
 	if (status < 0) {
-		printk(KERN_ERR "proc_mgr_get_proc_info failed [0x%x]\n", status);
+		printk(KERN_ERR "proc_mgr_get_proc_info failed [0x%x]\n",
+			status);
 		status = -1;
 		goto exit;
 	}
 
 	printk(KERN_ERR "boot_mode  [0x%x]\n", src_args.proc_info.boot_mode);
-	printk(KERN_ERR "num_mem_entries  [0x%x]\n", src_args.proc_info.num_mem_entries);
+	printk(KERN_ERR "num_mem_entries  [0x%x]\n",
+		src_args.proc_info.num_mem_entries);
 	count =  src_args.proc_info.num_mem_entries;
 	for (i = 0; i < count; i++) {
 		printk(KERN_ERR "is_init  [0x%x]\n",
-					src_args.proc_info.mem_entries[i].is_init);
+			src_args.proc_info.mem_entries[i].is_init);
 		printk(KERN_ERR "PROC_MGR_ADDRTYPE_MASTERKNLVIRT [0x%x]\n",
-			src_args.proc_info.mem_entries[i].addr[PROC_MGR_ADDRTYPE_MASTERKNLVIRT]);
+			src_args.proc_info.mem_entries[i].
+			addr[PROC_MGR_ADDRTYPE_MASTERKNLVIRT]);
 		printk(KERN_ERR "PROC_MGR_ADDRTYPE_MASTERUSRVIRT  [0x%x]\n",
-			src_args.proc_info.mem_entries[i].addr[PROC_MGR_ADDRTYPE_MASTERUSRVIRT]);
+			src_args.proc_info.mem_entries[i].
+			addr[PROC_MGR_ADDRTYPE_MASTERUSRVIRT]);
 		printk(KERN_ERR "PROC_MGR_ADDRTYPE_SLAVEVIRT  [0x%x]\n",
-			src_args.proc_info.mem_entries[i].addr[PROC_MGR_ADDRTYPE_SLAVEVIRT]);
+			src_args.proc_info.mem_entries[i].
+			addr[PROC_MGR_ADDRTYPE_SLAVEVIRT]);
 	}
 	ducati_setup();
 
@@ -364,7 +373,7 @@ int procmgrapp_shutdown(void)
 					 "	state [0x%x]\n", state);
 	}
 
-#if !defined (SYSLINK_USE_SYSMGR)
+#if !defined(SYSLINK_USE_SYSMGR)
 	status = _procmgrapp_sys_shutdown();
 #else /* if !defined (SYSLINK_USE_SYSMGR) */
 	if (procmgr_app_open_handle != NULL) {
@@ -378,7 +387,7 @@ int procmgrapp_shutdown(void)
 	return status;
 }
 
-#if !defined (SYSLINK_USE_SYSMGR)
+#if !defined(SYSLINK_USE_SYSMGR)
 /*!
  *  @brief  Function to perform shutdown operations when SysMgr is not used.
  */
@@ -408,11 +417,11 @@ int _procmgrapp_sys_shutdown(void)
 /*
  *  Module initialization  function for Linux driver
  */
-u32 procmgr_app_run_sample_app = 0;
+u32 procmgr_app_run_sample_app;
 static int __init procmgrapp_initialize_module(void)
 {
 	int result = 0;
-#if defined (SYSLINK_USE_SYSMGR)
+#if defined(SYSLINK_USE_SYSMGR)
 	struct sysmgr_config config;
 #endif
 	/* Display the version info and created date/time */
@@ -422,11 +431,10 @@ static int __init procmgrapp_initialize_module(void)
 
 	printk(KERN_ERR "Entered ProcMgrApp_initializeModule\n");
 
-	if (procmgr_app_run_sample_app != 0) {
+	if (procmgr_app_run_sample_app != 0)
 		printk(KERN_ERR "procmgrapp already running\n");
-	}
 
-#if defined (SYSLINK_USE_SYSMGR)
+#if defined(SYSLINK_USE_SYSMGR)
 	sysmgr_get_config(&config);
 	printk(KERN_ERR "sysmgr_getconfig done [0x%x]\n");
 
@@ -445,30 +453,43 @@ static int __init procmgrapp_initialize_module(void)
 
 	result = procmgrapp_execute();
 	if (result < 0) {
-		printk(KERN_ERR "procmgrapp_execute failed status [0x%x]\n", result);
+		printk(KERN_ERR "procmgrapp_execute failed status [0x%x]\n",
+			result);
 	}
 
-	printk(KERN_ERR "Leaving procmgrapp_initialize_module [0x%x]\n", result);
+	printk(KERN_ERR "Leaving procmgrapp_initialize_module [0x%x]\n",
+		result);
 
 exit:
-    return result;
+	return result;
 }
 
 
 /*
  *  Linux driver function to finalize the driver module.
  */
-static void __exit procmgrapp_finalize_module (void)
+static void __exit procmgrapp_finalize_module(void)
 {
 	int result = 0;
 
 	printk(KERN_ERR "Entered procmgrapp_finalize_module\n");
-	result = procmgrapp_shutdown ();
-#if defined (SYSLINK_USE_SYSMGR)
+	result = procmgrapp_shutdown();
+#if defined(SYSLINK_USE_SYSMGR)
 	sysmgr_destroy();
 #else /* if defined (SYSLINK_USE_SYSMGR) */
 	platform_mem_destroy();
 #endif /* if defined (SYSLINK_USE_SYSMGR) */
+
+	procmgrapp_handle = NULL;
+#if !defined(SYSLINK_USE_SYSMGR)
+	procmgr_app_proc_handle = NULL;
+	procmgrapp_pwrhandle = NULL;
+	procmgrapp_loaderhandle = NULL;
+	procmgr_app_file_id = 0;
+#endif
+	procmgr_app_open_handle = NULL;
+	procmgr_app_run_sample_app = 0;
+
 	printk(KERN_ERR "Leaving procmgrapp_finalize_module status:%x\n",
 			result);
 
@@ -478,6 +499,6 @@ static void __exit procmgrapp_finalize_module (void)
  *  Macro calls that indicate initialization and finalization functions
  *  to the kernel.
  */
-MODULE_LICENSE ("GPL v2");
-module_init (procmgrapp_initialize_module);
-module_exit (procmgrapp_finalize_module);
+MODULE_LICENSE("GPL v2");
+module_init(procmgrapp_initialize_module);
+module_exit(procmgrapp_finalize_module);
