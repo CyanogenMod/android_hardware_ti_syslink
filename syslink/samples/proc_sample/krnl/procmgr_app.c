@@ -372,6 +372,7 @@ int procmgrapp_shutdown(void)
 		printk(KERN_ERR "proc_mgr_close [0x%x]\n", status);
 	}
 #endif /* if !defined (SYSLINK_USE_SYSMGR) */
+	ducati_destroy();
 
 	printk(KERN_ERR "Leaving procmgrapp_shutdown [0x%x]\n", status);
 	return status;
