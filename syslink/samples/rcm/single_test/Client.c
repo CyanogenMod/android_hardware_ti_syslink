@@ -382,21 +382,6 @@ Int CreateRcmClient(Int testCase)
         break;
     }
 
-    /* Get and set GPP MultiProc ID by name. */
-#if !defined(SYSLINK_USE_SYSMGR)
-    multiProcConfig.maxProcessors = 4;
-    multiProcConfig.id = 0;
-    String_cpy (multiProcConfig.nameList [0], "MPU");
-    String_cpy (multiProcConfig.nameList [1], "Tesla");
-    String_cpy (multiProcConfig.nameList [2], "SysM3");
-    String_cpy (multiProcConfig.nameList [3], "AppM3");
-    status = MultiProc_setup (&multiProcConfig);
-    if (status < 0) {
-        Osal_printf ("Error in MultiProc_setup [0x%x]\n", status);
-        goto exit;
-    }
-#endif
-
     /* size (in bytes) of RCM header including the messageQ header */
     /* RcmClient_Message member data[1] is the start of the payload */
     Osal_printf ("Size of RCM header in bytes = %d \n",
@@ -410,8 +395,20 @@ Int CreateRcmClient(Int testCase)
         goto exit;
     }
 #else /* if defined(SYSLINK_USE_SYSMGR) */
-
     UsrUtilsDrv_setup ();
+
+    /* Get and set GPP MultiProc ID by name. */
+    multiProcConfig.maxProcessors = 4;
+    multiProcConfig.id = 0;
+    String_cpy (multiProcConfig.nameList [0], "MPU");
+    String_cpy (multiProcConfig.nameList [1], "Tesla");
+    String_cpy (multiProcConfig.nameList [2], "SysM3");
+    String_cpy (multiProcConfig.nameList [3], "AppM3");
+    status = MultiProc_setup (&multiProcConfig);
+    if (status < 0) {
+        Osal_printf ("Error in MultiProc_setup [0x%x]\n", status);
+        goto exit;
+    }
 
     /* NameServer and NameServerRemoteNotify module setup */
     status = NameServer_setup ();
@@ -1068,13 +1065,13 @@ Int RcmClientCleanup (Int testCase)
     else
         Osal_printf ("NameServer_destroy status: [0x%x]\n", status);
 
-    UsrUtilsDrv_destroy ();
-
     status = MultiProc_destroy ();
     if (status < 0)
         Osal_printf ("Error in Multiproc_destroy [0x%x]\n", status);
     else
         Osal_printf ("Multiproc_destroy status: [0x%x]\n", status);
+
+    UsrUtilsDrv_destroy ();
 #endif /* if !defined(SYSLINK_USE_SYSMGR) */
 
 exit:

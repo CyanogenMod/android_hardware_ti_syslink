@@ -504,21 +504,6 @@ Int ipc_setup (Int testCase)
         break;
     }
 
-    /* Get and set GPP MultiProc ID by name. */
-#if !defined(SYSLINK_USE_SYSMGR)
-    multiProcConfig.maxProcessors = 2;
-    multiProcConfig.id = 0;
-    String_cpy (multiProcConfig.nameList [0], "MPU");
-    String_cpy (multiProcConfig.nameList [1], "Tesla");
-    String_cpy (multiProcConfig.nameList [2], "SysM3");
-    String_cpy (multiProcConfig.nameList [3], "AppM3");
-    status = MultiProc_setup(&multiProcConfig);
-    if (status < 0) {
-        Osal_printf("ipc_setup: Error in MultiProc_setup [0x%x]\n", status);
-        goto exit;
-    }
-#endif
-
     /* size (in bytes) of RCM header including the messageQ header */
     /* RcmClient_Message member data[1] is the start of the payload */
     Osal_printf ("ipc_setup: Size of RCM header in bytes = %d \n",
@@ -532,8 +517,20 @@ Int ipc_setup (Int testCase)
         goto exit;
     }
 #else /* if defined(SYSLINK_USE_SYSMGR) */
-
     UsrUtilsDrv_setup ();
+
+    /* Get and set GPP MultiProc ID by name. */
+    multiProcConfig.maxProcessors = 2;
+    multiProcConfig.id = 0;
+    String_cpy (multiProcConfig.nameList [0], "MPU");
+    String_cpy (multiProcConfig.nameList [1], "Tesla");
+    String_cpy (multiProcConfig.nameList [2], "SysM3");
+    String_cpy (multiProcConfig.nameList [3], "AppM3");
+    status = MultiProc_setup(&multiProcConfig);
+    if (status < 0) {
+        Osal_printf("ipc_setup: Error in MultiProc_setup [0x%x]\n", status);
+        goto exit;
+    }
 
     /* NameServer and NameServerRemoteNotify module setup */
     status = NameServer_setup ();
@@ -1541,8 +1538,6 @@ Int RcmTestCleanup (Int testCase)
         Osal_printf("RcmTestCleanup: NameServer_destroy status: [0x%x]\n",
                     status);
 
-    UsrUtilsDrv_destroy ();
-
     status = MultiProc_destroy ();
     if (status < 0)
         Osal_printf("RcmTestCleanup: Error in Multiproc_destroy [0x%x]\n",
@@ -1550,6 +1545,8 @@ Int RcmTestCleanup (Int testCase)
     else
         Osal_printf("RcmTestCleanup: Multiproc_destroy status: [0x%x]\n",
                     status);
+
+    UsrUtilsDrv_destroy ();
 #endif /* if !defined(SYSLINK_USE_SYSMGR) */
 
 exit:
