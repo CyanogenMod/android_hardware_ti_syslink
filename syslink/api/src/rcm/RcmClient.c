@@ -791,7 +791,7 @@ Int RcmClient_getHeaderSize (Void)
     /* We deduct sizeof(UInt32) as "data[1]" is the start of the payload */
     headerSize = sizeof (RcmClient_Packet) - sizeof (UInt32);
 
-    GT_1trace (curTrace, GT_LEAVE, "RcmClient_getHeaderSize", status);
+    GT_1trace (curTrace, GT_LEAVE, "RcmClient_getHeaderSize", headerSize);
 
     return headerSize;
 }
