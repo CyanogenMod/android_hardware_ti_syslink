@@ -450,7 +450,9 @@ Int ipc_setup (Int testCase)
     UInt32                          mqtEventNo;
 #if defined(SYSLINK_USE_LOADER) || defined(SYSLINK_USE_SYSMGR)
     UInt32                          entry_point = 0;
+#if !defined(SYSLINK_USE_DAEMON)
     ProcMgr_StartParams             start_params;
+#endif
 #endif
 #if defined(SYSLINK_USE_LOADER)
     Char *                          image_name;
@@ -1278,7 +1280,9 @@ Int RcmTestCleanup (Int testCase)
     UInt rcmMsgSize;
     RCM_Remote_FxnArgs *fxnExitArgs;
 #if defined (SYSLINK_USE_SYSMGR)
+#if !defined(SYSLINK_USE_DAEMON)
     ProcMgr_StopParams      stop_params;
+#endif
 #endif
     Int i;
     RcmClient_Handle rcmClientHandle;
@@ -1398,6 +1402,7 @@ Int RcmTestCleanup (Int testCase)
     SharedRegion_remove (0);
     SharedRegion_remove (1);
 
+#if !defined(SYSLINK_USE_DAEMON)    // Do not call ProcMgr_stop if using daemon
     stop_params.proc_id = remoteId;
     status = ProcMgr_stop(procMgrHandle, &stop_params);
     if (status < 0)
@@ -1415,6 +1420,7 @@ Int RcmTestCleanup (Int testCase)
             Osal_printf("RcmTestCleanup: ProcMgr_stop status: [0x%x]\n",
                         status);
     }
+#endif
 
     status = ProcMgr_close (&procMgrHandle);
     if (status < 0)

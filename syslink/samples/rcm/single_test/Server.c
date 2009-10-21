@@ -151,7 +151,9 @@ Void RcmServerThreadFxn (Void *arg)
     UInt32                          mqtEventNo;
 #if defined(SYSLINK_USE_LOADER) || defined(SYSLINK_USE_SYSMGR)
     UInt32                          entry_point = 0;
+#if !defined(SYSLINK_USE_DAEMON)
     ProcMgr_StartParams             start_params;
+#endif
 #endif
 #if defined (SYSLINK_USE_LOADER)
     Char *                          sysm3_image_name;
@@ -441,6 +443,7 @@ Void RcmServerThreadFxn (Void *arg)
     Osal_printf ("ProcMgr_load SysM3 image Status [0x%x]\n", status);
 #endif
 #if defined(SYSLINK_USE_LOADER) || defined(SYSLINK_USE_SYSMGR)
+#if !defined(SYSLINK_USE_DAEMON)    // Do not call ProcMgr_start if using daemon
     start_params.proc_id = PROC_SYSM3;
     Osal_printf("start_params.proc_id = %d\n", start_params.proc_id);
 
@@ -450,6 +453,7 @@ Void RcmServerThreadFxn (Void *arg)
         goto exit;
     }
     Osal_printf ("ProcMgr_start Status [0x%x]\n", status);
+#endif
 #endif
 
     if(remoteId_server == PROC_APPM3) {
@@ -469,6 +473,7 @@ Void RcmServerThreadFxn (Void *arg)
         Osal_printf ("ProcMgr_load AppM3 image Status [0x%x]\n", status);
 #endif
 #if defined(SYSLINK_USE_LOADER) || defined(SYSLINK_USE_SYSMGR)
+#if !defined(SYSLINK_USE_DAEMON)    // Do not call ProcMgr_start if using daemon
         start_params.proc_id = PROC_APPM3;
         Osal_printf("APPM3 Load: start_params.proc_id = %d\n",
                     start_params.proc_id);
@@ -480,6 +485,7 @@ Void RcmServerThreadFxn (Void *arg)
             goto exit;
         }
         Osal_printf ("ProcMgr_start Status [0x%x]\n", status);
+#endif
 #endif
     }
 
@@ -629,7 +635,9 @@ exit:
 Void RcmServerCleanup (Void)
 {
 #if defined (SYSLINK_USE_SYSMGR)
+#if !defined(SYSLINK_USE_DAEMON)
     ProcMgr_StopParams stop_params;
+#endif
 #endif
 
 
@@ -656,6 +664,7 @@ Void RcmServerCleanup (Void)
     SharedRegion_remove (0);
     SharedRegion_remove (1);
 
+#if !defined(SYSLINK_USE_DAEMON)    // Do not call ProcMgr_stop if using daemon
     stop_params.proc_id = remoteId_server;
     status = ProcMgr_stop(procMgrHandle_server, &stop_params);
     if (status < 0)
@@ -671,6 +680,7 @@ Void RcmServerCleanup (Void)
         else
             Osal_printf("ProcMgr_stop status: [0x%x]\n", status);
     }
+#endif
 
     status = ProcMgr_close (&procMgrHandle_server);
     if (status < 0)

@@ -324,7 +324,9 @@ Int CreateRcmClient(Int testCase)
     UInt32                          mqtEventNo;
 #if defined(SYSLINK_USE_LOADER) || defined(SYSLINK_USE_SYSMGR)
     UInt32                          entry_point = 0;
+#if !defined(SYSLINK_USE_DAEMON)
     ProcMgr_StartParams             start_params;
+#endif
 #endif
 #if defined(SYSLINK_USE_LOADER)
     Char *                          sysm3_image_name;
@@ -630,6 +632,7 @@ Int CreateRcmClient(Int testCase)
     Osal_printf ("ProcMgr_load SysM3 image Status [0x%x]\n", status);
 #endif
 #if defined(SYSLINK_USE_SYSMGR) || defined(SYSLINK_USE_LOADER)
+#if !defined(SYSLINK_USE_DAEMON)    // Do not call ProcMgr_start if using daemon
     start_params.proc_id = PROC_SYSM3;
     Osal_printf ("SYSM3 Load: start_params.proc_id = %d\n",
                 start_params.proc_id);
@@ -639,6 +642,7 @@ Int CreateRcmClient(Int testCase)
         goto exit;
     }
     Osal_printf ("ProcMgr_start SysM3 Status [0x%x]\n", status);
+#endif
 #endif
 
     if(remoteId_client == PROC_APPM3) {
@@ -658,6 +662,7 @@ Int CreateRcmClient(Int testCase)
         Osal_printf ("ProcMgr_load AppM3 image Status [0x%x]\n", status);
 #endif
 #if defined(SYSLINK_USE_SYSMGR) || defined(SYSLINK_USE_LOADER)
+#if !defined(SYSLINK_USE_DAEMON)    // Do not call ProcMgr_start if using daemon
         start_params.proc_id = PROC_APPM3;
         Osal_printf("APPM3 Load: start_params.proc_id = %d\n",
                     start_params.proc_id);
@@ -668,6 +673,7 @@ Int CreateRcmClient(Int testCase)
             goto exit;
         }
         Osal_printf ("ProcMgr_start AppM3 Status [0x%x]\n", status);
+#endif
 #endif
     }
 
@@ -846,7 +852,9 @@ Int RcmClientCleanup (Int testCase)
     UInt                    rcmMsgSize;
     RCM_Remote_FxnArgs *    fxnExitArgs;
 #if defined (SYSLINK_USE_SYSMGR)
+#if !defined(SYSLINK_USE_DAEMON)
     ProcMgr_StopParams      stop_params;
+#endif
 #endif
 
     Osal_printf ("\nEntering RcmClientCleanup()\n");
@@ -916,6 +924,7 @@ Int RcmClientCleanup (Int testCase)
     SharedRegion_remove (0);
     SharedRegion_remove (1);
 
+#if !defined(SYSLINK_USE_DAEMON)    // Do not call ProcMgr_stop if using daemon
     stop_params.proc_id = remoteId_client;
     status = ProcMgr_stop(procMgrHandle_client, &stop_params);
     if (status < 0)
@@ -931,6 +940,7 @@ Int RcmClientCleanup (Int testCase)
         else
             Osal_printf("ProcMgr_stop status: [0x%x]\n", status);
     }
+#endif
 
     status = ProcMgr_close (&procMgrHandle_client);
     if (status < 0)
