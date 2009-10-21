@@ -26,6 +26,7 @@ SUBDIRS  = \
 	ipc \
 	notify \
 	procmgr \
+	proc_sample/krnl \
 	rcm \
 	tiler
 

@@ -55,16 +55,18 @@ AM_CONDITIONAL(PROCFAMILY_IS_4430, [test "x$PROCFAMILY" = xOMAP_4430])
 AM_CONDITIONAL(PROCFAMILY_IS_3430, [test "x$PROCFAMILY" = xOMAP_3430])
 AM_CONDITIONAL(PROCFAMILY_IS_2430, [test "x$PROCFAMILY" = xOMAP_2430])
 
+CFLAGS=
 #Compiling with Debug enabled by default. Change it to false to disable.
-default_debug=true
+default_debug=false
 AC_ARG_ENABLE([debug],
-	[  --enable-debug          Turn on debugging,[default=true]],
+	[  --enable-debug          Turn on debugging,[default=false]],
 	[case "${enableval}" in
 	yes) debug=true
 		CFLAGS="$CFLAGS -g";;
 	no)  debug=false
 		CFLAGS="$CFLAGS  -fomit-frame-pointer";;
-	*) AC_MSG_ERROR([bad value ${enableval} for --enable-debug]) ;;
+	*) AC_MSG_ERROR([bad value ${enableval} for --enable-debug])
+		CFLAGS="$CFLAGS  -fomit-frame-pointer";;
 	esac],[debug=$default_debug])
 AM_CONDITIONAL([DEBUG], [test x$debug = xtrue])
 

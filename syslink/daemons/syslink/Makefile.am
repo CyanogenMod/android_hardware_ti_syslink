@@ -27,8 +27,7 @@ AM_CFLAGS = -DSYSLINK_USE_SYSMGR
 #AM_CFLAGS += -DSYSLINK_TRACE_ENABLE
 AM_CFLAGS += -DSYSLINK_USE_LOADER
 
-
-bin_PROGRAMS = syslink-daemon.out
+bin_PROGRAMS = syslink_daemon.out
 
 syslink_daemon_out_SOURCES = \
 SyslinkDaemon.c \
@@ -38,9 +37,7 @@ syslink_daemon_out_CPPFLAGS    = \
 	-I$(PROJROOT)/inc \
 	-I$(PROJROOT)/../api/include \
 	-I$(TILER_INC_PATH) \
-	-DSYSLINK_TRACE_ENABLE \
-	-DSYSLINK_USE_SYSMGR \
-	-DSYSLINK_USE_LOADER
+	 $(AM_CFLAGS)
 
 API_SRCDIR = $(PROJROOT)/../api/src
 

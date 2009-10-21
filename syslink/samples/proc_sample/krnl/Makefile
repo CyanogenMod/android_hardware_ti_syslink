@@ -3,9 +3,9 @@ EXTRA_CFLAGS := -I$(KRNLSRC)/arch/arm/plat-omap/include/
 EXTRA_CFLAGS += -I$(KRNLSRC)/arch/arm/plat-omap/include/syslink/
 EXTRA_CFLAGS += -I$(KRNLSRC)/drivers/dsp/syslink/procmgr/
 EXTRA_CFLAGS += -I$(KRNLSRC)/drivers/dsp/syslink/procmgr/proc4430/
-EXTRA_CFLAGS += -I$(PREFIX)/inc/
+EXTRA_CFLAGS += -I$(PREFIX)/syslink/samples/inc/
 
-default:
+all:
 	make -C $(KRNLSRC) M=$(PREFIX)/syslink/samples/proc_sample/krnl modules
 clean:
 	make -C $(KRNLSRC) M=$(PREFIX)/syslink/samples/proc_sample/krnl clean
