@@ -444,8 +444,8 @@ Int ipc_setup (Int testCase)
     UInt32                          nsrnEventNo;
     UInt32                          mqtEventNo;
 #if defined(SYSLINK_USE_LOADER) || defined(SYSLINK_USE_SYSMGR)
-#if !defined(SYSLINK_USE_DAEMON)
     UInt32                          entry_point = 0;
+#if !defined(SYSLINK_USE_DAEMON)
     ProcMgr_StartParams             start_params;
 #endif
 #endif
@@ -1289,18 +1289,18 @@ Int RcmTestCleanup (Int testCase)
     RcmClient_free (rcmClientHandle, rcmMsg);
 
     // Shutdown RCM server
-    Osal_printf ("RcmClientCleanup: calling RcmClient_shutdownServer \n");
+    Osal_printf ("RcmTestCleanup: calling RcmClient_shutdownServer \n");
     status = RcmClient_shutdownServer (rcmClientHandle);
     if (status < 0) {
-        Osal_printf ("RcmClientCleanup: Error in RcmClient_shutdownServer.\n");
+        Osal_printf ("RcmTestCleanup: Error in RcmClient_shutdownServer.\n");
         goto exit;
     }
     if (status == RCMCLIENT_SCLIENTSATTACHED) {
-        Osal_printf ("RcmClientCleanup: Server not shutdown"
+        Osal_printf ("RcmTestCleanup: Server not shutdown"
                      "Clients still attached.\n");
     }
     else {
-        Osal_printf ("RcmClientCleanup: Server shutdown successful \n");
+        Osal_printf ("RcmTestCleanup: Server shutdown successful \n");
     }
 
     /* delete the rcm client */

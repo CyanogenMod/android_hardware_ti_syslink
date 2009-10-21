@@ -1317,29 +1317,29 @@ Int RcmTestCleanup (Int testCase)
         for(i = 0; i < numLocalClients; i++) {
 
             // Shutdown RCM server
-            Osal_printf ("RcmClientCleanup: Calling "
+            Osal_printf ("RcmTestCleanup: Calling "
                          "RcmClient_shutdownServer \n");
-            status = RcmClient_shutdownServer (rcmClientHandle);
+            status = RcmClient_shutdownServer (rcmClientHandles[i]);
             if (status < 0) {
-                Osal_printf ("RcmClientCleanup: Error in "
-                             "RcmClient_shutdownServer.\n");
+                Osal_printf ("RcmTestCleanup: Error in "
+                             "RcmClient_shutdownServer: 0x%x.\n", status);
                 goto exit;
             }
             if (status == RCMCLIENT_SCLIENTSATTACHED) {
-                Osal_printf ("RcmClientCleanup: Server not shutdown"
+                Osal_printf ("RcmTestCleanup: Server not shutdown. "
                              "Clients still attached.\n");
             }
             else {
-                Osal_printf ("RcmClientCleanup: Server shutdown successful \n");
+                Osal_printf ("RcmTestCleanup: Server shutdown successful \n");
             }
 
-            Osal_printf("RcmClientCleanup: Delete RCM client instance %i\n");
+            Osal_printf("RcmTestCleanup: Delete RCM client instance %i\n");
             status = RcmClient_delete (&rcmClientHandles[i]);
             if (status < 0)
-                Osal_printf("RcmClientCleanup: Error in RCM Client instance "
+                Osal_printf("RcmTestCleanup: Error in RCM Client instance "
                     "delete [0x%x]\n", status);
             else
-                Osal_printf("RcmClientCleanup: RcmClient_delete status: "
+                Osal_printf("RcmTestCleanup: RcmClient_delete status: "
                             "[0x%x]\n", status);
         }
 
