@@ -701,7 +701,7 @@ Void *RcmServer_serverRunFxn(IArg arg)
     GT_0trace (curTrace, GT_ENTER, "RcmServer_serverRunFxn");
 
     /* wait until ready to run */
-    retval = OsalSemaphore_pend(handle->run, WAIT_FOREVER);
+    retval = OsalSemaphore_pend(handle->run, OSALSEMAPHORE_WAIT_FOREVER);
     if (retval < 0) {
         status = RCMSERVER_EINVALIDSTATE;
         GT_setFailureReason (curTrace,

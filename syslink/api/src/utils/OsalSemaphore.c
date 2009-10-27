@@ -30,8 +30,10 @@
 
 /* Linux headers */
 #include <semaphore.h>
-#include <time.h>
 #include <errno.h>
+#if defined(OSALSEMAPHORE_USE_TIMEDWAIT)
+#include <time.h>
+#endif
 
 #if defined (__cplusplus)
 extern "C" {
@@ -224,12 +226,13 @@ OsalSemaphore_pend(OsalSemaphore_Handle semHandle, UInt32 timeout)
     Int                     status      = OSALSEMAPHORE_SUCCESS;
     OsalSemaphore_Object *  semObj      = (OsalSemaphore_Object *) semHandle;
     int                     osStatus    = 0;
+#if defined(OSALSEMAPHORE_USE_TIMEDWAIT)
     struct timespec         absTimeout;
+#endif /* #if defined(OSALSEMAPHORE_USE_TIMEDWAIT) */
 
     GT_2trace (curTrace, GT_ENTER, "OsalSemaphore_pend", semHandle, timeout);
 
     GT_assert (curTrace, (semHandle != NULL));
-
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
     if (semHandle == NULL) {
         /*! @retVal OSALSEMAPHORE_E_HANDLE NULL Semaphore handle provided. */
@@ -278,6 +281,8 @@ OsalSemaphore_pend(OsalSemaphore_Handle semHandle, UInt32 timeout)
         }
         /* Finite and infinite timeout cases */
         else {
+#if defined(OSALSEMAPHORE_USE_TIMEDWAIT)
+            /* Temporarily disabled as sem_timedwait is reflecting issues */
             /* Get timeout value in OS-recognizable format. */
             if (timeout == OSALSEMAPHORE_WAIT_FOREVER) {
                 clock_gettime(CLOCK_MONOTONIC, &absTimeout);
@@ -309,6 +314,18 @@ OsalSemaphore_pend(OsalSemaphore_Handle semHandle, UInt32 timeout)
                                   "Failure in sem_timedwait()");
                 }
             }
+#else
+            osStatus = sem_wait(&(semObj->lock));
+            GT_assert (curTrace, (osStatus == 0));
+            if (osStatus != 0) {
+                status = OSALSEMAPHORE_E_RESOURCE;
+                GT_setFailureReason (curTrace,
+                              GT_4CLASS,
+                              "OsalSemaphore_pend",
+                              status,
+                              "Failure in sem_wait()");
+            }
+#endif /* #if defined(OSALSEMAPHORE_USE_TIMEDWAIT) */
             else if(semObj->value > 0) {
                 if (OSALSEMAPHORE_TYPE_VALUE (semObj->semType)
                         ==  OsalSemaphore_Type_Binary) {
