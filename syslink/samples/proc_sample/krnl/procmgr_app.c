@@ -102,7 +102,7 @@ static struct proc4430_mem_entry mem_entries[NUM_MEM_ENTRIES] =
 {
 	{
 		"DUCATI_SHM",	/* NAME	     : Name of the memory region */
-		0x8B000000,	/* PHYSADDR	     : Physical address */
+		0x9CF00000,	/* PHYSADDR	     : Physical address */
 		0xA0000000,	/* SLAVEVIRTADDR  : Slave virtual address */
 		(u32) -1u,
 		/* MASTERVIRTADDR : Master virtual address (if known) */
@@ -111,7 +111,7 @@ static struct proc4430_mem_entry mem_entries[NUM_MEM_ENTRIES] =
 	},
 	{
 		"DUCATI_SHM1",	/* NAME	     : Name of the memory region */
-		0x8B055000,	/* PHYSADDR	     : Physical address */
+		0x9CF55000,	/* PHYSADDR	     : Physical address */
 		0xA0055000,	/* SLAVEVIRTADDR  : Slave virtual address */
 		(u32) -1u,
 		/* MASTERVIRTADDR : Master virtual address (if known) */
@@ -120,7 +120,7 @@ static struct proc4430_mem_entry mem_entries[NUM_MEM_ENTRIES] =
 	},
 	{
 		"DUCATI_SWDMM",	/* NAME	     : Name of the memory region */
-		0x8A300000,	/* PHYSADDR	     : Physical address */
+		0x9F300000,	/* PHYSADDR	     : Physical address */
 		0x81300000,	/* SLAVEVIRTADDR  : Slave virtual address */
 		(u32) -1u,
 		/* MASTERVIRTADDR : Master virtual address (if known) */
