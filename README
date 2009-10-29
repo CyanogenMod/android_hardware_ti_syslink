@@ -43,7 +43,7 @@ Steps to Build syslink & bridge:
 	1. export PATH=<Toolchain Path>:$PATH (e.g., Toolchain path:/omap_data/omapts/arm-2008q3-72/bin)
 	2. cd syslink
 	3. sh autogen.sh
-	4. ./configure --host=arm-none-linux-gnueabi- --prefix=<PREFIX PATH> --build=i686-pc-linux-gnu
+	4. ./configure --host=arm-none-linux-gnueabi --prefix=<PREFIX PATH> --build=i686-pc-linux-gnu
 	5. make TILER_INC_PATH=/omap_data/development/Imtiaz/omap_dev/tiler-userspace/memmgr
 	6. make install
 	7. cd -
