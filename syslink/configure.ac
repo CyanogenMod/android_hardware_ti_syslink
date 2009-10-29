@@ -112,6 +112,7 @@ AC_CONFIG_FILES([Makefile
 		daemons/Makefile
 		daemons/inc/Makefile
 		daemons/syslink/Makefile
+		daemons/trace/Makefile
 		samples/Makefile
 		samples/make/Makefile
 		samples/ipc/Makefile

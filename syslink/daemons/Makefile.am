@@ -22,4 +22,4 @@
 #      Original version.
 #  ----------------------------------------------------------------------------
 
-SUBDIRS = syslink inc
+SUBDIRS = syslink trace inc
