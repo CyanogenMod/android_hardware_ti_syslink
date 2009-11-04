@@ -28,7 +28,7 @@ include $(PROJROOT)/api/make/start.mk
 
 # Arguments to tools, will move to make system once finalized.
 
-CFLAGS         = 
+CFLAGS         = -DSYSLINK_USE_SYSMGR
 CDEFS          = ARM_TARGET
 ifeq ($(BUILD),udeb)
 CDEFS          += DEBUG 

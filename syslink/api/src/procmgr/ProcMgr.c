@@ -1500,8 +1500,13 @@ ProcMgr_start (ProcMgr_Handle        handle,
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
         /* FIXME: move sysmgr calls from Proc user space */
+#ifdef SYSLINK_USE_SYSMGR
         status = SysMgr_loadCallback (params->proc_id);
+#endif
+
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
+
+#ifdef SYSLINK_USE_SYSMGR
         if (status < 0) {
              GT_setFailureReason (curTrace,
                                  GT_4CLASS,
@@ -1510,6 +1515,8 @@ ProcMgr_start (ProcMgr_Handle        handle,
                                  "SysMgr API failed on kernel-side!");
         }
         else {
+#endif //#ifdef SYSLINK_USE_SYSMGR
+
 #endif
             cmdArgs.handle = procMgrHandle->knlObject;
             cmdArgs.params = params;
@@ -1523,12 +1530,19 @@ ProcMgr_start (ProcMgr_Handle        handle,
                                  status,
                                  "API (through IOCTL) failed on kernel-side!");
             }
+
+#ifdef SYSLINK_USE_SYSMGR
         }
+#endif //#ifdef SYSLINK_USE_SYSMGR
+
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
     }
 
+#ifdef SYSLINK_USE_SYSMGR
     if (status > 0) {
         status = SysMgr_startCallback (params->proc_id);
+#endif //#ifdef SYSLINK_USE_SYSMGR
+
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
         if (status < 0) {
             GT_setFailureReason (curTrace,
@@ -1538,7 +1552,10 @@ ProcMgr_start (ProcMgr_Handle        handle,
                                  "SYSMGR API failed on kernel-side!");
         }
 #endif
+
+#ifdef SYSLINK_USE_SYSMGR
     }
+#endif //#ifdef SYSLINK_USE_SYSMGR
 
     GT_1trace (curTrace, GT_LEAVE, "ProcMgr_start", status);
 
@@ -1582,8 +1599,13 @@ ProcMgr_stop (ProcMgr_Handle handle, ProcMgr_StopParams * params)
     }
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+
+#ifdef SYSLINK_USE_SYSMGR
         status = SysMgr_stopCallback (params->proc_id);
+#endif //#ifdef SYSLINK_USE_SYSMGR
+
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
+#ifdef SYSLINK_USE_SYSMGR
         if (status < 0) {
              GT_setFailureReason (curTrace,
                                   GT_4CLASS,
@@ -1592,6 +1614,7 @@ ProcMgr_stop (ProcMgr_Handle handle, ProcMgr_StopParams * params)
                                   "SysMgr API failed on kernel-side!");
         }
         else {
+#endif //#ifdef SYSLINK_USE_SYSMGR
 #endif
             cmdArgs.handle = procMgrHandle->knlObject;
             cmdArgs.params = params;
@@ -1605,7 +1628,9 @@ ProcMgr_stop (ProcMgr_Handle handle, ProcMgr_StopParams * params)
                                      "API (through IOCTL) failed on kernel-side!");
             }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+#ifdef SYSLINK_USE_SYSMGR
          }
+#endif //#ifdef SYSLINK_USE_SYSMGR
     }
 
     GT_1trace (curTrace, GT_LEAVE, "ProcMgr_stop", status);

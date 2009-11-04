@@ -27,6 +27,7 @@ ACLOCAL_AMFLAGS=-I m4
 
 PROJROOT = ../../..
 
+AM_CFLAGS = -DSYSLINK_USE_SYSMGR
 
 SUBDIRS  = procmgr4430
 
@@ -53,8 +54,8 @@ elfload/symtab.c
 
 # Search path for include files
 
-libprocmgr_la_CFLAGS    = \
-	-I$(PROJROOT)/api/include -DARM_TARGET
+libprocmgr_la_CPPFLAGS    = \
+	-I$(PROJROOT)/api/include -DARM_TARGET $(AM_CLFAGS)
 
 libprocmgr_la_LIBTOOLFLAGS = --tag=disable-static
 libprocmgr_la_LDFLAGS = -version-info 0:0:0
