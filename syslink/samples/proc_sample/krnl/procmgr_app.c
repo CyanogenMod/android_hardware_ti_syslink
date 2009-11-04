@@ -301,6 +301,7 @@ int procmgrapp_execute(void)
 	int count = 0;
 	int i;
 	struct proc_mgr_cmd_args_open src_args;
+	struct proc_mgr_start_params start_params;
 
 	src_args.proc_id = multiproc_get_id("SysM3");
 #if !defined(SYSLINK_USE_SYSMGR)
@@ -345,7 +346,14 @@ int procmgrapp_execute(void)
 			src_args.proc_info.mem_entries[i].
 			addr[PROC_MGR_ADDRTYPE_SLAVEVIRT]);
 	}
-	ducati_setup();
+
+	start_params.proc_id = multiproc_get_id("SysM3");
+	status = proc_mgr_start(src_args.handle, 0, &start_params);
+
+	if(status < 0) {
+		printk(KERN_ERR "proc_mgr_start failed for SysM3");
+		goto exit;
+	}
 
 	printk(KERN_ERR "size  [0x%x]\n",
 					src_args.proc_info.mem_entries[i].size);
@@ -361,9 +369,16 @@ int procmgrapp_shutdown(void)
 {
 	int	status = 0;
 	enum proc_mgr_state state;
+	struct proc_mgr_stop_params   params;
 
 	printk(KERN_ERR "Entered procmgrapp_shutdown\n");
 
+	params.proc_id = multiproc_get_id("SysM3");
+	status = proc_mgr_stop(procmgrapp_handle, &params);
+
+	if(status < 0) {
+		printk(KERN_ERR "proc_mgr_stop failed for SysM3");
+	}
 	if (procmgrapp_handle != NULL) {
 		status = proc_mgr_detach(procmgrapp_handle);
 		printk(KERN_ERR "proc_mgr_detach [0x%x]\n", status);
@@ -381,7 +396,6 @@ int procmgrapp_shutdown(void)
 		printk(KERN_ERR "proc_mgr_close [0x%x]\n", status);
 	}
 #endif /* if !defined (SYSLINK_USE_SYSMGR) */
-	ducati_destroy();
 
 	printk(KERN_ERR "Leaving procmgrapp_shutdown [0x%x]\n", status);
 	return status;
