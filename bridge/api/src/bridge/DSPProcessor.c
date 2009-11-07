@@ -85,8 +85,58 @@
 #include "_dbdebug.h"
 #include "_dbpriv.h"
 #include <DSPProcessor.h>
-
 #include <sys/mman.h>
+#include <errno.h>
+
+
+/*
+ * Work around gcc 3.2.3 compiler bugs...
+ */
+int set_errno(int ret)
+{
+	errno = -ret;
+	return -1;
+}
+
+int dma_inv_range(void *start, int size)
+{
+	register unsigned long s asm("r0") = (unsigned long)start;
+	register unsigned long e asm("r1") = s + size;
+	register int ret asm("r0");
+	asm("swi 0x9f07fd"
+		: "=r" (ret)
+		: "0" (s), "r" (e));
+	if (ret < 0)
+		ret = set_errno(ret);
+	return ret;
+}
+
+int dma_clean_range(void *start, int size)
+{
+	register unsigned long s asm("r0") = (unsigned long)start;
+	register unsigned long e asm("r1") = s + size;
+	register int ret asm("r0");
+	asm("swi 0x9f07fe"
+		: "=r" (ret)
+		: "0" (s), "r" (e));
+	if (ret < 0)
+		ret = set_errno(ret);
+	return ret;
+}
+
+int dma_flush_range(void *start, int size)
+{
+	register unsigned long s asm("r0") = (unsigned long)start;
+	register unsigned long e asm("r1") = s + size;
+	register int ret asm("r0");
+	asm("swi 0x9f07ff"
+		: "=r" (ret)
+		: "0" (s), "r" (e));
+	if (ret < 0)
+		ret = set_errno(ret);
+	return ret;
+}
+
 /*
  *  ======== DSPProcessor_Attach ========
  *  Purpose:
@@ -214,6 +264,7 @@ DBAPI DSPProcessor_FlushMemory(DSP_HPROCESSOR hProcessor, PVOID pMpuAddr,
 {
 	DSP_STATUS status = DSP_SOK;
 	Trapped_Args tempStruct;
+	int ret_val = 0;
 #ifdef DEBUG_BRIDGE_PERF
 	struct timeval tv_beg;
 	struct timeval tv_end;
@@ -229,11 +280,11 @@ timeRetVal = getTimeStamp(&tv_beg);
 
 	/* Check the handle */
 	if (hProcessor) {
-		tempStruct.ARGS_PROC_FLUSHMEMORY.hProcessor = hProcessor;
-		tempStruct.ARGS_PROC_FLUSHMEMORY.pMpuAddr = pMpuAddr;
-		tempStruct.ARGS_PROC_FLUSHMEMORY.ulSize = ulSize;
-		tempStruct.ARGS_PROC_FLUSHMEMORY.ulFlags = ulFlags;
-		status = DSPTRAP_Trap(&tempStruct, CMD_PROC_FLUSHMEMORY_OFFSET);
+		ret_val = dma_flush_range((PVOID)pMpuAddr, ulSize);
+		if (ret_val < 0) {
+			fprintf(stdout, "PROC: Flush operation failed for Flush type %d\n", ulFlags);
+			status = DSP_EFAIL;
+		}
 	} else {
 		/* Invalid handle */
 		status = DSP_EHANDLE;
@@ -258,12 +309,12 @@ DBAPI DSPProcessor_InvalidateMemory(DSP_HPROCESSOR hProcessor,
 {
 	DSP_STATUS status = DSP_SOK;
 	Trapped_Args tempStruct;
+	int ret_val = 0;
 #ifdef DEBUG_BRIDGE_PERF
 	struct timeval tv_beg;
 	struct timeval tv_end;
 	struct timezone tz;
 	int timeRetVal = 0;
-
 	timeRetVal = getTimeStamp(&tv_beg);
 #endif
 
@@ -272,11 +323,11 @@ DBAPI DSPProcessor_InvalidateMemory(DSP_HPROCESSOR hProcessor,
 
 	/* Check the handle */
 	if (hProcessor) {
-		tempStruct.ARGS_PROC_INVALIDATEMEMORY.hProcessor = hProcessor;
-		tempStruct.ARGS_PROC_INVALIDATEMEMORY.pMpuAddr = pMpuAddr;
-		tempStruct.ARGS_PROC_INVALIDATEMEMORY.ulSize = ulSize;
-		status = DSPTRAP_Trap(&tempStruct,
-				CMD_PROC_INVALIDATEMEMORY_OFFSET);
+		ret_val = dma_inv_range((PVOID)pMpuAddr, ulSize);
+		if (ret_val < 0) {
+			fprintf(stdout, "PROC: Invalidate operation failed \n");
+			status = DSP_EFAIL;
+		}
 	} else {
 		/* Invalid handle */
 		status = DSP_EHANDLE;
