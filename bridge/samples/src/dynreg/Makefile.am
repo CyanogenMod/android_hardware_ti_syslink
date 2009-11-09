@@ -34,9 +34,9 @@ AM_CFLAGS = -Wall -g -O2 $(INCLUDE) -finline-functions -D$(PROCFAMILY) $(CDEFS)
 API_LIBS = \
 	$(PROJROOT)/../api/src/bridge/libbridge.la
 
-bin_PROGRAMS = dynreq.out
+bin_PROGRAMS = dynreg.out
 
-dynreq_out_SOURCES = \
+dynreg_out_SOURCES = \
 dynreg.c \
 DLsymtab.c \
 DLsymtab_support.c \
@@ -46,7 +46,7 @@ reloc.c \
 csl.c \
 uuidutil.c
 
-dynreq_out_CPPFLAGS = $(AM_CLFAGS)
-dynreq_out_LDADD = $(API_LIBS)
+dynreg_out_CPPFLAGS = $(AM_CLFAGS)
+dynreg_out_LDADD = $(API_LIBS)
 
 EXTRA_DIST = build.mk start.mk
