@@ -374,6 +374,8 @@ static DSP_STATUS RunTask(struct DMMCOPY_TASK *copyTask, FILE *inFile,
 				/* Go ahead and flush here */
 				DSPProcessor_FlushMemory(copyTask->hProcessor,
 										(PVOID)aBufferSend,DEFAULTBUFSIZE,0);
+				DSPProcessor_FlushMemory(copyTask->hProcessor,
+										(PVOID)aBufferRecv,DEFAULTBUFSIZE,0);
 				/* Tell DSP how many words to read */
 				msgToDsp.dwCmd = DMM_WRITEREADY;
 				msgToDsp.dwArg1 = (DWORD)cBytesRead / g_dwDSPWordSize;
@@ -391,9 +393,11 @@ static DSP_STATUS RunTask(struct DMMCOPY_TASK *copyTask, FILE *inFile,
 					status = DSPNode_GetMessage(copyTask->hNode, &msgFromDsp,
 																DSP_FOREVER);
 					if (DSP_SUCCEEDED(status)) {
+#if 0
 						/* Go ahead and flush here */
 						DSPProcessor_InvalidateMemory(copyTask->hProcessor,
 											(PVOID)aBufferRecv,DEFAULTBUFSIZE);
+#endif
 						fprintf(stdout, "Writing %d bytes to output file.\n",
 																	cBytesRead);
 
