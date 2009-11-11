@@ -49,7 +49,8 @@ SH_SONAME =
 # Folders in which gmake will run before building current target
 
 SUBMODULES  = \
-syslink
+syslink \
+trace
 
 # Filename must not begin with '.', '/' or '\'
 
@@ -73,4 +74,3 @@ LIBINCLUDES =
 # Do not change below "include" line(s)
 
 include $(PROJROOT)/make/build.mk
-
