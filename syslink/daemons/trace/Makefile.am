@@ -1,7 +1,7 @@
 #
-#  syslink/daemons/syslink/Makefile.am
+#  syslink/daemons/trace/Makefile.am
 #
-#  SysLink daemons syslink test Makefile.am file.
+#  SysLink Trace Buffer daemon's Makefile.am file.
 #
 #  Copyright (C) 2009 Texas Instruments, Inc.
 #
@@ -33,19 +33,10 @@ syslink_trace_daemon_out_SOURCES = \
 SyslinkTraceDaemon.c
 
 syslink_trace_daemon_out_CPPFLAGS    = \
-	-I$(PROJROOT)/inc \
 	-I$(PROJROOT)/../api/include \
-	-I$(TILER_INC_PATH) \
 	 $(AM_CFLAGS)
 
 API_SRCDIR = $(PROJROOT)/../api/src
 
 syslink_trace_daemon_out_LDADD = \
-	$(API_SRCDIR)/utils/libutils.la \
-	$(API_SRCDIR)/procmgr/libprocmgr.la \
-	$(API_SRCDIR)/ipc/libipc.la \
-	$(API_SRCDIR)/rcm/librcm.la \
-	$(API_SRCDIR)/notify/libnotify.la \
-	$(API_SRCDIR)/sysmgr/libsysmgr.la \
-	$(API_SRCDIR)/sysmemmgr/libsysmemmgr.la
-
+	$(API_SRCDIR)/utils/libutils.la
