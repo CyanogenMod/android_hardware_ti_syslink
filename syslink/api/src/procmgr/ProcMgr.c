@@ -81,6 +81,9 @@
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
+#include <sys/mman.h>
+#include <errno.h>
+
 /* Standard headers */
 #include <Std.h>
 
@@ -2693,6 +2696,134 @@ ProcMgr_virtToPhysPages (ProcMgr_Handle handle,
     return status;
 }
 
+/*!
+ *  @brief      Function to set error type for Flush fucntions
+ *
+ *  @param      ret    return value of flush functions
+ *
+ *  @sa         dma_flush_range
+ */
+static Int32 set_errno(Int32 ret)
+{
+    errno = -ret;
+    return -1;
+}
+
+/*!
+ *  @brief      Function to invalidate user space buffers
+ *
+ *  @param      start    Start of Virtual Address
+ *  @param      size     size of the buffer
+ *
+ *  @sa         dma_flush_range, dma_clean_range
+ */
+static Int32 dma_inv_range(Void *start, UInt32 size)
+{
+    register unsigned long s asm("r0") = (unsigned long)start;
+    register unsigned long e asm("r1") = s + size;
+    register int ret asm("r0");
+    asm("swi 0x9f07fd"
+        : "=r" (ret)
+        : "0" (s), "r" (e));
+    if (ret < 0)
+        ret = set_errno(ret);
+
+    return ret;
+}
+
+
+/*!
+ *  @brief      Function to clean user space buffers
+ *
+ *  @param      start    Start of Virtual Address
+ *  @param      size     size of the buffer
+ *
+ *  @sa         dma_flush_range, dma_inv_range
+ */
+static Int32 dma_clean_range(Void *start, UInt32 size)
+{
+    register unsigned long s asm("r0") = (unsigned long)start;
+    register unsigned long e asm("r1") = s + size;
+    register int ret asm("r0");
+    asm("swi 0x9f07fe"
+        : "=r" (ret)
+        : "0" (s), "r" (e));
+    if (ret < 0)
+        ret = set_errno(ret);
+
+    return ret;
+}
+
+
+/*!
+ *  @brief      Function to flush user space buffers
+ *
+ *  @param      start    Start of Virtual Address
+ *  @param      size     size of the buffer
+ *
+ *  @sa         dma_inv_range, dma_clean_range
+ */
+static Int32 dma_flush_range(Void *start, UInt32 size)
+{
+    register unsigned long s asm("r0") = (unsigned long)start;
+    register unsigned long e asm("r1") = s + size;
+    register int ret asm("r0");
+    asm("swi 0x9f07ff"
+        : "=r" (ret)
+        : "0" (s), "r" (e));
+    if (ret < 0)
+        ret = set_errno(ret);
+
+    return ret;
+}
+
+/*!
+ *  @brief      Function to flush user space buffers
+ *
+ *  @param      pMpuAddr    Userspace Virtual Address
+ *  @param      ulSize      size of the buffer
+ *
+ *  @sa         ProcMgr_invalidateMemory
+ */
+Int
+ProcMgr_flushMemory(PVOID pMpuAddr, UInt32 ulSize)
+{
+    UInt32 ret_val;
+    Int    status          = PROCMGR_SUCCESS;
+
+    ret_val = dma_flush_range((PVOID)pMpuAddr, ulSize);
+    if (ret_val < 0) {
+        Osal_printf("PROC: Flush operation failed for Address 0x%x\n",
+                                                    (UInt32)pMpuAddr);
+        status = PROCMGR_E_FAIL;
+    }
+
+    return status;
+}
+
+/*!
+ *  @brief      Function to Invalidate user space buffers
+ *
+ *  @param      pMpuAddr    Userspace Virtual Address
+ *  @param      ulSize      size of the buffer
+ *
+ *  @sa         ProcMgr_flushMemory
+ */
+Int
+ProcMgr_invalidateMemory(PVOID pMpuAddr, UInt32 ulSize)
+{
+    UInt32 ret_val;
+    Int    status          = PROCMGR_SUCCESS;
+
+    ret_val = dma_inv_range((PVOID)pMpuAddr, ulSize);
+    if (ret_val < 0) {
+        Osal_printf("PROC: Invalidate operation failed for Address 0x%x\n",
+                                                        (UInt32)pMpuAddr);
+        status = PROCMGR_E_FAIL;
+    }
+
+    return status;
+}
 
 #if defined (__cplusplus)
 }

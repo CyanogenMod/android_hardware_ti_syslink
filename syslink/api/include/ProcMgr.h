@@ -497,6 +497,12 @@ Int ProcMgr_virtToPhysPages (ProcMgr_Handle handle,
                              UInt32 *       physEntries,
                              ProcMgr_ProcId procId);
 
+/* Function to flush cache */
+Int ProcMgr_flushMemory(PVOID pMpuAddr, UInt32 ulSize);
+
+/* Function to invalidate cache */
+Int ProcMgr_invalidateMemory(PVOID pMpuAddr, UInt32 ulSize);
+
 
 /* =============================================================================
  *  Compatibility layer for SYSBIOS
