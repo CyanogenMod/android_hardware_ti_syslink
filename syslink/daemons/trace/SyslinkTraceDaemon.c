@@ -72,7 +72,7 @@ Void printSysM3Traces (Void *arg)
     writePointer = (UInt32 *)(traceinfo.dst + 0x4);
     traceBuffer = (Char *)(traceinfo.dst + 0x8);
 
-    /* Initialze read and write indexes to zero */
+    /* Initialze read indexes to zero */
     *readPointer = 0;
     *writePointer = 0;
     do {
@@ -81,24 +81,23 @@ Void printSysM3Traces (Void *arg)
         } while (*readPointer == *writePointer);
 
         if ( *readPointer < *writePointer ) {
-            numOfBytesInBuffer = *writePointer - *readPointer;
+            numOfBytesInBuffer = (*writePointer) - (*readPointer);
         } else {
-            numOfBytesInBuffer = (TRACE_BUFFER_SIZE - *readPointer) + *writePointer;
+            numOfBytesInBuffer = ((TRACE_BUFFER_SIZE - 8) - (*readPointer)) + (*writePointer);
         }
 
         Osal_printf ("\n[SYSM3]: ");
         while ( numOfBytesInBuffer-- ) {
+            if ((*readPointer) == (TRACE_BUFFER_SIZE - 8)){
+                (*readPointer) = 0;
+            }
+
             Osal_printf ("%c", traceBuffer[*readPointer]);
             if (traceBuffer[*readPointer] == '\n') {
                 Osal_printf ("[SYSM3]: ");
             }
 
-            if (*readPointer == (TRACE_BUFFER_SIZE - 1)) {
-                *readPointer = 0;
-            }
-            else {
-                (*readPointer)++;
-            }
+            (*readPointer)++;
         }
     } while(1);
 
@@ -140,22 +139,21 @@ Void printAppM3Traces (Void *arg)
         if ( *readPointer < *writePointer ) {
             numOfBytesInBuffer = *writePointer - *readPointer;
         } else {
-            numOfBytesInBuffer = (TRACE_BUFFER_SIZE - *readPointer) + *writePointer;
+            numOfBytesInBuffer = ((TRACE_BUFFER_SIZE - 8) - *readPointer) + *writePointer;
         }
 
         Osal_printf ("\n[APPM3]: ");
         while ( numOfBytesInBuffer-- ) {
+            if (*readPointer >= (TRACE_BUFFER_SIZE - 8)){
+                *readPointer = 0;
+            }
+
             Osal_printf ("%c", traceBuffer[*readPointer]);
             if (traceBuffer[*readPointer] == '\n') {
                 Osal_printf ("[APPM3]: ");
             }
 
-            if (*readPointer == (TRACE_BUFFER_SIZE - 1)) {
-                *readPointer = 0;
-            }
-            else {
-                (*readPointer)++;
-            }
+            (*readPointer)++;
         }
     } while(1);
 
