@@ -654,6 +654,7 @@ MessageQApp_execute (Void)
     else {
         Osal_printf ("\nUnsuccessful run of the sample application!\n");
     }
+    MessageQ_free(msg);
 
     /* Clean-up */
     if (MessageQApp_messageQ != NULL) {
