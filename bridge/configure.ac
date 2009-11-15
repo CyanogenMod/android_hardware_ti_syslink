@@ -5,6 +5,7 @@ AC_PREREQ(2.61)
 AC_INIT(bridge, 0.1, http://www.ti.com)
 AC_CONFIG_SRCDIR([api/inc/DSPManager.h])
 AC_CONFIG_HEADER([config.h])
+AC_CONFIG_AUX_DIR([config])
 AM_INIT_AUTOMAKE
 
 # Checks for programs.
@@ -89,7 +90,8 @@ CFLAGS="$CFLAGS -DLINUX"
 #endif
 
 
-AC_CONFIG_FILES([Makefile
+AC_CONFIG_FILES([libdspbridge.pc
+                 Makefile
                  api/Makefile
                  api/inc/Makefile
                  api/make/Makefile

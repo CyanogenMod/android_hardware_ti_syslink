@@ -22,8 +22,7 @@
 #      Original version.
 #  ----------------------------------------------------------------------------
 
-#bridge_api_headers = \
-noinst_HEADERS = \
+library_include_HEADERS = \
 cmmdefs.h \
 dbdcd.h \
 _dbpriv.h \
@@ -64,7 +63,5 @@ mem.h \
 qosregistry.h \
 rmstypes.h
 
-#library_include_HEADERS = $(bridge_api_headers)
+library_includedir   = $(includedir)/dspbridge
 
-#Install the headers in library directory - e.g. Syslinklib-1.0:
-#library_includedir=$(includedir)/bridge_api_headers

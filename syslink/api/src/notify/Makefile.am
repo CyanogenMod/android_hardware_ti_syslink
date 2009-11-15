@@ -25,7 +25,7 @@
 
 ACLOCAL_AMFLAGS=-I m4
 
-PROJROOT = ../../..
+PROJROOT = $(top_srcdir)
 
 lib_LTLIBRARIES = libnotify.la
 libnotify_la_SOURCES = \
@@ -40,4 +40,4 @@ libnotify_la_CFLAGS = \
 
 libnotify_la_LIBTOOLFLAGS = --tag=disable-static
 libnotify_la_LDFLAGS = -version-info 0:0:0
-libnotify_la_LIBADD = $(PROJROOT)/api/src/utils/libutils.la
+libnotify_la_LIBADD = ../../src/utils/libutils.la

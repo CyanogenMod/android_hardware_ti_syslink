@@ -21,7 +21,7 @@
 #      REF=ORG
 #      Original version.
 #  ----------------------------------------------------------------------------
-noinst_HEADERS = \
+library_include_HEADERS = \
 arm_dynamic.h \
 HeapBuf.h  \
 MultiProcDrv.h \
@@ -162,8 +162,5 @@ _HeapBuf.h \
 MultiProcDrvDefs.h \
 ProcMgrDrvDefs.h
 
-#library_include_HEADERS = $(syslink_api_headers)
-
-#Install the headers in library directory - e.g. Syslinklib-1.0:
-#library_includedir=$(includedir)/syslink_api_headers
+library_includedir=$(includedir)/syslink
 

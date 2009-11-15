@@ -22,7 +22,7 @@
 #      Original version.
 #  ----------------------------------------------------------------------------
 
-PROJROOT = ..
+PROJROOT = $(top_srcdir)/daemons
 AM_CFLAGS = -DSYSLINK_USE_SYSMGR
 #AM_CFLAGS += -DSYSLINK_TRACE_ENABLE
 AM_CFLAGS += -DSYSLINK_USE_LOADER
@@ -36,10 +36,10 @@ MemMgrServer.c
 syslink_daemon_out_CPPFLAGS    = \
 	-I$(PROJROOT)/inc \
 	-I$(PROJROOT)/../api/include \
-	-I$(TILER_INC_PATH) \
+	$(MEMMGR_CFLAGS) \
 	 $(AM_CFLAGS)
 
-API_SRCDIR = $(PROJROOT)/../api/src
+API_SRCDIR = ../../api/src
 
 syslink_daemon_out_LDADD = \
 	$(API_SRCDIR)/utils/libutils.la \
@@ -47,7 +47,7 @@ syslink_daemon_out_LDADD = \
 	$(API_SRCDIR)/ipc/libipc.la \
 	$(API_SRCDIR)/rcm/librcm.la \
 	$(API_SRCDIR)/notify/libnotify.la \
-	$(TILER_INC_PATH)/libmemmgr.la \
+	$(MEMMGR_LIBS) \
 	$(API_SRCDIR)/sysmgr/libsysmgr.la \
 	$(API_SRCDIR)/sysmemmgr/libsysmemmgr.la
 

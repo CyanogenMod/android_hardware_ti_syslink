@@ -21,7 +21,7 @@
 #
 #   ============================================================================
 
-PROJROOT=../../..
+PROJROOT=$(top_srcdir)/samples
 INCLUDE = \
 	-I $(PROJROOT)/../api/include \
 	-I $(PROJROOT)/inc
@@ -30,7 +30,7 @@ INCLUDE = \
 AM_CFLAGS = -Wall -g -O2 $(INCLUDE) -finline-functions -D$(PROCFAMILY)
 AM_CFLAGS += -DSYSLINK_TRACE_ENABLE
 
-LDPATH=$(PROJROOT)/../api/src
+LDPATH=../../../../api/src
 
 API_LIBS = \
 	$(LDPATH)/utils/libutils.la \

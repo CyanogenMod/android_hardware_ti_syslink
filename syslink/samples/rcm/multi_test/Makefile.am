@@ -14,7 +14,7 @@
 #  limitations under the License.
 #
 
-PROJROOT=../..
+PROJROOT=$(top_srcdir)/samples
 INCLUDE = \
 	-I $(PROJROOT)/../api/include \
 	-I $(PROJROOT)/inc
@@ -25,7 +25,7 @@ AM_CFLAGS += -DSYSLINK_USE_SYSMGR
 AM_CFLAGS += -DSYSLINK_USE_LOADER
 #TODO: Add conditional flags to enable debug here
 
-LDPATH=$(PROJROOT)/../api/src
+LDPATH=../../../api/src
 
 API_LIBS = \
 	$(LDPATH)/utils/libutils.la \

@@ -22,7 +22,7 @@
 #      Original version.
 #  ----------------------------------------------------------------------------
 
-PROJROOT = ..
+PROJROOT = $(top_srcdir)/api
 
 if PROCFAMILY_IS_3430
 SUBDIRS_OPT = bridge \

@@ -25,7 +25,7 @@
 
 ACLOCAL_AMFLAGS=-I m4
 
-PROJROOT = ../../..
+PROJROOT = $(top_srcdir)
 
 AM_CFLAGS = -DSYSLINK_USE_SYSMGR
 
@@ -60,6 +60,6 @@ libprocmgr_la_CPPFLAGS    = \
 libprocmgr_la_LIBTOOLFLAGS = --tag=disable-static
 libprocmgr_la_LDFLAGS = -version-info 0:0:0
 libprocmgr_la_LIBADD = \
-$(PROJROOT)/api/src/utils/libutils.la \
-$(PROJROOT)/api/src/sysmgr/libsysmgr.la
+../../src/utils/libutils.la \
+../../src/sysmgr/libsysmgr.la
 

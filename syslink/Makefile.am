@@ -27,3 +27,7 @@ AUTOMAKE_OPTIONS= foreign
 SUBDIRS = api daemons samples
 
 EXTRA_DIST = autogen.sh
+
+pkgconfig_DATA          = libprocmgr.pc
+pkgconfigdir            = $(libdir)/pkgconfig
+

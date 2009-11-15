@@ -24,7 +24,7 @@
 #  ----------------------------------------------------------------------------
 ACLOCAL_AMFLAGS=-I m4
 
-PROJROOT = ../../..
+PROJROOT = $(top_srcdir)
 
 lib_LTLIBRARIES = librcm.la
 librcm_la_SOURCES = \
@@ -37,5 +37,5 @@ librcm_la_CFLAGS = \
 librcm_la_LIBTOOLFLAGS = --tag=disable-static
 librcm_la_LDFLAGS = -version-info 0:0:0
 librcm_la_LIBADD = \
-$(PROJROOT)/api/src/utils/libutils.la \
-$(PROJROOT)/api/src/ipc/libipc.la
+../../../api/src/utils/libutils.la \
+../../../api/src/ipc/libipc.la

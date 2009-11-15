@@ -14,7 +14,7 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-PROJROOT=../..
+PROJROOT=$(top_srcdir)/samples
 INCLUDE= \
 	-I $(PROJROOT)/inc \
 	-I $(PROJROOT)/../target/host/include
@@ -23,7 +23,7 @@ INCLUDE= \
 AM_CFLAGS = -Wall -g -O2 $(INCLUDE) -finline-functions -D$(PROCFAMILY)
 
 
-LDPATH=$(PROJROOT)/../api/src/bridge
+LDPATH=../..//../api/src/bridge
 
 API_LIBS = \
 	$(LDPATH)/libbridge.la

@@ -23,7 +23,7 @@
 #      Original version.
 #  ----------------------------------------------------------------------------
 
-PROJROOT = ../../..
+PROJROOT = $(top_srcdir)
 
 lib_LTLIBRARIES =libipc.la
 libipc_la_SOURCES = \

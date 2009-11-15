@@ -23,7 +23,7 @@
 #      Original version.
 #  ----------------------------------------------------------------------------
 
-PROJROOT = ../..
+PROJROOT = $(top_srcdir)/api
 
 if DEBUG
 AM_CFLAGS = -DDEBUG

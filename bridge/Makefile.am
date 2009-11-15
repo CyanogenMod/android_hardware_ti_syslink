@@ -29,3 +29,7 @@ api \
 samples
 
 EXTRA_DIST = autogen.sh
+
+pkgconfig_DATA          = libdspbridge.pc
+pkgconfigdir            = $(libdir)/pkgconfig
+

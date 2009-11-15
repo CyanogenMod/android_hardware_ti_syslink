@@ -5,6 +5,7 @@ AC_PREREQ(2.61)
 AC_INIT(Syslink, 0.1, http://www.ti.com)
 AC_CONFIG_SRCDIR([config.h.in])
 AC_CONFIG_HEADER([config.h])
+AC_CONFIG_AUX_DIR([config])
 AM_INIT_AUTOMAKE([-Wall])
 # Checks for programs.
 AC_PROG_CC
@@ -70,6 +71,17 @@ AC_ARG_ENABLE([debug],
 	esac],[debug=$default_debug])
 AM_CONDITIONAL([DEBUG], [test x$debug = xtrue])
 
+
+# Check for kernel src path:
+AC_ARG_WITH(kpath,[  --with-kpath             specify the path to the kernel modules],[
+  kpath="$withval"
+],[
+  # default to checking $KRNLSRC environment variable, for backwards compatibility
+  kpath=$KRNLSRC
+])
+AM_CONDITIONAL([KRNLSRC], [test x$kpath != x])
+AC_SUBST(KRNLSRC)
+
 #Warning Flags
 CFLAGS="$CFLAGS  -Wall  -Wno-trigraphs -Werror-implicit-function-declaration "
 
@@ -95,8 +107,14 @@ CFLAGS="$CFLAGS -DLINUX"
 
 #AC_C_COMPILE_FLAGS(-Wextra)
 
+# Check for pkgconfig first
+AC_CHECK_PROG([HAVE_PKGCONFIG], [pkg-config], [yes], [no])
 
-AC_CONFIG_FILES([Makefile
+# Check for libraries
+PKG_CHECK_MODULES([MEMMGR], [libmemmgr])
+
+AC_CONFIG_FILES([libprocmgr.pc
+		Makefile
 		api/Makefile
 		api/include/Makefile
 		api/make/Makefile

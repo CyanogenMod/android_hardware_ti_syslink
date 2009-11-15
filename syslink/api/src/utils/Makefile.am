@@ -23,7 +23,7 @@
 
 ACLOCAL_AMFLAGS=-I m4
 
-PROJROOT = ../../..
+PROJROOT = $(top_srcdir)
 
 lib_LTLIBRARIES = libutils.la
 libutils_la_SOURCES = \

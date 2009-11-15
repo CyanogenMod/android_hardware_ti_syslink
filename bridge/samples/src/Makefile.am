@@ -21,7 +21,7 @@
 
 
 
-PROJROOT = ..
+PROJROOT = $(top_srcdir)/samples
 AM_CFLAGS = -DDEBUG
 
 

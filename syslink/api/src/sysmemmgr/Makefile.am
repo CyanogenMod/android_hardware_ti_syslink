@@ -24,7 +24,7 @@
 
 ACLOCAL_AMFLAGS=-I m4
 
-PROJROOT = ../../..
+PROJROOT = $(top_srcdir)
 
 lib_LTLIBRARIES = libsysmemmgr.la
 libsysmemmgr_la_SOURCES = \

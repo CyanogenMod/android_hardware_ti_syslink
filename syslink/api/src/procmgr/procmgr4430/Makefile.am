@@ -24,7 +24,7 @@
 #  ----------------------------------------------------------------------------
 ACLOCAL_AMFLAGS=-I m4
 
-PROJROOT = ../../../..
+PROJROOT = $(top_srcdir)
 
 lib_LTLIBRARIES = libomap4430proc.la
 libomap4430proc_la_SOURCES = \
@@ -38,4 +38,4 @@ libomap4430proc_la_CFLAGS = \
 
 libomap4430proc_la_LIBTOOLFLAGS = --tag=disable-static
 libomap4430proc_la_LDFLAGS = -version-info 0:0:0
-libomap4430proc_la_LIBDADD = $(PROJROOT)/api/src/utils/libutils.la
+libomap4430proc_la_LIBDADD = ../../../../api/src/utils/libutils.la

@@ -23,7 +23,7 @@
 #      Original version.
 #  ----------------------------------------------------------------------------
 
-PROJROOT = ../..
+PROJROOT = $(top_srcdir)/api
 
 #TODO:debug has to be endabled conditionally
 if DEBUG

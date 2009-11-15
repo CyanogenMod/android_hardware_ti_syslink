@@ -1,0 +1,13 @@
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+libdir=@libdir@
+includedir=@includedir@
+
+Name: libprocmgr
+Description: syslink progmgr
+Version: @VERSION@
+Requires:
+Libs: -L${libdir}
+Cflags: -I${includedir}/syslink
+
+

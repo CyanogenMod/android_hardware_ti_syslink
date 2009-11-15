@@ -20,7 +20,7 @@
 #
 #   ============================================================================
 
-PROJROOT=../../..
+PROJROOT=$(top_srcdir)/samples
 INCLUDE = \
 	-I $(PROJROOT)/../api/include \
 	-I $(PROJROOT)/inc
@@ -32,7 +32,7 @@ AM_CFLAGS += -DSYSLINK_USE_SYSMGR
 #TO disable loader comment the below flag.
 AM_CFLAGS += -DSYSLINK_USE_LOADER
 
-LDPATH=$(PROJROOT)/../api/src
+LDPATH=../../../../api/src
 
 API_LIBS = \
 	$(LDPATH)/utils/libutils.la \

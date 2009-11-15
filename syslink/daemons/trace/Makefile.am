@@ -22,7 +22,7 @@
 #      Original version.
 #  ----------------------------------------------------------------------------
 
-PROJROOT = ..
+PROJROOT = $(top_srcdir)/daemons
 AM_CFLAGS = -DSYSLINK_USE_SYSMGR
 #AM_CFLAGS += -DSYSLINK_TRACE_ENABLE
 AM_CFLAGS += -DSYSLINK_USE_LOADER
@@ -36,7 +36,7 @@ syslink_trace_daemon_out_CPPFLAGS    = \
 	-I$(PROJROOT)/../api/include \
 	 $(AM_CFLAGS)
 
-API_SRCDIR = $(PROJROOT)/../api/src
+API_SRCDIR = ../../api/src
 
 syslink_trace_daemon_out_LDADD = \
 	$(API_SRCDIR)/utils/libutils.la

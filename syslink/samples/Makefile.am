@@ -26,7 +26,9 @@ SUBDIRS  = \
 	ipc \
 	notify \
 	procmgr \
-	proc_sample/krnl \
 	rcm \
 	tiler
 
+if KRNLSRC
+SUBDIRS += proc_sample/krnl
+endif
