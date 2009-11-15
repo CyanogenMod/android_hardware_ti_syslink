@@ -28,6 +28,6 @@ SUBDIRS = api daemons samples
 
 EXTRA_DIST = autogen.sh
 
-pkgconfig_DATA          = libprocmgr.pc
+pkgconfig_DATA          = syslink.pc
 pkgconfigdir            = $(libdir)/pkgconfig
 

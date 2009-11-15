@@ -113,7 +113,7 @@ AC_CHECK_PROG([HAVE_PKGCONFIG], [pkg-config], [yes], [no])
 # Check for libraries
 PKG_CHECK_MODULES([MEMMGR], [libmemmgr])
 
-AC_CONFIG_FILES([libprocmgr.pc
+AC_CONFIG_FILES([syslink.pc
 		Makefile
 		api/Makefile
 		api/include/Makefile
