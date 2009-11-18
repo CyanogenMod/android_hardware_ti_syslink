@@ -33,8 +33,9 @@
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <unistd.h>
-
-
+#include <Std.h>
+#include <UsrUtilsDrv.h>
+#include <Memory.h>
 
 #include "ArrayList.h"
 #include "Queue.h"
@@ -591,6 +592,8 @@ static BOOL load_static_segment(LOADER_FILE_DESC *fd,
    num_mem_entries = sizeof(memory_regions) / sizeof(struct mem_entry);
    int mem_fd;
    int j;
+   Memory_MapInfo mapinfo;
+   int status;
 #if LOADER_DEBUG
    printf("dynmodule is 0x%x\n",(UInt32) dyn_module);
    printf("loaded_module is 0x%x\n",(UInt32)dyn_module->loaded_module);
@@ -605,29 +608,25 @@ static BOOL load_static_segment(LOADER_FILE_DESC *fd,
    /* request for the segment, get rights to target memory where we want     */
    /* to load the segment from the client, then get the client to write the  */
    /* segment contents out to target memory to the appropriate address.      */
-   /*--------------	----------------------------------------------------------*/
-    mem_fd = open ("/dev/mem", O_RDWR|O_SYNC);
-    if (mem_fd) {
-        for (j = 0; j < num_mem_entries; j++){
-            memory_regions[j].mpu_virt_addr = (unsigned long) mmap(0,
-                                    memory_regions[j].size,
-                                    PROT_READ | PROT_WRITE, MAP_SHARED, mem_fd,
-                                    memory_regions[j].mpu_phys_addr);
+   /*------------------------------------------------------------------------*/
+   UsrUtilsDrv_setup();
+   for (j = 0; j < num_mem_entries; j++){
+      mapinfo.src = memory_regions[j].mpu_phys_addr;
+      mapinfo.size =  memory_regions[j].size;
+      status = Memory_map(&mapinfo);
+      if (status < 0) {
+         printf("Memory_map failed for Physical Address 0x%x"
+            "Exiting...\n",memory_regions[j].mpu_phys_addr);
+         return FALSE;
+      } else {
+         memory_regions[j].mpu_virt_addr  = mapinfo.dst;
+      }
             printf("=============================================\n");
             printf("memory_regions[%d].mpu_virt_addr is 0x%x\n",j, (unsigned int)memory_regions[j].mpu_virt_addr);
             printf("memory_regions[%d].ducati_virt_addr is 0x%x\n",j, (unsigned int)memory_regions[j].ducati_virt_addr);
             printf("memory_regions[%d].mpu_phys_addr is 0x%x\n",j,(unsigned int)memory_regions[j].mpu_phys_addr);
             printf("memory_regions[%d].size is 0x%x\n",j,(unsigned int)memory_regions[j].size);
-
-            if( memory_regions[j].mpu_virt_addr == (unsigned long)(-1)) {
-                printf("Failed to do memory mapping for section [%d]\n",j);
-                return FALSE;
             }
-        }
-    } else {
-        printf("Failed opening /dev/mem file\n");
-        return FALSE;
-    }
 
    for (i = 0; i < dyn_module->loaded_module->loaded_segments.size; i++)
    {
