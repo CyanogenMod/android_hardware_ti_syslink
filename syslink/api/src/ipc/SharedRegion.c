@@ -253,7 +253,7 @@ SharedRegion_setup (SharedRegion_Config * cfg)
                 ptCfg = cfg;
             }
 
-            SharedRegion_moduleState.table = Memory_alloc (
+            SharedRegion_moduleState.table = Memory_calloc (
                                  NULL,
                                  (  (  sizeof (SharedRegion_Info)
                                      * ptCfg->maxRegions)
