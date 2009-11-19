@@ -32,6 +32,7 @@ echo USERSPACE_SYSLINK is ${USERSPACE_SYSLINK}
 echo KRNLSRC	       is ${KRNLSRC}
 
 export PATH=${TOOLBIN}:$PATH
+export PKG_CONFIG_PATH=$PREFIX/target/lib/pkgconfig
 
 #.. find libgcc
 TOOL=`which ${HOST}-gcc`
@@ -96,7 +97,7 @@ build_syslink()
 	echo "      Building Syslink APIs and Samples		  "
 	echo "****************************************************"
 	echo "							  "
-	./autogen.sh
+	./bootstrap.sh
 	./configure --prefix ${PREFIX}/target --bindir ${PREFIX}/target/syslink \
 	--host ${HOST} ${ENABLE_DEBUG}  --build i686-pc-linux-gnu
 	export TILER_INC_PATH=${TILER_USERSPACE}/memmgr
@@ -120,7 +121,8 @@ build_bridge()
 	echo "****************************************************"
 	echo "							  "
 	cd ${USERSPACE_SYSLINK}/bridge
-	./autogen.sh
+	./bootstrap.sh
+
 	./configure --prefix ${PREFIX}/target --bindir ${PREFIX}/target/dspbridge \
 	--host ${HOST} ${ENABLE_DEBUG}  --build i686-pc-linux-gnu
 	make clean > /dev/null 2>&1
