@@ -165,8 +165,6 @@ do {                                                                    \
 #define GT_assert(x, y)
 #endif /* if defined(SYSLINK_BUILD_DEBUG) */
 
-
-#if defined (SYSLINK_TRACE_ENABLE)
 /* The global trace variable containing current trace configuration. */
 extern Int curTrace;
 
@@ -181,6 +179,9 @@ Void _GT_setFailureReason (Int enableMask,
        _GT_setFailureReason(mask, func,                                 \
                             __FILE__, __LINE__, status, (Char*) (msg"\n"))
 
+
+
+#if defined (SYSLINK_TRACE_ENABLE)
 
 /* Log the trace with zero parameters and information string. */
 Void _GT_0trace (UInt32 maskType, GT_TraceClass classtype, Char* infoString);
@@ -387,7 +388,6 @@ do {                                                            \
 
 #else /* if defined (SYSLINK_TRACE_ENABLE) */
 
-#define GT_setFailureReason(mask, classId, func, status, msg)
 #define GT_0trace(mask, classId, format)
 #define GT_1trace(mask, classId, format, arg1)
 #define GT_2trace(mask, classId, format, arg1, arg2)
