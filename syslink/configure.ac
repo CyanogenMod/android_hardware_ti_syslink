@@ -48,6 +48,7 @@ AC_FUNC_MALLOC
 AC_FUNC_MMAP
 AC_FUNC_VPRINTF
 AC_CHECK_FUNCS([clock_gettime getpagesize memset munmap strcasecmp strncasecmp strtol])
+AC_CHECK_FUNCS([posix_memalign])
 
 # Currently Build for 4430 Proc Family. Please change this
 # to build it for other Proc Family

@@ -60,7 +60,7 @@ Memory_alloc (Heap_Handle heap, UInt32 size, UInt32 align)
     GT_assert (curTrace, (size > 0));
 
     if (heap == NULL) {
-        /* Call the kernel API for memory allocation */
+        /* Call the OS API for memory allocation */
         buffer = MemoryOS_alloc (size, align, 0);
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
         if (buffer == NULL) {

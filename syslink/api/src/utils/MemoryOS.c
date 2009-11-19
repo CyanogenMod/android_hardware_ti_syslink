@@ -26,6 +26,12 @@
 
 
 /* Standard headers */
+#include "config.h"
+
+#ifdef HAVE_STDLIB_H
+#include <stdlib.h>
+#endif
+
 #include <Std.h>
 
 /* Linux OS-specific headers */
@@ -262,8 +268,14 @@ Ptr MemoryOS_alloc (UInt32 size, UInt32 align, UInt32 flags)
     /* check whether the right paramaters are passed or not.*/
     GT_assert (curTrace, (size > 0));
 
+#ifdef HAVE_POSIX_MEMALIGN
+    posix_memalign (&ptr, align ? align : 4, size);
+#else
+    /* Stronger alignment not yet implemented */
+    assert ((align == 0) || (align == 4));
     /* Call the Linux API for memory allocation */
     ptr = (Ptr) malloc (size);
+#endif
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
     if (NULL == ptr) {
         /*! @retval NULL Memory allocation failed */
