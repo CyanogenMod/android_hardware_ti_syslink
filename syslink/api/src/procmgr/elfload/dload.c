@@ -626,7 +626,13 @@ static BOOL load_static_segment(LOADER_FILE_DESC *fd,
             printf("memory_regions[%d].ducati_virt_addr is 0x%x\n",j, (unsigned int)memory_regions[j].ducati_virt_addr);
             printf("memory_regions[%d].mpu_phys_addr is 0x%x\n",j,(unsigned int)memory_regions[j].mpu_phys_addr);
             printf("memory_regions[%d].size is 0x%x\n",j,(unsigned int)memory_regions[j].size);
-            }
+
+      if( memory_regions[j].mpu_virt_addr == (unsigned long)(-1)) {
+          printf("Failed to do memory mapping for section [%d]\n",j);
+          close(mem_fd);
+          return FALSE;
+      }
+   }
 
    for (i = 0; i < dyn_module->loaded_module->loaded_segments.size; i++)
    {
@@ -674,6 +680,7 @@ static BOOL load_static_segment(LOADER_FILE_DESC *fd,
                     (unsigned long)(targ_req.segment->target_address));
          if(seg_no == -1){
             printf("DLOAD ERROR: The given segment is out of range ... Exiting... \n");
+            close(mem_fd);
             return FALSE;
          }
          seg_offset = targ_req.segment->target_address - \
@@ -2166,7 +2173,13 @@ static int32_t dload_static_executable(LOADER_FILE_DESC *fd,
       /* handle.                                                             */
       /*---------------------------------------------------------------------*/
       DLIMP_Loaded_Module *loaded_module = detach_loaded_module(dyn_module);
-      local_file_handle = loaded_module->file_handle;
+      if (loaded_module)
+          local_file_handle = loaded_module->file_handle;
+      else {
+         DLIF_error(DLET_MISC, "Failed to detach module.\n");
+         delete_DLIMP_Dynamic_Module(&dyn_module);
+         return local_file_handle;
+      }
    }
 
    /*------------------------------------------------------------------------*/
@@ -2963,14 +2976,8 @@ BOOL DLOAD_unload(uint32_t handle)
 /*****************************************************************************/
 int32_t DLOAD_load_symbols(LOADER_FILE_DESC *fd)
 {
-   DLIMP_Dynamic_Module *dyn_module = new_DLIMP_Dynamic_Module(fd);
+   DLIMP_Dynamic_Module *dyn_module = NULL;
    DLIMP_Loaded_Module *loaded_module = NULL;
-
-   /*------------------------------------------------------------------------*/
-   /* Ensure we have a valid dynamic module object from the constructor.     */
-   /*------------------------------------------------------------------------*/
-   if (!dyn_module)
-       return 0;
 
    /*------------------------------------------------------------------------*/
    /* If no access to a program was provided, there is nothing to do.        */
@@ -2980,6 +2987,14 @@ int32_t DLOAD_load_symbols(LOADER_FILE_DESC *fd)
       DLIF_error(DLET_FILE, "Missing file specification.\n");
       return 0;
    }
+
+   dyn_module = new_DLIMP_Dynamic_Module(fd);
+
+   /*------------------------------------------------------------------------*/
+   /* Ensure we have a valid dynamic module object from the constructor.     */
+   /*------------------------------------------------------------------------*/
+   if (!dyn_module)
+       return 0;
 
    /*------------------------------------------------------------------------*/
    /* Record argc and argv pointers with the dynamic module record.          */

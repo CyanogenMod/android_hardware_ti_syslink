@@ -138,15 +138,14 @@ void DLDBG_add_target_record(int handle)
    /*------------------------------------------------------------------------*/
    obj_desc.memsz_in_bytes = sizeof(DL_Target_Module_Debug) + 
                 (sizeof(DL_Target_Segment) * (host_dbg->num_segments - 1)) +
-		(strlen(host_dbg->module_name) + 1);
-   
+                (strlen(host_dbg->module_name) + 1);
 
    /*------------------------------------------------------------------------*/
    /* Build up request for target memory in a local data object.             */
    /*------------------------------------------------------------------------*/
    targ_req.fp     = NULL;
    targ_req.align  = 4;
-   targ_req.flags |= DLOAD_SF_relocatable;
+   targ_req.flags = DLOAD_SF_relocatable;
 
    /*------------------------------------------------------------------------*/
    /* Request the target memory for the new debug record.                    */
@@ -154,7 +153,7 @@ void DLDBG_add_target_record(int handle)
    if (!DLTMM_malloc(&targ_req, &obj_desc))
    {
       DLIF_error(DLET_MEMORY, 
-					  "Failed to allocate target memory for debug record.\n");
+                  "Failed to allocate target memory for debug record.\n");
       exit(1);
    }
 
@@ -387,9 +386,9 @@ void DLDBG_dump_mirror_debug_list(void)
            host_seg; i++, host_seg = host_seg->next_segment)
       {
          printf("      segment [%d] load address: 0x%lx\n", 
-	        i, (unsigned long)host_seg->load_address);
+                i, (unsigned long)host_seg->load_address);
          printf("      segment [%d] run  address: 0x%lx\n", 
-	        i, (unsigned long)host_seg->run_address);
+                i, (unsigned long)host_seg->run_address);
       }
 
       itr = itr->next_ptr;
