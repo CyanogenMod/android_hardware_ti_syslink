@@ -24,25 +24,26 @@ Steps to Build syslink & bridge:
 ----------
 	Build directions:
 	-----------------
-	1. sh build_directions.sh
-	2. Enter the Prefix path ( e.g., /omap_data/development/Imtiaz/omap_dev/userspace-syslink)
-	3. Enter the Tiler-Userspace Path  (e.g., /omap_data/development/Imtiaz/omap_dev/tiler-userspace)
-	4. Enter the path to kernel-syslink (e.g., /omap_data/development/Imtiaz/omap_dev/kernel-syslink)
-	5. Enter the Toolchain Path ( e.g., /omap_data/omapts/arm-2008q3-72/bin)
-	6. It will display the following options
+	1. sh build_directions.sh --clean  --> for clean build.
+	2. sh build_directions.sh ---> for normal build.
+	3. Enter the Prefix path ( e.g., /omap_data/development/Imtiaz/omap_dev/userspace-syslink)
+	4. Enter the Tiler-Userspace Path  (e.g., /omap_data/development/Imtiaz/omap_dev/tiler-userspace)
+	5. Enter the path to kernel-syslink (e.g., /omap_data/development/Imtiaz/omap_dev/kernel-syslink)
+	6. Enter the Toolchain Path ( e.g., /omap_data/omapts/arm-2008q3-72/bin)
+	7. It will display the following options
 		1--------------> Build Syslink Only
 		2--------------> Build Bridge Only
 		3--------------> Build Syslink & Bridge
 		Any other Option to exit from Build system
 		Enter your option
-	7. If option 1 is chosen then
+	8. If option 1 is chosen then
 	    a. First the libmemgr.so is built and installed in $(PREFIX)/target/lib folder.
 	    b. Second the Syslink APIs, daemons and samples will be built and installed in $(PREFIX)/target/lib
 	       and $(PREFIX)/target/syslink folder respectively.
-	8. If option 2 is chosen then
+	9. If option 2 is chosen then
 	   The Tesla Bridge APIs and samples wiil be build and installed in $(PREFIX)/target/lib and
 	   $(PREFIX)/target/dspbridge folder respectively.
-	9. If option 3 is chosen then
+	10. If option 3 is chosen then
 	   a. First libmemmgr.so is built and installed in $(PREFIX)/target/lib folder.
 	   b. Second the Syslink APIs and samples will be built and installed in $(PREFIX)/target/lib
 	      and $(PREFIX)/target/syslink folder respectively
@@ -59,7 +60,7 @@ Steps to Build syslink & bridge:
 	2. cd syslink
 	3. sh bootstrap.sh
 	4. ./configure --host=arm-none-linux-gnueabi --prefix=<PREFIX PATH> --build=i686-pc-linux-gnu
-	5. make TILER_INC_PATH=/omap_data/development/Imtiaz/omap_dev/tiler-userspace/memmgr
+	5. make PREFIX=<PREFIX PATH> KRNLSRC=<KERNEL-PATH>
 	6. make install
 	7. cd -
 

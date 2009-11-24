@@ -1,35 +1,92 @@
 #!/bin/sh
+# For any further help please refer the README file.
 
 DIR=`dirname $0`
 HOST=arm-none-linux-gnueabi
-# Gather requirements
-# path to target filesystem
-echo "Enter PREFIX (currently '$PREFIX'):\c"
-read VALUE
-export PREFIX=${VALUE:=$PREFIX}
+FILE="Paths.txt"
+arg=$1
 
-# path to tiler-userspace git root
-echo "Enter path to tiler-userspace (currently '$TILER_USERSPACE'):\c"
-read VALUE
-export TILER_USERSPACE=${VALUE:=$TILER_USERSPACE}
+#If Paths.txt file exits
+if [ -f $FILE ]; then
+	echo ""
+	echo "Current Path Values are: "
+	echo "========================="
+	exec 3<&0
+	exec 0<"$FILE"
+	while read -r line
+	do
+		# skip the comment line from Paths.txt file
+		case $line in
+		\;*)
+			continue;;
+		esac
 
-# path to kernel-syslink git root
-echo "Enter path to kernel-syslink (currently '$KRNLSRC'):\c"
-read VALUE
-export KRNLSRC=${VALUE:=$KRNLSRC}
+		i=$((line_cnt++))
+		# process other lines
+		case $line_cnt in
+		1)
+			export PREFIX=$line
+			echo PREFIX            is ${PREFIX};;
+		2)
+			export TILER_USERSPACE=$line
+			echo TILER_USERSPACE   is ${TILER_USERSPACE};;
 
-# path to userspace-space git root
-export USERSPACE_SYSLINK=`readlink -f $DIR`
+		3)
+			export KRNLSRC=$line
+			echo KRNLSRC	       is ${KRNLSRC};;
+		4)
+			export TOOLBIN=$line
+			echo TOOLBIN           is ${TOOLBIN};;
+		*)
+			continue;;
+		esac
+	done
+	exec 0<&3
+	echo "	"
+	echo "Edit Paths.txt if required. Enter y to build, n to Exit."
+	read Options
+	if [[ $Options != y ]]; then
+	exit 0
+	fi
+else
+	# Gather requirements
+	# path to target filesystem
+	echo "Enter PREFIX (currently '$PREFIX'):\c"
+	read VALUE
+	export PREFIX=${VALUE:=$PREFIX}
 
-echo "Enter tool path (currently '$TOOL'):\c"
-read VALUE
-TOOLBIN=${VALUE:=$TOOLBIN}
+	# path to tiler-userspace git root
+	echo "Enter path to tiler-userspace (currently '$TILER_USERSPACE'):\c"
+	read VALUE
+	export TILER_USERSPACE=${VALUE:=$TILER_USERSPACE}
 
-echo TOOLBIN           is ${TOOLBIN}
-echo PREFIX            is ${PREFIX}
-echo TILER_USERSPACE   is ${TILER_USERSPACE}
-echo USERSPACE_SYSLINK is ${USERSPACE_SYSLINK}
-echo KRNLSRC	       is ${KRNLSRC}
+	# path to kernel-syslink git root
+	echo "Enter path to kernel-syslink (currently '$KRNLSRC'):\c"
+	read VALUE
+	export KRNLSRC=${VALUE:=$KRNLSRC}
+
+	echo "Enter tool path (currently '$TOOL'):\c"
+	read VALUE
+	TOOLBIN=${VALUE:=$TOOLBIN}
+
+	#Creating the Paths.txt file for further inputs.
+	cat > $PREFIX/Paths.txt <<EOF
+	;Path of userspace-syslink
+	${PREFIX}
+	;Path of tiler-userspace
+	${TILER_USERSPACE}
+	;Path of kernel-syslink
+	${KRNLSRC}
+	;Path of toolchain
+	${TOOLBIN}
+EOF
+	echo TOOLBIN           is ${TOOLBIN}
+	echo PREFIX            is ${PREFIX}
+	echo TILER_USERSPACE   is ${TILER_USERSPACE}
+	echo KRNLSRC	       is ${KRNLSRC}
+fi
+	# path to userspace-space git root
+	export USERSPACE_SYSLINK=`readlink -f $DIR`
 
 export PATH=${TOOLBIN}:$PATH
 export PKG_CONFIG_PATH=$PREFIX/target/lib/pkgconfig
@@ -62,7 +119,14 @@ echo Found libpthread.so in $LIBPTHREAD
 #... Uncomment below if you want to enable DEBUG option.
 # ENABLE_DEBUG=--enable-debug
 
-build_syslink()
+#.. uncomment to include our unit tests as well
+ENABLE_UNIT_TESTS=--enable-unit-tests
+
+#.. uncomment to export the tilermgr.h header - this is currently needed by
+#   syslink
+ENABLE_TILERMGR=--enable-tilermgr
+
+function build_syslink()
 {
 	# Building memmgr
 	echo "							   "
@@ -73,15 +137,17 @@ build_syslink()
 	cd ${TILER_USERSPACE}/memmgr
 	./bootstrap.sh
 	./configure --prefix ${PREFIX}/target --bindir ${PREFIX}/target/syslink \
-	--host ${HOST} --build i686-pc-linux-gnu
-	make clean > /dev/null 2>&1
+	--host ${HOST} --build i686-pc-linux-gnu ${ENABLE_UNIT_TESTS} ${ENABLE_TILERMGR}
+	if [[ "$arg" == "--clean" ]]; then
+		make clean > /dev/null 2>&1
+        fi
 	make
 	if [[ $? -ne 0 ]] ; then
-	    exit 1
+	    exit 0
 	fi
 	make install
 	if [[ $? -ne 0 ]] ; then
-	    exit 1
+	    exit 0
 	fi
 	# Building syslink
 	#.. need libgcc.a, librt.so and libpthread.so
@@ -89,9 +155,7 @@ build_syslink()
 	cp $LIBGCC ${PREFIX}/target/lib
 	cp `dirname $LIBRT`/librt*.so* ${PREFIX}/target/lib
 	cp `dirname $LIBPTHREAD`/libpthread*.so* ${PREFIX}/target/lib
-	#.. syslink prefix needs a target subdirectory,
-	#so we will create link to the parent
-	cd ${USERSPACE_SYSLINK}/syslink
+	cd ${PREFIX}/syslink
 	echo "							  "
 	echo "****************************************************"
 	echo "      Building Syslink APIs and Samples		  "
@@ -101,19 +165,22 @@ build_syslink()
 	./configure --prefix ${PREFIX}/target --bindir ${PREFIX}/target/syslink \
 	--host ${HOST} ${ENABLE_DEBUG}  --build i686-pc-linux-gnu
 	export TILER_INC_PATH=${TILER_USERSPACE}/memmgr
-	make clean > /dev/null 2>&1
+	if [[ "$arg" == "--clean" ]]; then
+		make clean > /dev/null 2>&1
+	fi
 	make
 	if [[ $? -ne 0 ]] ; then
-	    exit 1
+	    exit 0
 	fi
 	make install
 	if [[ $? -ne 0 ]] ; then
-	    exit 1
+	    exit 0
 	fi
+
 	cd ${PREFIX}
 }
 
-build_bridge()
+function build_bridge()
 {
 	# Building tesla bridge
 	echo "							  "
@@ -121,31 +188,31 @@ build_bridge()
 	echo "	    Building Bridge APIs and Samples		  "
 	echo "****************************************************"
 	echo "							  "
-	cd ${USERSPACE_SYSLINK}/bridge
+	cd ${PREFIX}/bridge
 	./bootstrap.sh
-
 	./configure --prefix ${PREFIX}/target --bindir ${PREFIX}/target/dspbridge \
 	--host ${HOST} ${ENABLE_DEBUG}  --build i686-pc-linux-gnu
-	make clean > /dev/null 2>&1
+	if [[ "$arg" == "--clean" ]]; then
+		make clean > /dev/null 2>&1
+	fi
 	make
 	if [[ $? -ne 0 ]] ; then
-	    exit 1
+	    exit 0
 	fi
 	make install
 	if [[ $? -ne 0 ]] ; then
-	    exit 1
+	    exit 0
 	fi
 	cd ${PREFIX}
 }
 
-
 echo "	"
-echo "Following are the 2 Build options available:"
-echo "--------------------------------------------"
+echo "Following Build options are available:"
+echo "--------------------------------------"
 echo "1--------------> Build Syslink Only"
 echo "2--------------> Build Bridge Only"
 echo "3--------------> Build Syslink & Bridge"
-echo "Any other Option to exit from Build system"
+echo "Any other Option to exit Build system"
 echo "	"
 echo "Enter your option:"
 read VALUE
@@ -157,7 +224,8 @@ case $VALUE in
 	3)
 		build_syslink
 		build_bridge ;; # End of case 3
-	*)	echo " Exiting from the build system....... "
-		exit 1
+
+	*)	echo " Exiting from the build system... "
+		exit 0
 		;;
 	esac
