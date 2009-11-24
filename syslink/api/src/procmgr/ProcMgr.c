@@ -1255,6 +1255,9 @@ ProcMgr_load (ProcMgr_Handle handle,
                (   ((argc == 0) && (argv == NULL))
                 || ((argc != 0) && (argv != NULL))));
 
+    /*FIXME: (KW) Remove field ID if not used. */
+    cmdArgs.fileId = 0;
+
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
     if (handle == NULL) {
         /*! @retval  PROCMGR_E_HANDLE Invalid NULL handle specified */
