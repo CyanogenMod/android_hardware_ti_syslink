@@ -66,7 +66,6 @@ Int ipc_setup(Char * sysM3ImageName, Char * appM3ImageName)
     UInt32                          shAddrBase1;
     UInt16                          procId;
 #if defined (SYSLINK_USE_LOADER)
-    Char                            uProcId;
     UInt32                          fileId;
 #endif
 
@@ -163,7 +162,6 @@ Int ipc_setup(Char * sysM3ImageName, Char * appM3ImageName)
 #if defined(SYSLINK_USE_LOADER)
     Osal_printf ("SYSM3 Load: loading the SYSM3 image %s\n",
                 sysM3ImageName);
-    Osal_printf ("SYSM3 Load: uProcId = %d\n", uProcId);
 
     status = ProcMgr_load (procMgrHandle_server, sysM3ImageName, 2,
                             &sysM3ImageName, &entry_point, &fileId,
@@ -186,7 +184,6 @@ Int ipc_setup(Char * sysM3ImageName, Char * appM3ImageName)
 #if defined(SYSLINK_USE_LOADER)
         Osal_printf ("APPM3 Load: loading the APPM3 image %s\n",
                     appM3ImageName);
-        Osal_printf ("APPM3 Load: uProcId = %d\n", uProcId);
         status = ProcMgr_load (procMgrHandle_server, appM3ImageName, 2,
                               &appM3ImageName, &entry_point, &fileId,
                               remoteIdAppM3);

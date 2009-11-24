@@ -270,7 +270,7 @@ static
 Int32 fxnMemMgr_Free(UInt32 dataSize, UInt32 *data)
 {
     FreeArgs *args = (FreeArgs *)data;
-    UInt32 status;
+    UInt32 status = 0;
 
     Osal_printf("Executing MemMgr_Free with params:\n");
     Osal_printf("\tbufPtr = 0x%x\n", args->bufPtr);
