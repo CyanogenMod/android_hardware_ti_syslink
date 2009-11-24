@@ -89,6 +89,7 @@ UsrUtilsDrv.c
 # Search path for include files
 
 INCLUDES    = \
+    $(PROJROOT) \
     $(PROJROOT)/api/include \
     $(PROJROOT)/api/include/linux
 

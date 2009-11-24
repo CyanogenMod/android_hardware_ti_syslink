@@ -38,6 +38,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 
 /* OSAL and kernel utils */
 #include <MemoryOS.h>
