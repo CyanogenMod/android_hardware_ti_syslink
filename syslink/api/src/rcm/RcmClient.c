@@ -806,7 +806,7 @@ RcmClient_Message *RcmClient_alloc(RcmClient_Handle handle, UInt32 dataSize)
 {
     Int totalSize;
     RcmClient_Packet *packet;
-    RcmClient_Message *rcmMsg;
+    RcmClient_Message *rcmMsg = NULL;
     Int status = RCMCLIENT_SOK;
 
     GT_0trace (curTrace, GT_ENTER, "RcmClient_alloc");
@@ -1225,6 +1225,11 @@ Int RcmClient_getSymbolIndex(RcmClient_Handle handle,
     len = strlen(funcName) + 1;
     rcmMsg = RcmClient_alloc(handle, len);
 
+    if (rcmMsg == NULL) {
+        Osal_printf ("Error allocating RCM message\n");
+        goto exit;
+    }
+
     /* copy the function name into the message payload */
     rcmMsg->dataSize = len;  //TODO this is not proper!
     strcpy((Char *)rcmMsg->data, funcName);
@@ -1463,7 +1468,8 @@ exit:
 UInt16 genMsgId(RcmClient_Handle handle)
 {
     UInt32 key;
-    UInt16 msgId;
+    /* FIXME: (KW) ADD Check for msgID  = 0 in the calling function */
+    UInt16 msgId = 0;
     Int status = RCMCLIENT_SOK;
 
     GT_0trace (curTrace, GT_ENTER, "genMsgId");
