@@ -76,7 +76,6 @@ typedef struct {
     UInt width;
     UInt height;
     UInt length;
-    UInt securityZone;
     UInt stride;
     Ptr ptr;
     UInt *reserved;
@@ -202,8 +201,6 @@ Int32 fxnMemMgr_Alloc(UInt32 dataSize, UInt32 *data)
         Osal_printf("\tparams[%d].width = %d\n", i, args->params[i].width);
         Osal_printf("\tparams[%d].height = %d\n", i, args->params[i].height);
         Osal_printf("\tparams[%d].length = %d\n", i, args->params[i].length);
-        Osal_printf("\tparams[%d].securityZone = %d\n", i,
-                        args->params[i].securityZone);
     }
 
     params = (MemMgrBlock *) malloc(sizeof(MemMgrBlock) * args->numBuffers);
