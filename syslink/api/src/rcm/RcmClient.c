@@ -1531,7 +1531,7 @@ Int getReturnMsg(RcmClient_Handle handle,
     RcmClient_Packet *packet;
     Bool messageDelivered;
     MessageQ_Msg msgqMsg = NULL;
-    MessageQ_Handle msgQ = (MessageQ_Handle)handle->msgQ;
+    MessageQ_Handle msgQ = NULL;
     Bool messageFound = FALSE;
     Int queueLockAcquired = 0;
     Int retval = 0;
@@ -1558,6 +1558,7 @@ Int getReturnMsg(RcmClient_Handle handle,
         goto exit;
     }
 
+    msgQ = (MessageQ_Handle)handle->msgQ;
     returnMsg = NULL;
 
     /* keep trying until message found */

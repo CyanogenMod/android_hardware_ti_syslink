@@ -638,6 +638,9 @@ Int RcmServer_removeSymbol(RcmServer_Handle handle, String funcName)
             for (j = 0; j < (1 << (i + 4)); j++) {
                 if (((((handle->fxnTab[i]) + j)->name) != NULL) &&
                     strcmp(((handle->fxnTab[i]) + j)->name, funcName) == 0) {
+                    /* Free the memory allocated in addSymbol*/
+                    Memory_free (NULL, ((handle->fxnTab[i]) + j) ->name,
+                        strlen (funcName));
                     ((handle->fxnTab[i]) + j) ->name = NULL;
                     ((handle->fxnTab[i]) + j) ->addr = NULL;
                     status = RCMSERVER_SOK;
