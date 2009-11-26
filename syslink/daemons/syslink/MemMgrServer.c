@@ -447,6 +447,8 @@ Void MemMgrThreadFxn()
         Osal_printf ("Error in TilerMgr_Close: status = 0x%x\n", status);
     }
 
+    sem_destroy(&semDaemonWait);
+
 exit_rcmserver_remove_symbol:
     for (i = 0; i < num_of_funcs; i++) {
         /* Unregister the remote functions */

@@ -25,6 +25,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 
@@ -289,18 +290,26 @@ Int main (Int argc, Char * argv [])
         break;
     case 2:     // load SysM3 only
         // Test for file's presence
+        if (strlen (argv[1]) >= 1024) {
+            Osal_printf ("Filename is too big\n");
+            exit(EXIT_FAILURE);
+        }
         fp = fopen(argv[1], "rb");
-        if(fp != NULL) {
+        if (fp != NULL) {
             fclose(fp);
-            status = ipc_setup(argv[1], NULL);
+            status = ipc_setup (argv[1], NULL);
             calledIpcSetup = true;
         }
         else
-            Osal_printf("File %s could not be opened.\n", argv[1]);
+            Osal_printf ("File %s could not be opened.\n", argv[1]);
         break;
     case 3:     // load AppM3 and SysM3
     default:
         // Test for file's presence
+        if ((strlen (argv[1]) >= 1024) || (strlen (argv[2]) >= 1024)){
+            Osal_printf ("Filenames are too big\n");
+            exit(EXIT_FAILURE);
+        }
         fp = fopen(argv[1], "rb");
         if(fp != NULL) {
             fclose(fp);
