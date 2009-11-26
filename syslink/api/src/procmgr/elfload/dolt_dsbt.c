@@ -169,7 +169,11 @@ BOOL DLIF_register_dsbt_index_request(const char *requestor_name,
    {
       DLIF_error(DLET_MISC,
                  "Could not resolve DSBT base value for %s",
-		 requestor_name);
+                 requestor_name);
+      DLIF_free(new_request->name);
+      new_request->name = NULL;
+      DLIF_free(new_request);
+      new_request = NULL;
       return FALSE;
    }
 
@@ -178,6 +182,10 @@ BOOL DLIF_register_dsbt_index_request(const char *requestor_name,
       DLIF_error(DLET_MISC,
                  "Could not resolve static base value for %s",
                  requestor_name);
+      DLIF_free(new_request->name);
+      new_request->name = NULL;
+      DLIF_free(new_request);
+      new_request = NULL;
       return FALSE;
    }
 

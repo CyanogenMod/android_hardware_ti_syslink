@@ -108,8 +108,10 @@ void DLSYM_copy_globals(DLIMP_Dynamic_Module *dyn_module)
       Elf32_Word old_offset = dyn_module->symtab[i + global_index].st_name -
                               (Elf32_Addr) dyn_module->strtab;
       Elf32_Word new_offset = old_offset - dyn_module->gstrtab_offset;
-      struct Elf32_Sym *sym = &((struct Elf32_Sym*)(module->gsymtab))[i];
-      sym->st_name = new_offset + (Elf32_Addr)module->gstrtab;
+      if(module->gsymtab) {
+         struct Elf32_Sym *sym = &((struct Elf32_Sym*)(module->gsymtab))[i];
+         sym->st_name = new_offset + (Elf32_Addr)module->gstrtab;
+      }
 #if LOADER_DEBUG
       if (debugging_on) printf("Copying symbol: %s\n", (char *)
                                dyn_module->symtab[i + global_index].st_name);
@@ -130,6 +132,7 @@ static BOOL breadth_first_lookup(const char* sym_name,
    /* file_handle_queue.                                                     */
    /*------------------------------------------------------------------------*/
    Int32_Queue file_handle_queue;
+   memset(&file_handle_queue, 0, sizeof(Int32_Queue));
    Int32_enqueue(&file_handle_queue, handle);
 
    /*------------------------------------------------------------------------*/

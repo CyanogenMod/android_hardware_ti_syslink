@@ -338,7 +338,9 @@ int DLIF_load_dependent(const char* so_name)
    /*------------------------------------------------------------------------*/
    else
       DLIF_error(DLET_MISC, "Failed load of dependent file '%s'.\n", so_name);
-   
+
+   fclose(fp);
+
    return to_ret;
 }
 
