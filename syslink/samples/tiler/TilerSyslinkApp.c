@@ -565,12 +565,13 @@ Int SyslinkVirtToPhysPagesTest(void)
         }
         numOfIterations--;
     }while (numOfIterations > 0);
-
+/*
     p = (int *)malloc(sizeOfBuffer);
     MpuAddr_list[0].mpuAddr = (UInt32)p;
     MpuAddr_list[0].size = sizeOfBuffer + 0x1000;
     status = SysLinkMemUtils_map (MpuAddr_list, 1, &mappedAddr,
                             ProcMgr_MapType_Virt, PROC_SYSM3);
+    mappedAddr = (UInt32)p;
     NumOfPages = 3;
     status = SysLinkMemUtils_virtToPhysPages (mappedAddr, NumOfPages, physEntries,
                                             PROC_SYSM3);
@@ -580,8 +581,9 @@ Int SyslinkVirtToPhysPagesTest(void)
                     (mappedAddr + (temp*4096)), physEntries[temp]);
     }
     SysLinkMemUtils_unmap(mappedAddr, PROC_SYSM3);
-    SysMgr_destroy();
     free(p);
+*/
+    SysMgr_destroy();
     return status;
 }
 
