@@ -285,7 +285,7 @@ SharedRegion_setup (SharedRegion_Config * cfg)
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
         }
 
-        if ((ptCfg->maxRegions > 0u) && (status >= 0)) {
+        if ((status >= 0) && (ptCfg->maxRegions > 0u)) {
             /* copy the user provided values into the state object */
             Memory_copy ((Ptr) &SharedRegion_moduleState.cfg,
                          (Ptr) ptCfg,
