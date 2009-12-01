@@ -202,15 +202,24 @@ SysLinkMemUtils_virtToPhysPages (UInt32         remoteAddr,
     }
 
     Osal_printf ("testing with ProcMgr_virtToPhysPages\n");
+
     /* Open a handle to the ProcMgr instance. */
     status = ProcMgr_open (&procMgrHandle, procId);
     if (status < 0) {
         Osal_printf ("Error in ProcMgr_open [0x%x]\n", status);
         return PROCMGR_E_FAIL;
     }
+    /* TODO: Hack for tiler */
+    if(remoteAddr >= TILER_ADDRESS_START && remoteAddr < TILER_ADDRESS_END) {
+        for(i = 0; i < numOfPages; i++) {
+            physEntries[i] = Page_ALIGN_LOW(remoteAddr, Page_SIZE_4K) + (4096 * i);
+        }
+    }
+    else {
+        status = ProcMgr_virtToPhysPages (procMgrHandle, remoteAddr,
+                    numOfPages, physEntries, procId);
+    }
 
-    status = ProcMgr_virtToPhysPages (procMgrHandle, remoteAddr,
-                numOfPages, physEntries, procId);
     if (status < 0) {
         Osal_printf ("Error in ProcMgr_virtToPhysPages [0x%x]\n", status);
     }
