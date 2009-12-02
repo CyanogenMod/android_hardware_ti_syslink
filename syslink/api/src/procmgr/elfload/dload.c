@@ -3007,16 +3007,20 @@ int32_t DLOAD_load_symbols(LOADER_FILE_DESC *fd)
    /*------------------------------------------------------------------------*/
    /* Read file headers and dynamic information into dynamic module.         */
    /*------------------------------------------------------------------------*/
-   if (!dload_headers(fd, dyn_module))
+   if (!dload_headers(fd, dyn_module)) {
+      delete_DLIMP_Dynamic_Module(&dyn_module);
       return 0;
+   }
 
    /*------------------------------------------------------------------------*/
    /* Find the dynamic segment, if there is one, and read dynamic            */
    /* information from the ELF object file into the dynamic module data      */
    /* structure associated with this file.                                   */
    /*------------------------------------------------------------------------*/
-   if (!dload_dynamic_segment(fd, dyn_module))
+   if (!dload_dynamic_segment(fd, dyn_module)) {
+      delete_DLIMP_Dynamic_Module(&dyn_module);
       return 0;
+    }
 
    /*------------------------------------------------------------------------*/
    /* Perform sanity checking on the read-in ELF file.                       */
@@ -3025,6 +3029,7 @@ int32_t DLOAD_load_symbols(LOADER_FILE_DESC *fd)
    {
       DLIF_error(DLET_FILE, "Attempt to load invalid ELF file, '%s'.\n",
                     dyn_module->name);
+      delete_DLIMP_Dynamic_Module(&dyn_module);
       return 0;
    }
 
