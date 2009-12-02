@@ -26,8 +26,10 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <signal.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <semaphore.h>
 
 /* OSAL & Utils headers */
 #include <OsalPrint.h>
@@ -45,10 +47,66 @@
  */
 Void MemMgrThreadFxn();
 
+ProcMgr_Handle                  procMgrHandle_server;
+Bool                            appM3Client = FALSE;
+UInt16                          remoteIdSysM3;
+UInt16                          remoteIdAppM3;
+extern sem_t                    semDaemonWait;
 
 #if defined (__cplusplus)
 extern "C" {
 #endif /* defined (__cplusplus) */
+
+
+/*
+ *  ======== signal_handler ========
+ */
+static Void signal_handler(Int sig)
+{
+    Osal_printf ("\nexiting from the syslink daemon\n ");
+    sem_post(&semDaemonWait);
+    exit(TRUE);
+}
+
+
+/*
+ *  ======== ipc_cleanup ========
+ */
+
+Void daemon_ipc_cleanup()
+{
+    ProcMgr_StopParams stopParams;
+    Int                status = 0;
+
+    SharedRegion_remove (0);
+    SharedRegion_remove (1);
+
+    if(appM3Client) {
+        stopParams.proc_id = remoteIdAppM3;
+        status = ProcMgr_stop (procMgrHandle_server, &stopParams);
+        if (status < 0) {
+            Osal_printf ("Error in ProcMgr_stop(%d): status = 0x%x\n",
+                            stopParams.proc_id, status);
+        }
+    }
+
+    stopParams.proc_id = remoteIdSysM3;
+    status = ProcMgr_stop (procMgrHandle_server, &stopParams);
+    if (status < 0) {
+        Osal_printf ("Error in ProcMgr_stop(%d): status = 0x%x\n",
+                        stopParams.proc_id, status);
+    }
+
+    status = ProcMgr_close (&procMgrHandle_server);
+    if (status < 0) {
+        Osal_printf ("Error in ProcMgr_close: status = 0x%x\n", status);
+    }
+
+    status = SysMgr_destroy ();
+    if (status < 0) {
+        Osal_printf ("Error in SysMgr_destroy: status = 0x%x\n", status);
+    }
+}
 
 
 /*
@@ -59,10 +117,7 @@ Int ipc_setup(Char * sysM3ImageName, Char * appM3ImageName)
     SysMgr_Config                   config;
     ProcMgr_StopParams              stopParams;
     ProcMgr_StartParams             start_params;
-    ProcMgr_Handle                  procMgrHandle_server;
     UInt32                          entry_point = 0;
-    UInt16                          remoteIdSysM3;
-    UInt16                          remoteIdAppM3;
     UInt32                          shAddrBase;
     UInt32                          shAddrBase1;
     UInt16                          procId;
@@ -331,7 +386,16 @@ Int main (Int argc, Char * argv [])
             return (-1);        // Quit if there was a setup error
         } else {
             Osal_printf("ipc_setup succeeded!\n");
+
+            /* Setup the signal handlers*/
+            signal (SIGINT, signal_handler);
+            signal (SIGKILL, signal_handler);
+            signal (SIGTERM, signal_handler);
+
             MemMgrThreadFxn();
+
+            /*IPC_Cleanup function*/
+            daemon_ipc_cleanup();
         }
     }
 

@@ -340,8 +340,6 @@ struct MemMgr_func_info {
     String name;
 };
 
-
-
 struct MemMgr_func_info MemMgrFxns[] =
 {
     { fxnMemMgr_Alloc,                        "MemMgr_Alloc"},
@@ -350,6 +348,9 @@ struct MemMgr_func_info MemMgrFxns[] =
     { fxnTilerMem_ConvertToTilerSpace,          "TilerMem_ConvertToTilerSpace"},
     { fxnTilerMem_ConvertPageModeToTilerSpace,  "TilerMem_ConvertPageModeToTilerSpace"},
 };
+
+sem_t                           semDaemonWait;
+
 
 /*
  *  ======== MemMgrThreadFxn ========
@@ -363,7 +364,6 @@ Void MemMgrThreadFxn()
     UInt                            fxnIdx;
     Int                             num_of_funcs;
     Int                             i;
-    sem_t                           semDaemonWait;
 
     /* Get default config for rcm client module */
     Osal_printf ("Get default config for RCM server module.\n");
