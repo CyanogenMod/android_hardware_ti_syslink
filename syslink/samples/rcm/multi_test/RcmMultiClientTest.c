@@ -209,10 +209,6 @@ Int GetSymbolIndex (Void)
     Int i;
     RcmClient_Handle rcmClientHandle = rcmClientHandles[0];
 
-    Osal_printf("\nWait until the RCM Server is run on the Ducati side.\n"
-        "Press any key to continue ...\n");
-    getchar ();
-
     if(numLocalClients > 0) {
         /* get remote function index */
         Osal_printf("\nQuerying server for fxnDouble() function index \n");
