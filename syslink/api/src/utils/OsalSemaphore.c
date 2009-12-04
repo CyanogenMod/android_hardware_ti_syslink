@@ -253,12 +253,12 @@ OsalSemaphore_pend(OsalSemaphore_Handle semHandle, UInt32 timeout)
                 if (errno == EAGAIN) {
                     /*! @retVal semaphore was not available. */
                     status = OSALSEMAPHORE_E_WAITNONE;
-                    GT_setFailureReason (curTrace,
-                                         GT_4CLASS,
-                                         "OsalSemaphore_pend",
-                                         status,
-                                         "WAIT_NONE timeout value was provided,"
-                                         " semaphore was not available.");
+                    GT_1trace (curTrace,
+                               GT_4CLASS,
+                               "OsalSemaphore_pend"
+                               "WAIT_NONE timeout value was provided,"
+                               " semaphore was not available.",
+                               status);
                 }
                 else {
                     status = OSALSEMAPHORE_E_RESOURCE;

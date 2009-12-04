@@ -937,7 +937,7 @@ MessageQ_get (MessageQ_Handle handle, MessageQ_Msg * msg ,UInt timeout)
         status = MessageQDrv_ioctl (CMD_MESSAGEQ_GET, &cmdArgs);
 
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-        if (status < 0) {
+        if (status < 0 && (status != MESSAGEQ_E_TIMEOUT)) {
             GT_setFailureReason (curTrace,
                                  GT_4CLASS,
                                  "MessageQ_get",
