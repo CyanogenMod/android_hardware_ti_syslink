@@ -886,7 +886,7 @@ Int ipc_setup (Int testCase)
 
 #endif
 
-    GatePeterson_Params_init (gateHandle_client, &gateParams_app_heap);
+    GatePeterson_Params_init (gateHandle_app_heap, &gateParams_app_heap);
     gateParams_app_heap.sharedAddrSize =
                        GatePeterson_sharedMemReq (&gateParams_app_heap);
     Osal_printf ("ipc_setup: Memory required for GatePeterson instance "
@@ -907,31 +907,6 @@ Int ipc_setup (Int testCase)
         goto exit;
     }
     Osal_printf ("ipc_setup: GatePeterson_open Status [0x%x]\n", status);
-
-    /* Increment the offset for the next allocation */
-    curShAddr += GATEPETERSONMEMSIZE;
-
-    /* Create the heap. */
-    HeapBuf_Params_init(NULL, &heapbufParams_app_heap);
-    heapbufParams_app_heap.name           = APP_HEAP_HEAPNAME;
-    heapbufParams_app_heap.sharedAddr     = (Ptr)
-                              (shAddrBase2 + GATEPETERSONMEMSIZE);
-    heapbufParams_app_heap.align          = 128;
-    heapbufParams_app_heap.numBlocks      = 4;
-    heapbufParams_app_heap.blockSize      = APP_HEAP_BLOCKSIZE;
-    heapbufParams_app_heap.gate           = (Gate_Handle) gateHandle_client;
-    heapbufParams_app_heap.sharedAddrSize = HeapBuf_sharedMemReq
-          (&heapbufParams_app_heap, &heapbufParams_app_heap.sharedBufSize);
-    heapbufParams_app_heap.sharedBuf      = (Ptr)
-                      (shAddrBase2 + APP_HEAP_SHAREDBUF);
-
-    status = HeapBuf_open (&heapHandle_app_heap, &heapbufParams_app_heap);
-    if(status < 0) {
-        Osal_printf ("ipc_setup: Error in HeapBuf_create\n");
-        goto exit;
-    }
-    Osal_printf ("ipc_setup: HeapBuf_create Handle [0x%x]\n",
-                            heapHandle_app_heap);
 
 exit:
     Osal_printf ("ipc_setup: Leaving ipc_setup()\n");
@@ -1224,12 +1199,6 @@ Int RcmTestCleanup (Int testCase)
         Osal_printf ("Error in GatePeterson_close [0x%x]\n", status);
     else
         Osal_printf ("GatePeterson_close status: [0x%x]\n", status);
-
-    status = HeapBuf_close (&heapHandle_app_heap);
-    if (status < 0)
-        Osal_printf ("Error in HeapBuf_close [0x%x]\n", status);
-    else
-        Osal_printf ("HeapBuf_close status: [0x%x]\n", status);
 
     SharedRegion_remove (2);
 
