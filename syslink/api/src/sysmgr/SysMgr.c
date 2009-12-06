@@ -142,6 +142,10 @@ SysMgr_getConfig (SysMgr_Config * config)
     }
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+        /* Initialize Utils as the get config functions expects
+         * this module to be initialized
+         */
+        UsrUtilsDrv_setup();
 
         /* Get the SysMemMgr default config */
         SysMemMgr_getConfig (&config->sysMemMgrConfig);
