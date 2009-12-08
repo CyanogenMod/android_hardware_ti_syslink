@@ -22,7 +22,7 @@ INCLUDE = \
 AM_CFLAGS = -Wall -g -O2 $(INCLUDE)
 AM_CFLAGS += -DSYSLINK_USE_SYSMGR
 #To enable the Loader uncomment the below line.
-#AM_CFLAGS += -DSYSLINK_USE_LOADER
+AM_CFLAGS += -DSYSLINK_USE_LOADER
 #TODO: Add conditional flags to enable debug here
 
 LDPATH=../../api/src
