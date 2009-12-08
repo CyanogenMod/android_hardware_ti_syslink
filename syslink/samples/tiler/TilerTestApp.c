@@ -41,36 +41,37 @@
 extern "C" {
 #endif /* defined (__cplusplus) */
 
-static const char SYSLINK_TUX_IMAGE[] =
-"		               MMMMMMMMM                \n"
-"		              MMMMMMMMMMM               \n"
-"		             MMMMMMMMMMMMM              \n"
-"		             MMMMMMMMMMMMMM             \n"
-"		             M$  MMM   MMMM             \n"
-"		             M M.MM MM. MMM             \n"
-"		             M MN+++MM.IMMM             \n"
-"		             MM++++++++MMMM.            \n"
-"		             MM++++++=+MMMMM            \n"
-"		             M. $++++.  MMMM            \n"
-"		            NM.          MMMM.          \n"
-"		           MM.           MMMMM.         \n"
-"		          MMM             MMMMM7        \n"
-"		         MMM              MMMMMMM       \n"
-"		        ,MM.               MM.MMM.      \n"
-"		        MMM                 MMMMMM      \n"
-"		       MMM                  MMMMMM      \n"
-"		      .MMM                  MMMMMMM     \n"
-"		      MMM   S Y S L I N K   MMMMMMM     \n"
-"		      MMM                   MM?MMMM     \n"
-"		     .+++                 .+,MMMMMM     \n"
-"		    .+++++.               ~+=MMMM++.    \n"
-"		.++++++++++.              ,++++++++:    \n"
-"		.+++++++++++              +++++++++++   \n"
-"		.++++++++++++           .M+++++++++++++.\n"
-"		 ++++++++++++=.       .MMM++++++++++++. \n"
-"		.++++++++++++++MMMMMMMMMMM+++++++++.    \n"
-"		  ..+++++++++++MMMMMMMMMMM+++++++.      \n"
-"		        .+++++.          .+++++.        \n";
+static const char *SYSLINK_TUX_IMAGE[] = {
+"		               MMMMMMMMM                ",
+"		              MMMMMMMMMMM               ",
+"		             MMMMMMMMMMMMM              ",
+"		             MMMMMMMMMMMMMM             ",
+"		             M$  MMM   MMMM             ",
+"		             M M.MM MM. MMM             ",
+"		             M MN+++MM.IMMM             ",
+"		             MM++++++++MMMM.            ",
+"		             MM++++++=+MMMMM            ",
+"		             M. $++++.  MMMM            ",
+"		            NM.          MMMM.          ",
+"		           MM.           MMMMM.         ",
+"		          MMM             MMMMM7        ",
+"		         MMM              MMMMMMM       ",
+"		        ,MM.               MM.MMM.      ",
+"		        MMM                 MMMMMM      ",
+"		       MMM                  MMMMMM      ",
+"		      .MMM                  MMMMMMM     ",
+"		      MMM   S Y S L I N K   MMMMMMM     ",
+"		      MMM                   MM?MMMM     ",
+"		     .+++                 .+,MMMMMM     ",
+"		    .+++++.               ~+=MMMM++.    ",
+"		.++++++++++.              ,++++++++:    ",
+"		.+++++++++++              +++++++++++   ",
+"		.++++++++++++           .M+++++++++++++.",
+"		 ++++++++++++=.       .MMM++++++++++++. ",
+"		.++++++++++++++MMMMMMMMMMM+++++++++.    ",
+"		  ..+++++++++++MMMMMMMMMMM+++++++.      ",
+"		        .+++++.          .+++++.        ",
+};
 
 /*
  *  ======== main ========
@@ -82,6 +83,7 @@ Int main (Int argc, Char * argv [])
     Int subTestNo;
     Int procId;
     UInt numTrials;
+    Int i;
 
     Osal_printf ("\n== Syslink Mem Utils Sample ==\n");
 
@@ -178,10 +180,11 @@ Int main (Int argc, Char * argv [])
     if(status < 0)
         Osal_printf("Exiting with status 0x%x\n", status);
 exit:
-    Osal_printf ("\n== Sample End ==\n");
-
     if(testNo == 3 && subTestNo == 2)
-        Osal_printf("%s\n", SYSLINK_TUX_IMAGE);
+        for(i = 0; i < 29; i++)
+            Osal_printf("%s\n", SYSLINK_TUX_IMAGE[i]);
+
+    Osal_printf ("\n== Sample End ==\n");
 
     return status;
 }
