@@ -433,6 +433,8 @@ typedef struct MessageQ_Config_tag {
 typedef struct MessageQ_Params_tag {
     UInt32 reserved;
     /*!< No parameters required currently. Reserved field. */
+    UInt32 maxNameLen;
+    /*!< Maximum length for Message queue names */
 } MessageQ_Params;
 
 
