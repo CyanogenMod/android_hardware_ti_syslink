@@ -10,12 +10,15 @@ Need to check for the following before using autotools:
 	----------------------------------------
 	1. export ARCH=arm
 	2. export CROSS_COMPILE=arm-none-linux-gnueabi-
+	3. Point your shell(sh) to bash. It is assumed that the references to
+	   sh in this README documents is actually pointing to /bin/bash
 
 	To enable DEBUG Option:
 	----------------------
 	1. You can enable the DEBUG option by uncommenting the following line
 	   # ENABLE_DEBUG=--enable-debug in build_directions.sh file.
-	2. You can also enable the DEBUG option by entering ./configure --enable-debug.
+	2. You can also enable the DEBUG option by entering
+	   ./configure --enable-debug.
 	   Note: please check for ./configure --help before running configure.
 
 Steps to Build syslink & bridge:
@@ -26,10 +29,14 @@ Steps to Build syslink & bridge:
 	-----------------
 	1. sh build_directions.sh --clean  --> for clean build.
 	2. sh build_directions.sh ---> for normal build.
-	3. Enter the Prefix path ( e.g., /omap_data/development/Imtiaz/omap_dev/userspace-syslink)
-	4. Enter the Tiler-Userspace Path  (e.g., /omap_data/development/Imtiaz/omap_dev/tiler-userspace)
-	5. Enter the path to kernel-syslink (e.g., /omap_data/development/Imtiaz/omap_dev/kernel-syslink)
-	6. Enter the Toolchain Path ( e.g., /omap_data/omapts/arm-2008q3-72/bin)
+	3. Enter the Prefix path
+	    (e.g., /omap_data/development/projects/userspace-syslink)
+	4. Enter the Tiler-Userspace Path
+	    (e.g., /omap_data/development/projects/tiler-userspace)
+	5. Enter the path to kernel-syslink
+	    (e.g., /omap_data/development/projects/kernel-syslink)
+	6. Enter the Toolchain Path
+	    ( e.g., /omap_data/omapts/arm-2009q1-203/bin)
 	7. It will display the following options
 		1--------------> Build Syslink Only
 		2--------------> Build Bridge Only
@@ -37,51 +44,71 @@ Steps to Build syslink & bridge:
 		Any other Option to exit from Build system
 		Enter your option
 	8. If option 1 is chosen then
-	    a. First the libmemgr.so is built and installed in $(PREFIX)/target/lib folder.
-	    b. Second the Syslink APIs, daemons and samples will be built and installed in $(PREFIX)/target/lib
-	       and $(PREFIX)/target/syslink folder respectively.
+	    a. First the libmemgr.so is built and installed in $(PREFIX)/target/lib
+	       folder.
+	    b. Second the Syslink APIs, daemons and samples will be built and
+	       installed in $(PREFIX)/target/lib and $(PREFIX)/target/syslink folder
+	       respectively.
 	9. If option 2 is chosen then
-	   The Tesla Bridge APIs and samples wiil be build and installed in $(PREFIX)/target/lib and
-	   $(PREFIX)/target/dspbridge folder respectively.
+	   The Tesla Bridge APIs and samples wiil be build and installed in
+	   $(PREFIX)/target/lib and $(PREFIX)/target/dspbridge folder respectively.
 	10. If option 3 is chosen then
-	   a. First libmemmgr.so is built and installed in $(PREFIX)/target/lib folder.
-	   b. Second the Syslink APIs and samples will be built and installed in $(PREFIX)/target/lib
-	      and $(PREFIX)/target/syslink folder respectively
-	   c. Third the Tesla Bridge APIs and Samples will be built and installed in $(PREFIX)/target/lib
-              and $(PREFIX)/target/dspbridge folder respectively.
+	   a. First libmemmgr.so is built and installed in $(PREFIX)/target/lib
+	      folder.
+	   b. Second the Syslink APIs and samples will be built and installed in
+	      $(PREFIX)/target/lib and $(PREFIX)/target/syslink folder respectively
+	   c. Third the Tesla Bridge APIs and Samples will be built and installed in
+	      $(PREFIX)/target/lib and $(PREFIX)/target/dspbridge folder
+	      respectively.
 
 2nd Method:
 ----------
 	Prequisites:
 	------------
+	1. Tiler library (libmemmgr.so) needs to be built and installed first as
+	   syslink daemon code depends on the tiler code.
+	2. The Tiler library should have been built with autotools, and the
+	   pkgconfig folder exists in the appropriate folder. The required package
+	   details like  the include/memmgr are also assumed to be present in the
+	   appropriate target folder.
+
 	To build only syslink:
 	---------------------
-	1. export PATH=<Toolchain Path>:$PATH (e.g., Toolchain path:/omap_data/omapts/arm-2008q3-72/bin)
+	1. export PATH=<Toolchain Path>:$PATH
+	    (e.g., Toolchain path:/omap_data/omapts/arm-2009q1-203/bin)
 	2. cd syslink
 	3. sh bootstrap.sh
-	4. ./configure --host=arm-none-linux-gnueabi --prefix=<PREFIX PATH> --build=i686-pc-linux-gnu
-	5. make PREFIX=<PREFIX PATH> KRNLSRC=<KERNEL-PATH>
-	6. make install
+	4. ./configure --host=arm-none-linux-gnueabi --prefix=<PREFIX PATH>
+	    --build=i686-pc-linux-gnu PKG_CONFIG_PATH=<PREFIX PATH>/target/lib/pkgconfig/
+	5. make PREFIX=<SYSLINK-PATH> KRNLSRC=<KERNEL-PATH> (Note: PREFIX-PATH is
+	   the root of the target file system, whereas SYSLINK-PATH is the root of
+	   the userspace syslink folder. The PREFIX and KRNLSRC variables are
+	   required only to build the kernel procmgr_app.ko.)
+	6. make install (Note: the binaries and lib would be copied to the
+	   $PREFIX/bin and $PREFIX/lib folders respectively).
 	7. cd -
 
 	To build only bridge:
 	---------------------
-	1. export PATH=<Toolchain Path>:$PATH (e.g., Toolchain path:/omap_data/omapts/arm-2008q3-72/bin)
+	1. export PATH=<Toolchain Path>:$PATH
+	    (e.g., Toolchain path:/omap_data/omapts/arm-2009q1-203/bin)
 	2. cd bridge
 	3. sh bootstrap.sh
-	4. ./configure --host=arm-none-linux-gnueabi- --prefix=<PREFIX PATH> --build=i686-pc-linux-gnu
+	4. ./configure --host=arm-none-linux-gnueabi --prefix=<PREFIX PATH>
+	    --build=i686-pc-linux-gnu PKG_CONFIG_PATH=<PREFIX PATH>/target/lib/pkgconfig/
 	5. make
-	6. make install
+	6. make install  (Note: the binaries and lib would be copied to the
+	   $PREFIX/bin and $PREFIX/lib folders respectively).
 	7. cd -
 
 Steps to build only the syslink APIs:
 =====================================
-	Prequisites:
-	------------
-	1. export PATH=<Toolchain Path>:$PATH (e.g., Toolchain path:/omap_data/omapts/arm-2008q3-72/bin)
+	1. export PATH=<Toolchain Path>:$PATH
+	    (e.g., Toolchain path:/omap_data/omapts/arm-2009q1-203/bin)
 	2. cd syslink
 	3. sh bootstrap.sh
-	4. ./configure --host=arm-none-linux-gnueabi- --prefix=<PREFIX PATH> --build=i686-pc-linux-gnu
+	4. ./configure --host=arm-none-linux-gnueabi --prefix=<PREFIX PATH>
+	    --build=i686-pc-linux-gnu
 	5. cd api
 	6. make clean
 	7. make

@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # For any further help please refer the README file.
 
 DIR=`dirname $0`
