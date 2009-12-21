@@ -308,13 +308,22 @@ _NotifyDrvUsr_eventWorker (Void * arg)
     GT_1trace (curTrace, GT_ENTER, "_NotifyDrvUsr_eventWorker", arg);
 
     if (sigfillset (&blockSet) != 0) {
-        perror ("Event worker thread error in sigfillset");
-        pthread_exit (NULL);
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "_NotifyDrvUsr_eventWorker",
+                             NOTIFY_E_OSFAILURE,
+                             "Event worker thread error in sigfillset!");
+        return;
+        
     }
 
     if (pthread_sigmask (SIG_BLOCK, &blockSet, NULL) != 0) {
-        perror ("Event worker thread error in setting sigmask");
-        pthread_exit (NULL);
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "_NotifyDrvUsr_eventWorker",
+                             NOTIFY_E_OSFAILURE,
+                             "Event worker thread error in setting sigmask!");
+        return;
     }
 
     while (status >= 0) {
@@ -326,7 +335,7 @@ _NotifyDrvUsr_eventWorker (Void * arg)
         if (0 == nRead) {
             /* check for termination packet */
             if (packet.isExit  == TRUE) {
-                pthread_exit (NULL);
+                return;
             }
 
             if (packet.func != NULL) {
