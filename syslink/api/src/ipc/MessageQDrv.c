@@ -191,7 +191,10 @@ MessageQDrv_ioctl (UInt32 cmd, Ptr args)
 
     GT_assert (curTrace, (MessageQDrv_refCount > 0));
 
-    osStatus = ioctl (MessageQDrv_handle, cmd, args);
+    do {
+        osStatus = ioctl (MessageQDrv_handle, cmd, args);
+    } while( (osStatus < 0) && (errno == EINTR) );
+
     if (osStatus < 0) {
         /*! @retval MESSAGEQ_E_OSFAILURE Driver ioctl failed */
         status = MESSAGEQ_E_OSFAILURE;
