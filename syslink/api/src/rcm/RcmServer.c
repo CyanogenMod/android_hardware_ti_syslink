@@ -79,6 +79,7 @@ typedef struct RcmServer_Object_tag {
     FxnDesc *fxnTab[RCMSERVER_MAX_TABLES]; /* function table base pointers */
     Int priority;    /* Priority of RCM server */
     Int numAttachedClients; /* number of attached clients */
+    Int shutdown; /* signal shutdown by application */
 } RcmServer_Object;
 
 /* structure for RcmServer module state */
@@ -403,6 +404,9 @@ Int RcmServer_delete(RcmServer_Handle *handlePtr)
         goto exit;
     }
 
+    /* Set the shutdown flag */
+    (*handlePtr)->shutdown = 1;
+
     if ((*handlePtr)->thread) {
         /* wait for RCM server thread to exit */
         pthread_join((*handlePtr)->thread, NULL);
@@ -720,7 +724,7 @@ Void *RcmServer_serverRunFxn(IArg arg)
 
         /* block until message available, skip null messages */
         do {
-            retval = MessageQ_get(handle->msgQ, &msgqMsg, MESSAGEQ_FOREVER);
+            retval = MessageQ_get(handle->msgQ, &msgqMsg, 1000 /*MESSAGEQ_FOREVER*/);
             if ((retval < 0) && (retval != MESSAGEQ_E_TIMEOUT)) {
                 GT_setFailureReason (curTrace,
                                 GT_4CLASS,
@@ -730,7 +734,12 @@ Void *RcmServer_serverRunFxn(IArg arg)
                 status = RCMSERVER_EGETMSG;
                 goto exit;
             }
-        } while (NULL == msgqMsg);
+        } while ((NULL == msgqMsg) && !(handle->shutdown));
+
+        if (handle->shutdown) {
+            running = false;
+            goto exit;
+        }
 
         packet = (RcmServer_Packet *)msgqMsg;
         rcmMsg = &packet->message;
@@ -802,33 +811,6 @@ Void *RcmServer_serverRunFxn(IArg arg)
                              "Msg put fails");
                 status = RCMSERVER_ESENDMSG;
                 goto exit;
-            }
-            break;
-
-        case RcmClient_Desc_SHUTDOWN:
-
-            /* Decrease reference count */
-            (handle->numAttachedClients)--;
-
-            /* Populate reference count in return message*/
-            rcmMsg->result = (Int32)(handle->numAttachedClients);
-
-            /* send return message to client */
-            retval = MessageQ_put(MessageQ_getReplyQueue(msgqMsg), msgqMsg);
-            if (retval < 0) {
-                GT_setFailureReason (curTrace,
-                             GT_4CLASS,
-                             "MessageQ_put",
-                             retval,
-                             "Msg put fails");
-                status = RCMSERVER_ESENDMSG;
-                goto exit;
-            }
-
-            /* Check to see if any clients are still connected to the server*/
-            if (handle->numAttachedClients <= 0) {
-                /* No connected clients. Shutdown this thread */
-                running = FALSE;
             }
             break;
 
