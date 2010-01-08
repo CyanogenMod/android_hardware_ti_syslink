@@ -1150,6 +1150,64 @@ exit:
 
 
 /*
+ *  ======== RcmClient_execNoReply ========
+ * Purpose:
+ * Requests RCM server to execute remote function,
+ * without waiting for the reply.
+ */
+Int RcmClient_execNoReply(RcmClient_Handle handle,
+             RcmClient_Message *rcmMsg)
+{
+    RcmClient_Packet *packet;
+    MessageQ_Msg msgqMsg;
+    Int retval = 0;
+    Int status = RCMCLIENT_SOK;
+
+    GT_0trace (curTrace, GT_ENTER, "RcmClient_execNoReply");
+
+    if (RcmClient_module->setupRefCount == 0) {
+        /*! @retval FRAMEQ_E_INVALIDSTATE Modules is invalidstate*/
+        status = RCMCLIENT_EINVALIDSTATE;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "RcmClient_execNoReply",
+                             status,
+                             "Modules is invalidstate!");
+        goto exit;
+    }
+
+    if (NULL == handle) {
+        GT_0trace(curTrace,
+              GT_4CLASS,
+              "RcmClient_execNoWait: invalid argument\n");
+        status = RCMCLIENT_EHANDLE;
+        goto exit;
+    }
+
+    /* classify this message */
+    packet = getPacketAddr(rcmMsg);
+    packet->desc |= RcmClient_Desc_RCM_NO_REPLY << RCMCLIENT_DESC_TYPE_SHIFT;
+
+    msgqMsg = (MessageQ_Msg)packet;
+
+    /* send the message to the server */
+    retval = MessageQ_put(handle->serverMsgQ, msgqMsg);
+    if (retval < 0) {
+        GT_setFailureReason (curTrace,
+                     GT_4CLASS,
+                     "MessageQ_put",
+                     retval,
+                     "Message put fails");
+        status = RCMCLIENT_ESENDMSG;
+    }
+
+exit:
+    GT_1trace (curTrace, GT_LEAVE, "RcmClient_execNoReply", status);
+    return status;
+}
+
+
+/*
  *  ======== RcmClient_free ========
  * Purpose:
  * Frees the RCM message and allocated memory

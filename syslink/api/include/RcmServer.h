@@ -154,6 +154,10 @@
 /* This failure code indicates that there was an issue in getting a message */
 #define RCMSERVER_EGETMSG           RCMSERVER_MAKE_FAILURE(20)
 
+/* This failure code indicates that there was an issue freeing the message */
+#define RCMSERVER_EFREEMSG          RCMSERVER_MAKE_FAILURE(21)
+
+/*FIXME have a different value for EFAIL */
 /* Generic failure code for RCMSERVER module */
 #define RCMSERVER_EFAIL             RCMSERVER_MAKE_FAILURE(20)
 
@@ -166,6 +170,7 @@
 #define RcmClient_Desc_SYM_IDX      0x4     /* Query symbox index */
 #define RcmClient_Desc_SHUTDOWN     0x5     /* RcmServer shutdown message */
 #define RcmClient_Desc_CONNECT      0x6     /* RcmClient connected message */
+#define RcmClient_Desc_RCM_NO_REPLY 0x7     /* RcmClient No Reply */
 
 #define RCMSERVER_HIGH_PRIORITY     0xFF
 #define RCMSERVER_REGULAR_PRIORITY  0x01

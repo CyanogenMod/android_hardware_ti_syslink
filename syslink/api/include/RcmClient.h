@@ -169,6 +169,7 @@
 #define RcmClient_Desc_SYM_IDX          0x4 /*  Query symbox index */
 #define RcmClient_Desc_SHUTDOWN         0x5 /*  RcmServer shutdown message */
 #define RcmClient_Desc_CONNECT          0x6 /*  RcmClient connected message */
+#define RcmClient_Desc_RCM_NO_REPLY     0x7 /*  RcmClient No Reply */
 
 /*
  * RCM client default heap ID
@@ -295,6 +296,13 @@ Int RcmClient_execDpc (RcmClient_Handle     handle,
 Int RcmClient_execNoWait (RcmClient_Handle      handle,
                           RcmClient_Message *   rcmMsg,
                           UInt16 *              msgId);
+/*
+ * Function requests RCM server to execute remote function,
+ * without waiting for the reply.
+ */
+Int RcmClient_execNoReply (RcmClient_Handle      handle,
+                           RcmClient_Message *   rcmMsg);
+
 
 /* Function frees the RCM message and allocated memory  */
 Void RcmClient_free (RcmClient_Handle handle, RcmClient_Message *rcmMsg);

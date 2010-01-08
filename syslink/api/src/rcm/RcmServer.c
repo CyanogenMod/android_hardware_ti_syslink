@@ -833,6 +833,19 @@ Void *RcmServer_serverRunFxn(IArg arg)
 
             break;
 
+        case RcmClient_Desc_RCM_NO_REPLY:
+            execMsg(handle, rcmMsg);
+            retval = MessageQ_free(msgqMsg);
+            if (retval < 0) {
+                GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "MessageQ_free",
+                             retval,
+                             "Msg free fails");
+                status = RCMSERVER_EFREEMSG;
+                goto exit;
+            }
+            break;
         default:
             /* TODO */
             break;
