@@ -1143,21 +1143,6 @@ Int RcmTestCleanup (Int testCase)
     Osal_printf ("RcmTestCleanup: calling RcmClient_free \n");
     RcmClient_free (rcmClientHandle, rcmMsg);
 
-    // Shutdown RCM server
-    Osal_printf ("calling RcmClient_shutdownServer \n");
-    status = RcmClient_shutdownServer (rcmClientHandle);
-    if (status < 0) {
-        Osal_printf ("Error in RcmClient_shutdownServer.\n");
-        goto exit;
-    }
-    if (status == RCMCLIENT_SCLIENTSATTACHED) {
-        Osal_printf ("Server not shutdown"
-                     "Clients still attached.\n");
-    }
-    else {
-        Osal_printf ("Server shutdown successful \n");
-    }
-
     /* delete the rcm client */
     Osal_printf ("Delete RCM client instance \n");
     status = RcmClient_delete (&rcmClientHandle);

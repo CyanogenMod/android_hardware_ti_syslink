@@ -1292,23 +1292,6 @@ Int RcmTestCleanup (Int testCase)
 
         for(i = 0; i < numLocalClients; i++) {
 
-            // Shutdown RCM server
-            Osal_printf ("RcmTestCleanup: Calling "
-                         "RcmClient_shutdownServer \n");
-            status = RcmClient_shutdownServer (rcmClientHandles[i]);
-            if (status < 0) {
-                Osal_printf ("RcmTestCleanup: Error in "
-                             "RcmClient_shutdownServer: 0x%x.\n", status);
-                goto exit;
-            }
-            if (status == RCMCLIENT_SCLIENTSATTACHED) {
-                Osal_printf ("RcmTestCleanup: Server not shutdown. "
-                             "Clients still attached.\n");
-            }
-            else {
-                Osal_printf ("RcmTestCleanup: Server shutdown successful \n");
-            }
-
             Osal_printf("RcmTestCleanup: Delete RCM client instance %i\n");
             status = RcmClient_delete (&rcmClientHandles[i]);
             if (status < 0)
