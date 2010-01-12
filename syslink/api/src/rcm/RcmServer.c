@@ -738,7 +738,10 @@ Void *RcmServer_serverRunFxn(IArg arg)
 
         if (handle->shutdown) {
             running = false;
-            goto exit;
+
+            if (NULL == msgqMsg) {
+                continue;
+            }
         }
 
         packet = (RcmServer_Packet *)msgqMsg;
@@ -830,7 +833,6 @@ Void *RcmServer_serverRunFxn(IArg arg)
                 status = RCMSERVER_ESENDMSG;
                 goto exit;
             }
-
             break;
 
         case RcmClient_Desc_RCM_NO_REPLY:
@@ -846,6 +848,7 @@ Void *RcmServer_serverRunFxn(IArg arg)
                 goto exit;
             }
             break;
+
         default:
             /* TODO */
             break;
