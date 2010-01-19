@@ -315,9 +315,6 @@ Int RcmClient_getSymbolIndex (RcmClient_Handle  handle,
 /* Function removes symbol (remote function) from registry */
 Int RcmClient_removeSymbol (RcmClient_Handle handle, String funcName);
 
-/* Sends a shutdown message to the server */
-Int RcmClient_shutdownServer(RcmClient_Handle handle);
-
 /*
  * Function waits till invoked remote function completes
  * return message will contain result and context
