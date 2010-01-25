@@ -680,12 +680,12 @@ ProcMgr_delete (ProcMgr_Handle * handlePtr)
             /*! @retval PROCMGR_E_ACCESSDENIED The ProcMgr object was not
                    created in this process and access is denied to delete it. */
             status = PROCMGR_E_ACCESSDENIED;
-            GT_setFailureReason (curTrace,
-                                 GT_4CLASS,
-                                 "ProcMgr_delete",
-                                 status,
-                                 "The ProcMgr object was not created in this"
-                                 "process and access is denied to delete it.");
+            GT_1trace (curTrace,
+                       GT_1CLASS,
+                       " ProcMgr_delete: Warning, the ProcMgr object was not"
+                       " created in this process and access is denied to"
+                       " delete it.\n",
+                       status);
         }
 
         if (status >= 0) {
