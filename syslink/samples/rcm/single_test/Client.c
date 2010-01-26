@@ -318,17 +318,17 @@ Int CreateRcmClient(Int testCase)
     UInt32                          curShAddr;
     UInt32                          nsrnEventNo;
     UInt32                          mqtEventNo;
+#if !defined (SYSLINK_USE_DAEMON)
 #if defined(SYSLINK_USE_LOADER) || defined(SYSLINK_USE_SYSMGR)
     UInt32                          entry_point = 0;
-#if !defined(SYSLINK_USE_DAEMON)
     ProcMgr_StartParams             start_params;
-#endif
 #endif
 #if defined(SYSLINK_USE_LOADER)
     Char *                          sysm3_image_name;
     Char *                          appm3_image_name;
     Char                            uProcId;
     UInt32                          fileId;
+#endif
 #endif
 #if defined(SYSLINK_USE_SYSMGR)
     SysMgr_Config                   config;
@@ -392,6 +392,8 @@ Int CreateRcmClient(Int testCase)
         Osal_printf ("Error in SysMgr_setup [0x%x]\n", status);
         goto exit;
     }
+    else
+        Osal_printf("SysMgr_setup status [0x%x]\n", status);
 #else /* if defined(SYSLINK_USE_SYSMGR) */
     UsrUtilsDrv_setup ();
 
@@ -611,6 +613,7 @@ Int CreateRcmClient(Int testCase)
     remoteId_client = MultiProc_getId (procName);
     Osal_printf("remoteId_client = %d\n", remoteId_client);
 
+#if !defined(SYSLINK_USE_DAEMON)
 #if defined(SYSLINK_USE_LOADER)
     if (testCase == 1)
         sysm3_image_name = "./RCMServer_MPUSYS_Test_Core0.xem3";
@@ -628,7 +631,6 @@ Int CreateRcmClient(Int testCase)
     Osal_printf ("ProcMgr_load SysM3 image Status [0x%x]\n", status);
 #endif
 #if defined(SYSLINK_USE_SYSMGR) || defined(SYSLINK_USE_LOADER)
-#if !defined(SYSLINK_USE_DAEMON)    // Do not call ProcMgr_start if using daemon
     start_params.proc_id = PROC_SYSM3;
     Osal_printf ("SYSM3 Load: start_params.proc_id = %d\n",
                 start_params.proc_id);
@@ -638,7 +640,6 @@ Int CreateRcmClient(Int testCase)
         goto exit;
     }
     Osal_printf ("ProcMgr_start SysM3 Status [0x%x]\n", status);
-#endif
 #endif
 
     if(remoteId_client == PROC_APPM3) {
@@ -658,7 +659,6 @@ Int CreateRcmClient(Int testCase)
         Osal_printf ("ProcMgr_load AppM3 image Status [0x%x]\n", status);
 #endif
 #if defined(SYSLINK_USE_SYSMGR) || defined(SYSLINK_USE_LOADER)
-#if !defined(SYSLINK_USE_DAEMON)    // Do not call ProcMgr_start if using daemon
         start_params.proc_id = PROC_APPM3;
         Osal_printf("APPM3 Load: start_params.proc_id = %d\n",
                     start_params.proc_id);
@@ -670,8 +670,8 @@ Int CreateRcmClient(Int testCase)
         }
         Osal_printf ("ProcMgr_start AppM3 Status [0x%x]\n", status);
 #endif
-#endif
     }
+#endif /* !SYSLINK_USE_DAEMON */
 
 #if !defined(SYSLINK_USE_SYSMGR)
     Osal_printf ("\nPlease break the platform and load the Ducati image now."
@@ -869,6 +869,7 @@ Int RcmClientCleanup (Int testCase)
     fxnExitArgs = (RCM_Remote_FxnArgs *)(&rcmMsg->data);
     fxnExitArgs->a = 0xFFFF;
 
+#ifndef SYSLINK_USE_DAEMON
     // execute the remote command message
     Osal_printf ("RcmClientCleanup: calling RcmClient_execDpc \n");
     status = RcmClient_execDpc (rcmClientHandle, rcmMsg);
@@ -877,6 +878,7 @@ Int RcmClientCleanup (Int testCase)
                             , status);
         goto exit;
     }
+#endif /* !SYSLINK_USE_DAEMON */
 
     // return message to the heap
     Osal_printf ("RcmClientCleanup: calling RcmClient_free \n");

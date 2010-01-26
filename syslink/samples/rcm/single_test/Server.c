@@ -149,17 +149,17 @@ Void RcmServerThreadFxn (Void *arg)
     UInt32                          curShAddr;
     UInt32                          nsrnEventNo;
     UInt32                          mqtEventNo;
+#if !defined(SYSLINK_USE_DAEMON)
 #if defined(SYSLINK_USE_LOADER) || defined(SYSLINK_USE_SYSMGR)
     UInt32                          entry_point = 0;
-#if !defined(SYSLINK_USE_DAEMON)
     ProcMgr_StartParams             start_params;
-#endif
 #endif
 #if defined (SYSLINK_USE_LOADER)
     Char *                          sysm3_image_name;
     Char *                          appm3_image_name;
     Char                            uProcId;
     UInt32                          fileId;
+#endif
 #endif
 #if defined(SYSLINK_USE_SYSMGR)
     SysMgr_Config                   config;
@@ -425,6 +425,7 @@ Void RcmServerThreadFxn (Void *arg)
     }
 #endif
 
+#if !defined(SYSLINK_USE_DAEMON)
 #if defined(SYSLINK_USE_LOADER)
     if (testCase == 1)
         sysm3_image_name = "./RCMClient_MPUSYS_Test_Core0.xem3";
@@ -443,7 +444,6 @@ Void RcmServerThreadFxn (Void *arg)
     Osal_printf ("ProcMgr_load SysM3 image Status [0x%x]\n", status);
 #endif
 #if defined(SYSLINK_USE_LOADER) || defined(SYSLINK_USE_SYSMGR)
-#if !defined(SYSLINK_USE_DAEMON)    // Do not call ProcMgr_start if using daemon
     start_params.proc_id = PROC_SYSM3;
     Osal_printf("start_params.proc_id = %d\n", start_params.proc_id);
 
@@ -453,7 +453,6 @@ Void RcmServerThreadFxn (Void *arg)
         goto exit;
     }
     Osal_printf ("ProcMgr_start Status [0x%x]\n", status);
-#endif
 #endif
 
     if(remoteId_server == PROC_APPM3) {
@@ -473,7 +472,6 @@ Void RcmServerThreadFxn (Void *arg)
         Osal_printf ("ProcMgr_load AppM3 image Status [0x%x]\n", status);
 #endif
 #if defined(SYSLINK_USE_LOADER) || defined(SYSLINK_USE_SYSMGR)
-#if !defined(SYSLINK_USE_DAEMON)    // Do not call ProcMgr_start if using daemon
         start_params.proc_id = PROC_APPM3;
         Osal_printf("APPM3 Load: start_params.proc_id = %d\n",
                     start_params.proc_id);
@@ -486,8 +484,8 @@ Void RcmServerThreadFxn (Void *arg)
         }
         Osal_printf ("ProcMgr_start Status [0x%x]\n", status);
 #endif
-#endif
     }
+#endif /* !SYSLINK_USE_DAEMON */
 
 #if !defined(SYSLINK_USE_SYSMGR)
     GatePeterson_Params_init (gateHandle_server, &gateParams);
