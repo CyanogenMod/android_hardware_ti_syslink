@@ -138,6 +138,7 @@ MessageQApp_startup (UInt32 notifyAddr, UInt32 sharedAddr)
     MessageQTransportShm_Config    msgqTransportConfig;
     MessageQTransportShm_Params    msgqTransportParams;
 #endif /* if defined(SYSLINK_USE_SYSMGR) */
+#if !defined (SYSLINK_USE_DAEMON)
 #if defined(SYSLINK_USE_LOADER) || defined(SYSLINK_USE_SYSMGR)
     UInt32                         entry_point = 0;
     ProcMgr_StartParams            start_params;
@@ -146,6 +147,7 @@ MessageQApp_startup (UInt32 notifyAddr, UInt32 sharedAddr)
     Char *                         image_name;
     UInt32                         fileId;
 #endif /* if defined(SYSLINK_USE_LOADER) */
+#endif /* if !defined(SYSLINK_USE_DAEMON) */
 
     Osal_printf ("Entered MessageQApp_startup sharedAddr [0x%x]\n",
                  sharedAddr);
@@ -398,6 +400,7 @@ MessageQApp_startup (UInt32 notifyAddr, UInt32 sharedAddr)
 #endif
 
 #if defined(SYSLINK_USE_SYSMGR)
+#if !defined (SYSLINK_USE_DAEMON)
     start_params.proc_id = MultiProc_getId("SysM3");
 #ifdef SYSLINK_USE_LOADER
     image_name = "./MessageQ_MPUSYS_Test_Core0.xem3";
@@ -425,8 +428,10 @@ MessageQApp_startup (UInt32 notifyAddr, UInt32 sharedAddr)
     status = ProcMgr_start (MessageQApp_procMgrHandle, entry_point,
                             &start_params);
     Osal_printf ("ProcMgr_start AppM3 Status [0x%x]\n", status);
+#endif /* !SYSLINK_USE_DAEMON */
 #else /* Non SysMgr version */
 #ifdef SYSLINK_USE_LOADER
+#if !defined (SYSLINK_USE_DAEMON)
     start_params.proc_id = MultiProc_getId("SysM3");
     image_name = "./MessageQ_MPUSYS_Test_Core0.xem3";
     Osal_printf ("Loading image (%s) onto Ducati with ProcId %d\n", image_name,
@@ -450,6 +455,7 @@ MessageQApp_startup (UInt32 notifyAddr, UInt32 sharedAddr)
     status = ProcMgr_start (MessageQApp_procMgrHandle, entry_point,
                             &start_params);
     Osal_printf ("ProcMgr_start AppM3 Status [0x%x]\n", status);
+#endif /* !SYSLINK_USE_DAEMON */
 #else
     Osal_printf ("Please break the platform and load the Ducati images now."
         "Press any key to continue ...\n");
@@ -669,6 +675,8 @@ MessageQApp_execute (Void)
         }
     }
 
+    /* Keep the Ducati application running. */
+#if !defined (SYSLINK_USE_DAEMON)
     /* Send die message */
     msg = MessageQ_alloc (HEAPID, MSGSIZE);
     if (msg == NULL) {
@@ -710,6 +718,9 @@ MessageQApp_execute (Void)
         Osal_printf ("\nUnsuccessful run of the sample application!\n");
     }
     MessageQ_free(msg);
+#else
+    Osal_printf ("Sample application successfully completed!\n");
+#endif /* !SYSLINK_USE_DAEMON */
 
     /* Clean-up */
     if (MessageQApp_messageQ != NULL) {
@@ -743,9 +754,11 @@ Int
 MessageQApp_shutdown (Void)
 {
     Int32               status = 0;
+#if !defined (SYSLINK_USE_DAEMON)
 #if defined (SYSLINK_USE_SYSMGR)
     ProcMgr_StopParams  stop_params;
 #endif
+#endif /* !SYSLINK_USE_DAEMON */
 
     Osal_printf ("Entered MessageQApp_shutdown()\n");
 
@@ -753,6 +766,7 @@ MessageQApp_shutdown (Void)
     SharedRegion_remove (0);
     SharedRegion_remove (1);
 
+#if !defined (SYSLINK_USE_DAEMON)
     stop_params.proc_id = MessageQApp_procId;
     status = ProcMgr_stop (MessageQApp_procMgrHandle, &stop_params);
     Osal_printf ("ProcMgr_stop status for proc_id %d : [0x%x]\n",
@@ -763,6 +777,7 @@ MessageQApp_shutdown (Void)
     status = ProcMgr_stop (MessageQApp_procMgrHandle, &stop_params);
     Osal_printf ("ProcMgr_stop status for proc_id %d : [0x%x]\n",
     stop_params.proc_id, status);
+#endif /* !SYSLINK_USE_DAEMON */
 
     status = ProcMgr_close (&MessageQApp_procMgrHandle);
     Osal_printf ("ProcMgr_close status: [0x%x]\n", status);
