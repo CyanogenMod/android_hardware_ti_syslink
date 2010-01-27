@@ -68,8 +68,10 @@
 /*---------------------------------------------------------------------------*/
 #define trg_mem_pool_sz	0x02000000
 
+/*
 #pragma DATA_SECTION(trg_mem_pool,".blob");
 #pragma DATA_ALIGN(trg_mem_pool, 8)
+*/
 uint8_t		 trg_mem_pool[trg_mem_pool_sz];
 const uint32_t	 trg_mem_pool_addr = (uint32_t)trg_mem_pool;
 static BOOL	 need_trg_minit = TRUE;

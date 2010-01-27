@@ -538,8 +538,8 @@ static void initialize_loaded_module(DLIMP_Dynamic_Module *dyn1_module)
                            = dyn_module->phdr[i].p_memsz;
          seg.phdr.p_align = dyn_module->phdr[i].p_align;
          seg.phdr.p_flags = dyn_module->phdr[i].p_flags;
-         seg.input_vaddr = NULL;
-         seg.phdr.p_paddr = NULL;
+         seg.input_vaddr = (Elf32_Addr) NULL;
+         seg.phdr.p_paddr = (Elf32_Addr) NULL;
          seg.phdr.p_type = PT_LOAD;
          seg.reloc_offset = 0;
          AL_append(&(loaded_module->loaded_segments), &seg);
