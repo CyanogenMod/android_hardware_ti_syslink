@@ -2735,6 +2735,11 @@ static Int32 dma_inv_range(Void *start, UInt32 size)
 }
 
 
+/*
+   Commented to out to remove build warning. Uncomment when this function
+   can be used.
+ */
+#if 0
 /*!
  *  @brief      Function to clean user space buffers
  *
@@ -2756,7 +2761,7 @@ static Int32 dma_clean_range(Void *start, UInt32 size)
 
     return ret;
 }
-
+#endif
 
 /*!
  *  @brief      Function to flush user space buffers
