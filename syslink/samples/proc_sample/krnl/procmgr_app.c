@@ -47,7 +47,7 @@
  */
 /*#define SYSLINK_USE_SYSMGR*/
 
-#include <linux/autoconf.h>
+#include <generated/autoconf.h>
 #include <linux/spinlock.h>
 #include <linux/module.h>
 #include <linux/init.h>
