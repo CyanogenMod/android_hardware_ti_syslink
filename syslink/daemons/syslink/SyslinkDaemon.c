@@ -206,7 +206,6 @@ Int ipc_setup(Char * sysM3ImageName, Char * appM3ImageName)
     Osal_printf("IPC setup completed successfully!\n");
     return 0;
 
-exit_procmgr_stop_appm3:
     if(appM3Client) {
         stopParams.proc_id = remoteIdAppM3;
         status = ProcMgr_stop(procMgrHandle_server, &stopParams);
