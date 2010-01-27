@@ -524,10 +524,12 @@ Int SyslinkVirtToPhysPagesTest(void)
     UInt32 NumOfPages = 10;
     UInt32 temp;
     SysMgr_Config                   config;
+/*
     int *p;
     UInt32 mappedAddr;
     SyslinkMemUtils_MpuAddrToMap MpuAddr_list[1];
     UInt32 sizeOfBuffer = 0x1000;
+*/
 
     SysMgr_getConfig (&config);
     status = SysMgr_setup (&config);

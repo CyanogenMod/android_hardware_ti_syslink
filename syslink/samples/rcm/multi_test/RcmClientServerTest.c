@@ -397,7 +397,6 @@ Int ipc_setup (Int testCase)
     MessageQTransportShm_Params     msgqTransportParams;
 #endif /* if defined(SYSLINK_USE_SYSMGR) */
     GatePeterson_Params             gateParams_app_heap;
-    HeapBuf_Params                  heapbufParams_app_heap;
     Int                             status = 0;
 
     Osal_printf ("ipc_setup: Setup IPC componnets \n");
