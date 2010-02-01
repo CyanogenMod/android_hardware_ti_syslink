@@ -1395,6 +1395,10 @@ Int RunTest (Int testCase)
     Osal_printf ("Testing RCM server on MPU\n");
 
     status = ipc_setup(testCase);
+    if(status < 0) {
+        Osal_printf("ipc_setup failed, status [0x%x]\n");
+        goto exit;
+    }
 
     StartRcmTestThreads (testCase);
 
@@ -1411,7 +1415,7 @@ Int RunTest (Int testCase)
     status = RcmTestCleanup (testCase);
     if (status < 0)
         Osal_printf ("Error in RcmTestCleanup \n");
-
+exit:
     Osal_printf ("RunTest: Leaving RunTest()\n");
     return status;
 }
