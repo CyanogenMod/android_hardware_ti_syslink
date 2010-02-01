@@ -1312,9 +1312,17 @@ ProcMgr_load (ProcMgr_Handle handle,
         /*---------------------------------------------------------------*/
         if (!prog_handle)
         {
-           fprintf(stderr, 
+           fprintf(stderr,
                    "<< D O L T >> FATAL: load_executable failed in "
                    "script. Terminating.\n");
+           return PROCMGR_E_FAIL;
+        }
+
+        if (proc_entry_point == -1)
+        {
+           fprintf(stderr,
+                   "<< D O L T >> FATAL: load_executable failed in "
+                   "script. Entry Point is not set. Terminating.\n");
            return PROCMGR_E_FAIL;
         }
 
