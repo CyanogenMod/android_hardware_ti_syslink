@@ -603,10 +603,6 @@ MessageQApp_execute (Void)
                      MessageQApp_messageQ);
     }
 
-    Osal_printf ("Please wait for the MessageQ to be created on the Ducati-side."
-           "Press any key to continue ...\n");
-    getchar ();
-
     if (status >=0) {
         do {
             status = MessageQ_open (DUCATI_CORE1_MESSAGEQNAME, &MessageQApp_queueId);

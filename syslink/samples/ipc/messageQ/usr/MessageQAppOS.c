@@ -177,9 +177,6 @@ main (int argc, char ** argv)
         MessageQApp_execute ();
     }
 
-    Osal_printf ("Press any key to continue ...\n");
-    getchar ();
-
     MessageQApp_shutdown ();
 
     return 0;
