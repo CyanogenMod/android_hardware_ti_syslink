@@ -65,7 +65,6 @@ static Void signal_handler(Int sig)
 {
     Osal_printf ("\nexiting from the syslink daemon\n ");
     sem_post(&semDaemonWait);
-    exit(TRUE);
 }
 
 
@@ -106,6 +105,8 @@ Void daemon_ipc_cleanup()
     if (status < 0) {
         Osal_printf ("Error in SysMgr_destroy: status = 0x%x\n", status);
     }
+
+    Osal_printf ("Done cleaning up ipc!\n");
 }
 
 
@@ -126,7 +127,6 @@ Int ipc_setup(Char * sysM3ImageName, Char * appM3ImageName)
 #endif
 
     Int                             status = 0;
-    Bool                            appM3Client = FALSE;
 
     if(appM3ImageName != NULL)
         appM3Client = TRUE;
