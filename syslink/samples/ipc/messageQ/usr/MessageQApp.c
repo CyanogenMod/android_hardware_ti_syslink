@@ -625,40 +625,40 @@ MessageQApp_execute (Void)
     }
     else {
         Osal_printf ("MessageQ_alloc (die message) msg = [0x%x]\n", msg);
-    }
 
-    /* Send a die message */
-    MessageQ_setMsgId(msg, DIEMESSAGE);
+        /* Send a die message */
+        MessageQ_setMsgId(msg, DIEMESSAGE);
 
-    /* Have the DSP reply to this message queue */
-    MessageQ_setReplyQueue (MessageQApp_messageQ, msg);
+        /* Have the DSP reply to this message queue */
+        MessageQ_setReplyQueue (MessageQApp_messageQ, msg);
 
-    /* Send the message off */
-    status = MessageQ_put (MessageQApp_queueId, msg);
-    if (status < 0) {
-        Osal_printf ("Error in MessageQ_put (die message) [0x%x]\n",
-                     status);
-    }
-    else {
-        Osal_printf ("MessageQ_put (die message) Status [0x%x]\n", status);
-    }
+        /* Send the message off */
+        status = MessageQ_put (MessageQApp_queueId, msg);
+        if (status < 0) {
+            Osal_printf ("Error in MessageQ_put (die message) [0x%x]\n",
+                         status);
+        }
+        else {
+            Osal_printf ("MessageQ_put (die message) Status [0x%x]\n", status);
+        }
 
-    /* Wait for the final message. */
-    status = MessageQ_get(MessageQApp_messageQ, &msg, MESSAGEQ_FOREVER);
-    if (status < 0) {
-        Osal_printf ("\nError in MessageQ_get (die message)!\n");
-    }
+        /* Wait for the final message. */
+        status = MessageQ_get(MessageQApp_messageQ, &msg, MESSAGEQ_FOREVER);
+        if (status < 0) {
+            Osal_printf ("\nError in MessageQ_get (die message)!\n");
+        }
 
-    /* Validate the returned message. */
-    if (MessageQ_getMsgId (msg) == DIEMESSAGE) {
-        Osal_printf ("\nSuccessfully received die response from the remote"
-                    "processor\n");
-        Osal_printf ("Sample application successfully completed!\n");
+        /* Validate the returned message. */
+        if (MessageQ_getMsgId (msg) == DIEMESSAGE) {
+            Osal_printf ("\nSuccessfully received die response from the remote"
+                        "processor\n");
+            Osal_printf ("Sample application successfully completed!\n");
+        }
+        else {
+            Osal_printf ("\nUnsuccessful run of the sample application!\n");
+        }
+        MessageQ_free(msg);
     }
-    else {
-        Osal_printf ("\nUnsuccessful run of the sample application!\n");
-    }
-    MessageQ_free(msg);
 #else
     Osal_printf ("Sample application successfully completed!\n");
 #endif /* !SYSLINK_USE_DAEMON */
