@@ -620,26 +620,33 @@ Int CreateRcmClient(Int testCase)
     else if (testCase == 2)
         sysm3_image_name = "./Notify_MPUSYS_reroute_Test_Core0.xem3";
     uProcId = remoteId_client;
-    Osal_printf ("SYSM3 Load: loading the SYSM3 image %s\n", sysm3_image_name);
-    Osal_printf ("SYSM3 Load: uProcId = %d\n", uProcId);
-    status = ProcMgr_load (procMgrHandle_client, sysm3_image_name, 2,
-                          &sysm3_image_name, &entry_point, &fileId, PROC_SYSM3);
-    if (status < 0) {
-        Osal_printf ("Error in ProcMgr_load SysM3 image [0x%x]\n", status);
-        goto exit;
+    if (testCase != 0) {
+        Osal_printf ("SYSM3 Load: loading the SYSM3 image %s\n",
+            sysm3_image_name);
+        Osal_printf ("SYSM3 Load: uProcId = %d\n", uProcId);
+        status = ProcMgr_load (procMgrHandle_client, sysm3_image_name, 2,
+                              &sysm3_image_name, &entry_point, &fileId,
+                              PROC_SYSM3);
+        if (status < 0) {
+            Osal_printf ("Error in ProcMgr_load SysM3 image [0x%x]\n", status);
+            goto exit;
+        }
+        Osal_printf ("ProcMgr_load SysM3 image Status [0x%x]\n", status);
     }
-    Osal_printf ("ProcMgr_load SysM3 image Status [0x%x]\n", status);
 #endif
 #if defined(SYSLINK_USE_SYSMGR) || defined(SYSLINK_USE_LOADER)
-    start_params.proc_id = PROC_SYSM3;
-    Osal_printf ("SYSM3 Load: start_params.proc_id = %d\n",
-                start_params.proc_id);
-    status = ProcMgr_start (procMgrHandle_client, entry_point, &start_params);
-    if (status < 0) {
-        Osal_printf ("Error in ProcMgr_start SysM3 [0x%x]\n", status);
-        goto exit;
+    if (testCase != 0) {
+        start_params.proc_id = PROC_SYSM3;
+        Osal_printf ("SYSM3 Load: start_params.proc_id = %d\n",
+                    start_params.proc_id);
+        status = ProcMgr_start (procMgrHandle_client, entry_point,
+                                &start_params);
+        if (status < 0) {
+            Osal_printf ("Error in ProcMgr_start SysM3 [0x%x]\n", status);
+            goto exit;
+        }
+        Osal_printf ("ProcMgr_start SysM3 Status [0x%x]\n", status);
     }
-    Osal_printf ("ProcMgr_start SysM3 Status [0x%x]\n", status);
 #endif
 
     if(remoteId_client == PROC_APPM3) {
