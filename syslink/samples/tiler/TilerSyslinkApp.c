@@ -341,6 +341,7 @@ Int SyslinkUseBufferTest (Int procId, Bool useTiler, UInt numTrials)
                                                            (UInt)bufPtr);
                 if(mapBase == (void *) -1) {
                     Osal_printf("Failed to do memory mapping \n");
+                    close (fd);
                     return -1;
                 }
             }

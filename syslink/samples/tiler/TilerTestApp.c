@@ -84,45 +84,42 @@ Int main (Int argc, Char * argv [])
     Int procId;
     UInt numTrials;
     Int i;
+    Bool validArgs = TRUE;
 
     Osal_printf ("\n== Syslink Mem Utils Sample ==\n");
 
-    if (argc < 2)
-    {
-        Osal_printf ("Usage: ./syslink_tilertest.out <Test#> <Sub Test#>\n"
-                        "Options:\n");
-        Osal_printf ("\t./syslink_tilertest.out 1: "
-                        "\n\t\tSyslink Virt to Phys.\n");
-        Osal_printf ("\t./syslink_tilertest.out 2: "
-                        "\n\t\tSyslink Virt to Phys.Pages\n");
-          Osal_printf ("\t./syslink_tilertest.out 3 1 [# trials]: "
-                        "\n\t\tSyslink Use Tiler Buffer on SysM3\n");
-          Osal_printf ("\t./syslink_tilertest.out 3 2 [# trials]: "
-                        "\n\t\tSyslink Use Tiler Buffer on AppM3\n");
-          Osal_printf ("\t./syslink_tilertest.out 4 1 [# trials]: "
-                        "\n\t\tSyslink Use Malloc Buffer on SysM3\n");
-          Osal_printf ("\t./syslink_tilertest.out 4 2 [# trials]: "
-                        "\n\t\tSyslink Use Malloc Buffer on AppM3\n");
-          Osal_printf ("\t./syslink_tilertest.out 5 [# trials]: "
-                        "\n\t\tSyslink Map/UnMap test\n");
-          Osal_printf ("\t[# trials] is optional, defaults to 1\n");
+    if (argc < 2) {
+        validArgs = FALSE;
         goto exit;
     }
 
     testNo = atoi (argv[1]);
+    if (testNo < 1 || testNo > 5) {
+        validArgs = FALSE;
+        goto exit;
+    }
 
     switch(testNo) {
     case 3:
     case 4:
-        if(argc > 2)
-        {
+        if(argc > 2) {
             subTestNo = atoi (argv[2]);
 
             /* Determine proc ID based on subtest number */
-            if(subTestNo == 1)
+            if(subTestNo == 1) {
                 procId = 2;   // SysM3
-            if(subTestNo == 2)
+            }
+            else if(subTestNo == 2) {
                 procId = 3;   // AppM3
+            }
+            else {
+                validArgs = FALSE;
+                goto exit;
+            }
+        }
+        else {
+            validArgs = FALSE;
+            goto exit;
         }
 
         if(argc > 3)
@@ -179,12 +176,33 @@ Int main (Int argc, Char * argv [])
 
     if(status < 0)
         Osal_printf("Exiting with status 0x%x\n", status);
-exit:
+
     if(testNo == 3 && subTestNo == 2)
         for(i = 0; i < 29; i++)
             Osal_printf("%s\n", SYSLINK_TUX_IMAGE[i]);
 
     Osal_printf ("\n== Sample End ==\n");
+
+exit:
+    if (!validArgs) {
+        Osal_printf ("Usage: ./syslink_tilertest.out <Test#> <Sub Test#>\n"
+                        "Options:\n");
+        Osal_printf ("\t./syslink_tilertest.out 1: "
+                        "\n\t\tSyslink Virt to Phys.\n");
+        Osal_printf ("\t./syslink_tilertest.out 2: "
+                        "\n\t\tSyslink Virt to Phys.Pages\n");
+        Osal_printf ("\t./syslink_tilertest.out 3 1 [# trials]: "
+                        "\n\t\tSyslink Use Tiler Buffer on SysM3\n");
+        Osal_printf ("\t./syslink_tilertest.out 3 2 [# trials]: "
+                        "\n\t\tSyslink Use Tiler Buffer on AppM3\n");
+        Osal_printf ("\t./syslink_tilertest.out 4 1 [# trials]: "
+                        "\n\t\tSyslink Use Malloc Buffer on SysM3\n");
+        Osal_printf ("\t./syslink_tilertest.out 4 2 [# trials]: "
+                        "\n\t\tSyslink Use Malloc Buffer on AppM3\n");
+        Osal_printf ("\t./syslink_tilertest.out 5 [# trials]: "
+                        "\n\t\tSyslink Map/UnMap test\n");
+        Osal_printf ("\t[# trials] is optional, defaults to 1\n");
+    }
 
     return status;
 }
