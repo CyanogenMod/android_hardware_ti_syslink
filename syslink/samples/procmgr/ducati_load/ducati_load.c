@@ -211,8 +211,13 @@ int main(int argc, char * argv[])
         fprintf(stdout, "entry_point is 0x%x\n",entry_point);
 
         start_params = malloc(sizeof(ProcMgr_StartParams));
-        start_params->proc_id = uProcId;
+        if (start_params == NULL) {
+            fprintf(stdout,"ProcMgr_load memory allocation failed for "
+                        "start_params.\n");
+            exit(1);
+        }
 
+        start_params->proc_id = uProcId;
         status = ProcMgr_start (ProcMgrApp_handle, entry_point, start_params);
         if (status != PROCMGR_SUCCESS) {
             fprintf(stdout, "ProcMgr_start failed for image %s and "

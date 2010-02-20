@@ -320,71 +320,76 @@ ProcMgrApp_startup ()
         procParams.resetVectorMemEntry = RESET_VECTOR_ENTRY_ID;
 
         procHandle = OMAP4430PROC_create (procId, &procParams);
-
-      }
+    }
 
     if (status >= 0) {
         Osal_printf ("MultiProc_getId procId: [0x%x]\n", procId);
 
-            /* Initialize parameters */
-            ProcMgr_Params_init (NULL, &params);
+        /* Initialize parameters */
+        ProcMgr_Params_init (NULL, &params);
 
-              params.procHandle = procHandle;
-            ProcMgrApp_handle = ProcMgr_create (procId, &params);
-            if (ProcMgrApp_handle == NULL) {
-                Osal_printf ("Error in ProcMgr_create \n");
-                status = PROCMGR_E_FAIL;
-            }
+        params.procHandle = procHandle;
+        ProcMgrApp_handle = ProcMgr_create (procId, &params);
+        if (ProcMgrApp_handle == NULL) {
+            Osal_printf ("Error in ProcMgr_create \n");
+            status = PROCMGR_E_FAIL;
+        }
 
 //new for testing DMMs
+        Osal_printf ("calling Malloc the buffer \n");
 
-
-Osal_printf ("calling Malloc the buffer \n");
-
-                aBufferSend = (UInt32 *)malloc(ulSendBufferSize);
-                  Osal_printf ("Populating the buffer \n");
-                /* Initialize buffer */
-                for (i = 0;i < ulSendBufferSize;i++) {
-                    //populating the buffer with
-                    aBufferSend[i] = 0xfafa;
-                }
-Osal_printf ("\n APPLICATION CALLING: ProcMgr_map \n");
-
-    status = ProcMgr_map(ProcMgrApp_handle,
-                        (UInt32)aBufferSend,
-                        ulSendBufferSize,
-                        &mappedAddr,
-                        &mappedSize,
-                        ProcMgr_MapType_Virt);
-
-        if (status == 0) {
-            Osal_printf ("Error in ProcMgr_map [0x%x]\n", status);
+        aBufferSend = (UInt32 *)malloc(ulSendBufferSize);
+        if (aBufferSend == NULL) {
+            Osal_printf ("Memory allocation failed.\n");
+            status = -1;
         }
-        else
-           Osal_printf ("ProcMgr_map  done[0x%x]\n", status);
-        Osal_printf ("Mapped address [0x%x]\n", mappedAddr);
-        for (i = 0;i < ulSendBufferSize;i++) {
-                    aBufferSend[i] = 0xF0F0F0F0;
+        else {
+            Osal_printf ("Populating the buffer \n");
+            /* Initialize buffer */
+            for (i = 0;i < ulSendBufferSize;i++) {
+                //populating the buffer with
+                aBufferSend[i] = 0xfafa;
+            }
+
+            Osal_printf ("\n APPLICATION CALLING: ProcMgr_map \n");
+
+            status = ProcMgr_map(ProcMgrApp_handle,
+                                (UInt32)aBufferSend,
+                                ulSendBufferSize,
+                                &mappedAddr,
+                                &mappedSize,
+                                ProcMgr_MapType_Virt);
+
+            if (status == 0) {
+                Osal_printf ("Error in ProcMgr_map [0x%x]\n", status);
+            }
+            else {
+               Osal_printf ("ProcMgr_map  done[0x%x]\n", status);
+            }
+            Osal_printf ("Mapped address [0x%x]\n", mappedAddr);
+            for (i = 0;i < ulSendBufferSize;i++) {
+                aBufferSend[i] = 0xF0F0F0F0;
+            }
+            Osal_printf ("\n\n MAP DONE Check on the Ducati CCS memory window "
+                        "for values written to memory address [0x%x] ...\n",
+                        mappedAddr);
+            Osal_printf ("Waiting ... Press Any key to continue with Unmap \n");
+            getchar();
+
+            Osal_printf ("\n\n APPLICATION CALLING: ProcMgr_unmap \n");
+            status = ProcMgr_unmap(ProcMgrApp_handle,mappedAddr);
+            if (status == 0) {
+                Osal_printf ("Error in ProcMgr_unmap [0x%x]\n", status);
+            }
+            else {
+               Osal_printf ("ProcMgr_unmap  done[0x%x]\n", status);
+            }
+            Osal_printf ("UnMapped address [0x%x]\n", mappedAddr);
+            Osal_printf ("\n\n UNMAP DONE Check on the Ducati CCS memory window "
+                            "memory address [0x%x] ...\n", mappedAddr);
         }
-    Osal_printf ("\n\n MAP DONE Check on the Ducati CCS memory window for "
-                "values written to memory address [0x%x] ...\n", mappedAddr);
-    Osal_printf ("Waiting ... Press Any key to continue with Unmap \n");
-    getchar();
 
-    Osal_printf ("\n\n APPLICATION CALLING: ProcMgr_unmap \n");
-    status = ProcMgr_unmap(ProcMgrApp_handle,mappedAddr);
-
-        if (status == 0) {
-            Osal_printf ("Error in ProcMgr_unmap [0x%x]\n", status);
-        }
-        else
-           Osal_printf ("ProcMgr_unmap  done[0x%x]\n", status);
-        Osal_printf ("UnMapped address [0x%x]\n", mappedAddr);
-        Osal_printf ("\n\n UNMAP DONE Check on the Ducati CCS memory window "
-                        "memory address [0x%x] ...\n", mappedAddr);
-
-// delay after unmap so that we can connect the CCS
-
+        // delay after unmap so that we can connect the CCS
         Osal_printf ("\n\n Exiting ...\n");
         getchar();
         getchar();
