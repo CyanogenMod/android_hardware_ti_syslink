@@ -76,7 +76,7 @@ extern "C" {
  */
 UInt16 numIterations = NOTIFYAPP_NUMEVENTS;
 
-UInt16 NotifyApp_recvEventCount [NOTIFYAPP_NUMEVENTS];
+UInt16 NotifyApp_recvEventCount [MAX_EVENTS];
 
 Processor_Id procId;
 
@@ -375,11 +375,11 @@ static Void NotifyPing_Execute (Void)
             }
 
             /* Wait for events from 4-32 */
-            for(i = EVENT_STARTNO; i < MAX_EVENTS; i++) {
+            for(i = EVENT_STARTNO + 1; i < MAX_EVENTS; i++) {
                 NotifyPing_WaitSem (event [i]);
                 printf ("[NotifyPingExecute]<<<<<<<< Received Event[%d]\n", i);
+                NotifyApp_recvEventCount [i] = j;
             }
-            NotifyApp_recvEventCount [eventNo] = j;
 
             /* Stop iterations here */
             if(j==0 )
