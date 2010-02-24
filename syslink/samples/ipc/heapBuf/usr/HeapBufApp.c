@@ -59,7 +59,8 @@
 #include <Heap.h>
 #include <HeapBuf.h>
 #endif /* if defined(SYSLINK_USE_SYSMGR) */
-
+#include <omap4430proc.h>
+#include <ConfigNonSysMgrSamples.h>
 #include <HeapBufApp.h>
 #include "HeapBufApp_config.h"
 
@@ -90,6 +91,12 @@ extern "C" {
 #define GATEPETERSONMEMOFFSET    (GATEPETERSONMEM - SHAREDMEM)
 #define HEAPBUFMEMOFFSET_1       (HEAPMBMEM_CTRL - SHAREDMEM)
 #define HEAPBUFMEMOFFSET_2       (HEAPMBMEM1_CTRL - SHAREDMEM)
+#if defined(SYSLINK_USE_SYSMGR)
+#define HEAPBUF_SYSM3_IMAGE_PATH "/binaries/HeapBufTestApp_SYSM3_MPU_SYSMGR.xem3"
+#define HEAPBUF_APPM3_IMAGE_PATH ""
+#else
+#define HEAPBUF_SYSM3_IMAGE_PATH "/binaries/HeapBufTestApp_SYSM3_MPU_NONSYSMGR.xem3"
+#endif
 
 ProcMgr_Handle       HeapBufApp_Prochandle   = NULL;
 UInt32               curAddr   = 0;
@@ -99,7 +106,7 @@ HeapBuf_Handle       heapHandle1;
 
 typedef struct Heap_Block_Tag
 {
-    char   name[MAX_NAME_LENGTH];
+    Char   name[MAX_NAME_LENGTH];
     Int32  id;
 }Heap_Block;
 
@@ -119,14 +126,15 @@ HeapBufApp_startup (Void)
     HeapBuf_Config            cfgHeapBufParams;
     SharedRegion_Config       cfgShrParams;
     ListMPSharedMemory_Config cfgLstParams;
-    MultiProc_Config           multiProcConfig;
+    MultiProc_Config          multiProcConfig;
+    NameServer_Params         nameServerParams;
 #endif /* if defined(SYSLINK_USE_SYSMGR) */
     GatePeterson_Params       gateParams;
-    NameServer_Params         NameServerParams;
-    String                    Gate_Name = "TESTGATE";
+    /* String                    Gate_Name = "TESTGATE"; */
     UInt16                    Remote_procId;
     UInt16                    myProcId;
 
+    procId = 2;
     Osal_printf ("Entered HeapBuf startup\n");
 
 #if defined(SYSLINK_USE_SYSMGR)
@@ -135,32 +143,26 @@ HeapBufApp_startup (Void)
     if (status < 0) {
         Osal_printf ("Error in SysMgr_setup [0x%x]\n", status);
     }
-#else /* if defined(SYSLINK_USE_SYSMGR) */
+#else
     UsrUtilsDrv_setup ();
+#endif /* if defined(SYSLINK_USE_SYSMGR) */
 
-    multiProcConfig.maxProcessors = 4;
-    multiProcConfig.id = 0;
-    String_cpy (multiProcConfig.nameList [0], "MPU");
-    String_cpy (multiProcConfig.nameList [1], "Tesla");
-    String_cpy (multiProcConfig.nameList [2], "SysM3");
-    String_cpy (multiProcConfig.nameList [3], "AppM3");
-    status = MultiProc_setup(&multiProcConfig);
-    if (status < 0) {
-        Osal_printf ("Error in MultiProc_setup [0x%x]\n", status);
-    }
+#if !defined(SYSLINK_USE_SYSMGR)
+    procId = 2;
+    ProcUtil_setup ();
+    Osal_printf ("ProcUtil_setup Done\n");
 
     /* This will set up the NameServer. NameServer will be used internally by
      *  many modules internally (optinally we can disable it usage in modules)
      */
-    NameServerParams.maxNameLen        = MAX_NAME_LENGTH;
-    NameServerParams.maxRuntimeEntries = MAX_VALUE_LENGTH;
-    NameServerParams.maxValueLen       = MAX_RUNTIMEENTRIES;
+    /*nameServerParams.maxNameLen        = MAX_NAME_LENGTH;*/
+    nameServerParams.maxRuntimeEntries = MAX_VALUE_LENGTH;
+    nameServerParams.maxValueLen       = MAX_RUNTIMEENTRIES;
     status = NameServer_setup();
     if (status < 0) {
         Osal_printf ("Error in NameServer_setup [0x%x]\n", status);
     }
-#endif /* if defined(SYSLINK_USE_SYSMGR) */
-
+#else
     myProcId = MultiProc_getId("MPU");
     Osal_printf ("MultiProc_getId(MPU) = 0x%x]\n", myProcId);
 
@@ -169,14 +171,16 @@ HeapBufApp_startup (Void)
     Osal_printf ("MultiProc_getId(SysM3) = 0x%x]\n", Remote_procId);
 
     /* Open a handle to the ProcMgr instance. */
-    status = ProcMgr_open (&HeapBufApp_Prochandle, Remote_procId);
+    status = ProcMgr_open (&procHandle, Remote_procId);
     if (status < 0) {
         Osal_printf ("Error in ProcMgr_open [0x%x]\n", status);
     }
     else {
         Osal_printf ("ProcMgr_open Status [0x%x]\n", status);
+#endif /* if !defined(SYSLINK_USE_SYSMGR) */
+
         /* Get the address of the shared region in kernel space. */
-        status = ProcMgr_translateAddr (HeapBufApp_Prochandle,
+        status = ProcMgr_translateAddr (procHandle,
                                         (Ptr) &curAddr,
                                         ProcMgr_AddrType_MasterUsrVirt,
                                         (Ptr) SHAREDMEM,
@@ -189,9 +193,12 @@ HeapBufApp_startup (Void)
                          " [0x%x]\n",
                          curAddr);
         }
+#if defined(SYSLINK_USE_SYSMGR)
     }
-
-#if !defined (SYSLINK_USE_SYSMGR)
+#endif
+    ProcUtil_load (HEAPBUF_SYSM3_IMAGE_PATH);
+    Osal_printf ("Done loading image to SYSM3\n");
+#if !defined(SYSLINK_USE_SYSMGR)
     /* Configure shared region (prefered custom setup rather than default) */
     cfgShrParams.gateHandle = NULL;
     cfgShrParams.heapHandle = NULL;
@@ -201,47 +208,48 @@ HeapBufApp_startup (Void)
         Osal_printf ("Error in SharedRegion_setup [0x%x]\n", status);
     }
     else {
-#endif /* if !defined(SYSLINK_USE_SYSMGR) */
+#endif
         SharedRegion_add(0,(Ptr)curAddr, SHAREDMEMSIZE);
-
-#if !defined (SYSLINK_USE_SYSMGR)
+#if !defined(SYSLINK_USE_SYSMGR)
         GatePeterson_getConfig (&cfgGateParams);
-        cfgGateParams.maxNameLen = MAX_NAME_LENGTH;
+        /*cfgGateParams.maxNameLen = MAX_NAME_LENGTH;*/
         status = GatePeterson_setup (&cfgGateParams);
         if (status < 0) {
             Osal_printf ("Error in GatePeterson_setup [0x%x]\n", status);
         }
         else {
-#endif /* if !defined(SYSLINK_USE_SYSMGR) */
+#endif
             GatePeterson_Params_init(gateHandle, &gateParams);
             gateParams.sharedAddr     = (Ptr)(curAddr + GATEPETERSONMEMOFFSET);
             gateParams.sharedAddrSize = GatePeterson_sharedMemReq(&gateParams);
-            gateParams.name           = Memory_alloc(NULL,
+            /*gateParams.name           = Memory_alloc(NULL,
                                                      sizeof(Gate_Name),
                                                      0u);
-            String_ncpy(gateParams.name, Gate_Name,String_len (Gate_Name));
-            Osal_printf ("Run Ducati Sample(If not not done yet)"
-                        "  and press any key to continue ...\n");
-            getchar ();
+            String_ncpy(gateParams.name, Gate_Name,String_len (Gate_Name));*/
+            procId = 2;
+            ProcUtil_start ();
+            Osal_printf ("Started Ducati:SYSM3\n");
 
             do {
                 gateParams.sharedAddr     = (Ptr)(curAddr + GATEPETERSONMEMOFFSET);
                 status = GatePeterson_open (&gateHandle, &gateParams);
             }
-            while (status < 0);
+            while ((status == GATEPETERSON_E_NOTFOUND) ||
+                    (status == GATEPETERSON_E_VERSION));
 
             if (status < 0) {
                 Osal_printf ("Error in GatePeterson_open [0x%x]\n", status);
             }
             else {
                 Osal_printf ("GatePeterson_open Status [0x%x]\n", status);
-#if !defined (SYSLINK_USE_SYSMGR)
-                cfgLstParams.maxNameLen = MAX_NAME_LENGTH;
-                status = ListMPSharedMemory_setup(&cfgLstParams);
+
                 if (gateHandle == NULL) {
                     Osal_printf ("Error in GatePeterson_setup [0x%x]\n", status);
                 }
                 else {
+#if !defined(SYSLINK_USE_SYSMGR)
+                    cfgLstParams.maxNameLen = MAX_NAME_LENGTH;
+                    status = ListMPSharedMemory_setup(&cfgLstParams);
                     HeapBuf_getConfig (&cfgHeapBufParams);
                     cfgHeapBufParams.maxNameLen     = MAX_NAME_LENGTH;
                     cfgHeapBufParams.trackMaxAllocs = TRUE;
@@ -249,14 +257,15 @@ HeapBufApp_startup (Void)
                     if (status < 0) {
                         Osal_printf ("Error in HeapBuf_setup [0x%x]\n", status);
                     }
+#endif
                 }
-#endif /* if !defined(SYSLINK_USE_SYSMGR) */
             }
-#if !defined (SYSLINK_USE_SYSMGR)
+#if !defined(SYSLINK_USE_SYSMGR)
         }
-    }
-#endif /* if !defined(SYSLINK_USE_SYSMGR) */
-
+#endif
+#if !defined(SYSLINK_USE_SYSMGR)
+   }
+#endif
     return 0;
 }
 
@@ -309,14 +318,14 @@ HeapBufApp_execute (Void)
 
     do {
         heapbufParams.sharedAddr = (Ptr)(curAddr + HEAPBUFMEMOFFSET_1);
-        status =  HeapBuf_open(&heapHandle,&heapbufParams);
+        status =  HeapBuf_open (&heapHandle,&heapbufParams);
     } while(status < 0);
 
     if (heapHandle == NULL) {
         Osal_printf ("Error in HeapBuf_open [0x%x]\n",status);
     }
     else {
-        printf("HeapBuf_open heapHandle:%p\n", heapHandle);
+        Osal_printf ("HeapBuf_open heapHandle:%p\n", heapHandle);
         heapBlock = (Heap_Block *)Heap_alloc(
                                 (Heap_Handle)heapHandle,
                                 sizeof(Heap_Block),
@@ -325,7 +334,7 @@ HeapBufApp_execute (Void)
         HeapBuf_getExtendedStats((Heap_Handle)heapHandle,
                                   &stats);
 
-        Osal_printf("HeapBuf_getExtendedStats NumAllocatedBlocks = %d\n",
+        Osal_printf ("HeapBuf_getExtendedStats NumAllocatedBlocks = %d\n",
                                                     stats.numAllocatedBlocks);
 
         status = Heap_free((Heap_Handle)heapHandle,
@@ -335,18 +344,12 @@ HeapBufApp_execute (Void)
             Osal_printf ("Error in Heap_free [0x%x]\n",status);
         }
         else {
-            Osal_printf("\nHeapBuf block memory free successfully\n");
+            Osal_printf ("\nHeapBuf block memory free successfully\n");
         }
     }
 
     heapHandle1 = HeapBuf_create(&heapbufParams1);
-    printf("HeapBuf_create heapHandle1:%p\n", heapHandle1);
-
-    Osal_printf ("Halt the Ducati-side application, set wait to 0,\n");
-    Osal_printf ("and run it to completion.\n");
-    Osal_printf ("Press any key to continue ...\n");
-    getchar ();
-
+    Osal_printf ("HeapBuf_create heapHandle1:%p\n", heapHandle1);
     return status;
 }
 
@@ -360,6 +363,7 @@ Int
 HeapBufApp_shutdown (Void)
 {
     Int32 status;
+
     Osal_printf ("Entered HeapBufApp_shutdown\n");
 
     status = HeapBuf_close (&heapHandle);
@@ -368,33 +372,38 @@ HeapBufApp_shutdown (Void)
     status = HeapBuf_delete (&heapHandle1);
     Osal_printf ("HeapBuf_delete status: [0x%x]\n", status);
 
-    status = HeapBuf_destroy();
+    status = GatePeterson_close(&gateHandle);
+    Osal_printf ("GatePeterson_close status: [0x%x]\n", status);
+#if defined(SYSLINK_USE_SYSMGR)
+    SharedRegion_remove (0);
+    ProcUtil_stop ();
+    status = ProcMgr_close (&procHandle);
+    Osal_printf ("ProcMgr_close status: [0x%x]\n", status);
+    SysMgr_destroy ();
+#else
+    status = HeapBuf_destroy ();
     Osal_printf ("HeapBuf_destroy status: [0x%x]\n", status);
 
-    status = ProcMgr_close (&HeapBufApp_Prochandle);
-    Osal_printf ("ProcMgr_close status: [0x%x]\n", status);
-
-#if defined (SYSLINK_USE_SYSMGR)
-    SysMgr_destroy ();
-#else /* if defined (SYSLINK_USE_SYSMGR) */
-    status = ListMPSharedMemory_destroy();
+    status = ListMPSharedMemory_destroy ();
     Osal_printf ("ListMPSharedMemory_destroy status: [0x%x]\n", status);
     
-    status = GatePeterson_destroy();
+    status = GatePeterson_destroy ();
     Osal_printf ("GatePeterson_destroy status: [0x%x]\n", status);
-    
-    status = SharedRegion_destroy();
+
+    SharedRegion_remove (0);
+
+    status = SharedRegion_destroy ();
     Osal_printf ("SharedRegion_destroy status: [0x%x]\n", status);
 
-    status = NameServer_destroy();
+    status = NameServer_destroy ();
     Osal_printf ("NameServer_destroy status: [0x%x]\n", status);
 
-    status = MultiProc_destroy ();
-    Osal_printf ("Multiproc_destroy status: [0x%x]\n", status);
+    ProcUtil_stop ();
+    ProcUtil_shutdown ();
 
     UsrUtilsDrv_destroy ();
-#endif /* if !defined(SYSLINK_USE_SYSMGR) */
 
+#endif
     Osal_printf ("Leaving HeapBufApp_shutdown\n");
     return status;
 }
