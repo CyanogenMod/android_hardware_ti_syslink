@@ -1,16 +1,35 @@
 /*
- * Syslink-IPC for TI OMAP Processors
+ *  Syslink-IPC for TI OMAP Processors
  *
- * Copyright (C) 2009 Texas Instruments, Inc.
+ *  Copyright (c) 2008-2010, Texas Instruments Incorporated
+ *  All rights reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Lesser General Public License as published
- * by the Free Software Foundation version 2.1 of the License.
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted provided that the following conditions
+ *  are met:
  *
- * This program is distributed .as is. WITHOUT ANY WARRANTY of any kind,
- * whether express or implied; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
+ *  *  Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
+ *
+ *  *  Redistributions in binary form must reproduce the above copyright
+ *     notice, this list of conditions and the following disclaimer in the
+ *     documentation and/or other materials provided with the distribution.
+ *
+ *  *  Neither the name of Texas Instruments Incorporated nor the names of
+ *     its contributors may be used to endorse or promote products derived
+ *     from this software without specific prior written permission.
+ *
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ *  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ *  THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ *  PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ *  CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ *  EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ *  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+ *  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ *  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ *  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ *  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /** ============================================================================
  *  @file   Trace.h
@@ -147,6 +166,19 @@ typedef enum {
     /*!< Indicates a function leave class of trace */
 } GT_TraceClass;
 
+/*!
+ *  @brief   Enumerates the types of trace
+ */
+typedef enum {
+    GT_TraceType_User       = 0x00000000,
+    /*!< Disable trace */
+    GT_TraceType_Kernel     = 0x00000001,
+    /*!< Enable trace */
+    GT_TraceType_EndValue   = 0x00000002
+    /*!< End delimiter indicating start of invalid values for this enum */
+} GT_TraceType;
+
+
 //#define SYSLINK_TRACE_ENABLE
 
 #if defined(SYSLINK_BUILD_DEBUG)
@@ -182,6 +214,10 @@ Void _GT_setFailureReason (Int enableMask,
 
 
 #if defined (SYSLINK_TRACE_ENABLE)
+
+/* Function to set the trace mask */
+UInt32 _GT_setTrace (UInt32 mask, GT_TraceType type);
+#define GT_setTrace(mask,type) _GT_setTrace(mask, type)
 
 /* Log the trace with zero parameters and information string. */
 Void _GT_0trace (UInt32 maskType, GT_TraceClass classtype, Char* infoString);
@@ -394,6 +430,7 @@ do {                                                            \
 #define GT_3trace(mask, classId, format, arg1, arg2, arg3)
 #define GT_4trace(mask, classId, format, arg1, arg2, arg3, arg4)
 #define GT_5trace(mask, classId, format, arg1, arg2, arg3, arg4, arg5)
+#define GT_setTrace(mask, type) 0
 
 #endif /* if defined (SYSLINK_TRACE_ENABLE) */
 

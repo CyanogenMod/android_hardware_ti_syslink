@@ -1,16 +1,35 @@
 /*
- * Syslink-IPC for TI OMAP Processors
+ *  Syslink-IPC for TI OMAP Processors
  *
- * Copyright (C) 2009 Texas Instruments, Inc.
+ *  Copyright (c) 2008-2010, Texas Instruments Incorporated
+ *  All rights reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Lesser General Public License as published
- * by the Free Software Foundation version 2.1 of the License.
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted provided that the following conditions
+ *  are met:
  *
- * This program is distributed .as is. WITHOUT ANY WARRANTY of any kind,
- * whether express or implied; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
+ *  *  Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
+ *
+ *  *  Redistributions in binary form must reproduce the above copyright
+ *     notice, this list of conditions and the following disclaimer in the
+ *     documentation and/or other materials provided with the distribution.
+ *
+ *  *  Neither the name of Texas Instruments Incorporated nor the names of
+ *     its contributors may be used to endorse or promote products derived
+ *     from this software without specific prior written permission.
+ *
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ *  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ *  THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ *  PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ *  CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ *  EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ *  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+ *  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ *  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ *  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ *  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /** ============================================================================
  *  @file   GateMutex.h
@@ -24,107 +43,73 @@
 #define GATEMUTEX_H_0x72D0
 
 
-/* Module headers */
-#include <Gate.h>
-
-
 #if defined (__cplusplus)
 extern "C" {
 #endif
 
-/*!
- *  @def    GATEMUTEX_MODULEID
- *  @brief  Unique module ID.
- */
-#define GATEMUTEX_MODULEID      (0x72D0)
 
 /* =============================================================================
- *  All success and failure codes for the module
+ *  Status codes
  * =============================================================================
  */
 /*!
- *  @def    GATEMUTEX_STATUSCODEBASE
- *  @brief  Error code base for Gate Mutex.
- */
-#define GATEMUTEX_STATUSCODEBASE  (GATEMUTEX_MODULEID << 12u)
-
-/*!
- *  @def    GATEMUTEX_MAKE_FAILURE
- *  @brief  Macro to make error code.
- */
-#define GATEMUTEX_MAKE_FAILURE(x)    ((Int)  (  0x80000000                  \
-                                         + (GATEMUTEX_STATUSCODEBASE  \
-                                         + (x))))
-
-/*!
- *  @def    GATEMUTEX_MAKE_SUCCESS
- *  @brief  Macro to make success code.
- */
-#define GATEMUTEX_MAKE_SUCCESS(x)    (GATEMUTEX_STATUSCODEBASE + (x))
-
-/* =============================================================================
- *  All success and failure codes for the module
- * =============================================================================
- */
-
-/*
- *  @def    GATEMUTEX_E_INVALIDARG
+ *  @def    GateMutex_E_INVALIDARG
  *  @brief  Argument passed to a function is invalid.
  */
-#define GATEMUTEX_E_INVALIDARG       GATEMUTEX_MAKE_FAILURE(1)
+#define GateMutex_E_INVALIDARG       -1
 
-/*
- *  @def    GATEMUTEX_E_MEMORY
+/*!
+ *  @def    GateMutex_E_MEMORY
  *  @brief  Memory allocation failed.
  */
-#define GATEMUTEX_E_MEMORY           GATEMUTEX_MAKE_FAILURE(2)
+#define GateMutex_E_MEMORY           -2
 
-/*
- *  @def    GATEMUTEX_E_BUSY
- *  @brief  the name is already registered or not.
+/*!
+ *  @def    GateMutex_E_BUSY
+ *  @brief  The name is already registered or not.
  */
-#define GATEMUTEX_E_BUSY             GATEMUTEX_MAKE_FAILURE(3)
+#define GateMutex_E_BUSY             -3
 
-/*
- *  @def    GATEMUTEX_E_FAIL
+/*!
+ *  @def    GateMutex_E_FAIL
  *  @brief  Generic failure.
  */
-#define GATEMUTEX_E_FAIL             GATEMUTEX_MAKE_FAILURE(4)
+#define GateMutex_E_FAIL             -4
 
-/*
- *  @def    GATEMUTEX_E_NOTFOUND
- *  @brief  name not found in the nameserver.
+/*!
+ *  @def    GateMutex_E_NOTFOUND
+ *  @brief  Name not found in the nameserver.
  */
-#define GATEMUTEX_E_NOTFOUND         GATEMUTEX_MAKE_FAILURE(5)
+#define GateMutex_E_NOTFOUND         -5
 
-/*
- *  @def    GATEMUTEX_E_INVALIDSTATE
+/*!
+ *  @def    GateMutex_E_INVALIDSTATE
  *  @brief  Module is not initialized.
  */
-#define GATEMUTEX_E_INVALIDSTATE     GATEMUTEX_MAKE_FAILURE(6)
+#define GateMutex_E_INVALIDSTATE     -6
 
-/*
- *  @def    GATEMUTEX_E_INUSE
+/*!
+ *  @def    GateMutex_E_INUSE
  *  @brief  Indicates that the instance is in use.
  */
-#define GATEMUTEX_E_INUSE            GATEMUTEX_MAKE_FAILURE(7)
+#define GateMutex_E_INUSE            -7
 
-/*
- *  @def    GATEMUTEX_SUCCESS
+/*!
+ *  @def    GateMutex_S_SUCCESS
  *  @brief  Operation successful.
  */
-#define GATEMUTEX_SUCCESS            GATEMUTEX_MAKE_SUCCESS(0)
+#define GateMutex_S_SUCCESS          0
 
 
 /* =============================================================================
  *  Macros and types
  * =============================================================================
  */
-/* @brief  Object for Gate Mutex */
-typedef Gate_Object GateMutex_Object;
+/*! @brief  Object for Gate Mutex */
+typedef struct GateMutex_Object GateMutex_Object;
 
-/* @brief  Handle for Gate Mutex */
-typedef Gate_Handle GateMutex_Handle;
+/*! @brief  Handle for Gate Mutex */
+typedef struct GateMutex_Object * GateMutex_Handle;
 
 
 /* =============================================================================
@@ -137,14 +122,9 @@ GateMutex_Handle GateMutex_create (Void);
 /* Function to delete a Gate Mutex */
 Int GateMutex_delete (GateMutex_Handle * gmHandle);
 
-/* Function to enter a Gate Mutex */
-UInt32 GateMutex_enter (GateMutex_Handle gmHandle);
-
-/* Function to leave a Gate Mutex */
-Void GateMutex_leave (GateMutex_Handle gmHandle, UInt32 key);
 
 #if defined (__cplusplus)
 }
 #endif /* defined (__cplusplus) */
 
-#endif /* GATEMUTEX_H */
+#endif /* GATEMUTEX_H_0x72D0 */

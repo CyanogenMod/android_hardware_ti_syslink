@@ -1,16 +1,35 @@
 /*
- * Syslink-IPC for TI OMAP Processors
+ *  Syslink-IPC for TI OMAP Processors
  *
- * Copyright (C) 2009 Texas Instruments, Inc.
+ *  Copyright (c) 2008-2010, Texas Instruments Incorporated
+ *  All rights reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Lesser General Public License as published
- * by the Free Software Foundation version 2.1 of the License.
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted provided that the following conditions
+ *  are met:
  *
- * This program is distributed .as is. WITHOUT ANY WARRANTY of any kind,
- * whether express or implied; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
+ *  *  Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
+ *
+ *  *  Redistributions in binary form must reproduce the above copyright
+ *     notice, this list of conditions and the following disclaimer in the
+ *     documentation and/or other materials provided with the distribution.
+ *
+ *  *  Neither the name of Texas Instruments Incorporated nor the names of
+ *     its contributors may be used to endorse or promote products derived
+ *     from this software without specific prior written permission.
+ *
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ *  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ *  THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ *  PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ *  CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ *  EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ *  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+ *  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ *  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ *  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ *  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /** ============================================================================
  *  @file   List.h
@@ -27,7 +46,7 @@
 
 
 /* Standard headers */
-#include <Gate.h>
+#include <IGateProvider.h>
 
 
 #if defined (__cplusplus)
@@ -35,72 +54,13 @@ extern "C" {
 #endif
 
 
-/*!
- *  @def    LIST_MODULEID
- *  @brief  Unique module ID.
- */
-#define LIST_MODULEID      (UInt16) 0xb734
-
-/* =============================================================================
- *  All success and failure codes for the module
- * =============================================================================
- */
-/*!
- *  @def    LIST_STATUSCODEBASE
- *  @brief  Error code base for List module.
- */
-#define LIST_STATUSCODEBASE    (LIST_MODULEID << 12u)
-
-/*!
- *  @def    LIST_MAKE_FAILURE
- *  @brief  Macro to make failure code.
- */
-#define LIST_MAKE_FAILURE(x)   (0x80000000 | (LIST_STATUSCODEBASE + (x)))
-
-/*!
- *  @def    LIST_MAKE_SUCCESS
- *  @brief  Macro to make success code.
- */
-#define LIST_MAKE_SUCCESS(x)   (LIST_STATUSCODEBASE + (x))
-
-/*!
- *  @def    LIST_E_INVALIDARG
- *  @brief  Argument passed to a function is invalid.
- */
-#define LIST_E_INVALIDARG      LIST_MAKE_FAILURE(1)
-
-/*!
- *  @def    LIST_E_FAIL
- *  @brief  Generic failure.
- */
-#define LIST_E_FAIL            LIST_MAKE_FAILURE(2)
-
-/*!
- *  @def    LIST_E_MEMORY
- *  @brief  Memory allocation failure.
- */
-#define LIST_E_MEMORY          LIST_MAKE_FAILURE(3)
-
-/*!
- *  @def    LIST_E_NOTFOUND
- *  @brief  Element not found.
- */
-#define LIST_E_NOTFOUND        LIST_MAKE_FAILURE(4)
-
-/*!
- *  @def    LIST_SUCCESS
- *  @brief  Operation is successful.
- */
-#define LIST_SUCCESS           LIST_MAKE_SUCCESS(0)
-
-
 /* =============================================================================
  *  Macros and types
  * =============================================================================
  */
 /*!
- *  @def    LIST_E_MEMORY
- *  @brief  Memory allocation failure.
+ *  @def    List_traverse
+ *  @brief  Traverse the full list till the last element.
  */
 #define List_traverse(x,y) for(x = (List_Elem *)((List_Object *)y)->elem.next; \
                                (UInt32) x != (UInt32)&((List_Object *)y)->elem;\
@@ -118,9 +78,9 @@ typedef struct List_Elem_tag {
  *  @brief  Structure defining object for the list.
  */
 typedef struct List_Object_tag {
-    List_Elem    elem;
+    List_Elem            elem;
     /*!< Head pointing to next element */
-    Gate_Handle  listLock;
+    IGateProvider_Handle gateHandle;
     /*!< Handle to lock for protecting objList */
 } List_Object;
 
@@ -131,7 +91,11 @@ typedef List_Object * List_Handle;
  *  @brief  Structure defining params for the list.
  */
 typedef struct List_Params_tag {
-    UInt32 reserved; /*!< Reserved value (not currently used) */
+    IGateProvider_Handle gateHandle;
+    /*!< Handle to lock for protecting objList. If not to be provided, set to
+     *   IGateProvider_NULL. In that case, internal protection shall be done
+     *   with #Gate_enterSystem/#Gate_leaveSystem for protected APIs.
+     */
 } List_Params;
 
 
@@ -139,51 +103,198 @@ typedef struct List_Params_tag {
  *  APIs
  * =============================================================================
  */
-/* Function to initialize the parameters structure */
+/*!
+ *  @brief      Initialize this config-params structure with supplier-specified
+ *              defaults before instance creation.
+ *
+ *  @param      params  Instance config-params structure.
+ *
+ *  @sa         List_create
+ */
 Void List_Params_init (List_Params * params);
 
-/* Function to create a list. */
+/*!
+ *  @brief      Function to create a list object.
+ *
+ *  @param      params  Pointer to list creation parameters. If NULL is passed,
+ *                      default parameters are used.
+ *
+ *  @retval     List-handle Handle to the list object
+ *
+ *  @sa         List_delete
+ */
 List_Handle List_create (List_Params * params);
 
-/* Function to delete the list */
-Int List_delete (List_Handle * handlePtr);
+/*!
+ *  @brief      Function to delete a list object.
+ *
+ *  @param      handlePtr  Pointer to the list handle
+ *
+ *  @sa         List_delete
+ */
+Void List_delete (List_Handle * handlePtr);
 
-/* Function to initialize the List head */
-Int List_construct (List_Object * obj, List_Params * params);
+/*!
+ *  @brief      Function to construct a list object. This function is used when
+ *              memory for the list object is not to be allocated by the List
+ *              API.
+ *
+ *  @param      obj     Pointer to the list object to be constructed
+ *  @param      params  Pointer to list construction parameters. If NULL is
+ *                      passed, default parameters are used.
+ *
+ *  @sa         List_destruct
+ */
+Void List_construct (List_Object * obj, List_Params * params);
 
-/* Function to terminate List */
-Int List_destruct (List_Object * obj);
+/*!
+ *  @brief      Function to destruct a list object.
+ *
+ *  @param      obj  Pointer to the list object to be destructed
+ *
+ *  @sa         List_construct
+ */
+Void List_destruct (List_Object * obj);
 
-/* Function to check if list is empty */
+/*!
+ *  @brief      Function to clear element contents.
+ *
+ *  @param      elem Element to be cleared
+ *
+ *  @sa
+ */
+Void List_elemClear (List_Elem * elem);
+
+/*!
+ *  @brief      Function to check if list is empty.
+ *
+ *  @param      handle  Pointer to the list
+ *
+ *  @retval     TRUE    List is empty
+ *  @retval     FALSE   List is not empty
+ *
+ *  @sa
+ */
 Bool List_empty (List_Handle handle);
 
-/* Function to get front element */
+/*!
+ *  @brief      Function to get first element of List.
+ *
+ *  @param      handle  Pointer to the list
+ *
+ *  @retval     NULL          Operation failed
+ *  @retval     Valid-pointer Pointer to first element
+ *
+ *  @sa         List_put
+ */
 Ptr List_get (List_Handle handle);
 
-/* Function to put elem at the end */
-Int List_put (List_Handle handle, List_Elem *elem);
+/*!
+ *  @brief      Function to insert element at the end of List.
+ *
+ *  @param      handle  Pointer to the list
+ *  @param      elem    Element to be inserted
+ *
+ *  @sa         List_get
+ */
+Void List_put (List_Handle handle, List_Elem * elem);
 
-/* Function to get next elem of current one */
+/*!
+ *  @brief      Function to traverse to the next element in the list (non
+ *              atomic)
+ *
+ *  @param      handle  Pointer to the list
+ *  @param      elem    Pointer to the current element
+ *
+ *  @retval     NULL          Operation failed
+ *  @retval     Valid-pointer Pointer to next element
+ *
+ *  @sa         List_prev
+ */
 Ptr List_next (List_Handle handle, List_Elem * elem);
 
-/* Function to get previous elem of current one */
+/*!
+ *  @brief      Function to traverse to the previous element in the list (non
+ *              atomic)
+ *
+ *  @param      handle  Pointer to the list
+ *  @param      elem    Pointer to the current element
+ *
+ *  @retval     NULL          Operation failed
+ *  @retval     Valid-pointer Pointer to previous element
+ *
+ *  @sa         List_next
+ */
 Ptr List_prev (List_Handle handle, List_Elem * elem);
 
-/* Function to insert elem before existing elem */
-Int List_insert (List_Handle handle, List_Elem * newElem, List_Elem * curElem);
+/*!
+ *  @brief      Function to insert element before the existing element
+ *              in the list.
+ *
+ *  @param      handle  Pointer to the list
+ *  @param      newElem Element to be inserted
+ *  @param      curElem Existing element before which new one is to be inserted
+ *
+ *  @sa         List_remove
+ */
+Void List_insert (List_Handle handle, List_Elem * newElem, List_Elem * curElem);
 
-/* Function to remove specific elem from list */
-Int List_remove (List_Handle handle, List_Elem * elem);
+/*!
+ *  @brief      Function to removes element from the List.
+ *
+ *  @param      handle    Pointer to the list
+ *  @param      elem      Element to be removed
+ *
+ *  @sa         List_insert
+ */
+Void List_remove (List_Handle handle, List_Elem * elem);
 
-/* Function to remove specific elem from list */
-Int List_elemClear (List_Elem * elem);
+/*!
+ *  @brief      Function to put the element before head.
+ *
+ *  @param      handle    Pointer to the list
+ *  @param      elem      Element to be added at the head
+ *
+ *  @sa         List_put
+ */
+Void List_putHead (List_Handle handle, List_Elem * elem);
 
-/* Function to put element before head */
-Int List_putHead (List_Handle handle, List_Elem * elem);
+/*!
+ *  @brief      Get element from front of List (non-atomic)
+ *
+ *  @param      handle  Pointer to the list
+ *
+ *  @retval     NULL          Operation failed
+ *  @retval     Valid-pointer Pointer to removed element
+ *
+ *  @sa         List_enqueue, List_enqueueHead
+ */
+Ptr List_dequeue (List_Handle handle);
+
+/*!
+ *  @brief      Put element at end of List (non-atomic)
+ *
+ *  @param      handle  Pointer to the list
+ *  @param      elem    Element to be put
+ *
+ *  @sa         List_dequeue
+ */
+Void List_enqueue (List_Handle handle, List_Elem * elem);
+
+/*!
+ *  @brief      Put element at head of List (non-atomic)
+ *
+ *  @param      handle   Pointer to the list
+ *  @param      elem     Element to be added
+ *
+ *  @sa         List_dequeue
+ */
+Void List_enqueueHead (List_Handle handle, List_Elem * elem);
 
 
 #if defined (__cplusplus)
 }
 #endif /* defined (__cplusplus) */
+
 
 #endif /* LIST_H_0XB734 */
