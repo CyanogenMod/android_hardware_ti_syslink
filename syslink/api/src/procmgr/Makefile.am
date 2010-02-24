@@ -27,14 +27,13 @@ ACLOCAL_AMFLAGS=-I m4
 
 PROJROOT = $(top_srcdir)
 
-AM_CFLAGS = -DSYSLINK_USE_SYSMGR
+AM_CFLAGS =
 
 SUBDIRS  = procmgr4430
 
 lib_LTLIBRARIES  = libprocmgr.la
 
-
-libprocmgr_la_SOURCES     = \
+SRC_FILES =\
 ProcMgr.c \
 ProcMgrDrvUsr.c \
 SysLinkMemUtils.c \
@@ -50,16 +49,30 @@ elfload/dolt_trgmem.c \
 elfload/elf32.c \
 elfload/symtab.c
 
-
+libprocmgr_la_SOURCES     = $(SRC_FILES)
 
 # Search path for include files
 
 libprocmgr_la_CPPFLAGS    = \
-	-I$(PROJROOT)/api/include -DARM_TARGET $(AM_CLFAGS)
+	-I$(PROJROOT)/api/include -DARM_TARGET -DSYSLINK_USE_SYSMGR $(AM_CFLAGS)
 
 libprocmgr_la_LIBTOOLFLAGS = --tag=disable-static
 libprocmgr_la_LDFLAGS = -version-info 0:0:0
 libprocmgr_la_LIBADD = \
-../../src/utils/libutils.la \
-../../src/sysmgr/libsysmgr.la
+$(PROJROOT)/api/src/utils/libutils.la \
+$(PROJROOT)/api/src/sysmgr/libsysmgr.la
 
+
+lib_LTLIBRARIES  += libprocmgr_nonsysmgr.la
+
+libprocmgr_nonsysmgr_la_SOURCES     = $(SRC_FILES)
+
+# Search path for include files
+
+libprocmgr_nonsysmgr_la_CPPFLAGS    = \
+        -I$(PROJROOT)/api/include -DARM_TARGET $(AM_CFLAGS)
+
+libprocmgr_nonsysmgr_la_LIBTOOLFLAGS = --tag=disable-static
+libprocmgr_nonsysmgr_la_LDFLAGS = -version-info 0:0:0
+libprocmgr_nonsysmgr_la_LIBADD = \
+$(PROJROOT)/api/src/utils/libutils.la
