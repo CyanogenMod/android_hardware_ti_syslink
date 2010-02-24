@@ -51,6 +51,8 @@
 #include <ListMP.h>
 #include <ListMPSharedMemory.h>
 #endif /* if defined(SYSLINK_USE_SYSMGR) */
+#include <omap4430proc.h>
+#include <ConfigNonSysMgrSamples.h>
 
 #if defined (__cplusplus)
 extern "C" {
@@ -131,6 +133,13 @@ extern "C" {
 #define LISTMP1_OFFSET          (List1 - SHAREDMEM)
 #define GATEPETERSON_OFFSET     (GATEPETERSONMEM - SHAREDMEM)
 
+#if defined(SYSLINK_USE_SYSMGR)
+#define LISTMP_SYSM3_IMAGE_PATH "/binaries/ListMPTestApps_SYSM3_MPU_SYSMGR.xem3"
+#else
+#define LISTMP_SYSM3_IMAGE_PATH "/binaries/ListMPTestApps_SYSM3_MPU_NONSYSMGR.xem3"
+#endif
+//#define LISTMP_SYSM3_IMAGE_PATH "/binaries/Notify_MPUSYS_reroute_Test_Core0.xem3"
+#define LISTMP_APPM3_IMAGE_PATH ""
 
 /*
  * POSSIBLE TEST CASES
@@ -158,9 +167,6 @@ extern "C" {
  */
 ListMPSharedMemory_Handle ListMPApp_handle;
 GatePeterson_Handle       ListMPApp_gateHandle;
-
-ProcMgr_Handle ListMPApp_procMgrHandle = NULL;
-
 UInt32  ListMPApp_shAddrBase;
 
 typedef struct ListMP_Node_Tag
@@ -179,81 +185,79 @@ typedef struct ListMP_Node1_Tag
 Int
 ListMPApp_startup (UInt32 sharedAddr)
 {
-    Int                       status          = 0;
+    Int                       status  = 0;
 #if defined(SYSLINK_USE_SYSMGR)
     SysMgr_Config config;
 #else
     SharedRegion_Config       cfgShrParams;
     GatePeterson_Config       gpConfig;
-    MultiProc_Config           multiProcConfig;
-#endif /* if defined(SYSLINK_USE_SYSMGR) */
-    NameServer_Params         NameServerParams;
+    NameServer_Params         nameServerParams;
     ListMPSharedMemory_Config cfgLstParams;
+#endif
 
     Osal_printf ("\nEntered ListMPApp_startup\n");
 
 #if defined(SYSLINK_USE_SYSMGR)
     SysMgr_getConfig (&config);
+    Osal_printf ("Calling SysMgr_setup \n");
     status = SysMgr_setup (&config);
     if (status < 0) {
         Osal_printf ("Error in SysMgr_setup [0x%x]\n", status);
     }
-#else /* if defined(SYSLINK_USE_SYSMGR) */
-    UsrUtilsDrv_setup ();
-
-    multiProcConfig.maxProcessors = 4;
-    multiProcConfig.id = 0;
-    String_cpy (multiProcConfig.nameList [0], "MPU");
-    String_cpy (multiProcConfig.nameList [1], "Tesla");
-    String_cpy (multiProcConfig.nameList [2], "SysM3");
-    String_cpy (multiProcConfig.nameList [3], "AppM3");
-    status = MultiProc_setup(&multiProcConfig);
-    if (status < 0) {
-        Osal_printf ("Error in MultiProc_setup [0x%x]\n", status);
-    }
-
-    NameServer_setup();
-#endif /* if defined(SYSLINK_USE_SYSMGR) */
-
-    status = ProcMgr_open (&ListMPApp_procMgrHandle,
+    status = ProcMgr_open (&procHandle,
                            MultiProc_getId("SysM3"));
     if (status < 0) {
         Osal_printf ("Error in ProcMgr_open [0x%x]\n", status);
     }
-    status = ProcMgr_translateAddr (ListMPApp_procMgrHandle,
-                                    (Ptr) &ListMPApp_shAddrBase,
-                                    ProcMgr_AddrType_MasterUsrVirt,
-                                    (Ptr) SHAREDMEM,
-                                    ProcMgr_AddrType_SlaveVirt);
-    sharedAddr = ListMPApp_shAddrBase;
+#else /* if defined(SYSLINK_USE_SYSMGR) */
+    UsrUtilsDrv_setup ();
+#endif
 
-    if (status < 0) {
-        Osal_printf ("Error in ProcMgr_translateAddr [0x%x]\n", status);
-    }
-    NameServer_Params_init(&NameServerParams);
+    procId = 2;
 
-    NameServerParams.maxNameLen        = MAX_NAME_LENGTH;
-    NameServerParams.maxRuntimeEntries = MAX_VALUE_LENGTH;
-    NameServerParams.maxValueLen       = MAX_RUNTIMEENTRIES;
-#if !defined (SYSLINK_USE_SYSMGR)
+#if !defined(SYSLINK_USE_SYSMGR)
     cfgShrParams.gateHandle = NULL;
     cfgShrParams.heapHandle = NULL;
     cfgShrParams.maxRegions = 4;
 
     /* SharedRegion module setup */
-    status = SharedRegion_setup(&cfgShrParams);
+    status = SharedRegion_setup (&cfgShrParams);
     if (status < 0) {
         Osal_printf ("Error in SharedRegion_setup [0x%x]\n", status);
     }
     else {
         Osal_printf ("SharedRegion_setup status [0x%x]\n", status);
     }
-#endif /* if !defined(SYSLINK_USE_SYSMGR) */
-    SharedRegion_add(0, (Ptr) sharedAddr, SHAREDMEMSIZE);
+    Osal_printf ("SharedRegion_setup successfully\n");
+
+    ProcUtil_setup ();
+    Osal_printf("ProcUtil_setup done\n");
+
+    NameServer_setup ();
+#endif
+
+    status = ProcMgr_translateAddr (procHandle,
+                                    (Ptr) &ListMPApp_shAddrBase,
+                                    ProcMgr_AddrType_MasterUsrVirt,
+                                    (Ptr) SHAREDMEM,
+                                    ProcMgr_AddrType_SlaveVirt);
+
+    sharedAddr = ListMPApp_shAddrBase;
+    Osal_printf ("After ProcMgr_translateAddr sharedAddr=%x\n",sharedAddr);
+
+    if (status < 0) {
+        Osal_printf ("Error in ProcMgr_translateAddr [0x%x]\n", status);
+    }
+    SharedRegion_add (0, (Ptr) sharedAddr, SHAREDMEMSIZE);
+
+#if !defined(SYSLINK_USE_SYSMGR)
+    NameServer_Params_init (&nameServerParams);
+    nameServerParams.maxNameLen        = MAX_NAME_LENGTH;
+    nameServerParams.maxRuntimeEntries = MAX_VALUE_LENGTH;
+    nameServerParams.maxValueLen       = MAX_RUNTIMEENTRIES;
 
     ListMPSharedMemory_getConfig(&cfgLstParams);
     cfgLstParams.maxNameLen = MAX_NAME_LENGTH;
-
 
     if (status >= 0)
     {
@@ -266,7 +270,7 @@ ListMPApp_startup (UInt32 sharedAddr)
             Osal_printf ("ListMPSharedMemory_setup status [0x%x]\n", status);
         }
     }
-#if !defined (SYSLINK_USE_SYSMGR)
+
     if (status >= 0) {
         /* GatePeterson module setup */
         GatePeterson_getConfig (&gpConfig);
@@ -279,18 +283,21 @@ ListMPApp_startup (UInt32 sharedAddr)
             Osal_printf ("GatePeterson_setup status [0x%x]\n", status);
         }
     }
-#endif /* if !defined(SYSLINK_USE_SYSMGR) */
+#endif
 
+    ProcUtil_load (LISTMP_SYSM3_IMAGE_PATH);
+    Osal_printf ("Done loading image to SYSM3\n");
     Osal_printf ("Leaving ListMPApp_startup\n");
 
     return (status);
 }
 
+
 Int
 ListMPApp_execute (UInt32 sharedAddr)
 {
 
-    Int                         status          = -1;
+    Int                         status  = -1;
     ListMPSharedMemory_Params   listMPParams;
     ListMPSharedMemory_Params   listMPParams1;
     ListMP_Handle               listHandle;
@@ -310,9 +317,9 @@ ListMPApp_execute (UInt32 sharedAddr)
     list1Addr   = sharedAddr + LISTMP1_OFFSET;
     gateAddr    = sharedAddr + GATEPETERSON_OFFSET;
 
-    Osal_printf("Run the remote processor application now.\n");
-    Osal_printf("Press a key to continue.\n");
-    getchar();
+    procId = 2;
+    ProcUtil_start ();
+    Osal_printf ("Started Ducati:SYSM3\n");
 
     GatePeterson_Params_init (ListMPApp_gateHandle, &gateParams);
     gateParams.sharedAddrSize = GatePeterson_sharedMemReq (&gateParams);
@@ -324,7 +331,8 @@ ListMPApp_execute (UInt32 sharedAddr)
         status = GatePeterson_open (&ListMPApp_gateHandle,
                                     &gateParams);
     }
-    while (status == GATEPETERSON_E_NOTFOUND);
+    while ((status == GATEPETERSON_E_NOTFOUND) ||
+            (status == GATEPETERSON_E_VERSION));
     if (status < 0) {
         Osal_printf ("Error in GatePeterson_open [0x%x]\n", status);
     }
@@ -434,6 +442,7 @@ ListMPApp_execute (UInt32 sharedAddr)
     return (0);
 }
 
+
 Int
 ListMPApp_shutdown (Void)
 {
@@ -441,26 +450,29 @@ ListMPApp_shutdown (Void)
 
     Osal_printf ("\nEntered ListMPApp_shutdown\n");
 
-    status = ProcMgr_close (&ListMPApp_procMgrHandle);
+#if defined(SYSLINK_USE_SYSMGR)
+    SharedRegion_remove (0);
+    ProcUtil_stop ();
+    status = ProcMgr_close (&procHandle);
     Osal_printf ("ProcMgr_close status: [0x%x]\n", status);
+    SysMgr_destroy ();
+#else
 
     status = ListMPSharedMemory_destroy();
     Osal_printf ("ListMPSharedMemory_destroy status: [0x%x]\n", status);
 
-#if defined (SYSLINK_USE_SYSMGR)
-    SysMgr_destroy ();
-#else /* if defined (SYSLINK_USE_SYSMGR) */
     status = GatePeterson_destroy ();
     Osal_printf ("GatePeterson_destroy status: [0x%x]\n", status);
+
+    SharedRegion_remove (0);
 
     status = SharedRegion_destroy();
     Osal_printf ("SharedRegion_destroy status: [0x%x]\n", status);
 
-    status = MultiProc_destroy ();
-    Osal_printf ("Multiproc_destroy status: [0x%x]\n", status);
-
+    ProcUtil_stop ();
+    ProcUtil_shutdown ();
     UsrUtilsDrv_destroy ();
-#endif /* if defined(SYSLINK_USE_SYSMGR) */
+#endif
 
     Osal_printf ("Leaving ListMPApp_shutdown\n");
     return (0);
