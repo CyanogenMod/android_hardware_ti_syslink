@@ -18,25 +18,35 @@ INCLUDE = \
 	-I $(PROJROOT)/../api/include \
 	-I $(PROJROOT)/inc
 
-
 AM_CFLAGS = -Wall -g -O2 $(INCLUDE) -finline-functions -D$(PROCFAMILY)
 AM_CFLAGS += -DSYSLINK_TRACE_ENABLE
 
-
 LDPATH=../../../../api/src
+
+API_LIBS_NONSYS = \
+	$(LDPATH)/utils/libutils.la \
+	$(LDPATH)/ipc/libipc.la \
+	$(LDPATH)/notify/libnotify.la\
+	$(LDPATH)/procmgr/procmgr4430/libomap4430proc.la \
+	$(LDPATH)/procmgr/libprocmgr_nonsysmgr.la
 
 API_LIBS = \
 	$(LDPATH)/utils/libutils.la \
 	$(LDPATH)/ipc/libipc.la \
+	$(LDPATH)/notify/libnotify.la \
 	$(LDPATH)/procmgr/libprocmgr.la \
 	$(LDPATH)/sysmgr/libsysmgr.la \
-	$(LDPATH)/notify/libnotify.la \
 	$(LDPATH)/sysmemmgr/libsysmemmgr.la
 
 bin_PROGRAMS = listMPApp.out
+#listMPApp_NonSysMgr.out
 
 listMPApp_out_SOURCES = ListMPAppOS.c ListMPApp.c
-
-listMPApp_out_CPPFLAGS = $(AM_CLFAGS)
-
+listMPApp_out_CPPFLAGS = $(AM_CLFAGS) -DSYSLINK_USE_SYSMGR
 listMPApp_out_LDADD = $(API_LIBS)
+
+#listMPApp_NonSysMgr_out_SOURCES = ListMPAppOS.c ListMPApp.c
+
+#listMPApp_NonSysMgr_out_CPPFLAGS = $(AM_CLFAGS)
+
+#listMPApp_NonSysMgr_out_LDADD = $(API_LIBS_NONSYS)

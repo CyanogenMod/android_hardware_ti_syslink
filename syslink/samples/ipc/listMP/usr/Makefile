@@ -22,6 +22,7 @@ LDPATH=$(TARGETDIR)/lib $(TARGETDIR)/usr/lib
 LDFLAGS = $(addprefix -L, $(LDPATH))
 CFLAGS=-Wall -g -O2 $(INCLUDE) -finline-functions -D$(PROCFAMILY) $(LDFLAGS)
 CFLAGS += -DSYSLINK_TRACE_ENABLE
+CFLAGS += -DSYSLINK_USE_SYSMGR
 
 LIBS = -lutils -lipc -lprocmgr -lsysmgr -lnotify -lsysmemmgr
 
