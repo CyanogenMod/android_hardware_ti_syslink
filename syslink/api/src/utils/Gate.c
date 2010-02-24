@@ -1,18 +1,37 @@
 /*
- * Syslink-IPC for TI OMAP Processors
+ *  Syslink-IPC for TI OMAP Processors
  *
- * Copyright (C) 2009 Texas Instruments, Inc.
+ *  Copyright (c) 2008-2010, Texas Instruments Incorporated
+ *  All rights reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Lesser General Public License as published
- * by the Free Software Foundation version 2.1 of the License.
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted provided that the following conditions
+ *  are met:
  *
- * This program is distributed .as is. WITHOUT ANY WARRANTY of any kind,
- * whether express or implied; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
+ *  *  Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
+ *
+ *  *  Redistributions in binary form must reproduce the above copyright
+ *     notice, this list of conditions and the following disclaimer in the
+ *     documentation and/or other materials provided with the distribution.
+ *
+ *  *  Neither the name of Texas Instruments Incorporated nor the names of
+ *     its contributors may be used to endorse or promote products derived
+ *     from this software without specific prior written permission.
+ *
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ *  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ *  THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ *  PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ *  CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ *  EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ *  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+ *  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ *  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ *  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ *  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-/*============================================================================
+/*==============================================================================
  *  @file   Gate.c
  *
  *  @brief      gate wrapper implementation
@@ -21,129 +40,67 @@
  */
 
 
+/* OS-specific headers */
+#include <pthread.h>
 
 /* Standard headers */
 #include <Std.h>
 
 /* OSAL & Utils headers */
 #include <Trace.h>
-
-/* Module level headers */
+#include <IGateProvider.h>
 #include <Gate.h>
 
+
+pthread_mutex_t staticMutex = PTHREAD_MUTEX_INITIALIZER;
 
 #if defined (__cplusplus)
 extern "C" {
 #endif
 
+/* Structure defining internal object for the Gate Peterson.*/
+struct Gate_Object {
+    IGateProvider_SuperObject; /* For inheritance from IGateProvider */
+};
 
-
-/*! @brief Function to enter a Gate
- *
- *  @params gHandle handle to a gate instance
- *
- *  @sa Gate_leave
- */
-UInt32
-Gate_enter (Gate_Handle gHandle)
+/* Function to enter a Gate */
+IArg  Gate_enterSystem (void)
 {
-    UInt32 key = 0;
+    unsigned long flags = 0u;
 
-    GT_1trace (curTrace, GT_ENTER, "Gate_enter", gHandle);
+    pthread_mutex_lock  (&staticMutex);
 
-#if !defined(SYSLINK_BUILD_OPTIMIZE)
-    if (gHandle == NULL) {
-        GT_setFailureReason (curTrace,
-                             GT_4CLASS,
-                             "Gate_enter",
-                             GATE_E_INVALIDARG,
-                             "Handle passed is invalid!");
-    }
-    else {
-#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-        key = gHandle->enter (gHandle);
-#if !defined(SYSLINK_BUILD_OPTIMIZE)
-    }
-#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-
-    GT_1trace (curTrace, GT_LEAVE, "Gate_enter", key);
-
-    /*! @retval Flags Operation successful */
-    return key;
+    return (IArg)flags;
 }
 
 
-/*! @brief Function to leave a Gate
- *
- *  @params gHandle handle to a gate instance
- *  @params key     Key received in Gate_enter
- *
- *  @sa Gate_enter
- */
-Void
-Gate_leave (Gate_Handle gHandle, UInt32 key)
+/* Function to leave a Gate */
+Void Gate_leaveSystem (IArg key)
 {
-    GT_2trace (curTrace, GT_ENTER, "Gate_leave", gHandle, key);
-
-#if !defined(SYSLINK_BUILD_OPTIMIZE)
-    if (gHandle == NULL) {
-        GT_setFailureReason (curTrace,
-                             GT_4CLASS,
-                             "Gate_leave",
-                             GATE_E_INVALIDARG,
-                             "Handle passed is invalid!");
-    }
-    else {
-#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-        gHandle->leave (gHandle, key);
-#if !defined(SYSLINK_BUILD_OPTIMIZE)
-    }
-#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-
-    GT_0trace (curTrace, GT_LEAVE, "Gate_leave");
+    pthread_mutex_unlock  (&staticMutex);
 }
 
-
-/*!
- *  @brief Function to get the kernel object pointer embedded in userspace gate.
- *         Some Gate implementations return the kernel object handle.
- *         Gates which do not have kernel object pointer embedded return NULL.
- *
- *  @params gHandle handle to a gate instance
- *
- *  @sa
- */
-Void *
-Gate_getKnlHandle (Gate_Handle gHandle)
+/* Match with IGateProvider */
+static inline IArg _Gate_enterSystem (struct Gate_Object * obj)
 {
-    Gate_Object * gateObject = (Gate_Object *) gHandle;
-    Ptr           knlHandle = NULL;
-
-    GT_1trace (curTrace, GT_ENTER, "Gate_getKnlHandle", gHandle);
-
-#if !defined(SYSLINK_BUILD_OPTIMIZE)
-    if (gHandle == NULL) {
-        GT_setFailureReason (curTrace,
-                             GT_4CLASS,
-                             "Gate_getKnlHandle",
-                             GATE_E_INVALIDARG,
-                             "Handle passed is invalid!");
-    }
-    else {
-#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-       if (gateObject->getKnlHandle != NULL) {
-           knlHandle = gateObject->getKnlHandle (gHandle);
-       }
-
-#if !defined(SYSLINK_BUILD_OPTIMIZE)
-    }
-#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-
-    GT_1trace (curTrace, GT_LEAVE, "Gate_getKnlHandle", knlHandle);
-
-    return (knlHandle);
+    (Void) obj;
+    return Gate_enterSystem ();
 }
 
+/* Match with IGateProvider */
+static inline Void _Gate_leaveSystem (struct Gate_Object * obj, IArg key)
+{
+    (Void) obj;
+    Gate_leaveSystem (key);
+}
+
+struct Gate_Object Gate_systemObject =
+{
+    .enter = (IGateProvider_ENTER)_Gate_enterSystem,
+    .leave = (IGateProvider_LEAVE)_Gate_leaveSystem,
+};
+
+IGateProvider_Handle Gate_systemHandle = (IGateProvider_Handle)&Gate_systemObject;
 
 #if defined (__cplusplus)
 }

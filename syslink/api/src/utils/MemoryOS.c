@@ -1,18 +1,37 @@
 /*
- * Syslink-IPC for TI OMAP Processors
+ *  Syslink-IPC for TI OMAP Processors
  *
- * Copyright (C) 2009 Texas Instruments, Inc.
+ *  Copyright (c) 2008-2010, Texas Instruments Incorporated
+ *  All rights reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Lesser General Public License as published
- * by the Free Software Foundation version 2.1 of the License.
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted provided that the following conditions
+ *  are met:
  *
- * This program is distributed .as is. WITHOUT ANY WARRANTY of any kind,
- * whether express or implied; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
+ *  *  Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
+ *
+ *  *  Redistributions in binary form must reproduce the above copyright
+ *     notice, this list of conditions and the following disclaimer in the
+ *     documentation and/or other materials provided with the distribution.
+ *
+ *  *  Neither the name of Texas Instruments Incorporated nor the names of
+ *     its contributors may be used to endorse or promote products derived
+ *     from this software without specific prior written permission.
+ *
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ *  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ *  THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ *  PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ *  CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ *  EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ *  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+ *  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ *  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ *  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ *  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-/*============================================================================
+/*==============================================================================
  *  @file   MemoryOS.c
  *
  *  @brief      Linux user Memory interface implementation.
@@ -26,12 +45,6 @@
 
 
 /* Standard headers */
-#include "config.h"
-
-#ifdef HAVE_STDLIB_H
-#include <stdlib.h>
-#endif
-
 #include <Std.h>
 
 /* Linux OS-specific headers */
@@ -89,8 +102,8 @@ typedef struct MemoryOS_ModuleObject {
     /*!< Reference count */
     List_Object mapTable;
     /*!< Head of map table */
-    Gate_Handle gateHandle;
-    /* Lock handle */
+    IGateProvider_Handle gateHandle;
+    /*!< Lock handle */
 } MemoryOS_ModuleObject;
 
 
@@ -138,7 +151,8 @@ MemoryOS_setup (void)
     }
     else {
         /* Create the Gate handle */
-        MemoryOS_state.gateHandle = GateMutex_create ();
+        MemoryOS_state.gateHandle = (IGateProvider_Handle)
+                                    GateMutex_create ();
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
         if (MemoryOS_state.gateHandle == NULL) {
             Atomic_set (&MemoryOS_state.refCount,
@@ -207,19 +221,10 @@ MemoryOS_destroy (void)
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
         if (   Atomic_dec_return (&MemoryOS_state.refCount)
             == MEMORYOS_MAKE_MAGICSTAMP(0)) {
-            status = List_destruct (&MemoryOS_state.mapTable);
-#if !defined(SYSLINK_BUILD_OPTIMIZE)
-            if (status < 0) {
-                GT_setFailureReason (curTrace,
-                                     GT_4CLASS,
-                                     "MemoryOS_destroy",
-                                     status,
-                                     "List_destruct failed!");
-            }
-#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+            List_destruct (&MemoryOS_state.mapTable);
 
             /* Delete the gate handle */
-            status = GateMutex_delete (&MemoryOS_state.gateHandle);
+            status = GateMutex_delete ((GateMutex_Handle *)&MemoryOS_state.gateHandle);
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
             if (status < 0) {
                 GT_setFailureReason (curTrace,
@@ -260,7 +265,8 @@ MemoryOS_destroy (void)
  *  @param      size amount of memory to be allocated.
  *  @sa         Memory_calloc
  */
-Ptr MemoryOS_alloc (UInt32 size, UInt32 align, UInt32 flags)
+Ptr
+MemoryOS_alloc (UInt32 size, UInt32 align, UInt32 flags)
 {
     Ptr ptr = NULL;
 
@@ -379,7 +385,7 @@ MemoryOS_map (Memory_MapInfo * mapInfo)
 {
     Int                     status   = MEMORYOS_SUCCESS;
     MemoryOS_MapTableInfo * info     = NULL;
-    UInt32                  key;
+    IArg                    key;
 
     GT_1trace (curTrace, GT_ENTER, "MemoryOS_map", mapInfo);
 
@@ -419,12 +425,11 @@ MemoryOS_map (Memory_MapInfo * mapInfo)
     }
     else {
 #endif /* #if !defined(SYSLINK_BUILD_OPTIMIZE) */
-        key = Gate_enter (MemoryOS_state.gateHandle);
+        key = IGateProvider_enter (MemoryOS_state.gateHandle);
 
         mapInfo->dst = OsalDrv_map (mapInfo->src, mapInfo->size);
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
         if (mapInfo->dst == (UInt32)NULL) {
-            /*! @retval MEMORYOS_E_MAP Failed to map memory to user space. */
             status = MEMORYOS_E_MAP;
             GT_setFailureReason (curTrace,
                                  GT_4CLASS,
@@ -437,7 +442,6 @@ MemoryOS_map (Memory_MapInfo * mapInfo)
             info = MemoryOS_alloc (sizeof (MemoryOS_MapTableInfo), 0, 0);
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
             if (info == NULL) {
-                /*! @retval MEMORYOS_E_MEMORY Failed to allocate memory. */
                 status = MEMORYOS_E_MEMORY;
                 GT_setFailureReason (curTrace,
                                      GT_4CLASS,
@@ -460,7 +464,7 @@ MemoryOS_map (Memory_MapInfo * mapInfo)
             }
         }
 #endif /* #if !defined(SYSLINK_BUILD_OPTIMIZE) */
-        Gate_leave (MemoryOS_state.gateHandle, key);
+        IGateProvider_leave (MemoryOS_state.gateHandle, key);
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
     }
 #endif /* #if !defined(SYSLINK_BUILD_OPTIMIZE) */
@@ -484,7 +488,7 @@ MemoryOS_unmap (Memory_UnmapInfo * unmapInfo)
 {
     Int         status   = MEMORYOS_SUCCESS;
     List_Elem * info     = NULL;
-    UInt32      key;
+    IArg        key;
 
     GT_1trace (curTrace, GT_ENTER, "MemoryOS_unmap", unmapInfo);
 
@@ -525,7 +529,7 @@ MemoryOS_unmap (Memory_UnmapInfo * unmapInfo)
     }
     else {
 #endif /* #if !defined(SYSLINK_BUILD_OPTIMIZE) */
-        key = Gate_enter (MemoryOS_state.gateHandle);
+        key = IGateProvider_enter (MemoryOS_state.gateHandle);
 
         /* Delete the node in the map table */
         List_traverse (info, (List_Handle) &MemoryOS_state.mapTable) {
@@ -540,7 +544,7 @@ MemoryOS_unmap (Memory_UnmapInfo * unmapInfo)
 
         OsalDrv_unmap (unmapInfo->addr, unmapInfo->size);
 
-        Gate_leave (MemoryOS_state.gateHandle, key);
+        IGateProvider_leave (MemoryOS_state.gateHandle, key);
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
     }
 #endif /* #if !defined(SYSLINK_BUILD_OPTIMIZE) */
@@ -660,7 +664,7 @@ MemoryOS_translate (Ptr srcAddr, Memory_XltFlags flags)
     Ptr                     buf    = NULL;
     MemoryOS_MapTableInfo * tinfo  = NULL;
     List_Elem *             info   = NULL;
-    UInt32                  key;
+    IArg                    key;
     UInt32                  frmAddr;
     UInt32                  toAddr;
 
@@ -680,7 +684,7 @@ MemoryOS_translate (Ptr srcAddr, Memory_XltFlags flags)
     }
     else {
 #endif /* #if !defined(SYSLINK_BUILD_OPTIMIZE) */
-        key = Gate_enter (MemoryOS_state.gateHandle);
+        key = IGateProvider_enter (MemoryOS_state.gateHandle);
 
         /* Traverse to the node in the map table */
         List_traverse (info, (List_Handle) &MemoryOS_state.mapTable) {
@@ -696,7 +700,7 @@ MemoryOS_translate (Ptr srcAddr, Memory_XltFlags flags)
             }
         }
 
-        Gate_leave (MemoryOS_state.gateHandle, key);
+        IGateProvider_leave (MemoryOS_state.gateHandle, key);
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
     }
 #endif /* #if !defined(SYSLINK_BUILD_OPTIMIZE) */

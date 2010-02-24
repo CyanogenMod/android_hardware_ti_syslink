@@ -32,30 +32,22 @@
  *  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*==============================================================================
- *  @file   UsrUtilsDrv.c
+ *  @file   TraceDrv.c
  *
- *  @brief      Initializes and finalizes user side utils
- *              Mainly created for future use. All setup/destroy APIs on user
- *              side will be call from this module. This allows syslink to work
- *              independent od system manager.
+ *  @brief      User-side OS-specific implementation of TraceDrv driver for Linux
+ *
  *  ============================================================================
  */
-
-
-/*  Defined to include MACROS EXPORT_SYMBOL. This must be done before including
- *  module.h
- */
-#if !defined (EXPORT_SYMTAB)
-#define EXPORT_SYMTAB
-#endif
 
 
 /* Standard headers */
 #include <Std.h>
 
-/* User side utils headers */
+/* OSAL & Utils headers */
 #include <Trace.h>
-#include <MemoryOS.h>
+#include <TraceDrv.h>
+#include <OsalDrv.h>
+#include <TraceDrvDefs.h>
 
 
 #if defined (__cplusplus)
@@ -64,34 +56,61 @@ extern "C" {
 
 
 /** ============================================================================
+ *  Macros and types
+ *  ============================================================================
+ */
+
+
+/** ============================================================================
+ *  Globals
+ *  ============================================================================
+ */
+/* Extern declaration to Global trace flag. */
+extern Int curTrace;
+
+
+/** ============================================================================
  *  Functions
  *  ============================================================================
  */
 /*!
- *  @brief  Function to initialize user side utils
+ *  @brief  Function to invoke the APIs through ioctl.
+ *
+ *  @param  cmd     Command for driver ioctl
+ *  @param  args    Arguments for the ioctl command
+ *
+ *  @sa
  */
-Void UsrUtilsDrv_setup (Void)
+Void
+TraceDrv_ioctl (UInt32 cmd, Ptr args)
 {
-    GT_0trace (curTrace, GT_ENTER, "UsrUtilsDrv_setup");
+    int osStatus = 0;
+    Bool done = FALSE;
+    TraceDrv_CmdArgs * cmdArgs = (TraceDrv_CmdArgs *) args;
 
-    /* Initialize the MemoryOS module */
-    MemoryOS_setup ();
+    GT_2trace (curTrace, GT_ENTER, "TraceDrv_ioctl", cmd, args);
 
-    GT_0trace (curTrace, GT_LEAVE, "UsrUtilsDrv_setup");
-}
+    if (cmd == CMD_TRACEDRV_SETTRACE) {
+        if (cmdArgs->args.setTrace.type == GT_TraceType_User) {
+            cmdArgs->args.setTrace.oldMask = curTrace;
+            curTrace = cmdArgs->args.setTrace.mask;
+            done = TRUE;
+        }
+    }
 
+    if (done == FALSE) {
+        osStatus = OsalDrv_ioctl (cmd, args);
+        GT_assert (curTrace, (osStatus >= 0));
+        if (osStatus < 0) {
+            GT_setFailureReason (curTrace,
+                                 GT_4CLASS,
+                                 "TraceDrv_ioctl",
+                                 OSALDRV_E_OSFAILURE,
+                                 "Driver ioctl failed!");
+        }
+    }
 
-/*!
- *  @brief  Function to finalize user side utils
- */
-Void UsrUtilsDrv_destroy (Void)
-{
-    GT_0trace (curTrace, GT_ENTER, "UsrUtilsDrv_destroy");
-
-    /* Finalize the MemoryOS module */
-    MemoryOS_destroy ();
-
-    GT_0trace (curTrace, GT_LEAVE, "UsrUtilsDrv_destroy");
+    GT_0trace (curTrace, GT_LEAVE, "TraceDrv_ioctl");
 }
 
 

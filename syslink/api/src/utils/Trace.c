@@ -1,18 +1,37 @@
 /*
- * Syslink-IPC for TI OMAP Processors
+ *  Syslink-IPC for TI OMAP Processors
  *
- * Copyright (C) 2009 Texas Instruments, Inc.
+ *  Copyright (c) 2008-2010, Texas Instruments Incorporated
+ *  All rights reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Lesser General Public License as published
- * by the Free Software Foundation version 2.1 of the License.
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted provided that the following conditions
+ *  are met:
  *
- * This program is distributed .as is. WITHOUT ANY WARRANTY of any kind,
- * whether express or implied; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
+ *  *  Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
+ *
+ *  *  Redistributions in binary form must reproduce the above copyright
+ *     notice, this list of conditions and the following disclaimer in the
+ *     documentation and/or other materials provided with the distribution.
+ *
+ *  *  Neither the name of Texas Instruments Incorporated nor the names of
+ *     its contributors may be used to endorse or promote products derived
+ *     from this software without specific prior written permission.
+ *
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ *  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ *  THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ *  PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ *  CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ *  EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ *  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+ *  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ *  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ *  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ *  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-/*============================================================================
+/*==============================================================================
  *  @file   Trace.c
  *
  *  @brief      Trace implementation.
@@ -30,6 +49,8 @@
 
 /* OSAL and kernel utils */
 #include <Trace.h>
+#include <TraceDrv.h>
+#include <TraceDrvDefs.h>
 #include <OsalPrint.h>
 
 
@@ -295,7 +316,8 @@ _GT_5trace (UInt32         mask,
  *  @param      msg         Any additional information which can be useful for
  *                          deciphering the error condition.
  */
-Void _GT_setFailureReason (Int    mask,
+Void
+_GT_setFailureReason (Int    mask,
                            Char * func,
                            Char * fileName,
                            UInt32 lineNo,
@@ -311,6 +333,28 @@ Void _GT_setFailureReason (Int    mask,
                      lineNo,
                      fileName);
     }
+}
+
+
+/*!
+ *  @brief      Function to change the trace mask setting.
+ *
+ *  @param      mask   Trace mask to be set
+ *  @param      type   Type of trace to be set
+ */
+UInt32
+_GT_setTrace (UInt32 mask, GT_TraceType type)
+{
+    TraceDrv_CmdArgs cmdArgs;
+
+    GT_1trace (curTrace, GT_1CLASS, "Setting Trace to: [0x%x]\n", mask);
+
+    cmdArgs.args.setTrace.mask = mask;
+    cmdArgs.args.setTrace.type = type;
+    TraceDrv_ioctl (CMD_TRACEDRV_SETTRACE, &cmdArgs);
+
+    /*! @retval old-mask Operation successfully completed. */
+    return cmdArgs.args.setTrace.oldMask;
 }
 
 

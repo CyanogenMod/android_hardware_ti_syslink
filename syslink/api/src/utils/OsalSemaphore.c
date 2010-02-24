@@ -1,18 +1,37 @@
 /*
- * Syslink-IPC for TI OMAP Processors
+ *  Syslink-IPC for TI OMAP Processors
  *
- * Copyright (C) 2009 Texas Instruments, Inc.
+ *  Copyright (c) 2008-2010, Texas Instruments Incorporated
+ *  All rights reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Lesser General Public License as published
- * by the Free Software Foundation version 2.1 of the License.
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted provided that the following conditions
+ *  are met:
  *
- * This program is distributed .as is. WITHOUT ANY WARRANTY of any kind,
- * whether express or implied; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
+ *  *  Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
+ *
+ *  *  Redistributions in binary form must reproduce the above copyright
+ *     notice, this list of conditions and the following disclaimer in the
+ *     documentation and/or other materials provided with the distribution.
+ *
+ *  *  Neither the name of Texas Instruments Incorporated nor the names of
+ *     its contributors may be used to endorse or promote products derived
+ *     from this software without specific prior written permission.
+ *
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ *  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ *  THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ *  PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ *  CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ *  EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ *  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+ *  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ *  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ *  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ *  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-/*============================================================================
+/*==============================================================================
  *  @file   OsalSemaphore.c
  *
  *  @brief  Semaphore interface implementation.
@@ -87,7 +106,6 @@ OsalSemaphore_Handle OsalSemaphore_create(UInt32 semType, UInt32 semValue)
 
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
     if (OSALSEMAPHORE_TYPE_VALUE(semType) >= OsalSemaphore_Type_EndValue) {
-        /*! @retVal NULL Invalid semaphore type (OsalSemaphore_Type) provided */
         GT_setFailureReason (curTrace,
                         GT_4CLASS,
                         "OsalSemaphore_create",
@@ -99,7 +117,6 @@ OsalSemaphore_Handle OsalSemaphore_create(UInt32 semType, UInt32 semValue)
         semObj = Memory_calloc (NULL, sizeof (OsalSemaphore_Object), 0);
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
         if (semObj == NULL) {
-            /*! @retVal NULL Failed to allocate memory for semaphore object. */
             GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "OsalSemaphore_create",
@@ -141,7 +158,6 @@ OsalSemaphore_Handle OsalSemaphore_create(UInt32 semType, UInt32 semValue)
 
     GT_1trace (curTrace, GT_LEAVE, "OsalSemaphore_create", semObj);
 
-    /*! @retVal Semaphore-handle Operation successfully completed. */
     return (OsalSemaphore_Handle) semObj;
 }
 
@@ -166,8 +182,6 @@ OsalSemaphore_delete(OsalSemaphore_Handle *semHandle)
 
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
     if (semHandle == NULL) {
-        /*! @retVal OSALSEMAPHORE_E_INVALIDARG NULL provided for argument
-                                           semHandle.*/
         status = OSALSEMAPHORE_E_INVALIDARG;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
@@ -176,7 +190,6 @@ OsalSemaphore_delete(OsalSemaphore_Handle *semHandle)
                              "NULL provided for argument semHandle");
     }
     else if (*semHandle == NULL) {
-        /*! @retVal OSALSEMAPHORE_E_HANDLE NULL Semaphore handle provided. */
         status = OSALSEMAPHORE_E_HANDLE;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
@@ -189,7 +202,6 @@ OsalSemaphore_delete(OsalSemaphore_Handle *semHandle)
             osStatus = sem_destroy(&((*semObj)->lock));
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
             if (osStatus < 0) {
-                   /*! @retVal NULL Failed to destroy semaphore. */
                    status = OSALSEMAPHORE_E_HANDLE;
                 GT_setFailureReason (curTrace,
                             GT_4CLASS,
@@ -206,7 +218,6 @@ OsalSemaphore_delete(OsalSemaphore_Handle *semHandle)
 
     GT_1trace (curTrace, GT_LEAVE, "OsalSemaphore_delete", status);
 
-    /*! @retVal OSALSEMAPHORE_SUCCESS Operation successfully completed. */
     return status;
 }
 
@@ -235,7 +246,6 @@ OsalSemaphore_pend(OsalSemaphore_Handle semHandle, UInt32 timeout)
     GT_assert (curTrace, (semHandle != NULL));
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
     if (semHandle == NULL) {
-        /*! @retVal OSALSEMAPHORE_E_HANDLE NULL Semaphore handle provided. */
         status = OSALSEMAPHORE_E_HANDLE;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
@@ -251,7 +261,6 @@ OsalSemaphore_pend(OsalSemaphore_Handle semHandle, UInt32 timeout)
             GT_assert (curTrace, (osStatus == 0));
             if (osStatus != 0) {
                 if (errno == EAGAIN) {
-                    /*! @retVal semaphore was not available. */
                     status = OSALSEMAPHORE_E_WAITNONE;
                     GT_1trace (curTrace,
                                GT_4CLASS,
@@ -342,7 +351,6 @@ OsalSemaphore_pend(OsalSemaphore_Handle semHandle, UInt32 timeout)
 
     GT_1trace (curTrace, GT_LEAVE, "OsalSemaphore_pend", status);
 
-    /*! @retVal OSALSEMAPHORE_SUCCESS Operation successfully completed. */
     return status;
 }
 
@@ -367,7 +375,6 @@ OsalSemaphore_post (OsalSemaphore_Handle semHandle)
 
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
     if (semHandle == NULL) {
-        /*! @retVal OSALSEMAPHORE_E_HANDLE NULL Semaphore handle provided. */
         status = OSALSEMAPHORE_E_HANDLE;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
@@ -399,7 +406,6 @@ OsalSemaphore_post (OsalSemaphore_Handle semHandle)
 
     GT_1trace (curTrace, GT_LEAVE, "OsalSemaphore_post", status);
 
-    /*! @retVal OSALSEMAPHORE_SUCCESS Operation successfully completed. */
     return status;
 }
 

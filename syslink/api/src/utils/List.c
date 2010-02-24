@@ -1,18 +1,37 @@
 /*
- * Syslink-IPC for TI OMAP Processors
+ *  Syslink-IPC for TI OMAP Processors
  *
- * Copyright (C) 2009 Texas Instruments, Inc.
+ *  Copyright (c) 2008-2010, Texas Instruments Incorporated
+ *  All rights reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Lesser General Public License as published
- * by the Free Software Foundation version 2.1 of the License.
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted provided that the following conditions
+ *  are met:
  *
- * This program is distributed .as is. WITHOUT ANY WARRANTY of any kind,
- * whether express or implied; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
+ *  *  Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
+ *
+ *  *  Redistributions in binary form must reproduce the above copyright
+ *     notice, this list of conditions and the following disclaimer in the
+ *     documentation and/or other materials provided with the distribution.
+ *
+ *  *  Neither the name of Texas Instruments Incorporated nor the names of
+ *     its contributors may be used to endorse or promote products derived
+ *     from this software without specific prior written permission.
+ *
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ *  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ *  THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ *  PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ *  CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ *  EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ *  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+ *  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ *  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ *  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ *  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-/*============================================================================
+/*==============================================================================
  *  @file   List.c
  *
  *  @brief      Creates a doubly linked list.
@@ -40,6 +59,91 @@ extern "C" {
 #endif
 
 
+/* =============================================================================
+ *  All success and failure codes for the module. Defined here because they are
+ *  only used internally.
+ * =============================================================================
+ */
+
+/*!
+ *  @def    List_S_BUSY
+ *  @brief  The resource is still in use
+ */
+#define List_S_BUSY           2
+
+/*!
+ *  @def    List_S_ALREADYSETUP
+ *  @brief  The module has been already setup
+ */
+#define List_S_ALREADYSETUP   1
+
+/*!
+ *  @def    List_S_SUCCESS
+ *  @brief  Operation is successful.
+ */
+#define List_S_SUCCESS        0
+
+/*!
+ *  @def    List_E_FAIL
+ *  @brief  Generic failure.
+ */
+#define List_E_FAIL           -1
+
+/*!
+ *  @def    List_E_INVALIDARG
+ *  @brief  Argument passed to function is invalid.
+ */
+#define List_E_INVALIDARG     -2
+
+/*!
+ *  @def    List_E_MEMORY
+ *  @brief  Operation resulted in memory failure.
+ */
+#define List_E_MEMORY         -3
+
+/*!
+ *  @def    List_E_ALREADYEXISTS
+ *  @brief  The specified entity already exists.
+ */
+#define List_E_ALREADYEXISTS  -4
+
+/*!
+ *  @def    List_E_NOTFOUND
+ *  @brief  Unable to find the specified entity.
+ */
+#define List_E_NOTFOUND       -5
+
+/*!
+ *  @def    List_E_TIMEOUT
+ *  @brief  Operation timed out.
+ */
+#define List_E_TIMEOUT        -6
+
+/*!
+ *  @def    List_E_INVALIDSTATE
+ *  @brief  Module is not initialized.
+ */
+#define List_E_INVALIDSTATE   -7
+
+/*!
+ *  @def    List_E_OSFAILURE
+ *  @brief  A failure occurred in an OS-specific call
+ */
+#define List_E_OSFAILURE      -8
+
+/*!
+ *  @def    List_E_RESOURCE
+ *  @brief  Specified resource is not available
+ */
+#define List_E_RESOURCE       -9
+
+/*!
+ *  @def    List_E_RESTART
+ *  @brief  Operation was interrupted. Please restart the operation
+ */
+#define List_E_RESTART        -10
+
+
 /*!
  *  @brief      Initialize this config-params structure with supplier-specified
  *              defaults before instance creation.
@@ -61,12 +165,12 @@ List_Params_init (List_Params * params)
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "List_Params_init",
-                             LIST_E_INVALIDARG,
+                             List_E_INVALIDARG,
                              "Argument of type (List_Params *) is NULL!");
     }
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-        params->reserved = 0u;
+        params->gateHandle = IGateProvider_NULL;
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
     }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
@@ -105,24 +209,14 @@ List_create (List_Params * params)
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "List_create",
-                             LIST_E_MEMORY,
+                             List_E_MEMORY,
                              "Allocating memory for handle failed");
     }
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-        obj->elem.next = obj->elem.prev = &(obj->elem);
-        obj->listLock  = GateMutex_create();
+        obj->elem.next  = obj->elem.prev = &(obj->elem);
+        obj->gateHandle = params->gateHandle;
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-        if (obj->listLock == NULL) {
-            Memory_free (NULL, obj, sizeof (List_Object));
-            obj = NULL;
-            /*! @retval NULL Failed to create GateMutex */
-            GT_setFailureReason (curTrace,
-                                 GT_4CLASS,
-                                 "List_create",
-                                 LIST_E_FAIL,
-                                 "Failed to create GateMutex");
-        }
     }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
 
@@ -140,10 +234,9 @@ List_create (List_Params * params)
  *
  *  @sa         List_delete
  */
-Int
+Void
 List_delete (List_Handle * handlePtr)
 {
-    Int           status = LIST_SUCCESS;
     List_Object * obj;
 
     GT_1trace (curTrace, GT_ENTER, "List_delete", handlePtr);
@@ -153,38 +246,29 @@ List_delete (List_Handle * handlePtr)
 
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
     if (handlePtr == NULL) {
-        /*! @retval LIST_E_INVALIDARG handlePtr passed is invalid*/
-        status = LIST_E_INVALIDARG;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "List_delete",
-                             status,
+                             List_E_INVALIDARG,
                              "handlePtr passed is invalid!");
     }
     else if (*handlePtr == NULL) {
-        /*! @retval LIST_E_INVALIDARG *handlePtr passed is invalid*/
-        status = LIST_E_INVALIDARG;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "List_delete",
-                             status,
+                             List_E_INVALIDARG,
                              "*handlePtr passed is invalid!");
     }
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
         obj = (List_Object *) (*handlePtr);
-        status = GateMutex_delete (&(obj->listLock));
-        GT_assert (curTrace, (status > 0));
         Memory_free (NULL, obj, sizeof (List_Object));
         *handlePtr = NULL;
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
     }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
 
-    GT_1trace (curTrace, GT_LEAVE, "List_delete", status);
-
-    /*! @retval LIST_SUCCESS Operation was successful */
-    return status;
+    GT_0trace (curTrace, GT_LEAVE, "List_delete");
 }
 
 
@@ -197,48 +281,47 @@ List_delete (List_Handle * handlePtr)
  *
  *  @sa         List_destruct
  */
-Int
+Void
 List_construct (List_Object * obj, List_Params * params)
 {
-    Int status = LIST_SUCCESS;
-
     GT_1trace (curTrace, GT_ENTER, "List_construct", obj);
 
     GT_assert (curTrace, (obj != NULL));
     /* params may be provided as NULL. */
-    (void) params;
 
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
     if (obj == NULL) {
-        /*! @retval LIST_E_INVALIDARG Invalid NULL passed for obj parameter */
-        status = LIST_E_INVALIDARG;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "List_construct",
-                             status,
+                             List_E_INVALIDARG,
                              "Invalid NULL passed for obj parameter");
     }
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
         obj->elem.next = obj->elem.prev = &(obj->elem);
-        obj->listLock  = GateMutex_create();
+        if (params != NULL) {
+            obj->gateHandle = params->gateHandle;
+            GT_assert (curTrace, (obj->gateHandle != NULL));
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-        if (obj->listLock == NULL) {
-            /*! @retval LIST_E_FAIL Failed to create GateMutex */
-            status = LIST_E_FAIL;
-            GT_setFailureReason (curTrace,
-                                 GT_4CLASS,
-                                 "List_construct",
-                                 status,
-                                 "Failed to create GateMutex");
+            if (obj->gateHandle == NULL) {
+                GT_setFailureReason (curTrace,
+                                     GT_4CLASS,
+                                     "List_construct",
+                                     List_E_INVALIDARG,
+                                     "Invalid NULL passed for "
+                                     "obj->gateHandle parameter");
+            }
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
         }
+        else {
+            obj->gateHandle = IGateProvider_NULL;
+        }
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
     }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
 
-    GT_1trace (curTrace, GT_LEAVE, "List_construct", status);
-
-    /*! @retval LIST_SUCCESS Operation was successful */
-    return status;
+    GT_0trace (curTrace, GT_LEAVE, "List_construct");
 }
 
 
@@ -247,10 +330,10 @@ List_construct (List_Object * obj, List_Params * params)
  *
  *  @param      obj  Pointer to the list object to be destructed
  */
-Int
+Void
 List_destruct (List_Object * obj)
 {
-    Int status = LIST_SUCCESS;
+    IArg key;
 
     GT_1trace (curTrace, GT_ENTER, "List_destruct", obj);
 
@@ -258,28 +341,23 @@ List_destruct (List_Object * obj)
 
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
     if (obj == NULL) {
-        /*! @retval LIST_E_INVALIDARG Invalid NULL passed for obj parameter */
-        status = LIST_E_INVALIDARG;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "List_destruct",
-                             status,
+                             List_E_INVALIDARG,
                              "Invalid NULL passed for obj parameter");
     }
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-        status = GateMutex_delete (&(obj->listLock));
-        GT_assert (curTrace, (status > 0));
+        key = IGateProvider_enter (obj->gateHandle);
         obj->elem.next = NULL;
         obj->elem.prev = NULL;
+        IGateProvider_leave (obj->gateHandle, key);
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
     }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
 
-    GT_1trace (curTrace, GT_LEAVE, "List_destruct", status);
-
-    /*! @retval LIST_SUCCESS Operation was successful */
-    return status;
+    GT_0trace (curTrace, GT_LEAVE, "List_destruct");
 }
 
 
@@ -288,22 +366,18 @@ List_destruct (List_Object * obj)
  *
  *  @param     elem Element to be cleared
  */
-Int
+Void
 List_elemClear (List_Elem * elem)
 {
-    Int status = LIST_SUCCESS;
-
     GT_1trace (curTrace, GT_ENTER, "List_elemClear", elem);
 
     GT_assert (curTrace, (elem != NULL));
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
     if (elem == NULL) {
-        /*! @retval LIST_E_INVALIDARG Invalid NULL passed for elem parameter */
-        status = LIST_E_INVALIDARG;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "List_elemClear",
-                             status,
+                             List_E_INVALIDARG,
                              "Invalid NULL passed for elem parameter");
     }
     else {
@@ -313,10 +387,7 @@ List_elemClear (List_Elem * elem)
     }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
 
-    GT_1trace (curTrace, GT_LEAVE, "List_elemClear", status);
-
-    /*! @retval LIST_SUCCESS Operation was successful */
-    return status;
+    GT_0trace (curTrace, GT_LEAVE, "List_elemClear");
 }
 
 
@@ -330,6 +401,7 @@ List_empty (List_Handle handle)
 {
     Bool          isEmpty = FALSE;
     List_Object * obj     = (List_Object *) handle;
+    IArg          key     = 0;
 
     GT_1trace (curTrace, GT_ENTER, "List_empty", handle);
 
@@ -340,14 +412,23 @@ List_empty (List_Handle handle)
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "List_empty",
-                             LIST_E_INVALIDARG,
+                             List_E_INVALIDARG,
                              "Invalid NULL passed for handle parameter");
     }
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+        GT_assert (curTrace, (obj->gateHandle != NULL));
+        if (obj->gateHandle != IGateProvider_NULL) {
+            key = Gate_enterSystem();
+        }
+
         if (obj->elem.next == &(obj->elem)) {
             /*! @retval TRUE List is empty */
             isEmpty = TRUE;
+        }
+
+        if (obj->gateHandle != IGateProvider_NULL) {
+            Gate_leaveSystem(key);
         }
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
     }
@@ -359,6 +440,7 @@ List_empty (List_Handle handle)
     return isEmpty;
 }
 
+
 /*!
  *  @brief     Function to get first element of List.
  *
@@ -369,7 +451,7 @@ List_get (List_Handle handle)
 {
     List_Elem *   elem = NULL;
     List_Object * obj  = (List_Object *) handle;
-    UInt32        key;
+    IArg          key  = 0;
 
     GT_1trace (curTrace, GT_ENTER, "List_get", handle);
 
@@ -381,25 +463,21 @@ List_get (List_Handle handle)
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "List_get",
-                             LIST_E_INVALIDARG,
+                             List_E_INVALIDARG,
                              "Invalid NULL passed for handle parameter");
     }
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-        GT_assert (curTrace, (obj->listLock != NULL));
-        key = Gate_enter (obj->listLock);
-        elem = obj->elem.next;
-        /* See if the List was empty */
-        if (elem == (List_Elem *)obj) {
-            /*! @retval NULL List is empty */
-            elem = NULL;
+        GT_assert (curTrace, (obj->gateHandle != NULL));
+        if (obj->gateHandle != IGateProvider_NULL) {
+            key = Gate_enterSystem();
         }
-        else {
-            obj->elem.next   = elem->next;
-            elem->next->prev = &(obj->elem);
-        }
-        Gate_leave(obj->listLock, key);
 
+        elem = List_dequeue(obj);
+
+        if (obj->gateHandle != IGateProvider_NULL) {
+            Gate_leaveSystem(key);
+        }
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
     }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
@@ -410,18 +488,18 @@ List_get (List_Handle handle)
     return elem ;
 }
 
+
 /*!
  *  @brief     Function to insert element at the end of List.
  *
  *  @param     handle  Pointer to the list
  *  @param     element Element to be inserted
  */
-Int
+Void
 List_put (List_Handle handle, List_Elem * elem)
 {
-    Int           status = LIST_SUCCESS;
     List_Object * obj    = (List_Object *) handle;
-    UInt32        key;
+    IArg          key    = 0;
 
     GT_2trace (curTrace, GT_ENTER, "List_put", handle, elem);
 
@@ -430,45 +508,42 @@ List_put (List_Handle handle, List_Elem * elem)
 
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
     if (handle == NULL) {
-        /*! @retval LIST_E_INVALIDARG Invalid NULL passed for handle parameter*/
-        status = LIST_E_INVALIDARG;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "List_put",
-                             LIST_E_INVALIDARG,
+                             List_E_INVALIDARG,
                              "Invalid NULL passed for handle parameter");
     }
     else if (elem == NULL) {
-        /*! @retval LIST_E_INVALIDARG Invalid NULL passed for elem parameter */
-        status = LIST_E_INVALIDARG;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "List_put",
-                             LIST_E_INVALIDARG,
+                             List_E_INVALIDARG,
                              "Invalid NULL passed for elem parameter");
     }
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-        GT_assert (curTrace, (obj->listLock != NULL));
-        key = Gate_enter (obj->listLock);
-        elem->next           = &(obj->elem);
-        elem->prev           = obj->elem.prev;
-        obj->elem.prev->next = elem;
-        obj->elem.prev       = elem;
-        Gate_leave (obj->listLock, key);
+        GT_assert (curTrace, (obj->gateHandle != NULL));
+        if (obj->gateHandle != IGateProvider_NULL) {
+            key = Gate_enterSystem();
+        }
+
+        List_enqueue (obj, elem);
+
+        if (obj->gateHandle != IGateProvider_NULL) {
+            Gate_leaveSystem(key);
+        }
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
     }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
 
-    GT_1trace (curTrace, GT_LEAVE, "List_put", status);
-
-    /*! @retval LIST_SUCCESS Operation was successful */
-    return status;
+    GT_0trace (curTrace, GT_LEAVE, "List_put");
 }
 
 
 /*!
- *  @brief      Function to traverse to the next element in the list
+ *  @brief     Function to traverse to the next element in the list (non
+ *             atomic)
  *
  *  @param     handle  Pointer to the list
  *  @param     elem    Pointer to the current element
@@ -489,7 +564,7 @@ List_next (List_Handle handle, List_Elem * elem)
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "List_next",
-                             LIST_E_INVALIDARG,
+                             List_E_INVALIDARG,
                              "Invalid NULL passed for handle parameter");
     }
     else {
@@ -519,7 +594,8 @@ List_next (List_Handle handle, List_Elem * elem)
 
 
 /*!
- *  @brief     Function to traverse to the previous element in the list
+ *  @brief     Function to traverse to the previous element in the list (non
+ *             atomic)
  *
  *  @param     handle  Pointer to the list
  *  @param     elem    Pointer to the current element
@@ -543,7 +619,7 @@ List_prev (List_Handle handle, List_Elem * elem)
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "List_prev",
-                             LIST_E_INVALIDARG,
+                             List_E_INVALIDARG,
                              "Invalid NULL passed for handle parameter");
     }
     else if (elem == NULL) {
@@ -551,12 +627,12 @@ List_prev (List_Handle handle, List_Elem * elem)
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "List_prev",
-                             LIST_E_INVALIDARG,
+                             List_E_INVALIDARG,
                              "Invalid NULL passed for elem parameter");
     }
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-      /* elem == NULL -> start at the head */
+        /* elem == NULL -> start at the head */
         if (elem == NULL) {
             retElem = obj->elem.prev;
         }
@@ -588,11 +664,11 @@ List_prev (List_Handle handle, List_Elem * elem)
  *  @param     newElem Element to be inserted
  *  @param     curElem Existing element before which new one is to be inserted
  */
-Int
+Void
 List_insert  (List_Handle handle, List_Elem * newElem, List_Elem * curElem)
 {
-    Int           status = LIST_SUCCESS;
-    List_Object * obj    = (List_Object *) handle;
+    List_Object * obj = (List_Object *) handle;
+    IArg          key;
 
     GT_3trace (curTrace, GT_ENTER, "List_insert", handle, newElem, curElem);
 
@@ -601,46 +677,44 @@ List_insert  (List_Handle handle, List_Elem * newElem, List_Elem * curElem)
 
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
     if (obj == NULL) {
-        /*! @retval LIST_E_INVALIDARG Invalid NULL passed for handle parameter*/
-        status = LIST_E_INVALIDARG;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "List_insert",
-                             status,
+                             List_E_INVALIDARG,
                              "Invalid NULL passed for handle parameter");
     }
     else if (newElem == NULL) {
-        /*! @retval LIST_E_INVALIDARG Invalid NULL passed for newElem
-                                      parameter */
-        status = LIST_E_INVALIDARG;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "List_insert",
-                             status,
+                             List_E_INVALIDARG,
                              "Invalid NULL passed for newElem parameter");
     }
     else if (curElem == NULL) {
-        /*! @retval LIST_E_INVALIDARG NULL passed for curElem parameter */
-        status = LIST_E_INVALIDARG;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "List_insert",
-                             status,
+                             List_E_INVALIDARG,
                   "Invalid NULL passed for curElem parameter use List_putHead");
     }else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+            GT_assert (curTrace, (obj->gateHandle != NULL));
+
+            /* Protect with gate if provided. */
+            key = IGateProvider_enter (obj->gateHandle);
+
+            /* Cannot directly call enqueue since the object has other fields */
             newElem->next       = curElem;
             newElem->prev       = curElem->prev;
             newElem->prev->next = newElem;
             curElem->prev       = newElem;
+
+            IGateProvider_leave (obj->gateHandle, key);
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
     }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
 
-    GT_1trace (curTrace, GT_LEAVE, "List_insert", status);
-
-    /*! @retval LIST_SUCCESS Operation was successful */
-    return status;
+    GT_0trace (curTrace, GT_LEAVE, "List_insert");
 }
 
 
@@ -650,10 +724,11 @@ List_insert  (List_Handle handle, List_Elem * newElem, List_Elem * curElem)
  *  @param     handle    Pointer to the list
  *  @param     element   Element to be removed
  */
-Int
+Void
 List_remove (List_Handle handle, List_Elem * elem)
 {
-    Int status = LIST_SUCCESS;
+    List_Object * obj    = (List_Object *) handle;
+    IArg          key;
 
     GT_2trace (curTrace, GT_ENTER, "List_remove", handle, elem);
 
@@ -662,50 +737,49 @@ List_remove (List_Handle handle, List_Elem * elem)
 
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
     if (handle == NULL) {
-        /*! @retval LIST_E_INVALIDARG Invalid NULL passed for handle parameter*/
-        status = LIST_E_INVALIDARG;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "List_remove",
-                             status,
+                             List_E_INVALIDARG,
                              "Invalid NULL passed for handle parameter");
     }
     else if (elem == NULL) {
-        /*! @retval LIST_E_INVALIDARG Invalid NULL passed for elem parameter */
-        status = LIST_E_INVALIDARG;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "List_remove",
-                             status,
+                             List_E_INVALIDARG,
                              "Invalid NULL passed for elem parameter");
     }
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+        GT_assert (curTrace, (obj->gateHandle != NULL));
+
+        /* Protect with gate if provided. */
+        key = IGateProvider_enter (obj->gateHandle);
+
         elem->prev->next = elem->next;
         elem->next->prev = elem->prev;
+
+        IGateProvider_leave (obj->gateHandle, key);
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
     }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
 
-    GT_1trace (curTrace, GT_LEAVE, "List_remove", status);
-
-    /*! @retval LIST_SUCCESS Operation was successful */
-    return status;
+    GT_0trace (curTrace, GT_LEAVE, "List_remove");
 }
 
 
 /*!
- *  @brief      Function to put the element before head.
+ *  @brief     Function to put the element before head.
  *
  *  @param     handle    Pointer to the list
  *  @param     element   Element to be removed
  */
-Int
+Void
 List_putHead (List_Handle handle, List_Elem *elem)
 {
-    Int           status = LIST_SUCCESS;
-    List_Object * obj    = (List_Object *) handle;
-    UInt32        key;
+    List_Object * obj = (List_Object *) handle;
+    IArg          key = 0;
 
     GT_2trace (curTrace, GT_ENTER, "List_putHead", handle, elem);
 
@@ -714,42 +788,195 @@ List_putHead (List_Handle handle, List_Elem *elem)
 
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
     if (handle == NULL) {
-        /*! @retval LIST_E_INVALIDARG Invalid NULL passed for handle parameter*/
-        status = LIST_E_INVALIDARG;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "List_putHead",
-                             LIST_E_INVALIDARG,
+                             List_E_INVALIDARG,
                              "Invalid NULL passed for handle parameter");
     }
     else if (elem == NULL) {
-        /*! @retval LIST_E_INVALIDARG Invalid NULL passed for elem parameter */
-        status = LIST_E_INVALIDARG;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "List_putHead",
-                             LIST_E_INVALIDARG,
+                             List_E_INVALIDARG,
                              "Invalid NULL passed for elem parameter");
     }
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-        GT_assert (curTrace, (obj->listLock != NULL));
-        key = Gate_enter (obj->listLock);
+        GT_assert (curTrace, (obj->gateHandle != NULL));
+        if (obj->gateHandle != IGateProvider_NULL) {
+            key = Gate_enterSystem();
+        }
+
+        List_enqueueHead (handle, elem);
+
+        if (obj->gateHandle != IGateProvider_NULL) {
+            Gate_leaveSystem(key);
+        }
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+    }
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+
+    GT_0trace (curTrace, GT_LEAVE, "List_putHead");
+}
+
+
+/*!
+ *  @brief     Get element from front of List (non-atomic)
+ *
+ *  @param     handle  Pointer to the list
+ */
+Ptr
+List_dequeue (List_Handle handle)
+{
+    List_Elem *   elem = NULL;
+    List_Object * obj  = (List_Object *) handle;
+    IArg          key;
+
+    GT_1trace (curTrace, GT_ENTER, "List_dequeue", handle);
+
+    GT_assert (curTrace, (handle != NULL));
+
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+    if (handle == NULL) {
+        /*! @retval NULL Invalid NULL passed for handle parameter */
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "List_get",
+                             List_E_INVALIDARG,
+                             "Invalid NULL passed for handle parameter");
+    }
+    else {
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+        GT_assert (curTrace, (obj->gateHandle != NULL));
+
+        /* Protect with gate if provided. */
+        key = IGateProvider_enter (obj->gateHandle);
+
+        elem = obj->elem.next;
+        /* See if the List was empty */
+        if (elem == (List_Elem *)obj) {
+            /*! @retval NULL List is empty */
+            elem = NULL;
+        }
+        else {
+            obj->elem.next   = elem->next;
+            elem->next->prev = &(obj->elem);
+        }
+
+        IGateProvider_leave(obj->gateHandle, key);
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+    }
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+
+    GT_1trace (curTrace, GT_LEAVE, "List_dequeue", elem);
+
+    /*! @retval Valid-pointer Pointer to first element */
+    return elem ;
+}
+
+
+/*!
+ *  @brief     Put element at end of List (non-atomic)
+ *
+ *  @param     handle  Pointer to the list
+ *  @param     elem    Element to be put
+ */
+Void
+List_enqueue (List_Handle handle, List_Elem * elem)
+{
+    List_Object * obj    = (List_Object *) handle;
+    IArg          key    = 0;
+
+    GT_2trace (curTrace, GT_ENTER, "List_enqueue", handle, elem);
+
+    GT_assert (curTrace, (handle != NULL));
+    GT_assert (curTrace, (elem != NULL));
+
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+    if (handle == NULL) {
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "List_enqueue",
+                             List_E_INVALIDARG,
+                             "Invalid NULL passed for handle parameter");
+    }
+    else if (elem == NULL) {
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "List_enqueue",
+                             List_E_INVALIDARG,
+                             "Invalid NULL passed for elem parameter");
+    }
+    else {
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+        GT_assert (curTrace, (obj->gateHandle != NULL));
+        /* Protect with gate if provided. */
+        key = IGateProvider_enter (obj->gateHandle);
+
+        elem->next           = &(obj->elem);
+        elem->prev           = obj->elem.prev;
+        obj->elem.prev->next = elem;
+        obj->elem.prev       = elem;
+
+        IGateProvider_leave (obj->gateHandle, key);
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+    }
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+
+    GT_0trace (curTrace, GT_LEAVE, "List_enqueue");
+}
+
+
+/*!
+ *  @brief     Put element at head of List (non-atomic)
+ *
+ *  @param     handle   Pointer to the list
+ *  @param     elem     Element to be added
+ */
+Void
+List_enqueueHead (List_Handle handle, List_Elem * elem)
+{
+    List_Object * obj    = (List_Object *) handle;
+    IArg          key;
+
+    GT_2trace (curTrace, GT_ENTER, "List_enqueueHead", handle, elem);
+
+    GT_assert (curTrace, (handle != NULL));
+    GT_assert (curTrace, (elem != NULL));
+
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+    if (handle == NULL) {
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "List_enqueueHead",
+                             List_E_INVALIDARG,
+                             "Invalid NULL passed for handle parameter");
+    }
+    else if (elem == NULL) {
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "List_enqueueHead",
+                             List_E_INVALIDARG,
+                             "Invalid NULL passed for elem parameter");
+    }
+    else {
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+        GT_assert (curTrace, (obj->gateHandle != NULL));
+        /* Protect with gate if provided. */
+        key = IGateProvider_enter (obj->gateHandle);
 
         elem->next           = obj->elem.next;
         elem->prev           = &(obj->elem);
         obj->elem.next->prev = elem;
         obj->elem.next       = elem;
 
-        Gate_leave (obj->listLock, key);
+        IGateProvider_leave (obj->gateHandle, key);
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
     }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
 
-    GT_1trace (curTrace, GT_LEAVE, "List_putHead",status);
-
-    return(status);
-
+    GT_0trace (curTrace, GT_LEAVE, "List_enqueueHead");
 }
 
 
