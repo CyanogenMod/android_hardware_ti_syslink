@@ -1,21 +1,40 @@
 /*
- * Syslink-IPC for TI OMAP Processors
+ *  Syslink-IPC for TI OMAP Processors
  *
- * Copyright (C) 2009 Texas Instruments, Inc.
+ *  Copyright (c) 2008-2010, Texas Instruments Incorporated
+ *  All rights reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Lesser General Public License as published
- * by the Free Software Foundation version 2.1 of the License.
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted provided that the following conditions
+ *  are met:
  *
- * This program is distributed .as is. WITHOUT ANY WARRANTY of any kind,
- * whether express or implied; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
+ *  *  Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
+ *
+ *  *  Redistributions in binary form must reproduce the above copyright
+ *     notice, this list of conditions and the following disclaimer in the
+ *     documentation and/or other materials provided with the distribution.
+ *
+ *  *  Neither the name of Texas Instruments Incorporated nor the names of
+ *     its contributors may be used to endorse or promote products derived
+ *     from this software without specific prior written permission.
+ *
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ *  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ *  THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ *  PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ *  CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ *  EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ *  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+ *  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ *  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ *  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ *  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*============================================================================
  *  @file   MessageQ.c
  *
- *  @brief      MessageQ module implementation
+ *  @brief  MessageQ module implementation
  *
  *  The MessageQ module supports the structured sending and receiving of
  *  variable length messages. This module can be used for homogeneous or
@@ -109,12 +128,12 @@
 #include <Memory.h>
 
 /* Module level headers */
-#include <MultiProc.h>
-#include <MessageQ.h>
+#include <ti/ipc/MultiProc.h>
+#include <ti/ipc/MessageQ.h>
+#include <_MessageQ.h>
 #include <MessageQDrvDefs.h>
 #include <MessageQDrv.h>
-#include <SharedRegion.h>
-#include <Heap.h>
+#include <ti/ipc/SharedRegion.h>
 
 
 #if defined (__cplusplus)
@@ -128,12 +147,12 @@ extern "C" {
  */
 
 /* Structure defining object for the Gate Peterson */
-struct MessageQ_Object_tag {
+typedef struct MessageQ_Object_tag {
     Ptr              knlObject;
     /*!< Pointer to the kernel-side MessageQ object. */
     MessageQ_QueueId queueId;
     /* Unique id */
-};
+} MessageQ_Object;
 
 /*!
  *  @brief  MessageQ Module state object
@@ -162,43 +181,27 @@ MessageQ_ModuleObject MessageQ_state =
     .setupRefCount = 0
 };
 
+/*!
+ *  @var    MessageQ_module
+ *
+ *  @brief  Pointer to the MessageQ module state.
+ */
+#if !defined(SYSLINK_BUILD_DEBUG)
+static
+#endif /* if !defined(SYSLINK_BUILD_DEBUG) */
+MessageQ_ModuleObject * MessageQ_module = &MessageQ_state;
 
-/* =============================================================================
- * Constants
- * =============================================================================
- */
-/*
- *  Used to denote a message that was initialized
- *  with the MessageQ_staticMsgInit function.
- */
-#define MESSAGEQ_STATICMSG              0xFFFF
 
 /* =============================================================================
  * APIS
  * =============================================================================
  */
-/*!
- *  @brief      Function to get the default configuration for the MessageQ
- *              module.
- *
- *              This function can be called by the application to get their
- *              configuration parameter to MessageQ_setup filled in by the
- *              MessageQ module with the default parameters. If the user does
- *              not wish to make any change in the default parameters, this API
- *              is not required to be called.
- *
- *  @param      cfg     Pointer to the MessageQ module configuration structure
- *                      in which the default config is to be returned.
- *
- *
- *  @sa         MessageQ_setup, MessageQDrv_open, MessageQDrv_ioctl,
- *              MessageQDrv_close
- */
+/* Function to get default configuration for the MessageQ module. */
 Void
 MessageQ_getConfig (MessageQ_Config * cfg)
 {
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-    Int status = MESSAGEQ_SUCCESS;
+    Int status = MessageQ_S_SUCCESS;
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
     MessageQDrv_CmdArgs cmdArgs;
 
@@ -211,7 +214,7 @@ MessageQ_getConfig (MessageQ_Config * cfg)
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "MessageQ_getConfig",
-                             MESSAGEQ_E_INVALIDARG,
+                             MessageQ_E_INVALIDARG,
                              "Argument of type (MessageQ_Config *) passed "
                              "is null!");
     }
@@ -258,47 +261,25 @@ MessageQ_getConfig (MessageQ_Config * cfg)
 }
 
 
-/*!
- *  @brief      Function to setup the MessageQ module.
- *
- *              This function sets up the MessageQ module. This function must
- *              be called before any other instance-level APIs can be invoked.
- *              Module-level configuration needs to be provided to this
- *              function. If the user wishes to change some specific config
- *              parameters, then MessageQ_getConfig can be called to get the
- *              configuration filled with the default values. After this, only
- *              the required configuration values can be changed. If the user
- *              does not wish to make any change in the default parameters, the
- *              application can simply call MessageQ with NULL parameters.
- *              The default parameters would get automatically used.
- *
- *  @param      cfg   Optional MessageQ module configuration. If provided as
- *                    NULL, default configuration is used.
- *
- *  @sa         MessageQ_destroy, MessageQDrvUsr_open, MessageQDrvUsr_ioctl
- */
+/* Function to setup the MessageQ module. */
 Int
 MessageQ_setup (const MessageQ_Config * config)
 {
-    Int                 status = MESSAGEQ_SUCCESS;
+    Int                 status = MessageQ_S_SUCCESS;
     MessageQDrv_CmdArgs cmdArgs;
 
     GT_1trace (curTrace, GT_ENTER, "MessageQ_setup", config);
 
     /* TBD: Protect from multiple threads. */
-    MessageQ_state.setupRefCount++;
+    MessageQ_module->setupRefCount++;
     /* This is needed at runtime so should not be in SYSLINK_BUILD_OPTIMIZE. */
-    if (MessageQ_state.setupRefCount > 1) {
-        /*! @retval MESSAGEQ_S_ALREADYSETUP Success:
-         *          MessageQ module has been
-         *          already setup in this process
-         */
-        status = MESSAGEQ_S_ALREADYSETUP;
+    if (MessageQ_module->setupRefCount > 1) {
+        status = MessageQ_S_ALREADYSETUP;
         GT_1trace (curTrace,
                    GT_1CLASS,
                    "MessageQ module has been already setup in this process.\n"
                    "    RefCount: [%d]\n",
-                   MessageQ_state.setupRefCount);
+                   MessageQ_module->setupRefCount);
     }
     else {
         /* Open the driver handle. */
@@ -329,41 +310,29 @@ MessageQ_setup (const MessageQ_Config * config)
 
     GT_1trace (curTrace, GT_LEAVE, "MessageQ_setup", status);
 
-    /*! @retval MESSAGEQ_SUCCESS Operation Successsful */
     return status;
 }
 
 
-/*!
- *  @brief      Function to destroy the MessageQ module.
- *
- *              Once this function is called, other MessageQ module APIs, except
- *              for the MessageQ_getConfig API cannot be called anymore.
- *
- *  @sa         MessageQ_setup, MessageQDrvUsr_ioctl, MessageQDrvUsr_close
- */
+/* Function to destroy the MessageQ module. */
 Int
 MessageQ_destroy (void)
 {
-    Int                 status = MESSAGEQ_SUCCESS;
+    Int                 status = MessageQ_S_SUCCESS;
     MessageQDrv_CmdArgs    cmdArgs;
 
     GT_0trace (curTrace, GT_ENTER, "MessageQ_destroy");
 
     /* TBD: Protect from multiple threads. */
-    MessageQ_state.setupRefCount--;
+    MessageQ_module->setupRefCount--;
     /* This is needed at runtime so should not be in SYSLINK_BUILD_OPTIMIZE. */
-    if (MessageQ_state.setupRefCount >= 1) {
-        /*! @retval MESSAGEQ_S_ALREADYSETUP Success:
-         *          MessageQ module has been already setup in this
-         *          process
-         */
-        status = MESSAGEQ_S_ALREADYSETUP;
+    if (MessageQ_module->setupRefCount >= 1) {
+        status = MessageQ_S_ALREADYSETUP;
         GT_1trace (curTrace,
                    GT_1CLASS,
                    "MessageQ module has been already setup in this process.\n"
                    "    RefCount: [%d]\n",
-                   MessageQ_state.setupRefCount);
+                   MessageQ_module->setupRefCount);
     }
     else {
         status = MessageQDrv_ioctl (CMD_MESSAGEQ_DESTROY, &cmdArgs);
@@ -383,31 +352,16 @@ MessageQ_destroy (void)
 
     GT_1trace (curTrace, GT_LEAVE, "MessageQ_destroy", status);
 
-    /*! @retval MESSAGEQ_SUCCESS Operation Successsful */
     return status;
 }
 
 
-/*!
- *  @brief      Function to initialize the parameters for the MessageQ instance.
- *
- *              This function can be called by the application to get their
- *              configuration parameter to #MessageQ_create filled in by the
- *              MessageQ module with the default parameters.
- *
- *  @param      handle   Handle to the MessageQ object. If specified as NULL,
- *                       the default global configuration values are returned.
- *  @param      params   Pointer to the MessageQ instance params structure in
- *                       which the default params is to be returned.
- *
- *  @sa         MessageQ_create, MessageQDrvUsr_ioctl
- */
+/* Function to initialize the parameters for the MessageQ instance. */
 Void
-MessageQ_Params_init (MessageQ_Handle         handle,
-                      MessageQ_Params       * params)
+MessageQ_Params_init (MessageQ_Params * params)
 {
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-    Int               status = MESSAGEQ_SUCCESS;
+    Int                   status = MessageQ_S_SUCCESS;
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
     MessageQDrv_CmdArgs   cmdArgs;
 
@@ -416,30 +370,23 @@ MessageQ_Params_init (MessageQ_Handle         handle,
     GT_assert (curTrace, (params != NULL));
 
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-    if (MessageQ_state.setupRefCount == 0) {
+    if (MessageQ_module->setupRefCount == 0) {
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "MessageQ_Params_init",
-                             MESSAGEQ_E_INVALIDSTATE,
-                             "Modules is not initialized!");
+                             MessageQ_E_INVALIDSTATE,
+                             "Module is not initialized!");
     }
     else if (params == NULL) {
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "MessageQ_Params_init",
-                             MESSAGEQ_E_INVALIDARG,
+                             MessageQ_E_INVALIDARG,
                              "Argument of type (MessageQ_Params *) passed "
                              "is null!");
     }
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-        if (handle != NULL) {
-            cmdArgs.args.ParamsInit.handle =
-                                    ((MessageQ_Object *) handle)->knlObject;
-        }
-        else {
-            cmdArgs.args.ParamsInit.handle = handle;
-        }
         cmdArgs.args.ParamsInit.params = params;
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
         status =
@@ -458,34 +405,17 @@ MessageQ_Params_init (MessageQ_Handle         handle,
 
     GT_0trace (curTrace, GT_LEAVE, "MessageQ_Params_init");
 
-    /* @retval  None */
     return;
 }
 
 
-/*!
- *  @brief      Function to create a MessageQ object.
- *
- *              This function creates an instance of the MessageQ module and
- *              returns an instance handle, which is used to access the
- *              specified MessageQ.
- *              Instance-level configuration needs to be provided to this
- *              function. If the user wishes to change some specific config
- *              parameters, then #MessageQ_Params_init can be called to get the
- *              configuration filled with the default values. After this, only
- *              the required configuration values can be changed.
- *
- *  @param      name    Name of the Message Queue to be created.
- *  @param      params  Instance config-params structure.
- *
- *  @sa         MessageQ_delete, Memory_calloc, MessageQDrvUsr_ioctl
- */
+/* Function to create a MessageQ object. */
 MessageQ_Handle
 MessageQ_create (      String            name,
                  const MessageQ_Params * params)
 {
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-    Int                   status = 0;
+    Int                   status = MessageQ_S_SUCCESS;
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
     MessageQ_Object *     handle = NULL;
     MessageQDrv_CmdArgs   cmdArgs;
@@ -493,24 +423,21 @@ MessageQ_create (      String            name,
     GT_2trace (curTrace, GT_ENTER, "MessageQ_create", name, params);
 
     /* NULL name is allowed for unnamed (anonymous queues) */
-    GT_assert (curTrace, (params != NULL));
 
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-    if (MessageQ_state.setupRefCount == 0) {
-        /* @retval  NULL Module is not initialized */
+    if (MessageQ_module->setupRefCount == 0) {
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "MessageQ_create",
-                             MESSAGEQ_E_INVALIDSTATE,
-                             "Modules is not initialized!");
+                             MessageQ_E_INVALIDSTATE,
+                             "Module is not initialized!");
     }
-    else if (params == NULL) {
-        /* @retval  NULL Invalid NULL params pointer specified */
+    else if ((params != NULL) && (params->synchronizer != NULL)) {
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "MessageQ_create",
-                             MESSAGEQ_E_INVALIDARG,
-                             "Invalid NULL params pointer specified!");
+                             MessageQ_E_INVALIDARG,
+                             "Cannot provide non-NULL synchronizer on HLOS!");
     }
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
@@ -528,7 +455,6 @@ MessageQ_create (      String            name,
         MessageQDrv_ioctl (CMD_MESSAGEQ_CREATE, &cmdArgs);
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
         if (status < 0) {
-            /* @retval  NULL API (through IOCTL) failed on kernel-side */
             GT_setFailureReason (curTrace,
                                  GT_4CLASS,
                                  "MessageQ_create",
@@ -543,8 +469,7 @@ MessageQ_create (      String            name,
                                                        0);
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
             if (handle == NULL) {
-                /*! @retval NULL Memory allocation failed for handle */
-                status = MESSAGEQ_E_MEMORY;
+                status = MessageQ_E_MEMORY;
                 GT_setFailureReason (curTrace,
                                      GT_4CLASS,
                                      "MessageQ_create",
@@ -564,28 +489,15 @@ MessageQ_create (      String            name,
 
     GT_1trace (curTrace, GT_LEAVE, "MessageQ_create", handle);
 
-    /*! @retval valid-handle Operation Successful*/
     return (MessageQ_Handle) handle;
 }
 
 
-/*!
- *  @brief      Function to delete a MessageQ object for a specific slave
- *              processor.
- *
- *              Once this function is called, other MessageQ instance level APIs
- *              that require the instance handle cannot be called.
- *
- *  @param      handlePtr  Pointer to Handle to the MessageQ object
- *                         Reset to NULL when the function successfully
- *                         completes.
- *
- *  @sa         MessageQ_create
- */
+/* Function to delete a MessageQ object for a specific slave processor. */
 Int
 MessageQ_delete (MessageQ_Handle * handlePtr)
 {
-    Int                 status = MESSAGEQ_SUCCESS;
+    Int                    status = MessageQ_S_SUCCESS;
     MessageQDrv_CmdArgs    cmdArgs;
 
     GT_1trace (curTrace, GT_ENTER, "MessageQ_delete", handlePtr);
@@ -594,18 +506,16 @@ MessageQ_delete (MessageQ_Handle * handlePtr)
     GT_assert (curTrace, ((handlePtr != NULL) && (*handlePtr != NULL)));
 
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-    if (MessageQ_state.setupRefCount == 0) {
-        /*! @retval MESSAGEQ_E_INVALIDSTATE Modules is in an invalid state*/
-        status = MESSAGEQ_E_INVALIDSTATE;
+    if (MessageQ_module->setupRefCount == 0) {
+        status = MessageQ_E_INVALIDSTATE;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "MessageQ_delete",
                              status,
-                             "Modules is in an invalid state!");
+                             "Module is in an invalid state!");
     }
     else if (handlePtr == NULL) {
-        /*! @retval MESSAGEQ_E_INVALIDARG handlePtr pointer passed is NULL*/
-        status = MESSAGEQ_E_INVALIDARG;
+        status = MessageQ_E_INVALIDARG;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "MessageQ_delete",
@@ -613,8 +523,7 @@ MessageQ_delete (MessageQ_Handle * handlePtr)
                              "handlePtr pointer passed is NULL!");
     }
     else if (*handlePtr == NULL) {
-        /*! @retval MESSAGEQ_E_INVALIDARG *handlePtr passed is NULL*/
-        status = MESSAGEQ_E_INVALIDARG;
+        status = MessageQ_E_INVALIDARG;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "MessageQ_delete",
@@ -625,6 +534,8 @@ MessageQ_delete (MessageQ_Handle * handlePtr)
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
         cmdArgs.args.deleteMessageQ.handle =
                             ((MessageQ_Object *)(*handlePtr))->knlObject;
+        GT_assert (curTrace,
+                   (((MessageQ_Object *)(handlePtr))->knlObject != NULL));
         status = MessageQDrv_ioctl (CMD_MESSAGEQ_DELETE, &cmdArgs);
 
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
@@ -646,44 +557,33 @@ MessageQ_delete (MessageQ_Handle * handlePtr)
 
     GT_1trace (curTrace, GT_LEAVE, "MessageQ_delete", status);
 
-    /*! @retval MESSAGEQ_SUCCESS Operation Successful */
     return status;
 }
 
 
-/*!
- *  @brief      Opens a created instance of MessageQ module.
- *
- *  @param      name        Name of Message Queue to be opened
- *  @param      queueId     Return parameter: Opened Message Queue ID that can
- *                          be used for #MessageQ_put
- *
- *  @sa         MessageQ_create, MessageQ_delete, MessageQ_close
- *              NameServer_get
- */
+/* Opens a created instance of MessageQ module. */
 Int
 MessageQ_open (String name, MessageQ_QueueId * queueId)
 {
-    Int32            status = MESSAGEQ_SUCCESS;
+    Int                 status = MessageQ_S_SUCCESS;
     MessageQDrv_CmdArgs cmdArgs;
 
     GT_2trace (curTrace, GT_ENTER, "MessageQ_open", name, queueId);
 
+    GT_assert (curTrace, (name != NULL));
     GT_assert (curTrace, (queueId != NULL));
 
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-    if (MessageQ_state.setupRefCount == 0) {
-        /*! @retval MESSAGEQ_E_INVALIDSTATE Modules is in an invalid state */
-        status = MESSAGEQ_E_INVALIDSTATE;
+    if (MessageQ_module->setupRefCount == 0) {
+        status = MessageQ_E_INVALIDSTATE;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "MessageQ_open",
                              status,
-                             "Modules is in an invalid state!");
+                             "Module is in an invalid state!");
     }
     else if (name == NULL) {
-        /*! @retval MESSAGEQ_E_INVALIDARG name passed is NULL */
-        status = MESSAGEQ_E_INVALIDARG;
+        status = MessageQ_E_INVALIDARG;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "MessageQ_open",
@@ -691,8 +591,7 @@ MessageQ_open (String name, MessageQ_QueueId * queueId)
                              "name passed is NULL!");
     }
     else if (queueId == NULL) {
-        /*! @retval MESSAGEQ_E_INVALIDARG name passed is NULL */
-        status = MESSAGEQ_E_INVALIDARG;
+        status = MessageQ_E_INVALIDARG;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "MessageQ_open",
@@ -710,11 +609,12 @@ MessageQ_open (String name, MessageQ_QueueId * queueId)
         }
 
         /* Initialize return queue ID to invalid. */
-        *queueId = MESSAGEQ_INVALIDMESSAGEQ;
+        *queueId = MessageQ_INVALIDMESSAGEQ;
 
         status = MessageQDrv_ioctl (CMD_MESSAGEQ_OPEN, &cmdArgs);
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-        if (status < 0) {
+        /* MessageQ_E_NOTFOUND is a valid runtime failure. */
+        if ((status < 0) && (status != MessageQ_E_NOTFOUND)) {
             GT_setFailureReason (curTrace,
                                  GT_4CLASS,
                                  "MessageQ_open",
@@ -731,25 +631,15 @@ MessageQ_open (String name, MessageQ_QueueId * queueId)
 
     GT_1trace (curTrace, GT_LEAVE, "MessageQ_open", status);
 
-    /*! @retval MESSAGEQ_SUCCESS Operation Successful */
     return status;
 }
 
 
-/*!
- *  @brief      Closes previously opened/created instance of MessageQ module.
- *
- *  @param      queueId    Pointer to ID for the opened queue. This is the
- *                         ID that was returned from #MessageQ_open.
- *                         Reset to invalid when the function successfully
- *                         completes.
- *
- *  @sa         MessageQ_create, MessageQ_delete, MessageQ_open
- */
-Void
+/* Closes previously opened/created instance of MessageQ module. */
+Int
 MessageQ_close (MessageQ_QueueId * queueId)
 {
-    Int32               status = MESSAGEQ_SUCCESS;
+    Int                 status = MessageQ_S_SUCCESS;
     MessageQDrv_CmdArgs cmdArgs;
 
     GT_1trace (curTrace, GT_ENTER, "MessageQ_close", queueId);
@@ -757,20 +647,18 @@ MessageQ_close (MessageQ_QueueId * queueId)
     GT_assert (curTrace, (queueId != NULL));
 
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-    if (MessageQ_state.setupRefCount == 0) {
-        /* @retval  NULL Module is not initialized */
+    if (MessageQ_module->setupRefCount == 0) {
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "MessageQ_close",
-                             MESSAGEQ_E_INVALIDSTATE,
-                             "Modules is not initialized!");
+                             MessageQ_E_INVALIDSTATE,
+                             "Module is not initialized!");
     }
     else if (queueId == NULL) {
-        /*! @retval MESSAGEQ_E_INVALIDARG queueId passed is null */
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "MessageQ_close",
-                             MESSAGEQ_E_INVALIDARG,
+                             MessageQ_E_INVALIDARG,
                              "queueId passed is null!");
     }
     else {
@@ -787,83 +675,61 @@ MessageQ_close (MessageQ_QueueId * queueId)
         }
         else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-            *queueId = MESSAGEQ_INVALIDMESSAGEQ;
+            *queueId = MessageQ_INVALIDMESSAGEQ;
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
         }
     }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
 
-    GT_0trace (curTrace, GT_LEAVE, "MessageQ_close");
+    GT_1trace (curTrace, GT_LEAVE, "MessageQ_close", status);
 
-    /*! @retval MESSAGEQ_SUCCESS Operation Successsful */
-    return;
+    return status;
 }
 
 
-/*
- *  @brief   Place a message onto a message queue.
- *           <br>
- *           This call places the message onto the specified message queue.
- *           The message queue could be local or remote. The MessageQ module
- *           manages the delivery.
- *           <br>
- *           In the case where the queue is remote, MessageQ does not guarantee
- *           that the message is actually delivered before the MessageQ_put call
- *           returns.
- *           <br>
- *           The queue must have been returned from one of the following
- *           functions:<br>
- *           - #MessageQ_open<br>
- *           - #MessageQ_getReplyQueue<br>
- *           - #MessageQ_getDstQueue<br>
- *           <br>
- *           After the message is placed onto the final destination, the queue's
- *           synchronizer signal function is called.<br>
- *           The application loses ownership of the message once put is called.
- *
- *  @param   queueId    ID of the destination message queue
- *  @param   msg        Message to be sent
- *
- *  @sa      MessageQ_get
- */
+/* Place a message onto a message queue. */
 Int
 MessageQ_put (MessageQ_QueueId queueId,
               MessageQ_Msg     msg)
 {
-    Int                 status = MESSAGEQ_SUCCESS;
+    Int                 status = MessageQ_S_SUCCESS;
     MessageQDrv_CmdArgs cmdArgs;
-    Int32               index;
+    UInt16              index;
 
     GT_2trace (curTrace, GT_ENTER, "MessageQ_put", queueId, msg);
 
+    GT_assert (curTrace, (queueId != MessageQ_INVALIDMESSAGEQ));
     GT_assert (curTrace, (msg != NULL));
 
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-    if (MessageQ_state.setupRefCount == 0) {
-        /* @retval  MESSAGEQ_E_INVALIDSTATE Module is not initialized */
-        status = MESSAGEQ_E_INVALIDSTATE;
+    if (MessageQ_module->setupRefCount == 0) {
+        status = MessageQ_E_INVALIDSTATE;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "MessageQ_put",
                              status,
-                             "Modules is not initialized!");
+                             "Module is not initialized!");
+    }
+    else if (queueId == MessageQ_INVALIDMESSAGEQ) {
+        status = MessageQ_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "MessageQ_put",
+                             status,
+                             "queueId is MessageQ_INVALIDMESSAGEQ!");
     }
     else if (msg  == NULL) {
-        /*! @retval MESSAGEQ_E_INVALIDARG Argument of type
-         *                             (MessageQ_Config *) passed is null
-         */
-        status = MESSAGEQ_E_INVALIDARG;
+        status = MessageQ_E_INVALIDARG;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "MessageQ_put",
                              status,
-                             "Argument of type (MessageQ_Config *) "
-                             "passed is null!");
+                             "msg is null!");
     }
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
         cmdArgs.args.put.queueId  = queueId;
-        index = SharedRegion_getIndex (msg);
+        index = SharedRegion_getId (msg);
         cmdArgs.args.put.msgSrPtr = SharedRegion_getSRPtr (msg, index);
 
         status = MessageQDrv_ioctl (CMD_MESSAGEQ_PUT, &cmdArgs);
@@ -880,47 +746,45 @@ MessageQ_put (MessageQ_QueueId queueId,
 
     GT_1trace (curTrace, GT_LEAVE, "MessageQ_put", status);
 
-    /*! @retval Operation Successsful */
     return (status);
 }
 
 
-/*
- *  @brief   Gets a message for a message queue and blocks if the queue is
- *           empty.
- *           <br>
- *           If a message is present, it returns it.  Otherwise it blocks
- *           waiting for a message to arrive.
- *           <br>
- *           When a message is returned, it is owned by the caller.
- *
- *  @param   handle     Handle to the Message Queue
- *  @param   msg        Location to receive the message pointer
- *  @param   timeout    Timeout to wait for
- *
- *  @sa      MessageQ_put
+/* Gets a message for a message queue and blocks if the queue is empty.
+ * If a message is present, it returns it.  Otherwise it blocks
+ * waiting for a message to arrive.
+ * When a message is returned, it is owned by the caller.
  */
 Int
 MessageQ_get (MessageQ_Handle handle, MessageQ_Msg * msg ,UInt timeout)
 {
-    Int                 status   = MESSAGEQ_SUCCESS;
-    SharedRegion_SRPtr  msgSrPtr = SHAREDREGION_INVALIDSRPTR;
+    Int                 status   = MessageQ_S_SUCCESS;
+    SharedRegion_SRPtr  msgSrPtr = SharedRegion_INVALIDSRPTR;
     MessageQDrv_CmdArgs cmdArgs;
 
     GT_2trace (curTrace, GT_ENTER, "MessageQ_get", handle, timeout);
 
+    GT_assert (curTrace, (handle != NULL));
+    GT_assert (curTrace, (msg != NULL));
+
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-    if (handle == NULL) {
-        /*! @retval NULL Invalid NULL obj pointer specified */
+    if (MessageQ_module->setupRefCount == 0) {
+        status = MessageQ_E_INVALIDSTATE;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "MessageQ_put",
+                             status,
+                             "Module is not initialized!");
+    }
+    else if (handle == NULL) {
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "MessageQ_count",
-                             MESSAGEQ_E_INVALIDMSG,
-                             "obj pointer passed is null!");
+                             MessageQ_E_INVALIDMSG,
+                             "handle pointer passed is null!");
     }
     else if (msg == NULL) {
-        /*! @retval MESSAGEQ_E_INVALIDARG Invalid NULL msg pointer specified */
-        status = MESSAGEQ_E_INVALIDARG;
+        status = MessageQ_E_INVALIDARG;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "MessageQ_get",
@@ -930,6 +794,8 @@ MessageQ_get (MessageQ_Handle handle, MessageQ_Msg * msg ,UInt timeout)
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
         cmdArgs.args.get.handle = ((MessageQ_Object *)(handle))->knlObject;
+        GT_assert (curTrace,
+                   (((MessageQ_Object *)(handle))->knlObject != NULL));
         cmdArgs.args.get.timeout = timeout;
 
         /* Initialize return message pointer to NULL. */
@@ -937,7 +803,8 @@ MessageQ_get (MessageQ_Handle handle, MessageQ_Msg * msg ,UInt timeout)
         status = MessageQDrv_ioctl (CMD_MESSAGEQ_GET, &cmdArgs);
 
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-        if (status < 0 && (status != MESSAGEQ_E_TIMEOUT)) {
+        if ((status != MessageQ_E_TIMEOUT) && (status < 0)) {
+            /* Timeout is a valid runtime error. */
             GT_setFailureReason (curTrace,
                                  GT_4CLASS,
                                  "MessageQ_get",
@@ -947,7 +814,7 @@ MessageQ_get (MessageQ_Handle handle, MessageQ_Msg * msg ,UInt timeout)
         else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
             msgSrPtr = cmdArgs.args.get.msgSrPtr;
-            if (msgSrPtr != SHAREDREGION_INVALIDSRPTR) {
+            if (msgSrPtr != SharedRegion_INVALIDSRPTR) {
                 *msg = (MessageQ_Msg) SharedRegion_getPtr (msgSrPtr);
             }
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
@@ -957,47 +824,42 @@ MessageQ_get (MessageQ_Handle handle, MessageQ_Msg * msg ,UInt timeout)
 
     GT_1trace (curTrace, GT_LEAVE, "MessageQ_get", status);
 
-    /*! @retval MESSAGEQ_SUCCESS Operation successfully completed. */
     return (status);
 }
 
 
-/*
- *  @brief   Return a count of the number of messages in the queue
- *
- *  @param   handle     Handle to the Message Queue
- *
- *  @sa      None
- */
+/* Return a count of the number of messages in the queue */
 Int
 MessageQ_count (MessageQ_Handle handle)
 {
-    Int32               status = MESSAGEQ_SUCCESS;
+    Int                 status = MessageQ_S_SUCCESS;
     Int                 count  = 0;
     MessageQDrv_CmdArgs cmdArgs;
 
     GT_1trace (curTrace, GT_ENTER, "MessageQ_count", handle);
 
+    GT_assert (curTrace, (handle != NULL));
+
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-    if (MessageQ_state.setupRefCount == 0) {
-        /* @retval 0 Module is not initialized */
+    if (MessageQ_module->setupRefCount == 0) {
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "MessageQ_count",
-                             MESSAGEQ_E_INVALIDSTATE,
-                             "Modules is not initialized!");
+                             MessageQ_E_INVALIDSTATE,
+                             "Module is not initialized!");
     }
     else if (handle == NULL) {
-        /*! @retval 0 Invalid NULL obj pointer specified */
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "MessageQ_count",
-                             MESSAGEQ_E_INVALIDMSG,
+                             MessageQ_E_INVALIDMSG,
                              "Invalid NULL obj pointer specified!");
     }
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
         cmdArgs.args.count.handle = ((MessageQ_Object *)(handle))->knlObject;
+        GT_assert (curTrace,
+                   (((MessageQ_Object *)(handle))->knlObject != NULL));
         status = MessageQDrv_ioctl (CMD_MESSAGEQ_COUNT, &cmdArgs);
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
         if (status < 0) {
@@ -1017,68 +879,54 @@ MessageQ_count (MessageQ_Handle handle)
 
     GT_1trace (curTrace, GT_LEAVE, "MessageQ_count", count);
 
-    /*! @retval Number-of-messages-in-MessageQ Operation Successsful */
     return (count);
 }
 
 
-/*
- *  @brief  Initializes a message not obtained from #MessageQ_alloc.
- *          <br>
- *          There are several fields in the #MessageQ_MsgHeader that are
- *          initialized by the #MessageQ_alloc function. The
- *          #MessageQ_staticMsgInit can be used to initial these fields for
- *          messages that are not allocated from MessageQ.
- *          <br>
- *          There is one strict constraint with using messages not allocated
- *          from MessageQ. The message cannot be free via #MessageQ_free
- *          function. This includes:<br>
- *          - The application calling #MessageQ_free on the same processor
- *          - The application calling #MessageQ_free on a different processor
- *          - The application cannot send the message to another processor
- *            where the transport might call #MessageQ_free on the message. For
- *            example, any copy based transport calls free after sending the
- *            message.
- *          <br>
- *          If a staticMsgInit'd msg is passed to #MessageQ_free, an error is
- *          returned.
- *
- *  @param  msg     Message to be initialized
- *  @param  size    Size of the message
- *
- *
- *  @sa     None
- */
+/* Initializes a message not obtained from MessageQ_alloc. */
 Void
 MessageQ_staticMsgInit (MessageQ_Msg msg, UInt32 size)
 {
     GT_2trace (curTrace, GT_ENTER, "MessageQ_staticMsgInit", msg, size);
 
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-    if (MessageQ_state.setupRefCount == 0) {
+    if (MessageQ_module->setupRefCount == 0) {
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "MessageQ_staticMsgInit",
-                             MESSAGEQ_E_INVALIDSTATE,
-                             "Modules is not initialized!");
+                             MessageQ_E_INVALIDSTATE,
+                             "Module is not initialized!");
     }
     else if (msg == NULL) {
-        /*! @retval None */
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "MessageQ_staticMsgInit",
-                             MESSAGEQ_E_INVALIDMSG,
+                             MessageQ_E_INVALIDMSG,
                              "Msg is invalid!");
     }
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
         /* Fill in the fields of the message */
-        msg->heapId  = MESSAGEQ_STATICMSG;
+        msg->heapId  = MessageQ_STATICMSG;
         msg->msgSize = size;
-        msg->replyId = (UInt16) MESSAGEQ_INVALIDMESSAGEQ;
-        msg->msgId   = MESSAGEQ_INVALIDMSGID;
-        msg->dstId   = (UInt16) MESSAGEQ_INVALIDMESSAGEQ;
-        msg->flags   = 0x0;
+        msg->replyId = (UInt16) MessageQ_INVALIDMESSAGEQ;
+        msg->msgId   = MessageQ_INVALIDMSGID;
+        msg->dstId   = (UInt16) MessageQ_INVALIDMESSAGEQ;
+        msg->flags   =   MessageQ_HEADERVERSION
+                       | MessageQ_NORMALPRI;
+        msg->srcProc = MultiProc_self ();
+
+        /* TBD: May need to drop down to kernel-side for this. */
+        /* msg->seqNum  = MessageQ_module->seqNum++;
+
+        if (MessageQ_module->cfg.traceFlag == TRUE) {
+            GT_3trace (curTrace,
+                       GT_1CLASS,
+                       "MessageQ_staticMsgInit",
+                       (msg),
+                       ((msg)->seqNum),
+                       ((msg)->srcProc));
+        } */
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
     }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
@@ -1087,43 +935,40 @@ MessageQ_staticMsgInit (MessageQ_Msg msg, UInt32 size)
 }
 
 
-/*
- *  @brief  Allocate a message and initialize the needed fields (note some
- *          of the fields in the header are set via other APIs or in the
- *          #MessageQ_put function.)
- *
- *  @param  heapId     Heap ID from which to allocate the message
- *  @param  size       Size of the message to be allocated
- *
- *  @sa     MessageQ_free
+/* Allocate a message and initialize the needed fields (note some
+ * of the fields in the header are set via other APIs or in the
+ * MessageQ_put function.)
  */
 MessageQ_Msg
 MessageQ_alloc (UInt16 heapId, UInt32 size)
 {
-    Int32               status   = MESSAGEQ_SUCCESS;
-    SharedRegion_SRPtr  msgSrPtr = SHAREDREGION_INVALIDSRPTR;
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+    Int                 status   = MessageQ_S_SUCCESS;
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+    SharedRegion_SRPtr  msgSrPtr = SharedRegion_INVALIDSRPTR;
     MessageQ_Msg        msg      = NULL;
     MessageQDrv_CmdArgs cmdArgs;
 
     GT_2trace (curTrace, GT_ENTER, "MessageQ_alloc", heapId, size);
 
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-    if (MessageQ_state.setupRefCount == 0) {
-        /* @retval  NULL Module is not initialized */
+    if (MessageQ_module->setupRefCount == 0) {
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "MessageQ_alloc",
-                             MESSAGEQ_E_INVALIDSTATE,
-                             "Modules is not initialized!");
+                             MessageQ_E_INVALIDSTATE,
+                             "Module is not initialized!");
     }
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
         cmdArgs.args.alloc.heapId = heapId;
         cmdArgs.args.alloc.size   = size;
-        status = MessageQDrv_ioctl (CMD_MESSAGEQ_ALLOC, &cmdArgs);
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+        status =
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+        MessageQDrv_ioctl (CMD_MESSAGEQ_ALLOC, &cmdArgs);
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
         if (status < 0) {
-            /*! @retval NULL API (through IOCTL) failed on kernel-side! */
             GT_setFailureReason (curTrace,
                                  GT_4CLASS,
                                  "MessageQ_alloc",
@@ -1133,7 +978,7 @@ MessageQ_alloc (UInt16 heapId, UInt32 size)
         else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
             msgSrPtr = cmdArgs.args.alloc.msgSrPtr;
-            if (msgSrPtr != SHAREDREGION_INVALIDSRPTR) {
+            if (msgSrPtr != SharedRegion_INVALIDSRPTR) {
                 msg = SharedRegion_getPtr (msgSrPtr);
             }
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
@@ -1142,62 +987,50 @@ MessageQ_alloc (UInt16 heapId, UInt32 size)
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
     GT_1trace (curTrace, GT_LEAVE, "MessageQ_alloc", msg);
 
-    /*! @retval Valid-message Operation Successsful */
     return msg;
 }
 
 
-/*
- *  @brief   Frees the message back to the heap that was used to allocate it.
- *
- *  @param   msg     Pointer to message to be freed
- *
- *  @sa      MessageQ_alloc
- */
+/* Frees the message back to the heap that was used to allocate it. */
 Int
 MessageQ_free (MessageQ_Msg msg)
 {
-    UInt32              status = MESSAGEQ_SUCCESS;
+    UInt32              status = MessageQ_S_SUCCESS;
     MessageQDrv_CmdArgs cmdArgs;
-    Int32               index;
+    UInt16              index;
 
     GT_1trace (curTrace, GT_ENTER, "MessageQ_free", msg);
 
     GT_assert (curTrace, (msg != NULL));
 
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-    if (MessageQ_state.setupRefCount == 0) {
-        /* @retval  MESSAGEQ_E_INVALIDSTATE Module is not initialized */
-        status = MESSAGEQ_E_INVALIDSTATE;
+    if (MessageQ_module->setupRefCount == 0) {
+        status = MessageQ_E_INVALIDSTATE;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "MessageQ_free",
                              status,
-                             "Modules is not initialized!");
+                             "Module is not initialized!");
     }
     else if (msg == NULL) {
-        /*! @retval MESSAGEQ_E_INVALIDARG msg passed is null */
-        status = MESSAGEQ_E_INVALIDARG;
+        status = MessageQ_E_INVALIDARG;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "MessageQ_free",
                              status,
                              "msg passed is null!");
     }
-    else if (msg->heapId ==  MESSAGEQ_STATICMSG) {
-        /*! @retval MESSAGEQ_E_CANNOTFREESTATICMSG Static message has been
-        *                     passed and cannot be freed.
-         */
-        status = MESSAGEQ_E_CANNOTFREESTATICMSG;
+    else if (msg->heapId ==  MessageQ_STATICMSG) {
+        status = MessageQ_E_CANNOTFREESTATICMSG;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "MessageQ_free",
-                             MESSAGEQ_E_CANNOTFREESTATICMSG,
+                             MessageQ_E_CANNOTFREESTATICMSG,
                              "Static message has been passed!");
     }
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-        index = SharedRegion_getIndex (msg);
+        index = SharedRegion_getId (msg);
         cmdArgs.args.free.msgSrPtr = SharedRegion_getSRPtr (msg, index);
         status = MessageQDrv_ioctl (CMD_MESSAGEQ_FREE, &cmdArgs);
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
@@ -1213,59 +1046,44 @@ MessageQ_free (MessageQ_Msg msg)
 
     GT_1trace (curTrace, GT_LEAVE, "MessageQ_free", status);
 
-    /*! @retval MESSAGEQ_SUCCESS Operation Successsful */
     return status;
 }
 
 
-/*
- *  @brief   Register a heap with MessageQ.
- *           <br>
- *           This function registers a heap with MessageQ. The user selects the
- *           heapId associated with this heap. When a message is allocated via
- *           the #MessageQ_alloc function, the heapId is specified. Internally,
- *           MessageQ uses the heapId to access the heap.
- *           <br>
- *           Care must be taken when assigning heapIds. Internally MessageQ
- *           stores the heapId into the message. When the message is freed
- *           (via #MessageQ_free), the heapId is used to determine which heap to
- *           use. On systems with shared memory the heapIds must match on
- *           corresponding processors. For example, assume there is a heap
- *           called myHeap which acts on shared memory and processors 0 and 1
- *           both use this heap. When you register the heap with MessageQ, the
- *           same heapId must be used on both processor 0 and 1.
- *           <br>
- *           If a heap is already registered for the specified heapId, no action
- *           is taken.
- *
- *  @param   handle     Handle of the heap to be registered
- *  @param   heapId     Statically defined ID of the heap
- *
- *
- *  @sa      MessageQ_unregisterHeap
- */
+/* Register a heap with MessageQ. */
 Int
-MessageQ_registerHeap (Heap_Handle handle, UInt16 heapId)
+MessageQ_registerHeap (Ptr heap, UInt16 heapId)
 {
-    Int                 status = MESSAGEQ_SUCCESS;
+    Int                 status = MessageQ_S_SUCCESS;
     MessageQDrv_CmdArgs cmdArgs;
 
-    GT_2trace (curTrace, GT_ENTER, "MessageQ_registerHeap", handle, heapId);
+    GT_2trace (curTrace, GT_ENTER, "MessageQ_registerHeap", heap, heapId);
+
+    GT_assert (curTrace, (heap != NULL));
 
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-    if (MessageQ_state.setupRefCount == 0) {
-        /* @retval  MESSAGEQ_E_INVALIDSTATE Module is not initialized */
-        status = MESSAGEQ_E_INVALIDSTATE;
+    if (MessageQ_module->setupRefCount == 0) {
+        status = MessageQ_E_INVALIDSTATE;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "MessageQ_registerHeap",
                              status,
-                             "Modules is not initialized!");
+                             "Module is not initialized!");
+    }
+    else if (heap == NULL) {
+        status = MessageQ_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "MessageQ_registerHeap",
+                             status,
+                             "Invalid NULL heap provided!");
     }
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-        /* Translate Gate handle to kernel-side gate handle. */
-        cmdArgs.args.create.handle = Heap_getKnlHandle (handle);
+        /* Translate Heap handle to kernel-side gate handle. */
+        cmdArgs.args.registerHeap.heap = IHeap_getKnlHandle (heap);
+        GT_assert (curTrace, (cmdArgs.args.registerHeap.heap));
+
         cmdArgs.args.registerHeap.heapId = heapId;
         status = MessageQDrv_ioctl (CMD_MESSAGEQ_REGISTERHEAP, &cmdArgs);
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
@@ -1281,41 +1099,27 @@ MessageQ_registerHeap (Heap_Handle handle, UInt16 heapId)
 
     GT_1trace (curTrace, GT_LEAVE, "MessageQ_registerHeap", status);
 
-    /*! @retval MESSAGEQ_SUCCESS Operation Successful */
     return status;
 }
 
 
-/*
- *  @brief   Unregister a heap with MessageQ.
- *           <br>
- *           This function unregisters the heap associated with the heapId.
- *           Care must be taken to ensure that there are no outstanding messages
- *           allocated from this heap. If there are outstanding messages, an
- *           attempt to free the message will result in non-deterministic
- *           results.
- *
- *  @param   heapId     Statically defined ID of the heap to be unregistered.
- *
- *  @sa      MessageQ_registerHeap
- */
+/* Unregister a heap with MessageQ. */
 Int
 MessageQ_unregisterHeap (UInt16 heapId)
 {
-    Int                 status = MESSAGEQ_SUCCESS;
+    Int                 status = MessageQ_S_SUCCESS;
     MessageQDrv_CmdArgs cmdArgs;
 
     GT_1trace (curTrace, GT_ENTER, "MessageQ_unregisterHeap", heapId);
 
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-    if (MessageQ_state.setupRefCount == 0) {
-        /* @retval  MESSAGEQ_E_INVALIDSTATE Module is not initialized */
-        status = MESSAGEQ_E_INVALIDSTATE;
+    if (MessageQ_module->setupRefCount == 0) {
+        status = MessageQ_E_INVALIDSTATE;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "MessageQ_unregisterHeap",
                              status,
-                             "Modules is not initialized!");
+                             "Module is not initialized!");
     }
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
@@ -1334,30 +1138,11 @@ MessageQ_unregisterHeap (UInt16 heapId)
 
     GT_1trace (curTrace, GT_LEAVE, "MessageQ_unregisterHeap", status);
 
-    /*! @retval MESSAGEQ_SUCCESS Operation Successsful */
     return status;
 }
 
 
-/*!
- *  @brief   Embeds a source message queue into a message.
- *           <br>
- *           This function along with the #MessageQ_getReplyQueue function can
- *           be used instead of the locates functions. The sender of a message
- *           can embed a messageQ into the message with this function. The
- *           receiver of the message can extract the message queue id with the
- *           #MessageQ_getReplyQueue function.
- *           <br>
- *           This method is particularly useful in a client/server relationship
- *           where the server does not want to know who the clients are. The
- *           clients can embed their message queue into the message to the
- *           server and the server extracts it and uses it to reply.
- *
- *  @param   handle     Handle to the MessageQ to be used as a reply queue.
- *  @param   msg        Message for which the reply queue is to be set.
- *
- *  @sa      MessageQ_getReplyQueue
- */
+/* Embeds a source message queue into a message. */
 Void
 MessageQ_setReplyQueue (MessageQ_Handle   handle,
                         MessageQ_Msg      msg)
@@ -1370,25 +1155,25 @@ MessageQ_setReplyQueue (MessageQ_Handle   handle,
     GT_assert (curTrace, (msg != NULL));
 
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-    if (MessageQ_state.setupRefCount == 0) {
+    if (MessageQ_module->setupRefCount == 0) {
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "MessageQ_setReplyQueue",
-                             MESSAGEQ_E_INVALIDSTATE,
-                             "Modules is not initialized!");
+                             MessageQ_E_INVALIDSTATE,
+                             "Module is not initialized!");
     }
     else if (handle == NULL) {
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "MessageQ_setReplyQueue",
-                             MESSAGEQ_E_INVALIDARG,
+                             MessageQ_E_INVALIDARG,
                              "handle passed is null!");
     }
     else if (msg == NULL) {
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "MessageQ_setReplyQueue",
-                             MESSAGEQ_E_INVALIDARG,
+                             MessageQ_E_INVALIDARG,
                              "msg passed is null!");
     }
     else {
@@ -1403,42 +1188,30 @@ MessageQ_setReplyQueue (MessageQ_Handle   handle,
 }
 
 
-/*!
- *  @brief   Returns the QueueId associated with the handle.
- *           <br>
- *           Since the #MessageQ_put function takes a QueueId, the creator of a
- *           message queue cannot send a message to themself. This function
- *           extracts the QueueId from the object.
- *
- *  @param   handle     Handle to the MessageQ
- *
- *  @sa      MessageQ_put
- */
+/* Returns the QueueId associated with the handle. */
 MessageQ_QueueId
 MessageQ_getQueueId (MessageQ_Handle handle)
 {
     MessageQ_Object * obj     = (MessageQ_Object *) handle;
-    UInt32            queueId = MESSAGEQ_INVALIDMESSAGEQ;
+    UInt32            queueId = MessageQ_INVALIDMESSAGEQ;
 
     GT_1trace (curTrace, GT_ENTER, "MessageQ_getQueueId", obj);
 
     GT_assert (curTrace, (handle != NULL));
 
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-    if (MessageQ_state.setupRefCount == 0) {
-        /*! @retval MESSAGEQ_INVALIDMESSAGEQ Modules is not initialized */
+    if (MessageQ_module->setupRefCount == 0) {
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "MessageQ_unregisterTransport",
-                             MESSAGEQ_E_INVALIDSTATE,
-                             "Modules is not initialized!");
+                             MessageQ_E_INVALIDSTATE,
+                             "Module is not initialized!");
     }
     else if (handle == NULL) {
-        /*! @retval MESSAGEQ_INVALIDMESSAGEQ handle passed is null */
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "MessageQ_getQueueId",
-                             MESSAGEQ_E_INVALIDARG,
+                             MessageQ_E_INVALIDARG,
                              "handle passed is null!");
     }
     else {
@@ -1450,47 +1223,34 @@ MessageQ_getQueueId (MessageQ_Handle handle)
 
     GT_1trace (curTrace, GT_LEAVE, "MessageQ_getQueueId", queueId);
 
-    /*! @retval Queue-Id Operation successful */
     return queueId;
 }
 
 
-/*!
- *  @brief   Returns the MultiProc processor id on which the queue resides.
- *           <br>
- *           Message queues reside on the processor that created them. This
- *           function allows the caller to determined on which processor the
- *           queue resides.
- *
- *  @param   handle     Handle to the MessageQ
- *
- *  @sa      None
- */
+/* Returns the MultiProc processor id on which the queue resides. */
 UInt16
 MessageQ_getProcId (MessageQ_Handle handle)
 {
     MessageQ_Object * obj    = (MessageQ_Object *) handle;
-    UInt16            procId = MULTIPROC_INVALIDID;
+    UInt16            procId = MultiProc_INVALIDID;
 
     GT_1trace (curTrace, GT_ENTER, "MessageQ_getProcId", handle);
 
     GT_assert (curTrace, (handle != NULL));
 
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-    if (MessageQ_state.setupRefCount == 0) {
-        /* @retval  MULTIPROC_INVALIDID Module is not initialized */
+    if (MessageQ_module->setupRefCount == 0) {
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "MessageQ_unregisterTransport",
-                             MESSAGEQ_E_INVALIDSTATE,
-                             "Modules is not initialized!");
+                             MessageQ_E_INVALIDSTATE,
+                             "Module is not initialized!");
     }
     else if (handle == NULL) {
-        /*! @retval MULTIPROC_INVALIDID handle passed is null */
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "MessageQ_getProcId",
-                             MESSAGEQ_E_INVALIDARG,
+                             MessageQ_E_INVALIDARG,
                              "handle passed is null!");
     }
     else {
@@ -1502,8 +1262,158 @@ MessageQ_getProcId (MessageQ_Handle handle)
 
     GT_1trace (curTrace, GT_LEAVE, "MessageQ_getProcId", procId);
 
-    /*! @retval Proc-ID Operation successful */
     return procId;
+}
+
+
+/* Sets the tracing of a message */
+Void
+MessageQ_setMsgTrace (MessageQ_Msg msg, Bool traceFlag)
+{
+    GT_2trace (curTrace, GT_ENTER, "MessageQ_setMsgTrace", msg, traceFlag);
+
+    GT_assert (curTrace, (msg != NULL));
+
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+    if (msg == NULL) {
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "MessageQ_setMsgTrace",
+                             MessageQ_E_INVALIDARG,
+                             "msg passed is null!");
+    }
+    else {
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+        msg->flags =    (msg->flags & ~MessageQ_TRACEMASK)
+                     |  (traceFlag << MessageQ_TRACESHIFT);
+        GT_4trace (curTrace,
+                   GT_1CLASS,
+                   "MessageQ_setMsgTrace",
+                    msg,
+                    msg->seqNum,
+                    msg->srcProc,
+                    traceFlag);
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+    }
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+
+    GT_0trace (curTrace, GT_LEAVE, "MessageQ_setMsgTrace");
+}
+
+
+/* Returns the amount of shared memory used by one transport instance.
+ *
+ *  The MessageQ module itself does not use any shared memory but the
+ *  underlying transport may use some shared memory.
+ */
+SizeT
+MessageQ_sharedMemReq (Ptr sharedAddr)
+{
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+    Int                 status = MessageQ_S_SUCCESS;
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+    SizeT               memReq = 0u;
+    UInt16              index;
+    MessageQDrv_CmdArgs cmdArgs;
+
+    GT_1trace (curTrace, GT_ENTER, "MessageQ_sharedMemReq", sharedAddr);
+
+    if (MultiProc_getNumProcessors ()  > 1) {
+        index = SharedRegion_getId (sharedAddr);
+        cmdArgs.args.sharedMemReq.sharedAddrSrPtr = SharedRegion_getSRPtr (
+                                                            sharedAddr, index);
+
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+        status =
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+        MessageQDrv_ioctl (CMD_MESSAGEQ_SHAREDMEMREQ, &cmdArgs);
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+        if (status < 0) {
+            GT_setFailureReason (curTrace,
+                                 GT_4CLASS,
+                                 "MessageQ_sharedMemReq",
+                                 status,
+                                 "API (through IOCTL) failed on kernel-side!");
+        }
+        else {
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+            memReq = cmdArgs.args.sharedMemReq.memReq;
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+        }
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+    }
+    else {
+        /* Only 1 processor: no shared memory needed */
+        memReq = 0;
+    }
+
+    GT_1trace (curTrace, GT_LEAVE, "MessageQ_sharedMemReq", memReq);
+
+    return (memReq);
+}
+
+
+/* Calls the SetupProxy to setup the MessageQ transports. */
+Int
+MessageQ_attach (UInt16 remoteProcId, Ptr sharedAddr)
+{
+    Int                 status = MessageQ_S_SUCCESS;
+    MessageQDrv_CmdArgs cmdArgs;
+    UInt16              index;
+
+    GT_2trace (curTrace, GT_ENTER, "MessageQ_attach", remoteProcId, sharedAddr);
+
+    if (MultiProc_getNumProcessors ()  > 1) {
+        cmdArgs.args.attach.remoteProcId = remoteProcId;
+        index = SharedRegion_getId (sharedAddr);
+        cmdArgs.args.attach.sharedAddrSrPtr = SharedRegion_getSRPtr (sharedAddr,
+                                                                     index);
+
+        status = MessageQDrv_ioctl (CMD_MESSAGEQ_ATTACH, &cmdArgs);
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+        if (status < 0) {
+            GT_setFailureReason (curTrace,
+                                 GT_4CLASS,
+                                 "MessageQ_attach",
+                                 status,
+                                 "API (through IOCTL) failed on kernel-side!");
+        }
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+    }
+
+    GT_1trace (curTrace, GT_LEAVE, "MessageQ_attach", status);
+
+    return (status);
+}
+
+
+/* Calls the SetupProxy to detach the MessageQ transports. */
+Int
+MessageQ_detach (UInt16 remoteProcId)
+{
+    Int                 status = MessageQ_S_SUCCESS;
+    MessageQDrv_CmdArgs cmdArgs;
+
+    GT_1trace (curTrace, GT_ENTER, "MessageQ_detach", remoteProcId);
+
+    if (MultiProc_getNumProcessors ()  > 1) {
+        cmdArgs.args.detach.remoteProcId = remoteProcId;
+
+        status = MessageQDrv_ioctl (CMD_MESSAGEQ_DETACH, &cmdArgs);
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+        if (status < 0) {
+            GT_setFailureReason (curTrace,
+                                 GT_4CLASS,
+                                 "MessageQ_detach",
+                                 status,
+                                 "API (through IOCTL) failed on kernel-side!");
+        }
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+    }
+
+    GT_1trace (curTrace, GT_LEAVE, "MessageQ_detach", status);
+
+    return (status);
 }
 
 
