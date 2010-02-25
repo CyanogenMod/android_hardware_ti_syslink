@@ -1,23 +1,41 @@
 /*
- * Syslink-IPC for TI OMAP Processors
+ *  Syslink-IPC for TI OMAP Processors
  *
- * Copyright (C) 2009 Texas Instruments, Inc.
+ *  Copyright (c) 2008-2010, Texas Instruments Incorporated
+ *  All rights reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Lesser General Public License as published
- * by the Free Software Foundation version 2.1 of the License.
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted provided that the following conditions
+ *  are met:
  *
- * This program is distributed .as is. WITHOUT ANY WARRANTY of any kind,
- * whether express or implied; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
+ *  *  Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
+ *
+ *  *  Redistributions in binary form must reproduce the above copyright
+ *     notice, this list of conditions and the following disclaimer in the
+ *     documentation and/or other materials provided with the distribution.
+ *
+ *  *  Neither the name of Texas Instruments Incorporated nor the names of
+ *     its contributors may be used to endorse or promote products derived
+ *     from this software without specific prior written permission.
+ *
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ *  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ *  THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ *  PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ *  CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ *  EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ *  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+ *  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ *  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ *  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ *  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*============================================================================
  *  @file   MultiProc.c
  *
- *  @brief      Handles processor id management in multi processor systems.Used
- *              by all modules which need processor ids for their oprations.
- *
+ *  @brief  Handles processor id management in multi processor systems.Used
+ *          by all modules which need processor ids for their oprations.
  *  ============================================================================
  */
 
@@ -31,7 +49,8 @@
 #include <Memory.h>
 
 /* Module level headers */
-#include <MultiProc.h>
+#include <ti/ipc/MultiProc.h>
+#include <_MultiProc.h>
 #include <MultiProcDrvDefs.h>
 #include <MultiProcDrv.h>
 
@@ -55,6 +74,8 @@ typedef struct MultiProc_ModuleObject_tag {
     /*!< Default module configuration */
     UInt32           refCount;
     /* Reference count */
+    UInt16           id;
+    /* Local Processor ID */
 } MultiProc_ModuleObject;
 
 
@@ -65,25 +86,32 @@ typedef struct MultiProc_ModuleObject_tag {
 #if !defined(SYSLINK_BUILD_DEBUG)
 static
 #endif /* if !defined(SYSLINK_BUILD_DEBUG) */
-MultiProc_ModuleObject MultiProc_state = { .refCount = 0, };
+MultiProc_ModuleObject MultiProc_state = {
+    .refCount = 0
+};
+
+/*!
+ *  @var    MultiProc_module
+ *
+ *  @brief  Pointer to the MultiProc module state.
+ */
+#if !defined(SYSLINK_BUILD_DEBUG)
+static
+#endif /* if !defined(SYSLINK_BUILD_DEBUG) */
+MultiProc_ModuleObject * MultiProc_module = &MultiProc_state;
 
 
 /* =============================================================================
  *  APIs
  * =============================================================================
  */
-
-/*!
- *  @brief      Function to get MultiProc configuration
- *
- *  @param      cfg  MultiProc configuration give by system integrator
- *
- *  @sa         MultiProc_setId
- */
+/* Function to get the default configuration for the MultiProc module. */
 Void
 MultiProc_getConfig (MultiProc_Config * cfg)
 {
-    Int                  status = MULTIPROC_SUCCESS;
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+    Int                  status = MultiProc_S_SUCCESS;
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
     MultiProcDrv_CmdArgs cmdArgs;
 
     GT_1trace (curTrace, GT_ENTER, "MultiProc_getConfig", cfg);
@@ -92,19 +120,21 @@ MultiProc_getConfig (MultiProc_Config * cfg)
 
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
     if (cfg == NULL) {
-        /*! @retval NULL Invalid NULL cfg pointer specified */
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "MultiProc_getConfig",
-                             MULTIPROC_E_FAIL,
-                             "Argument of type (Notify_Config *) passed "
+                             MultiProc_E_FAIL,
+                             "Argument of type (MultiProc_Config *) passed "
                              "is null!");
     }
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-        if (MultiProc_state.refCount == 0) {
+        if (MultiProc_module->refCount == 0) {
             /* Temporarily open the handle to get the configuration. */
-            status = MultiProcDrv_open ();
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+            status =
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+            MultiProcDrv_open ();
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
             if (status < 0) {
                 GT_setFailureReason (curTrace,
@@ -116,8 +146,10 @@ MultiProc_getConfig (MultiProc_Config * cfg)
             else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
                 cmdArgs.args.getConfig.config = cfg;
-                status = MultiProcDrv_ioctl (CMD_MULTIPROC_GETCONFIG,
-                                             &cmdArgs);
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+                status =
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+                MultiProcDrv_ioctl (CMD_MULTIPROC_GETCONFIG, &cmdArgs);
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
                 if (status < 0) {
                     GT_setFailureReason (curTrace,
@@ -133,9 +165,10 @@ MultiProc_getConfig (MultiProc_Config * cfg)
             MultiProcDrv_close ();
         }
         else {
-            Memory_copy (cfg, &MultiProc_state.cfg, sizeof (MultiProc_Config));
+            Memory_copy (cfg,
+                         &MultiProc_module->cfg,
+                         sizeof (MultiProc_Config));
         }
-
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
     }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
@@ -144,22 +177,16 @@ MultiProc_getConfig (MultiProc_Config * cfg)
 }
 
 
-/*!
- *  @brief      Function to set up module configuration
- *
- *  @param      cfg  MultiProc configuration give by system integrator
- *
- *  @sa         MultiProc_destroy
- */
-Int32
+/* Function to setup the MultiProc Module */
+Int
 MultiProc_setup (MultiProc_Config * cfg)
 {
-    Int32                status = MULTIPROC_SUCCESS;
+    Int                  status = MultiProc_S_SUCCESS;
     MultiProcDrv_CmdArgs cmdArgs;
 
     GT_1trace (curTrace, GT_ENTER, "MultiProc_setup", cfg);
 
-    if (MultiProc_state.refCount == 0) {
+    if (MultiProc_module->refCount == 0) {
         /* Open the driver handle. */
         status = MultiProcDrv_open ();
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
@@ -185,40 +212,39 @@ MultiProc_setup (MultiProc_Config * cfg)
             }
             else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-                Memory_copy (&MultiProc_state.cfg,
+                Memory_copy (&MultiProc_module->cfg,
                              cfg,
                              sizeof (MultiProc_Config));
-                MultiProc_state.refCount++;
+                MultiProc_module->id = cfg->id;
+                MultiProc_module->refCount++;
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
             }
         }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
     }
     else {
-        MultiProc_state.refCount++;
+        MultiProc_module->refCount++;
     }
 
     GT_1trace (curTrace, GT_LEAVE, "MultiProc_setup", status);
 
-    /*! @retval MULTIPROC_SUCCESS Operation successful */
+    /*! @retval MultiProc_S_SUCCESS Operation successful */
     return (status);
 }
 
 
-/*!
- *  @brief      Function to destroy MultiProc module
- *
- *  @sa         MultiProc_setup
- */
-Int32
+/* Function to destroy the MultiProc module */
+Int
 MultiProc_destroy (Void)
 {
-    Int                  status = MULTIPROC_SUCCESS;
+    Int                  status = MultiProc_S_SUCCESS;
     MultiProcDrv_CmdArgs cmdArgs;
 
     GT_0trace (curTrace, GT_ENTER, "MultiProc_destroy");
 
-    if (MultiProc_state.refCount == 1) {
+    /* TBD: Protect from multiple threads. */
+    MultiProc_module->refCount--;
+    if (MultiProc_module->refCount == 0) {
         status = MultiProcDrv_ioctl (CMD_MULTIPROC_DESTROY, &cmdArgs);
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
         if (status < 0) {
@@ -231,38 +257,27 @@ MultiProc_destroy (Void)
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
         /* Close the driver handle. */
         MultiProcDrv_close ();
-        MultiProc_state.refCount--;
-    }
-    else {
-        MultiProc_state.refCount--;
     }
 
     GT_1trace (curTrace, GT_LEAVE, "MultiProc_destroy", status);
 
-    /*! @retval MULTIPROC_SUCCESS Operation successful */
+    /*! @retval MultiProc_S_SUCCESS Operation successful */
     return (status);
 }
 
 
-/*!
- *  @brief      Function to set Local processor Id
- *
- *  @param      id  Processor id obtained for local processor
- *
- *  @sa         MultiProc_setId
- */
-Int32
+/* Function to set Local processor Id */
+Int
 MultiProc_setLocalId (UInt16 id)
 {
-    Int                   status = MULTIPROC_SUCCESS;
+    Int                   status = MultiProc_S_SUCCESS;
     MultiProcDrv_CmdArgs  cmdArgs;
 
     GT_1trace (curTrace, GT_ENTER, "MultiProc_setLocalId", id);
 
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-    if (MultiProc_state.refCount < 1) {
-    /*! @retval MULTIPROC_E_INVALIDSTATE Module is in invalidstate */
-        status = MULTIPROC_E_INVALIDSTATE;
+    if (MultiProc_module->refCount < 1) {
+        status = MultiProc_E_INVALIDSTATE;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "MultiProc_setLocalId",
@@ -281,9 +296,27 @@ MultiProc_setLocalId (UInt16 id)
                                  status,
                                  "API (through IOCTL) failed on kernel-side!");
         }
+        else if (id >= MultiProc_module->cfg.numProcessors) {
+            status = MultiProc_E_INVALIDARG;
+            GT_setFailureReason (curTrace,
+                                 GT_4CLASS,
+                                 "MultiProc_setLocalId",
+                                 MultiProc_E_INVALIDARG,
+                                 "ID cannot be greater than or equal to"
+                                 " numProcessors");
+        }
+        else if (MultiProc_module->id != MultiProc_INVALIDID) {
+            status = MultiProc_E_INVALIDARG;
+            GT_setFailureReason (curTrace,
+                                 GT_4CLASS,
+                                 "MultiProc_setLocalId",
+                                 MultiProc_E_INVALIDARG,
+                                 "Cannot change the ID after module"
+                                 " startup");
+        }
         else{
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-            MultiProc_state.cfg.id = id;
+            MultiProc_module->id= id;
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
         }
     }
@@ -291,35 +324,28 @@ MultiProc_setLocalId (UInt16 id)
 
     GT_1trace (curTrace, GT_LEAVE, "MultiProc_setLocalId", status);
 
-    /*! @retval MULTIPROC_SUCCESS ID Operation successfully completed. */
     return (status);
 }
 
 
-/*!
- *  @brief      Function to get proccesor Id from proccessor name.
- *
- *  @param      name  Processor name for which id is to be retrieved
- *
- *  @sa         MultiProc_getMaxProcessors
- */
+/* Function to get proccesor Id from proccessor name. */
 UInt16
 MultiProc_getId (String name)
 {
     Bool   found = FALSE;
-    UInt32 id    = MULTIPROC_INVALIDID;
+    UInt32 id    = MultiProc_INVALIDID;
     Int    i;
 
     GT_1trace (curTrace, GT_ENTER, "MultiProc_getId", name);
 
-    GT_assert(curTrace, (MultiProc_state.refCount > 0));
+    GT_assert(curTrace, (MultiProc_module->refCount > 0));
 
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-    if (MultiProc_state.refCount < 1) {
+    if (MultiProc_module->refCount < 1) {
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "MultiProc_getId",
-                             MULTIPROC_E_INVALIDSTATE,
+                             MultiProc_E_INVALIDSTATE,
                              "Module is in invalidstate!");
     }
     else {
@@ -327,29 +353,26 @@ MultiProc_getId (String name)
         /* If the name is NULL, simply return the local id */
         if (name == NULL) {
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-            if (MultiProc_state.cfg.id == MULTIPROC_INVALIDID){
-                /*! @retval MULTIPROC_INVALIDID MultiProc_localId not set to
-                                                proper value */
+            if (MultiProc_module->id== MultiProc_INVALIDID) {
                 GT_setFailureReason (curTrace,
                                    GT_4CLASS,
                                    "MultiProc_getId",
-                                   MULTIPROC_E_INVALIDID,
+                                   MultiProc_E_FAIL,
                                    "MultiProc_localId not set to proper value");
             }
             else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
                 GT_assert (curTrace,
-                           (MultiProc_state.cfg.id != MULTIPROC_INVALIDID));
-                /*! @retval ID If name is NULL, local ID */
-                id = MultiProc_state.cfg.id;
+                           (MultiProc_module->id!= MultiProc_INVALIDID));
+                id = MultiProc_module->id;
                 found = TRUE;
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
             }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
         }
         else {
-            for (i = 0; i < MultiProc_state.cfg.maxProcessors ; i++) {
-                if (   String_cmp (name, &MultiProc_state.cfg.nameList [i][0])
+            for (i = 0; i < MultiProc_module->cfg.numProcessors ; i++) {
+                if (   String_cmp (name, &MultiProc_module->cfg.nameList [i][0])
                     == 0) {
                     id = i;
                     found = TRUE;
@@ -358,12 +381,11 @@ MultiProc_getId (String name)
             }
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
             if (!found) {
-                /*! @retval MULTIPROC_INVALIDID Processor name does not exist */
                 GT_setFailureReason (curTrace,
                                      GT_4CLASS,
                                      "MultiProc_getId",
-                                     MULTIPROC_E_INVALIDNAME,
-                                     "Processor name does not exist");
+                                     MultiProc_E_NOTFOUND,
+                                     "Processor name not found");
             }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
         }
@@ -371,22 +393,12 @@ MultiProc_getId (String name)
     }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
 
-    GT_assert (curTrace, (found == TRUE));
-
-    GT_1trace (curTrace, GT_1CLASS, "    MultiProc_getId [%d]", id);
     GT_1trace (curTrace, GT_LEAVE, "MultiProc_getId", id);
 
-    /*! @retval ID Success: ID corresponding to the specified name */
     return (id);
 }
 
-/*!
- *  @brief      Function to get name from processor id.
- *
- *  @param      id  processor id for which proc name is to be retrieved
- *
- *  @sa
- */
+/* Function to get name from processor id. */
 String
 MultiProc_getName (UInt16 id)
 {
@@ -394,27 +406,26 @@ MultiProc_getName (UInt16 id)
 
     GT_1trace (curTrace, GT_ENTER, "MultiProc_getName", id);
 
-    GT_assert (curTrace, (id < MULTIPROC_MAXPROCESSORS));
+    GT_assert (curTrace, (id < MultiProc_module->cfg.numProcessors));
 
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-    if (MultiProc_state.refCount < 1) {
+    if (MultiProc_module->refCount < 1) {
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "MultiProc_getName",
-                             MULTIPROC_E_INVALIDSTATE,
+                             MultiProc_E_INVALIDSTATE,
                              "Module is in invalidstate!");
     }
-    else if (id >= MULTIPROC_MAXPROCESSORS) {
-        /*! @retval NULL Processor id is not less than MULTIPROC_MAXPROCESSORS*/
+    else if (id >= MultiProc_module->cfg.numProcessors) {
         GT_setFailureReason (curTrace,
                     GT_4CLASS,
                     "MultiProc_getName",
-                    MULTIPROC_E_INVALIDID,
-                    "Processor id is not less than MULTIPROC_MAXPROCESSORS");
+                    MultiProc_E_FAIL,
+                    "Processor id is not less than MultiProc_MAXPROCESSORS");
     }
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-        name = MultiProc_state.cfg.nameList [id];
+        name = MultiProc_module->cfg.nameList [id];
         GT_1trace (curTrace, GT_1CLASS, "    MultiProc_getName [%s]", name);
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
     }
@@ -422,28 +433,97 @@ MultiProc_getName (UInt16 id)
 
     GT_0trace (curTrace, GT_LEAVE, "MultiProc_getName");
 
-    /*! @retval name Success: Processor name for given proc Id*/
     return (name);
 }
 
 
-/*!
- *  @brief      Function to get maximum proc Id in the system.
- *
- *  @sa         MultiProc_getId
- */
+/* Function to get maximum proc Id in the system. */
 UInt16
-MultiProc_getMaxProcessors (Void)
+MultiProc_getNumProcessors (Void)
 {
-    /*! @retval MULTIPROC_MAXPROCESSORS Maximum processors in the system. */
-    return (MultiProc_state.cfg.maxProcessors);
+    GT_0trace (curTrace, GT_ENTER, "MultiProc_getNumProcessors");
+    GT_1trace (curTrace,
+               GT_LEAVE,
+               "MultiProc_getNumProcessors",
+               MultiProc_module->cfg.numProcessors);
+
+    /* Don't put any checks here, since this needs to be very fast. */
+
+    return (MultiProc_module->cfg.numProcessors);
 }
 
 
+/* Return Id of current processor */
+UInt16
+MultiProc_self (Void)
+{
+    GT_0trace (curTrace, GT_ENTER, "MultiProc_self");
+
+    GT_1trace (curTrace, GT_LEAVE, "MultiProc_self", MultiProc_module->id);
+
+    /* Don't put any checks here, since this needs to be very fast. */
+
+    return (MultiProc_module->id);
+}
+
+
+/* Determines the offset for any two processors. */
+UInt
+MultiProc_getSlot (UInt16 remoteProcId)
+{
+    UInt slot = 0u;
+    UInt i;
+    UInt j;
+    UInt smallId;
+    UInt largeId;
+
+    GT_1trace (curTrace, GT_ENTER, "MultiProc_getSlot", remoteProcId);
+
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+    if (MultiProc_module->refCount < 1) {
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "MultiProc_getSlot",
+                             MultiProc_E_INVALIDSTATE,
+                             "Module is in invalidstate!");
+    }
+    else if (remoteProcId >= MultiProc_module->cfg.numProcessors) {
+        GT_setFailureReason (curTrace,
+                    GT_4CLASS,
+                    "MultiProc_getSlot",
+                    MultiProc_E_INVALIDARG,
+                    "Processor id is not less than numProcessors");
+    }
+    else {
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+        if (remoteProcId > MultiProc_self ()) {
+            smallId = MultiProc_self ();
+            largeId = remoteProcId;
+        }
+        else {
+            largeId = MultiProc_self ();
+            smallId = remoteProcId;
+        }
+
+        /* determine what offset to create for the remote Proc Id */
+        for (i = 0; i < MultiProc_module->cfg.numProcessors; i++) {
+            for (j = i + 1; j < MultiProc_module->cfg.numProcessors; j++) {
+                if ((smallId == i) && (largeId == j)) {
+                    break;
+                }
+                slot++;
+            }
+        }
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+    }
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+
+    GT_1trace (curTrace, GT_LEAVE, "MultiProc_getSlot", slot);
+
+    return (slot);
+}
 
 
 #if defined (__cplusplus)
 }
 #endif /* defined (__cplusplus) */
-
-
