@@ -17,7 +17,8 @@
 /*  ----------------------------------- Linux headers                 */
 #include <stdio.h>
 #include <semaphore.h>
-
+#include <unistd.h>
+#include <stdarg.h>
 /* Standard headers */
 #include <Std.h>
 #include <errbase.h>
@@ -30,9 +31,16 @@
 #include <Notify.h>
 #include <Trace.h>
 #include <stdlib.h>
-#include <string.h>
+#include <String.h>
+#include <OsalPrint.h>
+#if defined (SYSLINK_USE_SYSMGR)
+#include <SysMgr.h>
+#else /* if defined (SYSLINK_USE_SYSMGR) */
+#include <omap4430proc.h>
 #include <UsrUtilsDrv.h>
-
+#include <ProcMgr.h>
+#include <MultiProc.h>
+#endif /* if defined (SYSLINK_USE_SYSMGR) */
 
 #if defined (__cplusplus)
 extern "C" {
@@ -67,6 +75,17 @@ extern "C" {
 
 #define MAX_EVENTS              32
 
+#define NUM_MEM_ENTRIES         9
+
+#define RESET_VECTOR_ENTRY_ID   0
+
+#if defined (SYSLINK_USE_SYSMGR)
+#define NOTIFY_SYSM3_IMAGE_PATH "/binaries/Notify_MPUSYS_reroute_SYSMGR_Core0.xem3"
+#define NOTIFY_APPM3_IMAGE_PATH "/binaries/Notify_MPUAPP_reroute_SYSMGR_Core1.xem3"
+#else
+#define NOTIFY_SYSM3_IMAGE_PATH "/binaries/Notify_MPUSYS_reroute_NONSYSMGR_Core0.xem3"
+#define NOTIFY_APPM3_IMAGE_PATH "/binaries/Notify_MPUAPP_reroute_NONSYSMGR_Core1.xem3"
+#endif
 
 /** ============================================================================
  *  @macro  numIterations
@@ -80,13 +99,15 @@ UInt16 NotifyApp_recvEventCount [MAX_EVENTS];
 
 Processor_Id procId;
 
-PVOID    event [MAX_EVENTS];
-UInt16   eventNo;
+PVOID           event [MAX_EVENTS];
+UInt16          eventNo;
+ProcMgr_Handle  procHandle;
+Handle          proc4430Handle;
 
 
-typedef struct notify_ping_semobj_tag {
+typedef struct Notify_Ping_SemObj_tag {
     sem_t  sem;
-} notify_ping_semobj;
+} Notify_Ping_SemObj;
 
 struct ping_arg{
     UInt32 arg1;
@@ -95,7 +116,7 @@ struct ping_arg{
 
 struct ping_arg evt_cbk_arg[MAX_EVENTS];
 
-NotifyDriverShm_Handle NotifyApp_handle = NULL;
+NotifyDriverShm_Handle notifyAppHandle = NULL;
 
 /** ----------------------------------------------------------------------------
  *  @name   NotifyPing_Execute
@@ -113,16 +134,16 @@ NotifyDriverShm_Handle NotifyApp_handle = NULL;
  *  @see    None.
  *  ----------------------------------------------------------------------------
  */
-static Void NotifyPing_Execute (Void);
+static Int NotifyPing_Execute (Void);
 Int NotifyApp_shutdown (Void);
 
 Int NotifyPing_CreateSem (OUT PVOID * semPtr)
 {
     Int status = NOTIFY_SUCCESS;
-    notify_ping_semobj * semObj;
+    Notify_Ping_SemObj * semObj;
     Int                  osStatus;
 
-    semObj = malloc (sizeof (notify_ping_semobj));
+    semObj = malloc (sizeof (Notify_Ping_SemObj));
     if (semObj != NULL) {
         osStatus = sem_init (&(semObj->sem), 0, 0);
         if (osStatus < 0) {
@@ -141,11 +162,27 @@ Int NotifyPing_CreateSem (OUT PVOID * semPtr)
 }
 
 
+Void NotifyPing_DestroySem (IN PVOID * semHandle)
+{
+    Int status                  = NOTIFY_SUCCESS;
+    Notify_Ping_SemObj * semObj = (Notify_Ping_SemObj *)semHandle;
+    Int                  osStatus;
+
+    osStatus = sem_destroy (&(semObj->sem));
+    if (osStatus) {
+        status = DSP_EFAIL;
+    }
+    else {
+       free (semObj);
+    }
+    Osal_printf ("Notify_DestroySem status[%x]\n",status);
+}
+
 
 Int NotifyPing_PostSem (IN PVOID semHandle)
 {
     Int                     status = NOTIFY_SUCCESS;
-    notify_ping_semobj *    semObj = semHandle;
+    Notify_Ping_SemObj *    semObj = semHandle;
     Int                     osStatus;
 
     osStatus = sem_post (&(semObj->sem));
@@ -160,10 +197,10 @@ Int NotifyPing_PostSem (IN PVOID semHandle)
 Int NotifyPing_WaitSem (IN PVOID semHandle)
 {
     Int                  status = NOTIFY_SUCCESS;
-    notify_ping_semobj * semObj = semHandle;
+    Notify_Ping_SemObj * semObj = semHandle;
     Int                  osStatus;
 
-    printf ("NotifyPing_WaitSem\n");
+    Osal_printf ("NotifyPing_WaitSem\n");
     osStatus = sem_wait (&(semObj->sem));
     if (osStatus < 0) {
         status = NOTIFY_E_FAIL;
@@ -189,76 +226,175 @@ Void NotifyPing_Callback (IN     Processor_Id procId,
     (Void) eventNo;
     (Void) procId ;
     (Void) payload;
-    struct ping_arg event_clbk_arg;
+    struct ping_arg eventClbkArg;
 
-    event_clbk_arg.arg1 = ((struct ping_arg  *)arg)->arg1;
-    event_clbk_arg.arg2 = ((struct ping_arg  *)arg)->arg2;
+    eventClbkArg.arg1 = ((struct ping_arg  *)arg)->arg1;
+    eventClbkArg.arg2 = ((struct ping_arg  *)arg)->arg2;
 
-    printf ("------Called callbackfunction------\n" );
+    Osal_printf ("------Called callbackfunction------\n" );
 
-    NotifyPing_PostSem ((PVOID)event_clbk_arg.arg1);
+    NotifyPing_PostSem ((PVOID)eventClbkArg.arg1);
 }
 
 
-static Void NotifyPing_Execute (Void)
+static Int NotifyPing_Execute (Void)
 {
     Int                     status = NOTIFY_SUCCESS;
-    Notify_Config           config;
     /* Currently not used*/
     /* NotifyShmDrv_Attrs   driverAttrs; */
     /* UInt32               iter; */
-    NotifyDriverShm_Config  drvConfig;
     NotifyDriverShm_Params  params;
     UInt32                  payload;
     UInt32                  count = 0;
     /* Void               * flags = NULL; */
     Int                     i;
     Int                     j;
-    UInt16                  event_id;
+    UInt16                  eventId;
+    UInt32                  fileId;
+    UInt32                  entryPoint = 0;
+    ProcMgr_StartParams     startParams;
+    char *                  image_path;
+#if defined(SYSLINK_USE_SYSMGR)
+    SysMgr_Config sysCfg;
+#else
+    Notify_Config           config;
+    ProcMgr_Params          procMgrParams;
+    NotifyDriverShm_Config  drvConfig;
+    ProcMgr_Config          cfg;
+    MultiProc_Config        multiProcConfig;
+    OMAP4430PROC_Config     procConfig;
+    OMAP4430PROC_Params     procParams;
+    ProcMgr_AttachParams    ducatiParams;
+    ProcMgr_StopParams      stopParams;
+#endif
 
     procId = 3;
-
-    if(eventNo == MAX_EVENTS) {
-        event_id = MAX_EVENTS-1;
-    } else {
-        event_id = eventNo;
+    if (eventNo == MAX_EVENTS) {
+        eventId = MAX_EVENTS - 1;
+    }
+    else {
+        eventId = eventNo;
     }
 
+#if defined(SYSLINK_USE_SYSMGR)
+    SysMgr_getConfig (&sysCfg);
+    status = SysMgr_setup (&sysCfg);
+    if (status < 0) {
+        Osal_printf ("Error in SysMgr_setup [0x%x]\n", status);
+        return status;
+    }
+    status = ProcMgr_open (&procHandle,
+                           MultiProc_getId("SysM3"));
+    if (status < 0) {
+        Osal_printf ("Error in ProcMgr_open [0x%x]\n", status);
+        return status;
+    }
+#else
     UsrUtilsDrv_setup ();
+    MultiProc_getConfig (&multiProcConfig);
+    status = MultiProc_setup (&multiProcConfig);
+    if (status < 0) {
+        Osal_printf ("Error in MultiProc_setup [0x%x]\n", status);
+        return status;
+    }
 
-    printf ("Calling getconfig\n");
+    ProcMgr_getConfig (&cfg);
+    status = ProcMgr_setup (&cfg);
+    if (status < 0) {
+        Osal_printf ("Error in ProcMgr_setup [0x%x]\n", status);
+        return status;
+    }
+
+    OMAP4430PROC_getConfig (&procConfig);
+    status = OMAP4430PROC_setup (&procConfig);
+    if (status < 0) {
+        Osal_printf ("Error in OMAP4430PROC_setup [0x%x]\n", status);
+        return status;
+    }
+
+    OMAP4430PROC_Params_init (NULL, &procParams);
+    procParams.numMemEntries       = NUM_MEM_ENTRIES;
+    procParams.memEntries          = 0;
+    procParams.resetVectorMemEntry = RESET_VECTOR_ENTRY_ID;
+    proc4430Handle = OMAP4430PROC_create (procId, &procParams);
+    if (proc4430Handle == NULL) {
+        Osal_printf ("Error in OMAP4430PROC_create\n");
+        return NOTIFY_E_FAIL;
+    }
+
+    ProcMgr_Params_init (NULL, &procMgrParams);
+    procMgrParams.procHandle = proc4430Handle;
+    procHandle = ProcMgr_create (2, &procMgrParams);
+    if (procHandle == NULL) {
+        Osal_printf ("Error in ProcMgr_create\n");
+        return NOTIFY_E_FAIL;
+    }
+
+    status = ProcMgr_attach (procHandle,&ducatiParams);
+    if (status < 0) {
+        Osal_printf("ProcMgr_attach status %d\n",status);
+        return NOTIFY_E_FAIL;
+    }
+
     Notify_getConfig (&config);
-    printf ("Done calling get config\n");
+    Osal_printf ("Notify_getConfig Done\n");
 
     status = Notify_setup (&config);
-    printf ("Done calling Set_up\n");
-
+    Osal_printf ("Notify_setup Done\n");
     if (status != NOTIFY_SUCCESS) {
-        printf ("Notify_setup failed! Status [0x%x]\n", status);
-        goto func_end;
+        Osal_printf ("Error in Notify_setup [0x%x]\n", status);
+        return status;
     }
 
-    printf ("Calling NotifyDriverShm_getConfig\n");
     NotifyDriverShm_getConfig (&drvConfig);
-
-    printf ("Calling NotifyDriverShm_setup\n");
+    Osal_printf ("NotifyDriverShm_getConfig Done\n");
     status = NotifyDriverShm_setup (&drvConfig);
     if (status < 0) {
-        printf ("Error in NotifyDriverShm_setup [0x%x]\n", status);
-        status = NOTIFY_E_FAIL;
-    } else {
-        status = NOTIFY_SUCCESS;
-        printf ("NotifyDriverShm_setup Pass\n");
+        Osal_printf ("Error in NotifyDriverShm_setup [0x%x]\n", status);
+        return status;
+    }
+    else {
+        Osal_printf ("NotifyDriverShm_setup Done\n");
+    }
+#endif
+
+    startParams.proc_id = 2;
+    image_path = NOTIFY_SYSM3_IMAGE_PATH;
+    status = ProcMgr_load (procHandle, NOTIFY_SYSM3_IMAGE_PATH,
+                           2, &image_path, &entryPoint,
+                           &fileId, startParams.proc_id);
+    if (status < 0) {
+        Osal_printf ("Error in ProcMgr_load [0x%x]:SYSM3\n", status);
+        return status;
     }
 
-    if (status != NOTIFY_SUCCESS) {
-        printf ("Setup failed with status %d\n", status);
-        goto func_end;
+    status = ProcMgr_start (procHandle, 0, &startParams);
+    if (status < 0) {
+        Osal_printf ("Error in ProcMgr_start [0x%x]:SYSM3\n", status);
+        return status;
     }
 
-    printf ("Calling NotifyDriverShm_Params_init\n");
+    if (eventNo > 15) {
+        startParams.proc_id = 3;
+        image_path = NOTIFY_APPM3_IMAGE_PATH;
+        status = ProcMgr_load (procHandle, NOTIFY_APPM3_IMAGE_PATH,
+                               3, &image_path, &entryPoint,
+                               &fileId, startParams.proc_id);
+        if (status < 0) {
+            Osal_printf ("Error in ProcMgr_load [0x%x]:APPM3\n", status);
+            return status;
+        }
+
+        status = ProcMgr_start (procHandle, 0, &startParams);
+        if (status < 0) {
+            Osal_printf ("Error in ProcMgr_start [0x%x]:APPM3\n", status);
+            return status;
+        }
+    }
+
     NotifyDriverShm_Params_init (NULL, &params);
-    /* Currently not used*/
+    Osal_printf ("NotifyDriverShm_Params_init Done\n");
+    /* Currently not used */
     /*params.sharedAddrSize     = NOTIFYAPP_SH_SIZE;*/
     params.numEvents          = 32;
     params.numReservedEvents  = 0;
@@ -267,48 +403,51 @@ static Void NotifyPing_Execute (Void)
     params.sendIntId          = NOTIFYAPP_SEND_INT_ID;
     params.remoteProcId       = 3; /*PROC_DUCATI*/
 
-    printf ("Calling NotifyDriverShm_create\n");
     /* Create shared region */
-    NotifyApp_handle = NotifyDriverShm_create ("NOTIFYDRIVER_DUCATI", &params);
-    printf ("NotifyDriverShm_create Handle: [0x%x]\n", (UInt)NotifyApp_handle);
-    if (NotifyApp_handle == NULL) {
-        printf ("Error in NotifyDriverShm_create\n");
-        status = NOTIFY_E_FAIL;
+    notifyAppHandle = NotifyDriverShm_create ("NOTIFYDRIVER_DUCATI", &params);
+    if (notifyAppHandle == NULL) {
+        Osal_printf ("Error in NotifyDriverShm_create [0x%x]\n", status);
+        return NOTIFY_E_FAIL;
     }
+    Osal_printf ("NotifyDriverShm_create Done\n");
 
     /* Register for all events */
-    if(eventNo == MAX_EVENTS) {
-        printf ("Registering for all events\n");
+    if (eventNo == MAX_EVENTS) {
+        Osal_printf ("Registering for all events\n");
 
         for(i = EVENT_STARTNO; i < MAX_EVENTS; i++) {
             /* Create the semaphore */
-            NotifyPing_CreateSem (&event[i]);
-
+            status = NotifyPing_CreateSem (&event[i]);
+            if (status < 0) {
+                Osal_printf ("Error in NotifyPing_CreateSem [0x%x]\n", status);
+                return status;
+            }
             /*Register for the event */
             NotifyApp_recvEventCount [i] = numIterations;
             evt_cbk_arg[i].arg1 = (UInt32)event[i];
             evt_cbk_arg[i].arg2 = i;
 
-            status = Notify_registerEvent (NotifyApp_handle,
+            status = Notify_registerEvent (notifyAppHandle,
                             procId,
                             i,
                             (Notify_CallbackFxn)NotifyPing_Callback,
                             (Void *)&evt_cbk_arg[i]);
             if (status < 0) {
-                printf ("Error in Notify_registerEvent %d [0x%x]\n", i, status);
-                /* FIXME : Exit with error status */
+                Osal_printf ("Error in Notify_registerEvent status [%d] "
+                             "Event[0x%x]\n", status, i);
+                return status;
             }
-            /*TBD :: If following prints are needed. */
-            else {
-                printf ("Registered event number %d with Notify module\n", i);
-            }
+            Osal_printf ("Registered event number %d with Notify module\n", i);
         }
     }
     else {
         /* Create Semaphore for the event */
-        printf ("Create sem for event number %d\n", eventNo);
-        NotifyPing_CreateSem (&event [eventNo]);
-
+        Osal_printf ("Create sem for event number %d\n", eventNo);
+        status = NotifyPing_CreateSem (&event [eventNo]);
+        if (status < 0) {
+            Osal_printf ("Error in NotifyPing_CreateSem [0x%x]\n", status);
+            return status;
+        }
         NotifyApp_recvEventCount [eventNo] = numIterations;
 
         /* Fill the callback args */
@@ -316,172 +455,257 @@ static Void NotifyPing_Execute (Void)
         evt_cbk_arg[eventNo].arg2 = eventNo;
 
         /* Register Event */
-        printf ("Registering for event number %d\n",eventNo);
-        status = Notify_registerEvent (NotifyApp_handle,
+        Osal_printf ("Registering for event number %d\n",eventNo);
+        status = Notify_registerEvent (notifyAppHandle,
                                        procId,
                                        eventNo,
                                        (Notify_CallbackFxn)NotifyPing_Callback,
                                        (Void *)&evt_cbk_arg[eventNo]);
         if (status < 0) {
-            printf ("Error in Notify_registerEvent %d [0x%x]\n", eventNo,
+            Osal_printf ("Error in Notify_registerEvent %d [0x%x]\n", eventNo,
                         status);
-        } else {
-            printf ("Registered event number %d with Notify module\n", eventNo);
+            return status;
         }
+        Osal_printf ("Registered event number %d with Notify module\n",
+                     eventNo);
     }
 
     payload = 0xDEED1;
     status = NOTIFY_E_FAIL;
 
-    printf ("Please break virtio 'y' and load the Ducati side image \n");
     /* Keep sending events until ducati side is up and ready to receive
      events */
+
     do {
-        status = Notify_sendEvent (NotifyApp_handle,
-                procId,event_id,
-                payload, FALSE);
-        if(status == NOTIFY_E_DRIVERINIT || status == NOTIFY_E_NOTREADY) {
-            printf ("[NotifyPingExecute] Notify Ducati-side Driver not "
+        status = Notify_sendEvent (notifyAppHandle,
+                                   procId, eventId,
+                                   payload, FALSE);
+        if (status == NOTIFY_E_DRIVERINIT || status == NOTIFY_E_NOTREADY) {
+            Osal_printf ("[NotifyPingExecute] Notify Ducati-side Driver not "
                     "initialized yet !! status = 0x%x\n", status);
         }
     } while (status == NOTIFY_E_FAIL);
 
-    printf ("--------------------------------------------------------------\n");
-    printf ("-----------------[NotifyPingExecute]--------------------------\n");
-    printf ("--------------------------------------------------------------\n");
-    printf ("------------Iteration\t %d-------------\n", numIterations);
+    Osal_printf ("---------------------------------------------------------\n");
+    Osal_printf ("-----------------[NotifyPingExecute]---------------------\n");
+    Osal_printf ("---------------------------------------------------------\n");
+    Osal_printf ("------------Iteration\t %d-------------\n", numIterations);
 
-    printf ("[NotifyPingExecute]>>>>>>>> Sent Event [%d]\n", event_id);
+    Osal_printf ("[NotifyPingExecute]>>>>>>>> Sent Event [%d]\n", eventId);
 
     if (status != NOTIFY_SUCCESS) {
-        printf ("Error after send event, status %d\n", status);
-        goto func_end;
+        Osal_printf ("Error after send event, status %d\n", status);
+        return status;
     }
 
     /* Start sending and receiving events */
-    if(eventNo == MAX_EVENTS) {
+    if (eventNo == MAX_EVENTS) {
         /* Send all events, from 3-32, to Ducati for each
            number of transfer */
         for(j = (numIterations-1); j >= 0; j--) {
             /* Send for events from 4- 32 */
             for(i = EVENT_STARTNO + 1; i < MAX_EVENTS; i++) {
                 payload++;
-                status = Notify_sendEvent (NotifyApp_handle,
+                status = Notify_sendEvent (notifyAppHandle,
                                            procId,
                                            i,
                                            payload,
                                            FALSE);
-                printf ("[NotifyPingExecute]>>>>>>>> Sent Event[%d]\n", i);
+                Osal_printf ("Notify_sendEvent status[%d] for Event[%d]\n"
+                                                                   ,status, i);
+                Osal_printf ("[NotifyPingExecute]>>>>>>>> Sent Event[%d]\n", i);
             }
 
             /* Wait for events from 4-32 */
             for(i = EVENT_STARTNO + 1; i < MAX_EVENTS; i++) {
-                NotifyPing_WaitSem (event [i]);
-                printf ("[NotifyPingExecute]<<<<<<<< Received Event[%d]\n", i);
+                Osal_printf ("[NotifyPingExecute] Waiting on event %d\n",
+                             eventNo);
+                status = NotifyPing_WaitSem (event [i]);
+                Osal_printf ("NotifyPing_WaitSem status[%d] for Event[%d]\n",
+                                                                   status, i);
+                Osal_printf ("[NotifyPingExecute]<<<<<<<< Received Event[%d]\n",
+                             i);
                 NotifyApp_recvEventCount [i] = j;
             }
 
             /* Stop iterations here */
-            if(j==0 )
+            if (j==0 )
                 break;
             /* Start the next iteration here */
 
             payload++;
 
             /* Send event 3 for the next iteration */
-            status = Notify_sendEvent (NotifyApp_handle,
+            status = Notify_sendEvent (notifyAppHandle,
                                        procId,
                                        EVENT_STARTNO,
                                        payload,
                                        FALSE);
-            printf ("[NotifyPingExecute]>>>>>>>> Sent Event[3]\n");
+            Osal_printf ("Notify_sendEvent status[%d] for Event[3] \n", status);
+            Osal_printf ("[NotifyPingExecute]>>>>>>>> Sent Event[3]\n");
         }
     }
     else {
-        printf ("[NotifyPingExecute] Waiting on event %d\n", eventNo);
-        NotifyPing_WaitSem (event [eventNo]);
+        Osal_printf ("[NotifyPingExecute] Waiting on event %d\n", eventNo);
+        status = NotifyPing_WaitSem (event [eventNo]);
+        Osal_printf ("NotifyPing_WaitSem status[%d] for Event[%d]\n", status,
+                                                                eventNo);
         /* FIXME: put receive count here */
-        printf ("[NotifyPingExecute]<<<<<<<< Received Event [%d]\n",eventNo);
+        Osal_printf ("[NotifyPingExecute]<<<<<<<< Received Event [%d]\n",
+                     eventNo);
 
         NotifyApp_recvEventCount [eventNo] = count;
         count = numIterations - 1;
 
         while (count) {
             payload++;
-            printf ("------------Iteration\t %d ------------\n", (UInt32)count);
-            /*printf ("[NotifyPingExecute] SendEvent "
-                " [0x%x 0x%x, 0x%x, 0x%x]\n",
-                (unsigned Int )NotifyApp_handle,
-                (unsigned Int )procId,
-                (unsigned Int )event[eventNo],
-                (unsigned Int )payload);
-            */
-            status = Notify_sendEvent(NotifyApp_handle,
+            Osal_printf ("------------Iteration\t %d ------------\n",
+                            (UInt32)count);
+            status = Notify_sendEvent(notifyAppHandle,
                                       procId,
                                       eventNo,
                                       payload,
                                       FALSE);
-            printf ("[NotifyPingExecute]>>>>>>>> Sent Event [%d]\n", eventNo);
 
-            printf ("[NotifyPingExecute] Waiting on event %d\n", eventNo);
+            Osal_printf ("Notify_sendEvent status [%d]\n",status);
+            Osal_printf ("[NotifyPingExecute]>>>>>>>> Sent Event [%d]\n",
+                eventNo);
+            Osal_printf ("[NotifyPingExecute] Waiting on event %d\n", eventNo);
             NotifyPing_WaitSem (event [eventNo]);
-            printf ("[NotifyPingExecute]<<<<<<<< Received Event [%d]\n",
-                    eventNo);
-
+            Osal_printf ("NotifyPing_WaitSem status[%d] for Event[%d]\n",
+                                                            status, eventNo);
+            Osal_printf ("[NotifyPingExecute]<<<<<<<< Received Event [%d]\n",
+                                                                    eventNo);
             NotifyApp_recvEventCount [eventNo] = count;
             count--;
         }
     }
 
     if (status < 0) {
-        printf ("Error in Notify_sendEvent [0x%x]\n", status);
+        Osal_printf ("Error in Notify_sendEvent [0x%x]\n", status);
     }
     else {
-        printf ("Sent %i events to event ID to remote processor\n",
+        Osal_printf ("Sent %i events to event ID to remote processor\n",
                     numIterations);
     }
 
-func_end:
-    printf ("Exit Ping Execute\n");
+    Osal_printf ("Exit Ping Execute\n");
+    return status;
 }
 
 
 Int NotifyApp_shutdown (Void)
 {
-    Int32  status = 0;
-    UInt32 i;
+    Int32               status = 0;
+    UInt32              i;
+    ProcMgr_StopParams  stopParams;
 
-    printf ("Entered NotifyApp_shutdown\n");
+    Osal_printf ("Entered NotifyApp_shutdown\n");
+    /* Call proc_stop, proc-detach, procmgr_delete,procmgr destroy*/
+
+    stopParams.proc_id = MultiProc_getId ("SysM3");
+    status = ProcMgr_stop (procHandle, &stopParams);
+    if (status < 0) {
+        Osal_printf ("Error in ProcMgr_stop [0x%d]:SYSM3\n", status);
+        return status;
+    }
+    if (eventNo > 15) {
+        stopParams.proc_id = MultiProc_getId ("AppM3");
+        status = ProcMgr_stop (procHandle, &stopParams);
+        if (status < 0) {
+            Osal_printf ("Error in ProcMgr_stop [0x%d]:APPM3\n", status);
+            return status;
+        }
+    }
+
+#if !defined(SYSLINK_USE_SYSMGR)
+    status =  ProcMgr_detach (procHandle);
+    if (status < 0) {
+        Osal_printf ("Error in ProcMgr_detach [0x%d]\n", status);
+        return status;
+    }
+    status = ProcMgr_delete (&procHandle);
+    if (status < 0) {
+        Osal_printf ("Error in ProcMgr_delete [0x%d]\n", status);
+        return status;
+    }
+
+    status = ProcMgr_destroy ();
+    if (status < 0) {
+        Osal_printf ("Error in ProcMgr_destroy [0x%d]\n", status);
+        return status;
+    }
+
+    /* Call Omap4430 delete() and destroy()*/
+    status = OMAP4430PROC_delete (&proc4430Handle);
+    if (status < 0) {
+        Osal_printf ("Error in ProcMgr_destroy [0x%d]\n", status);
+        return status;
+    }
+
+    OMAP4430PROC_destroy ();
+    if (status < 0) {
+        Osal_printf ("Error in ProcMgr_destroy [0x%d]\n", status);
+        return status;
+    }
+#endif
 
     /* Unregister event. */
-    if(eventNo == MAX_EVENTS) {
+    if (eventNo == MAX_EVENTS) {
         for(i = EVENT_STARTNO; i < MAX_EVENTS; i++) {
-            status = Notify_unregisterEvent (NotifyApp_handle, procId, i,
+            status = Notify_unregisterEvent (notifyAppHandle, procId, i,
                                     (Notify_CallbackFxn)NotifyPing_Callback,
                                     &evt_cbk_arg[i]);
+
+            Osal_printf ("Notify_unregisterEvent status: [0x%x] Event[%d]\n",
+                                                                  status, i);
+            NotifyPing_DestroySem (event[i]);
         }
     }
     else {
-        status = Notify_unregisterEvent (NotifyApp_handle,
+        status = Notify_unregisterEvent (notifyAppHandle,
                                      procId,
                                      eventNo,
                                      (Notify_CallbackFxn)NotifyPing_Callback,
                                      &evt_cbk_arg[eventNo]);
+
+        Osal_printf ("Notify_unregisterEvent status: [0x%x]\n", status);
+        NotifyPing_DestroySem (event[eventNo]);
     }
-    printf ("Notify_unregisterEvent status: [0x%x]\n", status);
 
-    status = NotifyDriverShm_delete (&(NotifyApp_handle));
-    printf ("NotifyDriverShm_delete status: [0x%x]\n", status);
+    status = NotifyDriverShm_delete (&(notifyAppHandle));
+    if (status < 0) {
+        Osal_printf ("NotifyDriverShm_delete status: [0x%x]\n", status);
+        return status;
+    }
 
+#if !defined(SYSLINK_USE_SYSMGR)
     status = NotifyDriverShm_destroy ();
-    printf ("NotifyDriverShm_destroy status: [0x%x]\n", status);
+    if (status < 0) {
+        Osal_printf ("NotifyDriverShm_destroy status: [0x%x]\n", status);
+        return status;
+    }
 
     status = Notify_destroy ();
-    printf ("Notify_destroy status: [0x%x]\n", status);
+    if (status < 0) {
+        Osal_printf ("Notify_destroy status: [0x%x]\n", status);
+        return status;
+    }
+    status = MultiProc_destroy();
+    if (status < 0) {
+        Osal_printf ("MultiProc_destroy status: [0x%x]\n", status);
+        return status;
+    }
 
-    printf ("ProcMgr_close status: [0x%x]\n", status);
+#else
+    status = ProcMgr_close (&procHandle);
+    if (status < 0) {
+        Osal_printf ("ProcMgr_close  status: [0x%x]\n", status);
+    }
+    SysMgr_destroy ();
+#endif
 
-    printf ("Leaving NotifyApp_shutdown\n");
+    Osal_printf ("Leaving NotifyApp_shutdown\n");
 
     return 0;
 }
@@ -495,7 +719,9 @@ Int NotifyApp_shutdown (Void)
  */
 Int main (Int argc, Char * argv [])
 {
-    if(argc == 1) {
+    Int status = NOTIFY_SUCCESS;
+
+    if (argc == 1) {
         Int choice;
         printf ("------NOTIFY PING SAMPLE---------\n");
         printf ("Options:\n");
@@ -523,39 +749,56 @@ Int main (Int argc, Char * argv [])
             default:
                 eventNo = EVENT_STARTNO;
                 numIterations = NOTIFYAPP_NUMEVENTS;
-
         }
 
-        NotifyPing_Execute ();
-        NotifyApp_shutdown ();
+        status = NotifyPing_Execute ();
+        if (status < 0) {
+            Osal_printf("Error in NotifyPing_Execute %d \n",status);
+        }
+        else {
+            status = NotifyApp_shutdown ();
+        }
     }
 
-    if(argc == 2) {
-        printf ("---Using defult event number as 3--");
+    if (argc == 2) {
+        Osal_printf ("---Using defult event number as 3--");
         eventNo = EVENT_STARTNO;
         numIterations = NOTIFYXFER_Atoi (argv [1]);
 
-        printf ("Calling NOTIFYPing_execute\n for %d iterations and\n \
-            Event number %d\n",numIterations, eventNo);
-        NotifyPing_Execute ();
-        NotifyApp_shutdown ();
+        Osal_printf ("Starting NotifyPing_execute\n for %d iterations and\n \
+                                Event number %d\n",numIterations, eventNo);
+
+        status = NotifyPing_Execute ();
+        if (status < 0) {
+            Osal_printf("Error in NotifyPing_Execute %d \n",status);
+        }
+        else {
+            status = NotifyApp_shutdown ();
+        }
     }
 
     if (argc == 3) {
         eventNo    = NOTIFYXFER_Atoi (argv [2]);
-        if(eventNo == MAX_EVENTS) {
-            printf (" Notifyping will run for all events\n");
+        if (eventNo == MAX_EVENTS) {
+            Osal_printf (" Notifyping will run for all events\n");
         }
-        else if(eventNo > MAX_EVENTS || eventNo < EVENT_STARTNO )
+        else if (eventNo > MAX_EVENTS || eventNo < EVENT_STARTNO )
         {
-            printf ("Event number should be in the range 3-32 \n");
+            Osal_printf ("Event number should be in the range 3-32 \n");
             return 0;
         }
         numIterations = NOTIFYXFER_Atoi (argv [1]);
-        printf ("Calling NOTIFYPing_execute\n for %d iterations and\n \
+        Osal_printf ("Calling NOTIFYPing_execute\n for %d iterations and\n \
             Event number %d\n",numIterations, eventNo);
-        NotifyPing_Execute ();
-        NotifyApp_shutdown ();
+
+        status = NotifyPing_Execute ();
+        if (status < 0) {
+            Osal_printf("Error in NotifyPing_Execute %d \n",status);
+        }
+        else {
+            status = NotifyApp_shutdown ();
+        }
+
     }
 
     return 0;
