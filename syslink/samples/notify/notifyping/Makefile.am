@@ -22,18 +22,35 @@ INCLUDE = \
 AM_CFLAGS = -Wall -g -O2 $(INCLUDE) -finline-functions -D$(PROCFAMILY)
 
 LDPATH=../../../api/src
+AM_CFLAGS +=
+
+
+API_LIBS_NONSYS = \
+	$(LDPATH)/utils/libutils.la \
+	$(LDPATH)/ipc/libipc.la \
+	$(LDPATH)/notify/libnotify.la\
+	$(LDPATH)/procmgr/procmgr4430/libomap4430proc.la \
+	$(LDPATH)/procmgr/libprocmgr_nonsysmgr.la
 
 API_LIBS = \
 	$(LDPATH)/utils/libutils.la \
-	$(LDPATH)/notify/libnotify.la
-
+	$(LDPATH)/ipc/libipc.la \
+	$(LDPATH)/notify/libnotify.la \
+	$(LDPATH)/procmgr/libprocmgr.la \
+	$(LDPATH)/sysmgr/libsysmgr.la \
+	$(LDPATH)/sysmemmgr/libsysmemmgr.la
 
 bin_PROGRAMS = notifyping.out
+#notifyping_nonsysmgr.out
 
 notifyping_out_SOURCES = notifyping.c
 
-notifyping_out_CPPFLAGS = $(AM_CLFAGS)
+notifyping_out_CPPFLAGS = $(AM_CLFAGS) -DSYSLINK_USE_SYSMGR
 
 notifyping_out_LDADD = $(API_LIBS)
 
+#notifyping_nonsysmgr_out_SOURCES = notifyping.c
 
+#notifyping_nonsysmgr_out_CPPFLAGS = $(AM_CLFAGS)
+
+#notifyping_nonsysmgr_out_LDADD = $(API_LIBS_NONSYS)
