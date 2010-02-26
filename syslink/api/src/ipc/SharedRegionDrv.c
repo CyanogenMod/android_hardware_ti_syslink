@@ -1,16 +1,35 @@
 /*
- * Syslink-IPC for TI OMAP Processors
+ *  Syslink-IPC for TI OMAP Processors
  *
- * Copyright (C) 2009 Texas Instruments, Inc.
+ *  Copyright (c) 2008-2010, Texas Instruments Incorporated
+ *  All rights reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Lesser General Public License as published
- * by the Free Software Foundation version 2.1 of the License.
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted provided that the following conditions
+ *  are met:
  *
- * This program is distributed .as is. WITHOUT ANY WARRANTY of any kind,
- * whether express or implied; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
+ *  *  Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
+ *
+ *  *  Redistributions in binary form must reproduce the above copyright
+ *     notice, this list of conditions and the following disclaimer in the
+ *     documentation and/or other materials provided with the distribution.
+ *
+ *  *  Neither the name of Texas Instruments Incorporated nor the names of
+ *     its contributors may be used to endorse or promote products derived
+ *     from this software without specific prior written permission.
+ *
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ *  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ *  THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ *  PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ *  CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ *  EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ *  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+ *  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ *  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ *  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ *  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*============================================================================
  *  @file   SharedRegionDrv.c
@@ -27,11 +46,12 @@
 /* OSAL & Utils headers */
 #include <Trace.h>
 #include <Memory.h>
-#include <MultiProc.h>
+#include <ti/ipc/MultiProc.h>
 
 /* Module specific header files */
 #include <Gate.h>
-#include <SharedRegion.h>
+#include <ti/ipc/SharedRegion.h>
+#include <_SharedRegion.h>
 #include <SharedRegionDrvDefs.h>
 
 /* Linux specific header files */
@@ -85,7 +105,7 @@ static UInt32 SharedRegionDrv_refCount = 0;
 Int
 SharedRegionDrv_open (Void)
 {
-    Int status      = SHAREDREGION_SUCCESS;
+    Int status      = SharedRegion_S_SUCCESS;
     int osStatus    = 0;
 
     GT_0trace (curTrace, GT_ENTER, "SharedRegionDrv_open");
@@ -95,10 +115,7 @@ SharedRegionDrv_open (Void)
                                        O_SYNC | O_RDWR);
         if (SharedRegionDrv_handle < 0) {
             perror ("SharedRegion driver open: ");
-            /*! @retval SHAREDREGION_E_OSFAILURE Failed to open SharedRegion
-             *          driver with OS
-             */
-            status = SHAREDREGION_E_OSFAILURE;
+            status = SharedRegion_E_OSFAILURE;
             GT_setFailureReason (curTrace,
                                  GT_4CLASS,
                                  "SharedRegionDrv_open",
@@ -108,10 +125,7 @@ SharedRegionDrv_open (Void)
         else {
             osStatus = fcntl (SharedRegionDrv_handle, F_SETFD, FD_CLOEXEC);
             if (osStatus != 0) {
-                /*! @retval SHAREDREGION_E_OSFAILURE Failed to set file
-                 *          descriptor flags
-                 */
-                status = SHAREDREGION_E_OSFAILURE;
+                status = SharedRegion_E_OSFAILURE;
                 GT_setFailureReason (curTrace,
                                      GT_4CLASS,
                                      "SharedRegionDrv_open",
@@ -130,7 +144,7 @@ SharedRegionDrv_open (Void)
 
     GT_1trace (curTrace, GT_LEAVE, "SharedRegionDrv_open", status);
 
-    /*! @retval SHAREDREGION_SUCCESS Operation successfully completed. */
+    /*! @retval SharedRegion_S_SUCCESS Operation successfully completed. */
     return status;
 }
 
@@ -143,7 +157,7 @@ SharedRegionDrv_open (Void)
 Int
 SharedRegionDrv_close (Void)
 {
-    Int status      = SHAREDREGION_SUCCESS;
+    Int status      = SharedRegion_S_SUCCESS;
     int osStatus    = 0;
 
     GT_0trace (curTrace, GT_ENTER, "SharedRegionDrv_close");
@@ -154,10 +168,7 @@ SharedRegionDrv_close (Void)
         osStatus = close (SharedRegionDrv_handle);
         if (osStatus != 0) {
             perror ("SharedRegion driver close: ");
-            /*! @retval SHAREDREGION_E_OSFAILURE Failed to open SharedRegion
-             *          driver with OS
-             */
-            status = SHAREDREGION_E_OSFAILURE;
+            status = SharedRegion_E_OSFAILURE;
             GT_setFailureReason (curTrace,
                                  GT_4CLASS,
                                  "SharedRegionDrv_close",
@@ -171,7 +182,7 @@ SharedRegionDrv_close (Void)
 
     GT_1trace (curTrace, GT_LEAVE, "SharedRegionDrv_close", status);
 
-    /*! @retval SHAREDREGION_SUCCESS Operation successfully completed. */
+    /*! @retval SharedRegion_S_SUCCESS Operation successfully completed. */
     return status;
 }
 
@@ -187,33 +198,25 @@ SharedRegionDrv_close (Void)
 Int
 SharedRegionDrv_ioctl (UInt32 cmd, Ptr args)
 {
-    Int                       status   = SHAREDREGION_SUCCESS;
+    Int                       status   = SharedRegion_S_SUCCESS;
     int                       osStatus = 0;
-    SharedRegion_Info *       info     = NULL;
     SharedRegionDrv_CmdArgs * cargs    = (SharedRegionDrv_CmdArgs *) args;
-    SharedRegion_Config       config;
+    SharedRegion_Region     * regions  = NULL;
+    SharedRegion_Config     * config;
     Memory_MapInfo            mapInfo;
     UInt16                    i;
-    UInt16                    j;
 
     GT_2trace (curTrace, GT_ENTER, "SharedRegionDrv_ioctl", cmd, args);
 
     GT_assert (curTrace, (SharedRegionDrv_refCount > 0));
-
-    if (cmd == CMD_SHAREDREGION_SETUP) {
-        cargs->args.setup.defaultCfg = &config;
-        /* cargs->args.setup.cfg = &config; */
-        MemoryOS_copy(&config, cargs->args.setup.config,
-            sizeof(SharedRegion_Config));
-    }
 
     do {
         osStatus = ioctl (SharedRegionDrv_handle, cmd, args);
     } while( (osStatus < 0) && (errno == EINTR) );
 
     if (osStatus < 0) {
-        /*! @retval SHAREDREGION_E_OSFAILURE Driver ioctl failed */
-        status = SHAREDREGION_E_OSFAILURE;
+        /*! @retval SharedRegion_E_OSFAILURE Driver ioctl failed */
+        status = SharedRegion_E_OSFAILURE;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "SharedRegionDrv_ioctl",
@@ -226,34 +229,33 @@ SharedRegionDrv_ioctl (UInt32 cmd, Ptr args)
 
         /* Convert the base address to user virtual address */
         if (cmd == CMD_SHAREDREGION_SETUP) {
-            for (i = 0u; (   (i < config.maxRegions) && (status >= 0)); i++) {
-                for (j = 0u; j < (MultiProc_getMaxProcessors() + 1u); j++) {
-                    info = (  cargs->args.setup.table
-                            + (j * config.maxRegions)
-                            + i);
-                    if (info->isValid == TRUE) {
-                        mapInfo.src  = (UInt32) info->base;
-                        mapInfo.size = info->len;
-                        status = Memory_map (&mapInfo);
-                        if (status < 0) {
-                            GT_setFailureReason (curTrace,
-                                                 GT_4CLASS,
-                                                 "SharedRegionDrv_ioctl",
-                                                 status,
-                                                 "Memory_map failed!");
-                        }
-                        else {
-                            info->base = (Ptr) mapInfo.dst;
-                        }
+            config = cargs->args.setup.config;
+            for (i = 0u; (   (i < config->numEntries) && (status >= 0)); i++) {
+                regions = &(cargs->args.setup.regions [i]);
+                if (regions->entry.isValid == TRUE) {
+                    mapInfo.src  = (UInt32) regions->entry.base;
+                    mapInfo.size = regions->entry.len;
+                    status = Memory_map (&mapInfo);
+                    if (status < 0) {
+                        GT_setFailureReason (curTrace,
+                                             GT_4CLASS,
+                                             "SharedRegionDrv_ioctl",
+                                             status,
+                                             "Memory_map failed!");
+                    }
+                    else {
+                        regions->entry.base = (Ptr) mapInfo.dst;
                     }
                 }
             }
+        }
+        else {
+            /* TBD: Need to do Memory_unmap in destroy. */
         }
     }
 
     GT_1trace (curTrace, GT_LEAVE, "SharedRegionDrv_ioctl", status);
 
-    /*! @retval SHAREDREGION_SUCCESS Operation successfully completed. */
     return status;
 }
 

@@ -1,16 +1,35 @@
 /*
- * Syslink-IPC for TI OMAP Processors
+ *  Syslink-IPC for TI OMAP Processors
  *
- * Copyright (C) 2009 Texas Instruments, Inc.
+ *  Copyright (c) 2008-2010, Texas Instruments Incorporated
+ *  All rights reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Lesser General Public License as published
- * by the Free Software Foundation version 2.1 of the License.
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted provided that the following conditions
+ *  are met:
  *
- * This program is distributed .as is. WITHOUT ANY WARRANTY of any kind,
- * whether express or implied; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
+ *  *  Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
+ *
+ *  *  Redistributions in binary form must reproduce the above copyright
+ *     notice, this list of conditions and the following disclaimer in the
+ *     documentation and/or other materials provided with the distribution.
+ *
+ *  *  Neither the name of Texas Instruments Incorporated nor the names of
+ *     its contributors may be used to endorse or promote products derived
+ *     from this software without specific prior written permission.
+ *
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ *  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ *  THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ *  PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ *  CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ *  EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ *  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+ *  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ *  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ *  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ *  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /** ============================================================================
  *  @file   SharedRegionDrvDefs.h
@@ -25,8 +44,10 @@
 
 
 /* Utilities headers */
-#include <SharedRegion.h>
-#include <ipc_ioctl.h>
+#include <ti/ipc/SharedRegion.h>
+#include <_SharedRegion.h>
+#include <IHeap.h>
+#include <IpcCmdBase.h>
 
 #if defined (__cplusplus)
 extern "C" {
@@ -41,13 +62,16 @@ enum CMD_SHAREDREGION {
     SHAREDREGION_GETCONFIG = SHAREDREGION_BASE_CMD,
     SHAREDREGION_SETUP,
     SHAREDREGION_DESTROY,
-    SHAREDREGION_ADD,
-    SHAREDREGION_GETPTR,
-    SHAREDREGION_GETSRPTR,
-    SHAREDREGION_GETTABLEINFO,
-    SHAREDREGION_REMOVE,
-    SHAREDREGION_SETTABLEINFO,
-    SHAREDREGION_GETINDEX,
+    SHAREDREGION_START,
+    SHAREDREGION_STOP,
+    SHAREDREGION_ATTACH,
+    SHAREDREGION_DETACH,
+    SHAREDREGION_GETHEAP,
+    SHAREDREGION_CLEARENTRY,
+    SHAREDREGION_SETENTRY,
+    SHAREDREGION_RESERVEMEMORY,
+    SHAREDREGION_CLEARRESERVEDMEMORY,
+    SHAREDREGION_GETREGIONINFO
 };
 
 /*
@@ -55,74 +79,98 @@ enum CMD_SHAREDREGION {
  *
  */
 
-/*
- *  Command for sharedregion_get_config
+/*!
+ *  @brief  Command for SharedRegion_getConfig
  */
 #define CMD_SHAREDREGION_GETCONFIG      _IOWR(IPC_IOC_MAGIC,                   \
                                         SHAREDREGION_GETCONFIG,                \
-                                        struct SharedRegionDrv_CmdArgs)
+                                        SharedRegionDrv_CmdArgs)
 
-/*
- *  Command for sharedregion_setup
+/*!
+ *  @brief  Command for SharedRegion_setup
  */
 #define CMD_SHAREDREGION_SETUP          _IOWR(IPC_IOC_MAGIC,                   \
                                         SHAREDREGION_SETUP,                    \
-                                        struct SharedRegionDrv_CmdArgs)
+                                        SharedRegionDrv_CmdArgs)
 
-/*
- *  Command for sharedregion_setup
+/*!
+ *  @brief  Command for SharedRegion_destroy
  */
 #define CMD_SHAREDREGION_DESTROY        _IOWR(IPC_IOC_MAGIC,                   \
                                         SHAREDREGION_DESTROY,                  \
-                                        struct SharedRegionDrv_CmdArgs)
+                                        SharedRegionDrv_CmdArgs)
 
-/*
- *  Command for sharedregion_ADD
+/*!
+ *  @brief  Command for SharedRegion_start
  */
-#define CMD_SHAREDREGION_ADD            _IOWR(IPC_IOC_MAGIC,                   \
-                                        SHAREDREGION_ADD,                      \
-                                        struct SharedRegionDrv_CmdArgs)
+#define CMD_SHAREDREGION_START          _IOWR(IPC_IOC_MAGIC,                   \
+                                        SHAREDREGION_START,                    \
+                                        SharedRegionDrv_CmdArgs)
 
-/*
- *  Command for sharedregion_get_ptr
+/*!
+ *  @brief  Command for SharedRegion_stop
  */
-#define CMD_SHAREDREGION_GETPTR         _IOWR(IPC_IOC_MAGIC,                   \
-                                        SHAREDREGION_GETPTR,                   \
-                                        struct SharedRegionDrv_CmdArgs)
+#define CMD_SHAREDREGION_STOP           _IOWR(IPC_IOC_MAGIC,                   \
+                                        SHAREDREGION_STOP,                     \
+                                        SharedRegionDrv_CmdArgs)
 
-/*
- *  Command for sharedregion_get_srptr
+/*!
+ *  @brief  Command for SharedRegion_attach
  */
-#define CMD_SHAREDREGION_GETSRPTR       _IOWR(IPC_IOC_MAGIC,                   \
-                                        SHAREDREGION_GETSRPTR,                 \
-                                        struct SharedRegionDrv_CmdArgs)
+#define CMD_SHAREDREGION_ATTACH         _IOWR(IPC_IOC_MAGIC,                   \
+                                        SHAREDREGION_ATTACH,                   \
+                                        SharedRegionDrv_CmdArgs)
 
-/*
- *  Command for sharedregion_get_table_info
+/*!
+ *  @brief  Command for SharedRegion_detach
  */
-#define CMD_SHAREDREGION_GETTABLEINFO   _IOWR(IPC_IOC_MAGIC,                   \
-                                        SHAREDREGION_GETTABLEINFO,             \
-                                        struct SharedRegionDrv_CmdArgs)
+#define CMD_SHAREDREGION_DETACH         _IOWR(IPC_IOC_MAGIC,                   \
+                                        SHAREDREGION_DETACH,                   \
+                                        SharedRegionDrv_CmdArgs)
 
-/*
- *  Command for sharedregion_remove
+/*!
+ *  @brief  Command for SharedRegion_getHeap
  */
-#define CMD_SHAREDREGION_REMOVE         _IOWR(IPC_IOC_MAGIC,                   \
-                                        SHAREDREGION_REMOVE,               \
-                                        struct SharedRegionDrv_CmdArgs)
-/*
- *  Command for sharedregion_set_table_info
- */
-#define CMD_SHAREDREGION_SETTABLEINFO   _IOWR(IPC_IOC_MAGIC,                   \
-                                        SHAREDREGION_SETTABLEINFO,             \
-                                        struct SharedRegionDrv_CmdArgs)
+#define CMD_SHAREDREGION_GETHEAP        _IOWR(IPC_IOC_MAGIC,                   \
+                                        SHAREDREGION_GETHEAP,                  \
+                                        SharedRegionDrv_CmdArgs)
 
-/*
- *  Command for sharedregion_get_index
+/*!
+ *  @brief  Command for SharedRegion_clearEntry
  */
-#define CMD_SHAREDREGION_GETINDEX       _IOWR(IPC_IOC_MAGIC,                   \
-                                        SHAREDREGION_GETINDEX,                 \
-                                        struct SharedRegionDrv_CmdArgs)
+#define CMD_SHAREDREGION_CLEARENTRY     _IOWR(IPC_IOC_MAGIC,                   \
+                                        SHAREDREGION_CLEARENTRY,               \
+                                        SharedRegionDrv_CmdArgs)
+
+/*!
+ *  @brief  Command for SharedRegion_setEntry
+ */
+#define CMD_SHAREDREGION_SETENTRY       _IOWR(IPC_IOC_MAGIC,                   \
+                                        SHAREDREGION_SETENTRY,                 \
+                                        SharedRegionDrv_CmdArgs)
+
+/*!
+ *  @brief  Command for SharedRegion_reserveMemory
+ */
+#define CMD_SHAREDREGION_RESERVEMEMORY  _IOWR(IPC_IOC_MAGIC,                   \
+                                        SHAREDREGION_RESERVEMEMORY,            \
+                                        SharedRegionDrv_CmdArgs)
+
+/*!
+ *  @brief  Command for SharedRegion_clearReservedMemory
+ */
+#define CMD_SHAREDREGION_CLEARRESERVEDMEMORY                                   \
+                                        _IOWR(IPC_IOC_MAGIC,                   \
+                                        SHAREDREGION_CLEARRESERVEDMEMORY,      \
+                                        SharedRegionDrv_CmdArgs)
+
+/*!
+ *  @brief  Command for To get the shared region info which is set in kernel
+ *          Space.
+ */
+#define CMD_SHAREDREGION_GETREGIONINFO  _IOWR(IPC_IOC_MAGIC,                   \
+                                        SHAREDREGION_GETREGIONINFO,            \
+                                        SharedRegionDrv_CmdArgs)
 
 
 /*  ----------------------------------------------------------------------------
@@ -132,55 +180,47 @@ enum CMD_SHAREDREGION {
 /*!
  *  @brief  Command arguments for SharedRegion
  */
-typedef struct SharedRegionDrv_CmdArgs {
+typedef struct SharedRegionDrv_CmdArgs_tag {
     union {
         struct {
-            SharedRegion_Config * config;
+            SharedRegion_Config   * config;
         } getConfig;
 
         struct {
-            SharedRegion_Config * config;
-            SharedRegion_Config * defaultCfg;
-            SharedRegion_Info *   table;
+            SharedRegion_Region   * regions;
+            SharedRegion_Config   * config;
         } setup;
 
         struct {
-            UInt                  index;
-            Ptr                   base;
-            UInt32                len;
-        } add;
+            SharedRegion_Region   * regions;
+        } getRegionInfo;
 
         struct {
-            Ptr                   addr;
-            Int                   index;
-        } getIndex;
+            UInt16                  remoteProcId;
+        } attach;
 
         struct {
-            SharedRegion_SRPtr    srptr;
-            Ptr                   addr;
-        } getPtr;
+            UInt16                  remoteProcId;
+        } detach;
 
         struct {
-            SharedRegion_SRPtr    srptr;
-            Ptr                   addr;
-            Int                   index;
-        } getSRPtr;
+            UInt16                  id;
+            IHeap_Handle            heapHandle;
+        } getHeap;
 
         struct {
-            UInt                  index;
-            UInt16                procId;
-            SharedRegion_Info *   info;
-        } getTableInfo;
+           UInt16                   id;
+           SharedRegion_Entry       entry;
+        } setEntry;
 
         struct {
-            UInt                  index;
-        } remove;
+           UInt16                   id;
+        } clearEntry;
 
         struct {
-            UInt                  index;
-            UInt16                procId;
-            SharedRegion_Info *   info;
-        } setTableInfo;
+           UInt16                   id;
+           UInt32                   size;
+        } reserveMemory;
     } args;
 
     Int32 apiStatus;
