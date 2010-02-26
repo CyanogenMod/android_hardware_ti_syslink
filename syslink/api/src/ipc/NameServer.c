@@ -1,16 +1,35 @@
 /*
- * Syslink-IPC for TI OMAP Processors
+ *  Syslink-IPC for TI OMAP Processors
  *
- * Copyright (C) 2009 Texas Instruments, Inc.
+ *  Copyright (c) 2008-2010, Texas Instruments Incorporated
+ *  All rights reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Lesser General Public License as published
- * by the Free Software Foundation version 2.1 of the License.
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted provided that the following conditions
+ *  are met:
  *
- * This program is distributed .as is. WITHOUT ANY WARRANTY of any kind,
- * whether express or implied; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
+ *  *  Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
+ *
+ *  *  Redistributions in binary form must reproduce the above copyright
+ *     notice, this list of conditions and the following disclaimer in the
+ *     documentation and/or other materials provided with the distribution.
+ *
+ *  *  Neither the name of Texas Instruments Incorporated nor the names of
+ *     its contributors may be used to endorse or promote products derived
+ *     from this software without specific prior written permission.
+ *
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ *  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ *  THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ *  PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ *  CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ *  EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ *  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+ *  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ *  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ *  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ *  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*============================================================================
  *  @file   NameServer.c
@@ -81,7 +100,9 @@
 #include <String.h>
 
 /* Module level headers */
-#include <NameServer.h>
+#include <ti/ipc/NameServer.h>
+#include <ti/ipc/MultiProc.h>
+#include <_NameServer.h>
 #include <NameServerDrv.h>
 #include <NameServerDrvDefs.h>
 
@@ -97,16 +118,20 @@ extern "C" {
  */
 
 /* Structure defining object for the Gate Peterson */
-struct NameServer_Object {
+typedef struct NameServer_Object {
     Ptr         knlObject;
     /*!< Pointer to the kernel-side ProcMgr object. */
-};
+} NameServer_Object;
 
 /*!
  *  @brief  ProcMgr Module state object
  */
 typedef struct NameServer_ModuleObject_tag {
-    UInt32              setupRefCount;
+    NameServer_Config   cfg;
+    /*!< NameServer configuration structure */
+    NameServer_Config   defCfg;
+    /*!< Default module configuration */
+    UInt32              refCount;
     /*!< Reference count for number of times setup/destroy were called in this
          process. */
 } NameServer_ModuleObject;
@@ -126,39 +151,115 @@ static
 #endif /* if !defined(SYSLINK_BUILD_DEBUG) */
 NameServer_ModuleObject NameServer_state =
 {
-    .setupRefCount = 0
+    .refCount = 0
 };
+
+/*!
+ *  @var    NameServer_module
+ *
+ *  @brief  Pointer to the NameServer module state.
+ */
+#if !defined(SYSLINK_BUILD_DEBUG)
+static
+#endif /* if !defined(SYSLINK_BUILD_DEBUG) */
+NameServer_ModuleObject * NameServer_module = &NameServer_state;
 
 
 /* =============================================================================
  * APIS
  * =============================================================================
  */
-/*!
- *  @brief      Function to setup the NameServer module.
- *
- *  @sa         NameServer_destroy
- */
-Int32
+/* Function to get the default configuration for the NameServer module. */
+Void
+NameServer_getConfig (NameServer_Config * cfg)
+{
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+    Int                   status = NameServer_S_SUCCESS;
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+    NameServerDrv_CmdArgs cmdArgs;
+
+    GT_1trace (curTrace, GT_ENTER, "NameServer_getConfig", cfg);
+
+    GT_assert (curTrace, (cfg != NULL));
+
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+    if (cfg == NULL) {
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "NameServer_getConfig",
+                             NameServer_E_FAIL,
+                             "Argument of type (NameServer_Config *) passed "
+                             "is null!");
+    }
+    else {
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+        if (NameServer_module->refCount == 0) {
+            /* Temporarily open the handle to get the configuration. */
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+            status =
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+            NameServerDrv_open ();
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+            if (status < 0) {
+                GT_setFailureReason (curTrace,
+                                     GT_4CLASS,
+                                     "NameServer_getConfig",
+                                     status,
+                                     "Failed to open driver handle!");
+            }
+            else {
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+                cmdArgs.args.getConfig.config = cfg;
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+                status =
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+                NameServerDrv_ioctl (CMD_NAMESERVER_GETCONFIG, &cmdArgs);
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+                if (status < 0) {
+                    GT_setFailureReason (curTrace,
+                                  GT_4CLASS,
+                                  "NameServer_getConfig",
+                                  status,
+                                  "API (through IOCTL) failed on kernel-side!");
+
+                }
+            }
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+            /* Close the driver handle. */
+            NameServerDrv_close ();
+        }
+        else {
+            Memory_copy (cfg,
+                         &NameServer_module->cfg,
+                         sizeof (NameServer_Config));
+        }
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+    }
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+
+    GT_0trace (curTrace, GT_LEAVE, "NameServer_getConfig");
+}
+
+
+/* Function to setup the nameserver module. */
+Int
 NameServer_setup (Void)
 {
-    Int                  status = NAMESERVER_SUCCESS;
+    Int                   status = NameServer_S_SUCCESS;
     NameServerDrv_CmdArgs cmdArgs;
 
     GT_0trace (curTrace, GT_ENTER, "NameServer_setup");
 
     /* TBD: Protect from multiple threads. */
-    NameServer_state.setupRefCount++;
+    NameServer_module->refCount++;
     /* This is needed at runtime so should not be in SYSLINK_BUILD_OPTIMIZE. */
-    if (NameServer_state.setupRefCount > 1) {
-        /*! @retval NAMESERVER_S_ALREADYSETUP Success: NameServer module has
-                                          been already setup in this process */
-        status = NAMESERVER_S_ALREADYSETUP;
+    if (NameServer_module->refCount > 1) {
+        status = NameServer_S_ALREADYSETUP;
         GT_1trace (curTrace,
                    GT_1CLASS,
                    "NameServer module has been already setup in this process.\n"
                    "    RefCount: [%d]\n",
-                   NameServer_state.setupRefCount);
+                   NameServer_module->refCount);
     }
     else {
         /* Open the driver handle. */
@@ -188,36 +289,29 @@ NameServer_setup (Void)
 
     GT_1trace (curTrace, GT_LEAVE, "NameServer_setup", status);
 
-    /*! @retval NAMESERVER_SUCCESS Operation successful */
     return (status);
 }
 
 
-/*!
- *  @brief      Function to destroy the NameServer module.
- *
- *  @sa         NameServer_setup
- */
-Int32
-NameServer_destroy (void)
+/* Function to destroy the nameserver module. */
+Int
+NameServer_destroy (Void)
 {
-    Int                     status = NAMESERVER_SUCCESS;
-    NameServerDrv_CmdArgs    cmdArgs;
+    Int                     status = NameServer_S_SUCCESS;
+    NameServerDrv_CmdArgs   cmdArgs;
 
     GT_0trace (curTrace, GT_ENTER, "NameServer_destroy");
 
     /* TBD: Protect from multiple threads. */
-    NameServer_state.setupRefCount--;
+    NameServer_module->refCount--;
     /* This is needed at runtime so should not be in SYSLINK_BUILD_OPTIMIZE. */
-    if (NameServer_state.setupRefCount >= 1) {
-        /*! @retval NAMESERVER_S_ALREADYSETUP Success: ProcMgr module has been
-                                           already setup in this process */
-        status = NAMESERVER_S_ALREADYSETUP;
+    if (NameServer_module->refCount >= 1) {
+        status = NameServer_S_ALREADYSETUP;
         GT_1trace (curTrace,
                    GT_1CLASS,
-                   "ProcMgr module has been already setup in this process.\n"
+                   "NameServer module has been already setup in this process.\n"
                    "    RefCount: [%d]\n",
-                   NameServer_state.setupRefCount);
+                   NameServer_module->refCount);
     }
     else {
         status = NameServerDrv_ioctl (CMD_NAMESERVER_DESTROY, &cmdArgs);
@@ -241,19 +335,14 @@ NameServer_destroy (void)
 }
 
 
-/*!
- *  @brief      Initialize this config-params structure with supplier-specified
- *              defaults before instance creation.
- *
- *  @param      params  Instance config-params structure.
- *
- *  @sa         NameServer_create
+/* Initialize this config-params structure with supplier-specified
+ * defaults before instance creation.
  */
 Void
 NameServer_Params_init (NameServer_Params * params)
 {
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-    Int32 status = NAMESERVER_SUCCESS;
+    Int                   status = NameServer_S_SUCCESS;
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
     NameServerDrv_CmdArgs cmdArgs;
 
@@ -262,19 +351,19 @@ NameServer_Params_init (NameServer_Params * params)
     GT_assert (curTrace, (params != NULL));
 
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-    if (NameServer_state.setupRefCount == 0) {
+    if (NameServer_module->refCount == 0) {
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "NameServer_create",
-                             NAMESERVER_E_INVALIDSTATE,
-                             "Modules is invalidstate!");
+                             NameServer_E_INVALIDSTATE,
+                             "Module is in invalid state!");
     }
     else if (params == NULL) {
         /* No retVal comment since this is a Void function. */
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "NameServer_Params_init",
-                             NAMESERVER_E_INVALIDARG,
+                             NameServer_E_INVALIDARG,
                              "Argument of type (NameServer_Params *) passed "
                              "is null!");
     }
@@ -300,47 +389,48 @@ NameServer_Params_init (NameServer_Params * params)
 }
 
 
-/*!
- *  @brief      Creates a new instance of NameServer module.
- *
- *  @param      params  Instance config-params structure.
- *
- *  @sa         NameServer_delete, NameServer_open, NameServer_close
- */
+/* Function to create a name server. */
 NameServer_Handle
-NameServer_create (      String              name,
-                   const NameServer_Params * params)
+NameServer_create (String name, const NameServer_Params * params)
 {
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-    Int                  status = 0;
+    Int                   status = 0;
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-    NameServer_Handle  handle = NULL;
+    NameServer_Handle     handle = NULL;
     NameServerDrv_CmdArgs cmdArgs;
 
     GT_2trace (curTrace, GT_ENTER, "NameServer_create", name, params);
 
     GT_assert (curTrace, (params != NULL));
+    GT_assert (curTrace, (name != NULL));
 
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-    if (NameServer_state.setupRefCount == 0) {
+    if (NameServer_module->refCount == 0) {
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "NameServer_create",
-                             NAMESERVER_E_INVALIDSTATE,
-                             "Modules is invalidstate!");
+                             NameServer_E_INVALIDSTATE,
+                             "Module is in invalid state!");
     }
     else if (params == NULL) {
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "NameServer_create",
-                             NAMESERVER_E_INVALIDARG,
+                             NameServer_E_INVALIDARG,
                              "params passed is NULL!");
+    }
+    else if (name == NULL) {
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "NameServer_create",
+                             NameServer_E_INVALIDARG,
+                             "name passed is null!");
     }
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-        cmdArgs.args.create.name   = name;
-        cmdArgs.args.create.nameLen = String_len(name);
-        cmdArgs.args.create.params = (NameServer_Params *) params;
+        cmdArgs.args.create.name    = name;
+        cmdArgs.args.create.nameLen = String_len (name) + 1;
+        cmdArgs.args.create.params  = (NameServer_Params *) params;
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
         status =
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
@@ -361,12 +451,10 @@ NameServer_create (      String              name,
                                                    0);
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
             if (handle == NULL) {
-                /*! @retval NULL Memory allocation failed for handle */
-                status = NAMESERVER_E_MEMORY;
                 GT_setFailureReason (curTrace,
                                      GT_4CLASS,
                                      "NameServer_create",
-                                     status,
+                                     NameServer_E_MEMORY,
                                      "Memory allocation failed for handle!");
             }
             else {
@@ -374,30 +462,22 @@ NameServer_create (      String              name,
                 /* Set pointer to kernel object into the user handle. */
                 handle->knlObject = cmdArgs.args.create.handle;
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-             }
-         }
+            }
+        }
     }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
 
     GT_1trace (curTrace, GT_LEAVE, "NameServer_create", handle);
 
-    /*! @retval valid-handle Operation successful*/
-    /*! @retval NULL Operation failed */
     return handle;
 }
 
 
-/*!
- *  @brief      Deletes a instance of NameServer module.
- *
- *  @param      gpHandle  Handle to previously created instance.
- *
- *  @sa         NameServer_create, NameServer_open, NameServer_close
- */
-Int32
+/* Function to delete a name server. */
+Int
 NameServer_delete (NameServer_Handle * handlePtr)
 {
-    Int32                status = NAMESERVER_SUCCESS;
+    Int                   status = NameServer_S_SUCCESS;
     NameServerDrv_CmdArgs cmdArgs;
 
     GT_1trace (curTrace, GT_ENTER, "NameServer_delete", handlePtr);
@@ -406,18 +486,16 @@ NameServer_delete (NameServer_Handle * handlePtr)
     GT_assert (curTrace, ((handlePtr != NULL) && (*handlePtr != NULL)));
 
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-    if (NameServer_state.setupRefCount == 0) {
-        /*! @retval NAMESERVER_E_INVALIDSTATE Modules is invalidstate*/
-        status = NAMESERVER_E_INVALIDSTATE;
+    if (NameServer_module->refCount == 0) {
+        status = NameServer_E_INVALIDSTATE;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "NameServer_delete",
                              status,
-                             "Modules is invalidstate!");
+                             "Module is in invalid state!");
     }
     else if (handlePtr == NULL) {
-        /*! @retval NAMESERVER_E_INVALIDARG handlePtr passed is NULL*/
-        status = NAMESERVER_E_INVALIDARG;
+        status = NameServer_E_INVALIDARG;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "NameServer_delete",
@@ -425,8 +503,7 @@ NameServer_delete (NameServer_Handle * handlePtr)
                              "handlePtr passed is NULL!");
     }
     else if (*handlePtr == NULL) {
-        /*! @retval NAMESERVER_E_INVALIDARG *handlePtr passed is NULL*/
-        status = NAMESERVER_E_INVALIDARG;
+        status = NameServer_E_INVALIDARG;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "NameServer_delete",
@@ -450,28 +527,18 @@ NameServer_delete (NameServer_Handle * handlePtr)
 
     GT_1trace (curTrace, GT_LEAVE, "NameServer_delete", status);
 
-    /*! @retval NAMESERVER_SUCCESS Operation successful */
     return status;
 }
 
 
-/*!
- *  @brief      Function to add an entry into the nameserver.
- *
- *  @param      nshandle  Handle to the nameserver.
- *  @param      name      Entry name.
- *  @param      buf       Pointer to the value.
- *  @param      len       Length of the value pointer.
- *
- *  @sa         NameServer_create
- */
+/* Adds a variable length value into the local NameServer table */
 Ptr
 NameServer_add (NameServer_Handle handle, String name, Ptr buf, UInt len)
 {
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-    Int                status = NAMESERVER_SUCCESS;
+    Int                   status = NameServer_S_SUCCESS;
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-    Ptr                new_node = NULL;
+    Ptr                   new_node = NULL;
     NameServerDrv_CmdArgs cmdArgs;
 
     GT_4trace (curTrace, GT_ENTER, "NameServer_add",
@@ -483,39 +550,46 @@ NameServer_add (NameServer_Handle handle, String name, Ptr buf, UInt len)
     GT_assert (curTrace, (len      != 0));
 
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-    if (handle == NULL) {
+    if (NameServer_module->refCount == 0) {
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "NameServer_add",
-                             NAMESERVER_E_INVALIDARG,
+                             NameServer_E_INVALIDSTATE,
+                             "Module is in invalid state!");
+    }
+    else if (handle == NULL) {
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "NameServer_add",
+                             NameServer_E_INVALIDARG,
                              "handle: Handle is null!");
     }
     else if (name == NULL) {
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "NameServer_add",
-                             NAMESERVER_E_INVALIDARG,
+                             NameServer_E_INVALIDARG,
                              "name: name is null!");
     }
     else if (buf == NULL) {
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "NameServer_add",
-                             NAMESERVER_E_INVALIDARG,
+                             NameServer_E_INVALIDARG,
                              "buf: buf is null!");
     }
     else if (len == 0u) {
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "NameServer_add",
-                             NAMESERVER_E_INVALIDARG,
+                             NameServer_E_INVALIDARG,
                              "len: Length is zero!");
     }
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
         cmdArgs.args.add.handle  = handle->knlObject;
         cmdArgs.args.add.name    = name;
-        cmdArgs.args.add.nameLen = String_len(name);
+        cmdArgs.args.add.nameLen = String_len (name) + 1;
         cmdArgs.args.add.buf     = buf;
         cmdArgs.args.add.len     = len;
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
@@ -536,22 +610,11 @@ NameServer_add (NameServer_Handle handle, String name, Ptr buf, UInt len)
 
     GT_1trace (curTrace, GT_LEAVE, "NameServer_add", new_node);
 
-    /*! @retval NULL operation failed */
-    /*! @retval valid-pointer Pointer to created entry if operation is
-     * successful */
     return new_node;
 }
 
 
-/*!
- *  @brief      Function to add a UInt32 value into a name server.
- *
- *  @param      nshandle  Handle to the nameserver.
- *  @param      name      Entry name.
- *  @param      value     UInt32 value.
- *
- *  @sa         NameServer_create
- */
+/* Function to add a UInt32 value into a name server. */
 Ptr
 NameServer_addUInt32 (NameServer_Handle handle, String name, UInt32 value)
 {
@@ -568,50 +631,45 @@ NameServer_addUInt32 (NameServer_Handle handle, String name, UInt32 value)
     GT_assert (curTrace, (name     != NULL));
 
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-    if (handle == NULL) {
+    if (NameServer_module->refCount == 0) {
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "NameServer_addUInt32",
-                             NAMESERVER_E_INVALIDARG,
+                             NameServer_E_INVALIDSTATE,
+                             "Module is in invalid state!");
+    }
+    else if (handle == NULL) {
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "NameServer_addUInt32",
+                             NameServer_E_INVALIDARG,
                              "handle: Handle is null!");
     }
     else if (name == NULL) {
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "NameServer_addUInt32",
-                             NAMESERVER_E_INVALIDARG,
+                             NameServer_E_INVALIDARG,
                              "name: name is null!");
     }
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-        entry = NameServer_add (handle, name, &value, 4);
+        entry = NameServer_add (handle, name, &value, sizeof (UInt32));
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
     }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
 
     GT_1trace (curTrace, GT_LEAVE, "NameServer_addUInt32", entry);
 
-    /*! @retval NULL operation failed */
-    /*! @retval valid-pointer Pointer to created entry if operation is
-     * successful */
     return entry;
 }
 
 
-/*!
- *  @brief      Function to remove a name/value pair from a name server.
- *
- *  @param      nshandle  Handle to the nameserver.
- *  @param      name      Entry name.
- *
- *  @sa         NameServer_add,NameServer_addUInt32
- */
-Void
+/* Function to remove a name/value pair from a name server. */
+Int
 NameServer_remove (NameServer_Handle handle, String name)
 {
-#if !defined(SYSLINK_BUILD_OPTIMIZE)
-    Int                status = NAMESERVER_SUCCESS;
-#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+    Int                   status = NameServer_S_SUCCESS;
     NameServerDrv_CmdArgs cmdArgs;
 
     GT_2trace (curTrace, GT_ENTER, "NameServer_remove",
@@ -621,29 +679,36 @@ NameServer_remove (NameServer_Handle handle, String name)
     GT_assert (curTrace, (name     != NULL));
 
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-    if (handle == NULL) {
+    if (NameServer_module->refCount == 0) {
+        status = NameServer_E_INVALIDSTATE;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "NameServer_remove",
-                             NAMESERVER_E_INVALIDARG,
+                             status,
+                             "Module is in invalid state!");
+    }
+    else if (handle == NULL) {
+        status = NameServer_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "NameServer_remove",
+                             status,
                              "Handle is null!");
     }
     else if (name == NULL) {
+        status = NameServer_E_INVALIDARG;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "NameServer_remove",
-                             NAMESERVER_E_INVALIDARG,
+                             status,
                              "name: name is null!");
     }
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
         cmdArgs.args.remove.handle  = handle->knlObject;
         cmdArgs.args.remove.name    = name;
-        cmdArgs.args.remove.nameLen = String_len(name);
-#if !defined(SYSLINK_BUILD_OPTIMIZE)
-        status =
-#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-        NameServerDrv_ioctl (CMD_NAMESERVER_REMOVE, &cmdArgs);
+        cmdArgs.args.remove.nameLen = String_len (name) + 1;
+        status = NameServerDrv_ioctl (CMD_NAMESERVER_REMOVE, &cmdArgs);
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
         if (status < 0) {
             GT_setFailureReason (curTrace,
@@ -655,234 +720,269 @@ NameServer_remove (NameServer_Handle handle, String name)
     }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
 
-    GT_0trace (curTrace, GT_LEAVE, "NameServer_remove");
+    GT_1trace (curTrace, GT_LEAVE, "NameServer_remove", status);
+
+    return (status);
 }
 
 
-/*!
- *  @brief      Function to remove a name/value pair from a name server.
- *
- *  @param      nshandle  Handle to the nameserver.
- *  @param      name      Entry name.
- *
- *  @sa         NameServer_add,NameServer_addUInt32
- */
-Void
+/* Function to remove a name/value pair from a name server. */
+Int
 NameServer_removeEntry (NameServer_Handle handle, Ptr entry)
 {
-#if !defined(SYSLINK_BUILD_OPTIMIZE)
-    Int                status = NAMESERVER_SUCCESS;
-#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+    Int                    status = NameServer_S_SUCCESS;
     NameServerDrv_CmdArgs  cmdArgs;
 
-    GT_2trace (curTrace, GT_ENTER, "NameServer_removeEntrty",
+    GT_2trace (curTrace, GT_ENTER, "NameServer_removeEntry",
                handle, entry);
 
     GT_assert (curTrace, (handle != NULL));
     GT_assert (curTrace, (entry  != NULL));
 
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-    if (handle == NULL) {
+    if (NameServer_module->refCount == 0) {
+        status = NameServer_E_INVALIDSTATE;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
-                             "NameServer_removeEntrty",
-                             NAMESERVER_E_INVALIDARG,
+                             "NameServer_removeEntry",
+                             status,
+                             "Module is in invalid state!");
+    }
+    else if (handle == NULL) {
+        status = NameServer_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "NameServer_removeEntry",
+                             status,
                              "Handle is null!");
     }
     else if (entry == NULL) {
+        status = NameServer_E_INVALIDARG;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
-                             "NameServer_removeEntrty",
-                             NAMESERVER_E_INVALIDARG,
+                             "NameServer_removeEntry",
+                             status,
                              "entry: entry is null!");
     }
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-        cmdArgs.args.removeEntry.handle  = handle->knlObject;
+        cmdArgs.args.removeEntry.handle = handle->knlObject;
         cmdArgs.args.removeEntry.entry  = entry;
-#if !defined(SYSLINK_BUILD_OPTIMIZE)
-        status =
-#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-        NameServerDrv_ioctl (CMD_NAMESERVER_REMOVEENTRY, &cmdArgs);
+        status = NameServerDrv_ioctl (CMD_NAMESERVER_REMOVEENTRY, &cmdArgs);
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
         if (status < 0) {
             GT_setFailureReason (curTrace,
                                  GT_4CLASS,
-                                 "NameServer_removeEntrty",
+                                 "NameServer_removeEntry",
                                  status,
                                  "API (through IOCTL) failed on kernel-side!");
         }
     }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
 
-    GT_0trace (curTrace, GT_LEAVE, "NameServer_removeEntrty");
+    GT_1trace (curTrace, GT_LEAVE, "NameServer_removeEntry", status);
+
+    return (status);
 }
 
 
-/*!
- *  @brief      Function to Retrieve the value portion of a name/value pair from local table.
- *
- *  @param      nshandle  Handle to the nameserver.
- *  @param      name      Entry name.
- *  @param      value     UInt32 value.
- *
- *  @sa         NameServer_create
+/* Function to retrieve the value portion of a name/value pair from
+ * local table.
  */
-Int32
+Int
 NameServer_get (NameServer_Handle handle,
                 String            name,
-                Ptr               buf,
-                UInt32            len,
+                Ptr               value,
+                UInt32          * len,
                 UInt16            procId[])
 {
-#if !defined(SYSLINK_BUILD_OPTIMIZE)
-    Int    status = NAMESERVER_SUCCESS;
-#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-    UInt32 count  = 0u;
-    UInt32 procLen = 0;
-    UInt32 i       = 0u;
+    Int                   status  = NameServer_S_SUCCESS;
+    UInt32                procLen = 0;
+    UInt32                i       = 0u;
     NameServerDrv_CmdArgs cmdArgs;
 
-    GT_5trace (curTrace, GT_ENTER, "NameServer_getLocal",
-               handle, name, buf, len, procId);
+    GT_5trace (curTrace, GT_ENTER, "NameServer_get",
+               handle, name, value, len, procId);
 
     GT_assert (curTrace, (handle != NULL));
-    GT_assert (curTrace, (name     != NULL));
-    GT_assert (curTrace, (buf      != NULL));
+    GT_assert (curTrace, (name   != NULL));
+    GT_assert (curTrace, (value  != NULL));
+    GT_assert (curTrace, (len    != NULL));
 
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-    if (handle == NULL) {
+    if (NameServer_module->refCount == 0) {
+        status = NameServer_E_INVALIDSTATE;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
-                             "NameServer_getLocal",
-                             NAMESERVER_E_INVALIDARG,
+                             "NameServer_get",
+                             status,
+                             "Module is in invalid state!");
+    }
+    else if (handle == NULL) {
+        status = NameServer_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "NameServer_get",
+                             status,
                              "handle: Handle is null!");
     }
     else if (name == NULL) {
+        status = NameServer_E_INVALIDARG;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
-                             "NameServer_getLocal",
-                             NAMESERVER_E_INVALIDARG,
+                             "NameServer_get",
+                             status,
                              "name: name is null!");
     }
-    else if (buf == NULL) {
+    else if (value == NULL) {
+        status = NameServer_E_INVALIDARG;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
-                             "NameServer_getLocal",
-                             NAMESERVER_E_INVALIDARG,
-                             "buf: buf is null!");
+                             "NameServer_get",
+                             status,
+                             "value: value is null!");
     }
-    else if (len == 0u) {
+    else if (len == NULL) {
+        status = NameServer_E_INVALIDARG;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
-                             "NameServer_getLocal",
-                             NAMESERVER_E_INVALIDARG,
-                             "len: length is zero!");
+                             "NameServer_get",
+                             status,
+                             "len: length is null!");
+    }
+    else if (*len == 0u) {
+        status = NameServer_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "NameServer_get",
+                             status,
+                             "*len: length is zero!");
     }
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
         cmdArgs.args.get.handle  = handle->knlObject;
         cmdArgs.args.get.name    = name;
-        cmdArgs.args.get.nameLen = String_len(name);
-        cmdArgs.args.get.buf     = buf;
-        cmdArgs.args.get.len     = len;
+        cmdArgs.args.get.nameLen = String_len (name) + 1;
+        cmdArgs.args.get.value   = value;
+        cmdArgs.args.get.len     = *len;
         cmdArgs.args.get.procId  = procId;
-        while (procId[i] != 0xFFFF) { /* TBD */
-            procLen++;
+        if (procId != NULL) {
+            while (procId[i] != 0xFFFF) { /* TBD */
+                procLen++;
+                i++;
+            }
         }
         cmdArgs.args.get.procLen = procLen;
+        status = NameServerDrv_ioctl (CMD_NAMESERVER_GET, &cmdArgs);
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-        status =
-#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-        NameServerDrv_ioctl (CMD_NAMESERVER_GET, &cmdArgs);
-        count = cmdArgs.args.get.count;
-#if !defined(SYSLINK_BUILD_OPTIMIZE)
-        if (status < 0) {
+        /* NameServer_E_NOTFOUND is a valid run-time failure. */
+        if ((status < 0) && (status != NameServer_E_NOTFOUND)) {
             GT_setFailureReason (curTrace,
                                  GT_4CLASS,
-                                 "NameServer_getLocal",
+                                 "NameServer_get",
                                  status,
                                  "API (through IOCTL) failed on kernel-side!");
+        }
+        else {
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+            /* Return updated len */
+            *len = cmdArgs.args.get.len;
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
         }
     }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
 
-    GT_1trace (curTrace, GT_LEAVE, "NameServer_getLocal", count);
+    GT_1trace (curTrace, GT_LEAVE, "NameServer_get", status);
 
-    /*! @retval >0 if the operation was successful */
-    /*! @retval 0  if the operation was not successful */
-    return count;
+    return status;
 }
 
 
 /*!
- *  @brief      Function to Retrieve the value portion of a name/value pair from local table.
+ *  @brief      Function to retrieve the value portion of a name/value pair
+ *              from local table.
  *
- *  @param      nshandle  Handle to the nameserver.
+ *  @param      handle    Handle to the nameserver.
  *  @param      name      Entry name.
  *  @param      value     UInt32 value.
+ *  @param      len       Length of the buffer. Returns the length matched.
  *
  *  @sa         NameServer_create
  */
-Int32
+Int
 NameServer_getLocal (NameServer_Handle handle,
                      String            name,
-                     Ptr               buf,
-                     UInt32            len)
+                     Ptr               value,
+                     UInt32          * len)
 {
-#if !defined(SYSLINK_BUILD_OPTIMIZE)
-    Int                status = NAMESERVER_SUCCESS;
-#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-    UInt32             count  = 0;
+    Int                   status = NameServer_S_SUCCESS;
     NameServerDrv_CmdArgs cmdArgs;
 
     GT_4trace (curTrace, GT_ENTER, "NameServer_getLocal",
-               handle, name, buf, len);
+               handle, name, value, len);
 
     GT_assert (curTrace, (handle != NULL));
-    GT_assert (curTrace, (name     != NULL));
+    GT_assert (curTrace, (name   != NULL));
+    GT_assert (curTrace, (value  != NULL));
+    GT_assert (curTrace, (len    != NULL));
 
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-    if (handle == NULL) {
+    if (NameServer_module->refCount == 0) {
+        status = NameServer_E_INVALIDSTATE;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "NameServer_getLocal",
-                             NAMESERVER_E_INVALIDARG,
+                             status,
+                             "Module is in invalid state!");
+    }
+    else if (handle == NULL) {
+        status = NameServer_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "NameServer_getLocal",
+                             status,
                              "handle: Handle is null!");
     }
     else if (name == NULL) {
+        status = NameServer_E_INVALIDARG;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "NameServer_getLocal",
-                             NAMESERVER_E_INVALIDARG,
+                             status,
                              "name: name is null!");
     }
-    else if (buf == NULL) {
+    else if (value == NULL) {
+        status = NameServer_E_INVALIDARG;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "NameServer_getLocal",
-                             NAMESERVER_E_INVALIDARG,
-                             "buf: buf is null!");
+                             status,
+                             "value: value is null!");
     }
-    else if (len == 0u) {
+    else if (len == NULL) {
+        status = NameServer_E_INVALIDARG;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "NameServer_getLocal",
-                             NAMESERVER_E_INVALIDARG,
-                             "len: length is zero!");
+                             status,
+                             "len: length is null!");
+    }
+    else if (*len == 0u) {
+        status = NameServer_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "NameServer_getLocal",
+                             status,
+                             "*len: length is zero!");
     }
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
         cmdArgs.args.getLocal.handle  = handle->knlObject;
         cmdArgs.args.getLocal.name    = name;
-        cmdArgs.args.getLocal.nameLen = String_len(name);
-        cmdArgs.args.getLocal.buf     = buf;
-        cmdArgs.args.getLocal.len     = len;
-#if !defined(SYSLINK_BUILD_OPTIMIZE)
-        status =
-#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-        NameServerDrv_ioctl (CMD_NAMESERVER_GETLOCAL, &cmdArgs);
-        count = cmdArgs.args.getLocal.count;
+        cmdArgs.args.getLocal.nameLen = String_len (name) + 1;
+        cmdArgs.args.getLocal.value   = value;
+        cmdArgs.args.getLocal.len     = *len;
+        status = NameServerDrv_ioctl (CMD_NAMESERVER_GETLOCAL, &cmdArgs);
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
         if (status < 0) {
             GT_setFailureReason (curTrace,
@@ -891,32 +991,164 @@ NameServer_getLocal (NameServer_Handle handle,
                                  status,
                                  "API (through IOCTL) failed on kernel-side!");
         }
+        else {
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+            /* Return updated len */
+            *len = cmdArgs.args.get.len;
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+        }
     }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
 
-    GT_1trace (curTrace, GT_LEAVE, "NameServer_getLocal", count);
+    GT_1trace (curTrace, GT_LEAVE, "NameServer_getLocal", status);
 
-    /*! @retval >0 if the operation was successful */
-    /*! @retval 0  if the operation was not successful */
-    return count;
+    return status;
 }
 
 
-/*!
- *  @brief      Function to Retrieve the value portion of a name/value pair from
+/* Gets a 32-bit value by name */
+Int
+NameServer_getUInt32 (NameServer_Handle handle,
+                      String            name,
+                      Ptr               value,
+                      UInt16            procId[])
+{
+    Int    status = NameServer_S_SUCCESS;
+    UInt32 len    = sizeof (UInt32);
+
+    GT_4trace (curTrace, GT_ENTER, "NameServer_getUInt32",
+               handle, name, value, procId);
+
+    GT_assert (curTrace, (handle != NULL));
+    GT_assert (curTrace, (name   != NULL));
+    GT_assert (curTrace, (value  != NULL));
+
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+    if (NameServer_module->refCount == 0) {
+        status = NameServer_E_INVALIDSTATE;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "NameServer_getUInt32",
+                             status,
+                             "Module is in invalid state!");
+    }
+    else if (handle == NULL) {
+        status = NameServer_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "NameServer_getUInt32",
+                             status,
+                             "handle: Handle is null!");
+    }
+    else if (name == NULL) {
+        status = NameServer_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "NameServer_getUInt32",
+                             status,
+                             "name: name is null!");
+    }
+    else if (value == NULL) {
+        status = NameServer_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "NameServer_getUInt32",
+                             status,
+                             "value: value is null!");
+    }
+    else {
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+        status = NameServer_get (handle, name, value, &len, procId);
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+        if ((status < 0) && (status != NameServer_E_NOTFOUND)) {
+            /* NameServer_E_NOTFOUND is a valid run-time failure. */
+            GT_setFailureReason (curTrace,
+                                 GT_4CLASS,
+                                 "NameServer_getUInt32",
+                                 status,
+                                 "NameServer_get failed!");
+        }
+    }
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+
+    GT_1trace (curTrace, GT_LEAVE, "NameServer_getUInt32", status);
+
+    return status;
+}
+
+
+/* Gets a 32-bit value by name from the local table */
+Int
+NameServer_getLocalUInt32 (NameServer_Handle handle,
+                           String            name,
+                           Ptr               value)
+{
+    Int    status = NameServer_S_SUCCESS;
+    UInt32 len    = sizeof (UInt32);
+
+    GT_3trace (curTrace, GT_ENTER, "NameServer_getLocalUInt32",
+               handle, name, value);
+
+    GT_assert (curTrace, (handle != NULL));
+    GT_assert (curTrace, (name   != NULL));
+    GT_assert (curTrace, (value  != NULL));
+
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+    if (NameServer_module->refCount == 0) {
+        status = NameServer_E_INVALIDSTATE;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "NameServer_getLocalUInt32",
+                             status,
+                             "Module is in invalid state!");
+    }
+    else if (handle == NULL) {
+        status = NameServer_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "NameServer_getLocalUInt32",
+                             status,
+                             "handle: Handle is null!");
+    }
+    else if (name == NULL) {
+        status = NameServer_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "NameServer_getLocalUInt32",
+                             status,
+                             "name: name is null!");
+    }
+    else if (value == NULL) {
+        status = NameServer_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "NameServer_getLocalUInt32",
+                             status,
+                             "value: value is null!");
+    }
+    else {
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+        status = NameServer_getLocal (handle, name, value, &len);
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+        if ((status < 0) && (status != NameServer_E_NOTFOUND)) {
+            /* NameServer_E_NOTFOUND is a valid run-time failure. */
+            GT_setFailureReason (curTrace,
+                                 GT_4CLASS,
+                                 "NameServer_getLocalUInt32",
+                                 status,
+                                 "NameServer_getLocal failed!");
+        }
+    }
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+
+    GT_1trace (curTrace, GT_LEAVE, "NameServer_getLocalUInt32", status);
+
+    return status;
+}
+
+
+/*  Function to retrieve the value portion of a name/value pair from
  *  local table.
- *
- *  Currently on 32-bit values are supported.
- *
- *  Returns the number of characters that matched with an entry.
- *  So if "abc" was an entry and you called match with "abcd", this
- *  function will have the "abc" entry. The return would be 3 since
- *  three characters matched.
- *
- *  @param handle    Handle to the nameserver
- *  @param name      Name in question
- *  @param value     Pointer in which the value is returned
- *
  */
 Int
 NameServer_match (NameServer_Handle handle,
@@ -924,7 +1156,7 @@ NameServer_match (NameServer_Handle handle,
                   UInt32 *          value)
 {
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-    Int         status = NAMESERVER_SUCCESS;
+    Int         status = NameServer_S_SUCCESS;
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
     UInt32      foundLen = 0;
     NameServerDrv_CmdArgs cmdArgs;
@@ -936,33 +1168,40 @@ NameServer_match (NameServer_Handle handle,
     GT_assert (curTrace, (value != NULL));
 
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-    if (name == NULL) {
+    if (NameServer_module->refCount == 0) {
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "NameServer_match",
-                             NAMESERVER_E_INVALIDARG,
+                             NameServer_E_INVALIDSTATE,
+                             "Module is in invalid state!");
+    }
+    else if (name == NULL) {
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "NameServer_match",
+                             NameServer_E_INVALIDARG,
                              "name is null!");
     }
     else if (handle == NULL) {
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "NameServer_match",
-                             NAMESERVER_E_INVALIDARG,
+                             NameServer_E_INVALIDARG,
                              "handle is null!");
     }
     else if (value == NULL) {
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "NameServer_match",
-                             NAMESERVER_E_INVALIDARG,
+                             NameServer_E_INVALIDARG,
                              "value is null!");
     }
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
         cmdArgs.args.match.handle  = handle->knlObject;
         cmdArgs.args.match.name    = name;
-        cmdArgs.args.match.nameLen = String_len(name);
-        cmdArgs.args.match.value   = value;
+        cmdArgs.args.match.nameLen = String_len (name) + 1;
+        cmdArgs.args.match.value   = *value;
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
         status =
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
@@ -981,24 +1220,16 @@ NameServer_match (NameServer_Handle handle,
 
     GT_1trace (curTrace, GT_LEAVE, "NameServer_match", foundLen);
 
-    /*! @retval >0 if the operation was successful */
-    /*! @retval 0  if the operation was not successful */
     return foundLen;
 }
 
 
-/*!
- *  @brief      Function to retrive a NameServer handle from name.
- *
- *  @param      name Instance name.
- *
- *  @sa         NameServer_create
- */
+/* Function to retrive a NameServer handle from name. */
 NameServer_Handle
 NameServer_getHandle (String name)
 {
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-    Int         status = NAMESERVER_SUCCESS;
+    Int         status = NameServer_S_SUCCESS;
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
     NameServer_Handle handle = NULL;
     NameServerDrv_CmdArgs cmdArgs;
@@ -1008,17 +1239,24 @@ NameServer_getHandle (String name)
     GT_assert (curTrace, (name != NULL));
 
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-    if (name == NULL) {
+    if (NameServer_module->refCount == 0) {
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "NameServer_getHandle",
-                             NAMESERVER_E_INVALIDARG,
+                             NameServer_E_INVALIDSTATE,
+                             "Module is in invalid state!");
+    }
+    else if (name == NULL) {
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "NameServer_getHandle",
+                             NameServer_E_INVALIDARG,
                              "name is null!");
     }
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
         cmdArgs.args.getHandle.name    = name;
-        cmdArgs.args.getHandle.nameLen = String_len(name);
+        cmdArgs.args.getHandle.nameLen = String_len (name) + 1;
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
         status =
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
@@ -1039,12 +1277,10 @@ NameServer_getHandle (String name)
                                                    0);
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
             if (handle == NULL) {
-                /*! @retval NULL Memory allocation failed for handle */
-                status = NAMESERVER_E_MEMORY;
                 GT_setFailureReason (curTrace,
                                      GT_4CLASS,
-                                     "NameServer_create",
-                                     status,
+                                     "NameServer_getHandle",
+                                     NameServer_E_MEMORY,
                                      "Memory allocation failed for handle!");
             }
             else {
@@ -1059,63 +1295,69 @@ NameServer_getHandle (String name)
 
     GT_1trace (curTrace, GT_LEAVE, "NameServer_getHandle", handle);
 
-    /*! @retval >0 if the operation was successful */
-    /*! @retval 0  if the operation was not successful */
     return handle;
 }
 
 
-/*!
- *  @brief      Function to register a remote driver for a processor.
- *
- *  @param      handle  Handle to the nameserver remote driver.
- *  @param      procId  Processor identifier.
- *
- *  @sa         NameServer_unregisterRemoteDriver
+/* =============================================================================
+ * Internal functions
+ * =============================================================================
  */
-
-Int
-NameServer_registerRemoteDriver (NameServerRemote_Handle handle,
-                                 UInt16                  procId)
+/* Determines if a remote driver is registered for the specified id. */
+Bool
+NameServer_isRegistered (UInt16 procId)
 {
-    Int status = NAMESERVER_SUCCESS;
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+    Int                   status     = NameServer_S_SUCCESS;
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+    Bool                  registered = FALSE;
+    NameServerDrv_CmdArgs cmdArgs;
 
-    GT_2trace (curTrace,
-               GT_ENTER,
-               "NameServer_registerRemoteDriver",
-               handle,
-               procId);
+    GT_1trace (curTrace, GT_ENTER, "NameServer_isRegistered", procId);
 
+    GT_assert (curTrace, (procId < MultiProc_getNumProcessors ()));
 
-    GT_1trace (curTrace, GT_LEAVE, "NameServer_registerRemoteDriver", status);
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+    if (NameServer_module->refCount == 0) {
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "NameServer_isRegistered",
+                             NameServer_E_INVALIDSTATE,
+                             "Module is in invalid state!");
+    }
+    else if (procId >= MultiProc_getNumProcessors()) {
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "NameServer_isRegistered",
+                             NameServer_E_INVALIDARG,
+                             "Invalid procid!");
+    }
+    else {
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+        cmdArgs.args.isRegistered.procId  = procId;
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+        status =
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+        NameServerDrv_ioctl (CMD_NAMESERVER_ISREGISTERED, &cmdArgs);
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+        if (status < 0) {
+            GT_setFailureReason (curTrace,
+                                 GT_4CLASS,
+                                 "NameServer_isRegistered",
+                                 status,
+                                 "API (through IOCTL) failed on kernel-side!");
+        }
+        else {
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+            registered = cmdArgs.args.isRegistered.check;
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+        }
+    }
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
 
-    /*! @retval NAMESERVER_SUCCESS Operation is successful */
-    return status;
-}
+    GT_1trace (curTrace, GT_LEAVE, "NameServer_isRegistered", registered);
 
-
-/*!
- *  @brief      Function to unregister a remote driver for a processor.
- *
- *  @param      procId  Processor identifier.
- *
- *  @sa         NameServer_unregisterRemoteDriver
- */
-Int
-NameServer_unregisterRemoteDriver (UInt16 procId)
-{
-    Int status = NAMESERVER_SUCCESS;
-
-    GT_1trace (curTrace,
-               GT_ENTER,
-               "NameServer_unregisterRemoteDriver",
-               procId);
-
-
-    GT_1trace (curTrace, GT_LEAVE, "NameServer_unregisterRemoteDriver", status);
-
-    /*! @retval NAMESERVER_SUCCESS Operation is successful */
-    return status;
+    return registered;
 }
 
 

@@ -1,23 +1,41 @@
 /*
- * Syslink-IPC for TI OMAP Processors
+ *  Syslink-IPC for TI OMAP Processors
  *
- * Copyright (C) 2009 Texas Instruments, Inc.
+ *  Copyright (c) 2008-2010, Texas Instruments Incorporated
+ *  All rights reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Lesser General Public License as published
- * by the Free Software Foundation version 2.1 of the License.
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted provided that the following conditions
+ *  are met:
  *
- * This program is distributed .as is. WITHOUT ANY WARRANTY of any kind,
- * whether express or implied; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
+ *  *  Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
+ *
+ *  *  Redistributions in binary form must reproduce the above copyright
+ *     notice, this list of conditions and the following disclaimer in the
+ *     documentation and/or other materials provided with the distribution.
+ *
+ *  *  Neither the name of Texas Instruments Incorporated nor the names of
+ *     its contributors may be used to endorse or promote products derived
+ *     from this software without specific prior written permission.
+ *
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ *  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ *  THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ *  PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ *  CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ *  EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ *  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+ *  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ *  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ *  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ *  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-/*!
- *  @file       NameServerDrv.c
+/*============================================================================
+ *  @file   NameServerDrv.c
  *
- *  @brief      OS-specific implementation of NameServer driver for Linux
- *
- *
+ *  @brief  OS-specific implementation of NameServer driver for Linux
+ *  ============================================================================
  */
 
 
@@ -26,10 +44,11 @@
 
 /* OSAL & Utils headers */
 #include <Trace.h>
+#include <Gate.h>
 
 /* Module specific header files */
-#include <Gate.h>
-#include <NameServer.h>
+#include <ti/ipc/NameServer.h>
+#include <_NameServer.h>
 #include <NameServerDrvDefs.h>
 
 /* Linux specific header files */
@@ -83,7 +102,7 @@ static UInt32 NameServerDrv_refCount = 0;
 Int
 NameServerDrv_open (Void)
 {
-    Int status      = NAMESERVER_SUCCESS;
+    Int status      = NameServer_S_SUCCESS;
     int osStatus    = 0;
 
     GT_0trace (curTrace, GT_ENTER, "NameServerDrv_open");
@@ -92,10 +111,7 @@ NameServerDrv_open (Void)
         NameServerDrv_handle = open (NAMESERVER_DRIVER_NAME, O_SYNC | O_RDWR);
         if (NameServerDrv_handle < 0) {
             perror ("NameServer driver open: ");
-            /*! @retval NAMESERVER_E_OSFAILURE Failed to open NameServer
-             *          driver with OS
-             */
-            status = NAMESERVER_E_OSFAILURE;
+            status = NameServer_E_OSFAILURE;
             GT_setFailureReason (curTrace,
                                  GT_4CLASS,
                                  "NameServerDrv_open",
@@ -105,10 +121,7 @@ NameServerDrv_open (Void)
         else {
             osStatus = fcntl (NameServerDrv_handle, F_SETFD, FD_CLOEXEC);
             if (osStatus != 0) {
-                /*! @retval NAMESERVER_E_OSFAILURE Failed to set file
-                 *          descriptor flags
-                 */
-                status = NAMESERVER_E_OSFAILURE;
+                status = NameServer_E_OSFAILURE;
                 GT_setFailureReason (curTrace,
                                      GT_4CLASS,
                                      "NameServerDrv_open",
@@ -127,7 +140,6 @@ NameServerDrv_open (Void)
 
     GT_1trace (curTrace, GT_LEAVE, "NameServerDrv_open", status);
 
-    /*! @retval NAMESERVER_SUCCESS Operation successfully completed. */
     return status;
 }
 
@@ -140,7 +152,7 @@ NameServerDrv_open (Void)
 Int
 NameServerDrv_close (Void)
 {
-    Int status      = NAMESERVER_SUCCESS;
+    Int status      = NameServer_S_SUCCESS;
     int osStatus    = 0;
 
     GT_0trace (curTrace, GT_ENTER, "NameServerDrv_close");
@@ -151,8 +163,8 @@ NameServerDrv_close (Void)
         osStatus = close (NameServerDrv_handle);
         if (osStatus != 0) {
             perror ("NameServer driver close: ");
-/*! @retval NAMESERVER_E_OSFAILURE Failed to open NameServer driver with OS */
-            status = NAMESERVER_E_OSFAILURE;
+/*! @retval NameServer_E_OSFAILURE Failed to open NameServer driver with OS */
+            status = NameServer_E_OSFAILURE;
             GT_setFailureReason (curTrace,
                                  GT_4CLASS,
                                  "NameServerDrv_close",
@@ -166,7 +178,6 @@ NameServerDrv_close (Void)
 
     GT_1trace (curTrace, GT_LEAVE, "NameServerDrv_close", status);
 
-/*! @retval NAMESERVER_SUCCESS Operation successfully completed. */
     return status;
 }
 
@@ -182,7 +193,7 @@ NameServerDrv_close (Void)
 Int
 NameServerDrv_ioctl (UInt32 cmd, Ptr args)
 {
-    Int status      = NAMESERVER_SUCCESS;
+    Int status      = NameServer_S_SUCCESS;
     int osStatus    = 0;
 
     GT_2trace (curTrace, GT_ENTER, "NameServerDrv_ioctl", cmd, args);
@@ -194,8 +205,7 @@ NameServerDrv_ioctl (UInt32 cmd, Ptr args)
     } while( (osStatus < 0) && (errno == EINTR) );
 
     if (osStatus < 0) {
-    /*! @retval NAMESERVER_E_OSFAILURE Driver ioctl failed */
-        status = NAMESERVER_E_OSFAILURE;
+        status = NameServer_E_OSFAILURE;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "NameServerDrv_ioctl",
@@ -209,10 +219,8 @@ NameServerDrv_ioctl (UInt32 cmd, Ptr args)
 
     GT_1trace (curTrace, GT_LEAVE, "NameServerDrv_ioctl", status);
 
-/*! @retval NAMESERVER_SUCCESS Operation successfully completed. */
     return status;
 }
-
 
 
 #if defined (__cplusplus)

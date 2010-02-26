@@ -1,22 +1,41 @@
 /*
- * Syslink-IPC for TI OMAP Processors
+ *  Syslink-IPC for TI OMAP Processors
  *
- * Copyright (C) 2009 Texas Instruments, Inc.
+ *  Copyright (c) 2008-2010, Texas Instruments Incorporated
+ *  All rights reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Lesser General Public License as published
- * by the Free Software Foundation version 2.1 of the License.
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted provided that the following conditions
+ *  are met:
  *
- * This program is distributed .as is. WITHOUT ANY WARRANTY of any kind,
- * whether express or implied; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
+ *  *  Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
+ *
+ *  *  Redistributions in binary form must reproduce the above copyright
+ *     notice, this list of conditions and the following disclaimer in the
+ *     documentation and/or other materials provided with the distribution.
+ *
+ *  *  Neither the name of Texas Instruments Incorporated nor the names of
+ *     its contributors may be used to endorse or promote products derived
+ *     from this software without specific prior written permission.
+ *
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ *  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ *  THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ *  PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ *  CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ *  EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ *  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+ *  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ *  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ *  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ *  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-/*!
+/** ============================================================================
  *  @file       NameServerDrvDefs.h
  *
  *  @brief      Definitions of NameServerDrv types and structures.
- *
+ *  ============================================================================
  */
 
 
@@ -25,121 +44,148 @@
 
 
 /* Standard headers */
-#include <ipc_ioctl.h>
 #include <Std.h>
 
 /* Utilities headers */
-#include <NameServer.h>
-
+#include <ti/ipc/NameServer.h>
+#include <_NameServer.h>
+#include <IpcCmdBase.h>
 
 #if defined (__cplusplus)
 extern "C" {
 #endif
 
+/* =============================================================================
+ *  Macros and types
+ * =============================================================================
+ */
+#define NAMESERVER_IOC_MAGIC        IPC_IOC_MAGIC
 enum CMD_NAMESERVER {
-	NAMESERVER_SETUP = NAMESERVER_BASE_CMD,
-	NAMESERVER_DESTROY,
-	NAMESERVER_PARAMS_INIT,
-	NAMESERVER_CREATE,
-	NAMESERVER_DELETE,
-	NAMESERVER_ADD,
-	NAMESERVER_ADDUINT32,
-	NAMESERVER_GET,
-	NAMESERVER_GETLOCAL,
-	NAMESERVER_MATCH,
-	NAMESERVER_REMOVE,
-	NAMESERVER_REMOVEENTRY,
-	NAMESERVER_GETHANDLE
+    NAMESERVER_SETUP = NAMESERVER_BASE_CMD,
+    NAMESERVER_DESTROY,
+    NAMESERVER_PARAMS_INIT,
+    NAMESERVER_CREATE,
+    NAMESERVER_DELETE,
+    NAMESERVER_ADD,
+    NAMESERVER_ADDUINT32,
+    NAMESERVER_GET,
+    NAMESERVER_GETLOCAL,
+    NAMESERVER_MATCH,
+    NAMESERVER_REMOVE,
+    NAMESERVER_REMOVEENTRY,
+    NAMESERVER_GETHANDLE,
+    NAMESERVER_ISREGISTERED,
+    NAMESERVER_GETCONFIG
 };
 
-/*
- *  IOCTL command IDs for nameserver
- *
+/*  ----------------------------------------------------------------------------
+ *  IOCTL command IDs for NameServer
+ *  ----------------------------------------------------------------------------
  */
-/*
- *  Command for nameserver_setup
+/*!
+ *  @brief  Command for NameServer_setup
  */
-#define CMD_NAMESERVER_SETUP		_IOWR(IPC_IOC_MAGIC, NAMESERVER_SETUP, \
-					struct NameServerDrv_CmdArgs)
+#define CMD_NAMESERVER_SETUP            _IOWR(NAMESERVER_IOC_MAGIC,            \
+                                        NAMESERVER_SETUP,                      \
+                                        NameServerDrv_CmdArgs)
 
-/*
- *  Command for nameserver_destroy
+/*!
+ *  @brief  Command for NameServer_destroy
  */
-#define CMD_NAMESERVER_DESTROY		_IOWR(IPC_IOC_MAGIC,                   \
-					NAMESERVER_DESTROY,                    \
-					struct NameServerDrv_CmdArgs)
+#define CMD_NAMESERVER_DESTROY          _IOWR(NAMESERVER_IOC_MAGIC,            \
+                                        NAMESERVER_DESTROY,                    \
+                                        NameServerDrv_CmdArgs)
 
-/*
- *  Command for nameserver_params_init
+/*!
+ *  @brief  Command for NameServer_Params_init
  */
-#define CMD_NAMESERVER_PARAMS_INIT	_IOWR(IPC_IOC_MAGIC,		       \
-					NAMESERVER_PARAMS_INIT,		       \
-					struct NameServerDrv_CmdArgs)
+#define CMD_NAMESERVER_PARAMS_INIT      _IOWR(NAMESERVER_IOC_MAGIC,            \
+                                        NAMESERVER_PARAMS_INIT,                \
+                                        NameServerDrv_CmdArgs)
 
-/*
- *  Command for nameserver_create
+/*!
+ *  @brief  Command for NameServer_create
  */
-#define CMD_NAMESERVER_CREATE		_IOWR(IPC_IOC_MAGIC,                   \
-					NAMESERVER_CREATE,                     \
-					struct NameServerDrv_CmdArgs)
+#define CMD_NAMESERVER_CREATE           _IOWR(NAMESERVER_IOC_MAGIC,            \
+                                        NAMESERVER_CREATE,                     \
+                                        NameServerDrv_CmdArgs)
 
-/*
- *  Command for nameserver_delete
+/*!
+ *  @brief  Command for NameServer_delete
  */
-#define CMD_NAMESERVER_DELETE		_IOWR(IPC_IOC_MAGIC,                   \
-					NAMESERVER_DELETE,                     \
-					struct NameServerDrv_CmdArgs)
+#define CMD_NAMESERVER_DELETE           _IOWR(NAMESERVER_IOC_MAGIC,            \
+                                        NAMESERVER_DELETE,                     \
+                                        NameServerDrv_CmdArgs)
 
-/*
- *  Command for nameserver_add
+/*!
+ *  @brief  Command for NameServer_add
  */
-#define CMD_NAMESERVER_ADD		_IOWR(IPC_IOC_MAGIC, NAMESERVER_ADD,   \
-					struct NameServerDrv_CmdArgs)
+#define CMD_NAMESERVER_ADD              _IOWR(NAMESERVER_IOC_MAGIC,            \
+                                        NAMESERVER_ADD,                        \
+                                        NameServerDrv_CmdArgs)
 
-/*
- *  Command for nameserver_addu32
+/*!
+ *  @brief  Command for NameServer_addUInt32
  */
-#define CMD_NAMESERVER_ADDUINT32	_IOWR(IPC_IOC_MAGIC,		       \
-					NAMESERVER_ADDUINT32,		       \
-					struct NameServerDrv_CmdArgs)
-/*
- *  Command for nameserver_get
- */
-#define CMD_NAMESERVER_GET		_IOWR(IPC_IOC_MAGIC, NAMESERVER_GET,   \
-					struct NameServerDrv_CmdArgs)
+#define CMD_NAMESERVER_ADDUINT32        _IOWR(NAMESERVER_IOC_MAGIC,            \
+                                        NAMESERVER_ADDUINT32,                  \
+                                        NameServerDrv_CmdArgs)
 
-/*
- *  Command for nameserver_get_local
+/*!
+ *  @brief  Command for NameServer_get
  */
-#define CMD_NAMESERVER_GETLOCAL		_IOWR(IPC_IOC_MAGIC,		       \
-					NAMESERVER_GETLOCAL,		       \
-					struct NameServerDrv_CmdArgs)
+#define CMD_NAMESERVER_GET              _IOWR(NAMESERVER_IOC_MAGIC,            \
+                                        NAMESERVER_GET,                        \
+                                        NameServerDrv_CmdArgs)
 
-/*
- *  Command for nameserver_match
+/*!
+ *  @brief  Command for NameServer_getLocal
  */
-#define CMD_NAMESERVER_MATCH		_IOWR(IPC_IOC_MAGIC, NAMESERVER_MATCH, \
-					struct NameServerDrv_CmdArgs)
+#define CMD_NAMESERVER_GETLOCAL         _IOWR(NAMESERVER_IOC_MAGIC,            \
+                                        NAMESERVER_GETLOCAL,                   \
+                                        NameServerDrv_CmdArgs)
 
-/*
- *  Command for nameserver_remove
+/*!
+ *  @brief  Command for NameServer_match
  */
-#define CMD_NAMESERVER_REMOVE		_IOWR(IPC_IOC_MAGIC, NAMESERVER_REMOVE,\
-					struct NameServerDrv_CmdArgs)
+#define CMD_NAMESERVER_MATCH            _IOWR(NAMESERVER_IOC_MAGIC,            \
+                                        NAMESERVER_MATCH,                      \
+                                        NameServerDrv_CmdArgs)
 
-/*
- *  Command for nameserver_remove_entry
+/*!
+ *  @brief  Command for NameServer_remove
  */
-#define CMD_NAMESERVER_REMOVEENTRY 	_IOWR(IPC_IOC_MAGIC,		       \
-					NAMESERVER_REMOVEENTRY,		       \
-					struct NameServerDrv_CmdArgs)
+#define CMD_NAMESERVER_REMOVE           _IOWR(NAMESERVER_IOC_MAGIC,            \
+                                        NAMESERVER_REMOVE,                     \
+                                        NameServerDrv_CmdArgs)
 
-/*
- *  Command for nameserver_get_handle
+/*!
+ *  @brief  Command for NameServer_removeEntry
  */
-#define CMD_NAMESERVER_GETHANDLE	_IOWR(IPC_IOC_MAGIC,		       \
-					NAMESERVER_GETHANDLE,		       \
-					struct NameServerDrv_CmdArgs)
+#define CMD_NAMESERVER_REMOVEENTRY     _IOWR(NAMESERVER_IOC_MAGIC,             \
+                                        NAMESERVER_REMOVEENTRY,                \
+                                        NameServerDrv_CmdArgs)
+
+/*!
+ *  @brief  Command for NameServer_getHandle
+ */
+#define CMD_NAMESERVER_GETHANDLE        _IOWR(NAMESERVER_IOC_MAGIC,            \
+                                        NAMESERVER_GETHANDLE,                  \
+                                        NameServerDrv_CmdArgs)
+
+/*!
+ *  @brief  Command for NameServer_isRegistered
+ */
+#define CMD_NAMESERVER_ISREGISTERED     _IOWR(NAMESERVER_IOC_MAGIC,            \
+                                        NAMESERVER_ISREGISTERED,               \
+                                        NameServerDrv_CmdArgs)
+
+/*!
+ *  @brief  Command for NameServer_getConfig
+ */
+#define CMD_NAMESERVER_GETCONFIG        _IOWR(NAMESERVER_IOC_MAGIC,            \
+                                        NAMESERVER_GETCONFIG,                  \
+                                        NameServerDrv_CmdArgs)
 
 
 /*  ----------------------------------------------------------------------------
@@ -149,8 +195,16 @@ enum CMD_NAMESERVER {
 /*!
  *  @brief  Command arguments for NameServer
  */
-typedef struct NameServerDrv_CmdArgs {
+typedef struct NameServerDrv_CmdArgs_tag {
     union {
+        struct {
+            NameServer_Config * config;
+        } getConfig;
+
+        struct {
+            NameServer_Config * config;
+        } setup;
+
         struct {
             NameServer_Params * params;
         } ParamsInit;
@@ -163,18 +217,8 @@ typedef struct NameServerDrv_CmdArgs {
         } create;
 
         struct {
-            NameServer_Object * obj;
-            String              name;
-            NameServer_Params * params;
-        } construct;
-
-        struct {
             NameServer_Handle   handle;
         } delete;
-
-        struct {
-            NameServer_Struct * object;
-        } destruct;
 
         struct {
             NameServer_Handle   handle;
@@ -183,7 +227,7 @@ typedef struct NameServerDrv_CmdArgs {
             Ptr                 buf;
             UInt                len;
             Ptr                 entry;
-            NameServer_Entry *  node;
+            Ptr                 node;
         } add;
 
         struct {
@@ -198,27 +242,25 @@ typedef struct NameServerDrv_CmdArgs {
             NameServer_Handle   handle;
             String              name;
             UInt32              nameLen;
-            Ptr                 buf;
+            Ptr                 value;
             UInt32              len;
-            UInt16 *            procId;
+            UInt16            * procId;
             UInt32              procLen;
-            UInt32              count;
         } get;
 
         struct {
             NameServer_Handle   handle;
             String              name;
             UInt32              nameLen;
-            Ptr                 buf;
+            Ptr                 value;
             UInt32              len;
-            UInt32              count;
         } getLocal;
 
         struct {
             NameServer_Handle   handle;
             String              name;
             UInt32              nameLen;
-            UInt32            * value;
+            UInt32              value;
             UInt32              count;
         } match;
 
@@ -239,6 +281,10 @@ typedef struct NameServerDrv_CmdArgs {
             UInt32              nameLen;
         } getHandle;
 
+        struct {
+            UInt16              procId;
+            Bool                check;
+        } isRegistered;
     } args;
 
     Int32 apiStatus;
