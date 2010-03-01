@@ -27,8 +27,8 @@ include $(PROJROOT)/api/make/start.mk
 # Do not change above "include" line(s)
 
 # Arguments to tools, will move to make system once finalized.
-
 CFLAGS         = -DSYSLINK_USE_SYSMGR
+#CFLAGS        =
 CDEFS          = ARM_TARGET
 ifeq ($(BUILD),udeb)
 CDEFS          += DEBUG 
@@ -47,6 +47,7 @@ SH_LIB_ARGS    =
 # executable            (EXEC)  : filename.out
 
 TARGETNAME  = libprocmgr
+#TARGETNAME  = libprocmgr_nonsysmgr
 
 
 # TARGETTYPE must be EXEC, ST_LIB or SH_LIB in upper case.
@@ -62,6 +63,7 @@ ROOTFSRELEASE = lib
 # For shared object library, soname is filename.so.maj_ver
 
 SH_SONAME = libprocmgr.so.2
+#SH_SONAME = libprocmgr_nonsysmgr.so.2
 
 # Folders in which gmake will run before building current target
 
@@ -87,7 +89,6 @@ elfload/elf32.c \
 elfload/symtab.c
 
 
-
 # Search path for include files
 
 INCLUDES    = \
@@ -99,6 +100,7 @@ INCLUDES    = \
 
 #SH_LIBS        = pthread utils
 SH_LIBS        = utils sysmgr
+#SH_LIBS        = utils
 ST_LIBS        = gcc
 
 # Search path for library (and linker command) files.
@@ -108,6 +110,8 @@ LIBINCLUDES += \
 	  $(PROJROOT)/api/src/utils \
 	  $(PROJROOT)/api/src/sysmgr
 	
+#LIBINCLUDES += \
+#    $(PROJROOT)/api/src/utils
 
 
 # Do not change below "include" line(s)
