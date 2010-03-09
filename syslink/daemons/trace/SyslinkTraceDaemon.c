@@ -28,6 +28,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <pthread.h>
+#include <semaphore.h>
 
 /* OSAL & Utils headers */
 #include <OsalPrint.h>
@@ -49,8 +50,9 @@ extern "C" {
 
 #define TIMEOUT_SECS                    1
 
+sem_t semPrint;    /* Semaphore to allow only one thread to print at once */
 
-// pull char from queue
+/* pull char from queue */
 Void printSysM3Traces (Void *arg)
 {
     Int             status              = 0;
@@ -80,6 +82,7 @@ Void printSysM3Traces (Void *arg)
            sleep (TIMEOUT_SECS);
         } while (*readPointer == *writePointer);
 
+        sem_wait(&semPrint);    /* Acquire exclusive access to printing */
         if ( *readPointer < *writePointer ) {
             numOfBytesInBuffer = (*writePointer) - (*readPointer);
         } else {
@@ -99,6 +102,8 @@ Void printSysM3Traces (Void *arg)
 
             (*readPointer)++;
         }
+        sem_post(&semPrint);    /* Release exclusive access to printing */
+
     } while(1);
 
     Osal_printf ("Leaving printSysM3Traces thread function \n");
@@ -106,7 +111,7 @@ Void printSysM3Traces (Void *arg)
 }
 
 
-// pull char from queue
+/* pull char from queue */
 Void printAppM3Traces (Void *arg)
 {
     Int             status              = 0;
@@ -136,6 +141,7 @@ Void printAppM3Traces (Void *arg)
            sleep (TIMEOUT_SECS);
         } while (*readPointer == *writePointer);
 
+        sem_wait(&semPrint);    /* Acquire exclusive access to printing */
         if ( *readPointer < *writePointer ) {
             numOfBytesInBuffer = *writePointer - *readPointer;
         } else {
@@ -155,6 +161,8 @@ Void printAppM3Traces (Void *arg)
 
             (*readPointer)++;
         }
+        sem_post(&semPrint);    /* Release exclusive access to printing */
+
     } while(1);
 
     Osal_printf ("Leaving printAppM3Traces thread function \n");
@@ -200,6 +208,8 @@ Int main (Int argc, Char * argv [])
         exit (EXIT_FAILURE);     /* Failure */
     }
 
+    sem_init(&semPrint, 0, 1);
+
     pthread_create (&thread_sys, NULL, (Void *)&printSysM3Traces,
                     NULL);
     pthread_create (&thread_app, NULL, (Void *)&printAppM3Traces,
@@ -209,6 +219,8 @@ Int main (Int argc, Char * argv [])
     Osal_printf ("SysM3 trace thread exited\n");
     pthread_join (thread_app, NULL);
     Osal_printf ("AppM3 trace thread exited\n");
+
+    sem_destroy(&semPrint);
 
     return 0;
 }
