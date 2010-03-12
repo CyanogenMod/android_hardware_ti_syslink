@@ -307,6 +307,7 @@ _NotifyDrvUsr_eventWorker (Void * arg)
 
     GT_1trace (curTrace, GT_ENTER, "_NotifyDrvUsr_eventWorker", arg);
 
+#if defined(__linux)
     if (sigfillset (&blockSet) != 0) {
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
@@ -325,6 +326,7 @@ _NotifyDrvUsr_eventWorker (Void * arg)
                              "Event worker thread error in setting sigmask!");
         return;
     }
+#endif /* defined(__linux) */
 
     while (status >= 0) {
         memset (&packet, 0, sizeof (NotifyDrv_EventPacket));
