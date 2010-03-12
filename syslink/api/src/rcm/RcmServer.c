@@ -675,6 +675,9 @@ Int RcmServer_start(RcmServer_Handle handle)
 
     /* signal the run synchronizer, unblocks the server thread */
     retval = OsalSemaphore_post(handle->run);
+#if !defined(__linux)
+    retval = OsalSemaphore_post(handle->run); /* signal once more for Android */
+#endif
     if (retval < 0) {
         status = RCMSERVER_EINVALIDSTATE;
         GT_setFailureReason (curTrace,
