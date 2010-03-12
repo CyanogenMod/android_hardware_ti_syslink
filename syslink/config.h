@@ -29,13 +29,13 @@
 extern "C" {
 #endif
 
-
+#if defined (__linux)
 /*!
  * @def   HAVE_POSIX_MEMALIGN
  * @brief Use Posix Memory Aligned API
  */
 #define HAVE_POSIX_MEMALIGN            1
-
+#endif /* defined (__linux) */
 
 #if defined (__cplusplus)
 }
