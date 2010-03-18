@@ -1,16 +1,35 @@
 /*
- * Syslink-IPC for TI OMAP Processors
+ *  Syslink-IPC for TI OMAP Processors
  *
- * Copyright (C) 2009 Texas Instruments, Inc.
+ *  Copyright (c) 2008-2010, Texas Instruments Incorporated
+ *  All rights reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Lesser General Public License as published
- * by the Free Software Foundation version 2.1 of the License.
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted provided that the following conditions
+ *  are met:
  *
- * This program is distributed .as is. WITHOUT ANY WARRANTY of any kind,
- * whether express or implied; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
+ *  *  Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
+ *
+ *  *  Redistributions in binary form must reproduce the above copyright
+ *     notice, this list of conditions and the following disclaimer in the
+ *     documentation and/or other materials provided with the distribution.
+ *
+ *  *  Neither the name of Texas Instruments Incorporated nor the names of
+ *     its contributors may be used to endorse or promote products derived
+ *     from this software without specific prior written permission.
+ *
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ *  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ *  THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ *  PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ *  CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ *  EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ *  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+ *  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ *  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ *  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ *  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*============================================================================
  *  @file       NotifyDrvUsr.c
@@ -106,7 +125,7 @@ Void _NotifyDrvUsr_eventWorker (Void * arg);
 Int
 NotifyDrvUsr_open (Bool createThread)
 {
-    Int    status   = NOTIFY_SUCCESS;
+    Int    status   = Notify_S_SUCCESS;
     int    osStatus = 0;
     UInt32 pid;
 
@@ -119,9 +138,9 @@ NotifyDrvUsr_open (Bool createThread)
         NotifyDrvUsr_handle = open (NOTIFY_DRIVER_NAME, O_SYNC | O_RDWR);
         if (NotifyDrvUsr_handle < 0) {
             perror ("Notify driver open: " NOTIFY_DRIVER_NAME);
-            /*! @retval NOTIFY_E_OSFAILURE Failed to open Notify driver with
+            /*! @retval Notify_E_OSFAILURE Failed to open Notify driver with
                         OS */
-            status = NOTIFY_E_OSFAILURE;
+            status = Notify_E_OSFAILURE;
             GT_setFailureReason (curTrace,
                                  GT_4CLASS,
                                  "NotifyDrvUsr_open",
@@ -131,9 +150,9 @@ NotifyDrvUsr_open (Bool createThread)
         else {
             osStatus = fcntl (NotifyDrvUsr_handle, F_SETFD, FD_CLOEXEC);
             if (osStatus != 0) {
-                /*! @retval NOTIFY_E_OSFAILURE Failed to set file descriptor
+                /*! @retval Notify_E_OSFAILURE Failed to set file descriptor
                                                 flags */
-                status = NOTIFY_E_OSFAILURE;
+                status = Notify_E_OSFAILURE;
                 GT_setFailureReason (curTrace,
                                      GT_4CLASS,
                                      "NotifyDrvUsr_open",
@@ -143,7 +162,7 @@ NotifyDrvUsr_open (Bool createThread)
             else {
                 if (createThread == TRUE) {
                     pid = getpid ();
-                    status = NotifyDrvUsr_ioctl (CMD_NOTIFY_ATTACH, &pid);
+                    status = NotifyDrvUsr_ioctl (CMD_NOTIFY_THREADATTACH, &pid);
                     if (status < 0) {
                         GT_setFailureReason (curTrace,
                                              GT_4CLASS,
@@ -159,9 +178,9 @@ NotifyDrvUsr_open (Bool createThread)
                                         (Ptr) _NotifyDrvUsr_eventWorker,
                                         NULL);
                         if (NotifyDrv_workerThread == (UInt32) NULL) {
-                            /*! @retval NOTIFY_E_OSFAILURE Failed to create
+                            /*! @retval Notify_E_OSFAILURE Failed to create
                                                            Notify thread */
-                            status = NOTIFY_E_OSFAILURE;
+                            status = Notify_E_OSFAILURE;
                             GT_setFailureReason (curTrace,
                                                  GT_4CLASS,
                                                  "NotifyDrvUsr_open",
@@ -181,7 +200,7 @@ NotifyDrvUsr_open (Bool createThread)
 
     GT_1trace (curTrace, GT_LEAVE, "NotifyDrvUsr_open", status);
 
-    /*! @retval NOTIFY_SUCCESS Operation successfully completed. */
+    /*! @retval Notify_S_SUCCESS Operation successfully completed. */
     return status;
 }
 
@@ -196,7 +215,7 @@ NotifyDrvUsr_open (Bool createThread)
 Int
 NotifyDrvUsr_close (Bool deleteThread)
 {
-    Int    status      = NOTIFY_SUCCESS;
+    Int    status      = Notify_S_SUCCESS;
     int    osStatus    = 0;
     UInt32 pid;
 
@@ -206,7 +225,7 @@ NotifyDrvUsr_close (Bool deleteThread)
     if (NotifyDrvUsr_refCount == 1) {
         if (deleteThread == TRUE) {
             pid = getpid ();
-            status = NotifyDrvUsr_ioctl (CMD_NOTIFY_DETACH, &pid);
+            status = NotifyDrvUsr_ioctl (CMD_NOTIFY_THREADDETACH, &pid);
             if (status < 0) {
                 GT_setFailureReason (curTrace,
                                      GT_4CLASS,
@@ -222,9 +241,9 @@ NotifyDrvUsr_close (Bool deleteThread)
         osStatus = close (NotifyDrvUsr_handle);
         if (osStatus != 0) {
             perror ("Notify driver close: " NOTIFY_DRIVER_NAME);
-            /*! @retval NOTIFY_E_OSFAILURE Failed to open Notify driver with
-                        OS */
-            status = NOTIFY_E_OSFAILURE;
+            /*! @retval Notify_E_OSFAILURE Failed to open Notify driver with
+                                            OS */
+            status = Notify_E_OSFAILURE;
             GT_setFailureReason (curTrace,
                                  GT_4CLASS,
                                  "NotifyDrvUsr_close",
@@ -241,7 +260,7 @@ NotifyDrvUsr_close (Bool deleteThread)
 
     GT_1trace (curTrace, GT_LEAVE, "NotifyDrvUsr_close", status);
 
-    /*! @retval NOTIFY_SUCCESS Operation successfully completed. */
+    /*! @retval Notify_S_SUCCESS Operation successfully completed. */
     return status;
 }
 
@@ -257,7 +276,7 @@ NotifyDrvUsr_close (Bool deleteThread)
 Int
 NotifyDrvUsr_ioctl (UInt32 cmd, Ptr args)
 {
-    Int status      = NOTIFY_SUCCESS;
+    Int status      = Notify_S_SUCCESS;
     int osStatus    = 0;
 
     GT_2trace (curTrace, GT_ENTER, "NotifyDrvUsr_ioctl", cmd, args);
@@ -266,8 +285,8 @@ NotifyDrvUsr_ioctl (UInt32 cmd, Ptr args)
 
     osStatus = ioctl (NotifyDrvUsr_handle, cmd, args);
     if (osStatus < 0) {
-        /*! @retval NOTIFY_E_OSFAILURE Driver ioctl failed */
-        status = NOTIFY_E_OSFAILURE;
+        /*! @retval Notify_E_OSFAILURE Driver ioctl failed */
+        status = Notify_E_OSFAILURE;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "NotifyDrvUsr_ioctl",
@@ -281,7 +300,7 @@ NotifyDrvUsr_ioctl (UInt32 cmd, Ptr args)
     status = ((Notify_CmdArgs *) args)->apiStatus;
     GT_1trace (curTrace, GT_LEAVE, "NotifyDrvUsr_ioctl", status);
 
-    /*! @retval NOTIFY_SUCCESS Operation successfully completed. */
+    /*! @retval Notify_S_SUCCESS Operation successfully completed. */
     return status;
 }
 
@@ -300,7 +319,7 @@ NotifyDrvUsr_ioctl (UInt32 cmd, Ptr args)
 Void
 _NotifyDrvUsr_eventWorker (Void * arg)
 {
-    Int32                 status = NOTIFY_SUCCESS;
+    Int32                 status = Notify_S_SUCCESS;
     UInt32                nRead  = 0;
     NotifyDrv_EventPacket packet;
     sigset_t              blockSet;
@@ -309,21 +328,13 @@ _NotifyDrvUsr_eventWorker (Void * arg)
 
 #if defined(__linux)
     if (sigfillset (&blockSet) != 0) {
-        GT_setFailureReason (curTrace,
-                             GT_4CLASS,
-                             "_NotifyDrvUsr_eventWorker",
-                             NOTIFY_E_OSFAILURE,
-                             "Event worker thread error in sigfillset!");
+        perror ("Event worker thread error in sigfillset");
         return;
         
     }
 
     if (pthread_sigmask (SIG_BLOCK, &blockSet, NULL) != 0) {
-        GT_setFailureReason (curTrace,
-                             GT_4CLASS,
-                             "_NotifyDrvUsr_eventWorker",
-                             NOTIFY_E_OSFAILURE,
-                             "Event worker thread error in setting sigmask!");
+        perror ("Event worker thread error in setting sigmask");
         return;
     }
 #endif /* defined(__linux) */
@@ -334,7 +345,7 @@ _NotifyDrvUsr_eventWorker (Void * arg)
         nRead = read (NotifyDrvUsr_handle,
                       &packet,
                       sizeof (NotifyDrv_EventPacket));
-        if (0 == nRead) {
+        if (0 == nRead || nRead == sizeof (NotifyDrv_EventPacket)) {
             /* check for termination packet */
             if (packet.isExit  == TRUE) {
                 return;
@@ -342,7 +353,8 @@ _NotifyDrvUsr_eventWorker (Void * arg)
 
             if (packet.func != NULL) {
                 packet.func (packet.procId,
-                             packet.eventNo,
+                             packet.lineId,
+                             packet.eventId,
                              packet.param,
                              packet.data);
             }

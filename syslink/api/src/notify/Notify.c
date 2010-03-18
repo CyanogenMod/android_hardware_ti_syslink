@@ -1,18 +1,37 @@
 /*
- * Syslink-IPC for TI OMAP Processors
+ *  Syslink-IPC for TI OMAP Processors
  *
- * Copyright (C) 2009 Texas Instruments, Inc.
+ *  Copyright (c) 2008-2010, Texas Instruments Incorporated
+ *  All rights reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Lesser General Public License as published
- * by the Free Software Foundation version 2.1 of the License.
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted provided that the following conditions
+ *  are met:
  *
- * This program is distributed .as is. WITHOUT ANY WARRANTY of any kind,
- * whether express or implied; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
+ *  *  Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
+ *
+ *  *  Redistributions in binary form must reproduce the above copyright
+ *     notice, this list of conditions and the following disclaimer in the
+ *     documentation and/or other materials provided with the distribution.
+ *
+ *  *  Neither the name of Texas Instruments Incorporated nor the names of
+ *     its contributors may be used to endorse or promote products derived
+ *     from this software without specific prior written permission.
+ *
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ *  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ *  THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ *  PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ *  CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ *  EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ *  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+ *  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ *  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ *  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ *  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-/*============================================================================
+/*==============================================================================
  *  @file   Notify.c
  *
  *  @brief      User side Notify Manager
@@ -24,14 +43,21 @@
 /* Standard headers*/
 #include <Std.h>
 
+/* TBD: this should be removed as getpid should made as osal */
+#include <unistd.h>
+
 /* Osal headers*/
 #include <Trace.h>
+#include <MemoryDefs.h>
+#include <Memory.h>
 
 /* Notify Headers */
-#include <Notify.h>
+#include <ti/ipc/Notify.h>
+#include <_Notify.h>
 #include <_NotifyDefs.h>
 #include <NotifyDrvDefs.h>
 #include <NotifyDrvUsr.h>
+#include <ti/ipc/MultiProc.h>
 
 
 #if defined (__cplusplus)
@@ -47,9 +73,11 @@ extern "C" {
  *  @brief  Notify Module state object
  */
 typedef struct Notify_ModuleObject_tag {
-    UInt32      setupRefCount;
+    UInt32             setupRefCount;
     /*!< Reference count for number of times setup/destroy were called in this
          process. */
+    Notify_Config      cfg;
+    /*!< Notify configuration structure */
 } Notify_ModuleObject;
 
 
@@ -95,7 +123,7 @@ Void
 Notify_getConfig (Notify_Config * cfg)
 {
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-    Int                         status = NOTIFY_SUCCESS;
+    Int                         status = Notify_S_SUCCESS;
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
     Notify_CmdArgsGetConfig    cmdArgs;
 
@@ -108,7 +136,7 @@ Notify_getConfig (Notify_Config * cfg)
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "Notify_getConfig",
-                             NOTIFY_E_INVALIDARG,
+                             Notify_E_INVALIDARG,
                              "Argument of type (Notify_Config *) passed "
                              "is null!");
     }
@@ -144,6 +172,11 @@ Notify_getConfig (Notify_Config * cfg)
             }
         }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+
+        Memory_copy (&Notify_state.cfg,
+                     cfg,
+                     sizeof (Notify_Config));
+
         /* Close the driver handle. */
         NotifyDrvUsr_close (FALSE);
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
@@ -174,10 +207,10 @@ Notify_getConfig (Notify_Config * cfg)
  *
  *  @sa         Notify_destroy, NotifyDrvUsr_open, NotifyDrvUsr_ioctl
  */
-Int32
+Int
 Notify_setup (Notify_Config * cfg)
 {
-    Int                 status = NOTIFY_SUCCESS;
+    Int                 status = Notify_S_SUCCESS;
     Notify_CmdArgsSetup cmdArgs;
 
     GT_1trace (curTrace, GT_ENTER, "Notify_setup", cfg);
@@ -186,9 +219,9 @@ Notify_setup (Notify_Config * cfg)
     Notify_state.setupRefCount++;
     /* This is needed at runtime so should not be in SYSLINK_BUILD_OPTIMIZE. */
     if (Notify_state.setupRefCount > 1) {
-        /*! @retval NOTIFY_S_ALREADYSETUP Success: Notify module has been
+        /*! @retval Notify_S_ALREADYSETUP Success: Notify module has been
                                            already setup in this process */
-        status = NOTIFY_S_ALREADYSETUP;
+        status = Notify_S_ALREADYSETUP;
         GT_1trace (curTrace,
                    GT_1CLASS,
                    "    Notify_setup: Notify module has been already setup "
@@ -225,7 +258,7 @@ Notify_setup (Notify_Config * cfg)
 
     GT_1trace (curTrace, GT_LEAVE, "Notify_setup", status);
 
-    /*! @retval NOTIFY_SUCCESS Operation successful */
+    /*! @retval Notify_S_SUCCESS Operation successful */
     return (status);
 }
 
@@ -239,10 +272,10 @@ Notify_setup (Notify_Config * cfg)
  *
  *  @sa         Notify_setup, NotifyDrvUsr_ioctl, NotifyDrvUsr_close
  */
-Int32
+Int
 Notify_destroy (Void)
 {
-    Int                    status = NOTIFY_SUCCESS;
+    Int                    status = Notify_S_SUCCESS;
     Notify_CmdArgsDestroy  cmdArgs;
 
     GT_0trace (curTrace, GT_ENTER, "Notify_destroy");
@@ -251,9 +284,9 @@ Notify_destroy (Void)
     Notify_state.setupRefCount--;
     /* This is needed at runtime so should not be in SYSLINK_BUILD_OPTIMIZE. */
     if (Notify_state.setupRefCount >= 1) {
-        /*! @retval NOTIFY_S_SETUP Success: Notify module has been setup
+        /*! @retval Notify_S_ALREADYSETUP Success: Notify module has been setup
                                              by other clients in this process */
-        status = NOTIFY_S_SETUP;
+        status = Notify_S_ALREADYSETUP;
         GT_1trace (curTrace,
                    GT_1CLASS,
                    "Notify module has been setup by other clients in this"
@@ -279,7 +312,302 @@ Notify_destroy (Void)
 
     GT_1trace (curTrace, GT_LEAVE, "Notify_destroy", status);
 
-    /*! @retval NOTIFY_SUCCESS Operation successful */
+    /*! @retval Notify_S_SUCCESS Operation successful */
+    return (status);
+}
+
+
+/*!
+ *  @brief      Creates notify drivers and registers them with Notify
+ *
+ *  @param      procId       Processor Id
+ *  @param      sharedAddr   Shared address
+ *
+ *  @sa         Notify_setup, NotifyDrvUsr_ioctl, NotifyDrvUsr_close
+ */
+Int
+Notify_attach (UInt16 procId, Ptr sharedAddr)
+{
+    Int                    status = Notify_S_SUCCESS;
+    Notify_CmdArgsAttach   cmdArgs;
+
+    GT_2trace (curTrace, GT_ENTER, "Notify_attach", procId, sharedAddr);
+
+    GT_assert (curTrace, (Notify_state.setupRefCount > 0));
+    GT_assert (curTrace, (procId < MultiProc_getNumProcessors()));
+    GT_assert (curTrace, (sharedAddr != NULL));
+
+    cmdArgs.procId     = procId;
+    /* using v2p mappping knl shoul map p2v again */
+    cmdArgs.sharedAddr = Memory_translate (sharedAddr,
+                                           Memory_XltFlags_Virt2Phys);
+    status = NotifyDrvUsr_ioctl (CMD_NOTIFY_ATTACH, &cmdArgs);
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+        if (status < 0) {
+            GT_setFailureReason (curTrace,
+                                 GT_4CLASS,
+                                 "Notify_attach",
+                                 status,
+                                 "API (through IOCTL) failed on kernel-side!");
+        }
+    GT_1trace (curTrace, GT_LEAVE, "Notify_attach", status);
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+
+    /*! @retval Notify_S_SUCCESS Operation successful */
+    return (status);
+}
+
+
+/*!
+ *  @brief      Destroy the Notify module.
+ *
+ *  @param      procId       Processor Id
+ *  @param      sharedAddr   Shared address
+ *
+ *  @sa         Notify_setup, NotifyDrvUsr_ioctl, NotifyDrvUsr_close
+ */
+Int
+Notify_detach (UInt16 procId)
+{
+    Int                    status = Notify_S_SUCCESS;
+    Notify_CmdArgsDetach   cmdArgs;
+
+    GT_0trace (curTrace, GT_ENTER, "Notify_detach");
+
+    GT_assert (curTrace, (Notify_state.setupRefCount > 0));
+
+    cmdArgs.procId = procId;
+    status = NotifyDrvUsr_ioctl (CMD_NOTIFY_DETACH, &cmdArgs);
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+    if (status < 0) {
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "Notify_detach",
+                             status,
+                             "API (through IOCTL) failed on kernel-side!");
+    }
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+
+    GT_1trace (curTrace, GT_LEAVE, "Notify_detach", status);
+
+    return (status);
+}
+
+
+/*!
+ *  @brief      Returns the amount of shared memory used by one Notify instance.
+ *
+ *  @param      procId       Processor Id
+ *  @param      sharedAddr   Shared address
+ *
+ */
+SizeT
+Notify_sharedMemReq(UInt16 procId,
+                    Ptr    sharedAddr)
+{
+    Int                          status = Notify_S_SUCCESS;
+    Notify_CmdArgsSharedMemReq   cmdArgs;
+    SizeT                        size;
+
+    GT_2trace (curTrace, GT_ENTER, "Notify_sharedMemReq", procId, sharedAddr);
+
+    GT_assert (curTrace, (Notify_state.setupRefCount > 0));
+    GT_assert (curTrace, (procId < MultiProc_getNumProcessors()));
+    GT_assert (curTrace, (sharedAddr != NULL));
+
+    cmdArgs.procId     = procId;
+    /* using v2p mappping knl shoul map p2v again */
+    cmdArgs.sharedAddr = Memory_translate (sharedAddr,
+                                           Memory_XltFlags_Virt2Phys);
+    status = NotifyDrvUsr_ioctl (CMD_NOTIFY_SHAREDMEMREQ, &cmdArgs);
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+    if (status < 0) {
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "Notify_sharedMemReq",
+                             status,
+                             "API (through IOCTL) failed on kernel-side!");
+    }
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+    size = cmdArgs.sharedMemSize;
+
+    GT_1trace (curTrace, GT_LEAVE, "Notify_sharedMemReq", size);
+    /*! @retval Notify_S_SUCCESS Operation successful */
+    return (size);
+}
+
+
+/*!
+ *  @brief     Whether notification via interrupt line has been registered.
+ *
+ *  @param      procId       Processor Id
+ *  @param      lineId       Interrupt line Id
+ *
+ */
+Bool
+Notify_isRegistered(UInt16 procId, UInt16 lineId)
+{
+    Int                          status = Notify_S_SUCCESS;
+    Notify_CmdArgsIsRegistered   cmdArgs;
+    Bool                         isRegistered = FALSE;
+
+    GT_2trace (curTrace, GT_ENTER, "Notify_isRegistered", procId, lineId);
+
+    GT_assert (curTrace, (Notify_state.setupRefCount > 0));
+    GT_assert (curTrace, (procId < MultiProc_getNumProcessors ()));
+    GT_assert (curTrace, (lineId < Notify_MAX_INTLINES));
+
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+    if (procId >= MultiProc_getNumProcessors ()) {
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "Notify_intLineRegistered",
+                             Notify_E_INVALIDARG,
+                             "Invalid procId argument provided");
+    }
+    else if (lineId >= Notify_MAX_INTLINES) {
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "Notify_intLineRegistered",
+                             Notify_E_INVALIDARG,
+                             "Invalid lineId argument provided");
+    }
+    else {
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+        cmdArgs.procId = procId;
+        cmdArgs.lineId = lineId;
+        status = NotifyDrvUsr_ioctl (CMD_NOTIFY_ISREGISTERED, &cmdArgs);
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+        if (status < 0) {
+            GT_setFailureReason (curTrace,
+                                 GT_4CLASS,
+                                 "Notify_isRegistered",
+                                 status,
+                                 "API (through IOCTL) failed on kernel-side!");
+        }
+        else {
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+            isRegistered = cmdArgs.isRegistered;
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+        }
+    }
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+
+    GT_1trace (curTrace, GT_LEAVE, "Notify_isRegistered", isRegistered);
+
+    return (isRegistered);
+}
+
+
+/*!
+ *  @brief      This function registers a callback to a specific event number,
+ *              processor id and interrupt line. When the event is received by
+ *              the specified processor, the callback is called.
+ *
+ *  @param      procId       Processor Id
+ *  @param      lineId       Interrupt line Id
+ *  @param      eventId      Event number to be unregistered
+ *  @param      fnNotifyCbck Callback function to be registered
+ *  @param      cbckArg      Argument to callback function
+ *
+ *  @sa         Notify_unregisterEventSingle
+ */
+Int
+Notify_registerEventSingle(UInt16              procId,
+                           UInt16              lineId,
+                           UInt32              eventId,
+                           Notify_FnNotifyCbck fnNotifyCbck,
+                           UArg                cbckArg)
+
+{
+    Int32                       status          = Notify_S_SUCCESS;
+    UInt32                      strippedEventId = (eventId & Notify_EVENT_MASK);
+    Notify_CmdArgsRegisterEvent cmdArgs;
+
+    GT_5trace (curTrace, GT_ENTER, "Notify_registerEventSingle",
+               procId, lineId, eventId, fnNotifyCbck, cbckArg);
+
+    GT_assert (curTrace, (procId < MultiProc_getNumProcessors ()));
+    GT_assert (curTrace, (lineId < Notify_MAX_INTLINES));
+    GT_assert (curTrace, (fnNotifyCbck != NULL));
+    /* cbckArg is optional and may be NULL. */
+    GT_assert (curTrace, (strippedEventId < (Notify_state.cfg.numEvents)));
+    GT_assert (curTrace, \
+                        (ISRESERVED(eventId, Notify_state.cfg.reservedEvents)));
+
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+    if (procId >= MultiProc_getNumProcessors ()) {
+        /*! @retval  Notify_E_INVALIDARG Invalid procId argument
+                                         provided. */
+        status = Notify_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "Notify_registerEventSingle",
+                             status,
+                             "Invalid procId argument provided");
+    }
+    else if (lineId >= Notify_MAX_INTLINES) {
+        /*! @retval  Notify_E_INVALIDARG Invalid lineId argument
+                                         provided. */
+        status = Notify_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "Notify_registerEventSingle",
+                             status,
+                             "Invalid lineId argument provided");
+    }
+    else if (fnNotifyCbck == NULL) {
+        /*! @retval  Notify_E_INVALIDARG Invalid NULL fnNotifyCbck argument
+                                         provided. */
+        status = Notify_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "Notify_registerEventSingle",
+                             status,
+                             "Invalid NULL fnNotifyCbck provided.");
+    }
+    else if (strippedEventId >= (Notify_state.cfg.numEvents)) {
+        /*! @retval  Notify_E_EVTNOTREGISTERED Invalid eventId specified. */
+        status = Notify_E_EVTNOTREGISTERED;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "Notify_registerEventSingle",
+                             status,
+                             "Invalid eventId specified.");
+    }
+    else if (!ISRESERVED(eventId, Notify_state.cfg.reservedEvents)) {
+        /*! @retval  Notify_E_EVTRESERVED Invalid usage of reserved event
+                                            number. */
+        status = Notify_E_EVTRESERVED;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "Notify_registerEventSingle",
+                             status,
+                             "Invalid usage of reserved event number");
+    }
+    else {
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+        cmdArgs.procId       = procId;
+        cmdArgs.lineId       = lineId;
+        cmdArgs.eventId      = eventId;
+        cmdArgs.fnNotifyCbck = fnNotifyCbck;
+        cmdArgs.cbckArg      = cbckArg;
+        cmdArgs.pid          = getpid ();
+        status = NotifyDrvUsr_ioctl (CMD_NOTIFY_REGISTEREVENTSINGLE, &cmdArgs);
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+        if (status < 0) {
+            GT_setFailureReason (curTrace,
+                                 GT_4CLASS,
+                                 "Notify_registerEventSingle",
+                                 status,
+                                 "API (through IOCTL) failed on kernel-side!");
+        }
+    }
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+
+    GT_1trace (curTrace, GT_LEAVE, "Notify_registerEventSingle", status);
+
+    /*! @retval Notify_S_SUCCESS Operation successful */
     return (status);
 }
 
@@ -289,57 +617,91 @@ Notify_destroy (Void)
  *
  *  @param      handle       Handle to the Notify Driver
  *  @param      procId       Processor Id
- *  @param      eventNo      Event number to be registered
- *  @param      cbckFxn      Callback function to be registered
+ *  @param      eventId      Event number to be registered
+ *  @param      fnNotifyCbck Callback function to be registered
  *  @param      cbckArg      Optional call back argument
  *
  *  @sa         Notify_unregisterEvent
  */
-Int32
-Notify_registerEvent (NotifyDriver_Handle drvHandle,
-                      UInt16              procId,
-                      UInt32              eventNo,
-                      Notify_CallbackFxn  cbckFxn,
-                      Void *              cbckArg)
+Int
+Notify_registerEvent (UInt16              procId,
+                      UInt16              lineId,
+                      UInt32              eventId,
+                      Notify_FnNotifyCbck fnNotifyCbck,
+                      UArg                cbckArg)
 {
-    Int32                   status          = NOTIFY_SUCCESS;
-    Notify_CommonObject *   notifyDrvHandle = (Notify_CommonObject *) drvHandle;
-    Notify_CmdArgsRegisterEvent  cmdArgs;
+    Int32                       status          = Notify_S_SUCCESS;
+    UInt32                      strippedEventId = (eventId & Notify_EVENT_MASK);
+    Notify_CmdArgsRegisterEvent cmdArgs;
 
     GT_5trace (curTrace, GT_ENTER, "Notify_registerEvent",
-               drvHandle, procId, eventNo, cbckFxn, cbckArg);
+               procId, lineId, eventId, fnNotifyCbck, cbckArg);
 
     GT_assert (curTrace, (Notify_state.setupRefCount > 0));
-    GT_assert (curTrace, (drvHandle != NULL));
-    GT_assert (curTrace, (cbckFxn != NULL));
+    GT_assert (curTrace, (procId < MultiProc_getNumProcessors ()));
+    GT_assert (curTrace, (lineId < Notify_MAX_INTLINES));
+    GT_assert (curTrace, (fnNotifyCbck != NULL));
     /* cbckArg is optional and may be NULL. */
+    GT_assert (curTrace, (strippedEventId < (Notify_state.cfg.numEvents)));
+    GT_assert (curTrace, \
+                        (ISRESERVED(eventId, Notify_state.cfg.reservedEvents)));
 
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-    if (drvHandle == NULL) {
-        status = NOTIFY_E_HANDLE;
-        /*! @retval  NOTIFY_E_HANDLE Invalid NULL drvHandle provided. */
-        GT_setFailureReason (curTrace,
-                             GT_4CLASS,
-                             "Notify_registerEvent",
-                             status,
-                             "Invalid NULL drvHandle provided.");
-    }
-    else if (cbckFxn == NULL) {
-        /*! @retval  NOTIFY_E_INVALIDARG Invalid NULL cbckFxn argument
+    if (procId >= MultiProc_getNumProcessors ()) {
+        /*! @retval  Notify_E_INVALIDARG Invalid procId argument
                                          provided. */
-        status = NOTIFY_E_INVALIDARG;
+        status = Notify_E_INVALIDARG;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "Notify_registerEvent",
                              status,
-                             "Invalid NULL cbckFxn provided.");
+                             "Invalid procId argument provided");
+    }
+    else if (lineId >= Notify_MAX_INTLINES) {
+        /*! @retval  Notify_E_INVALIDARG Invalid lineId argument
+                                         provided. */
+        status = Notify_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "Notify_registerEvent",
+                             status,
+                             "Invalid lineId argument provided");
+    }
+    else if (fnNotifyCbck == NULL) {
+        /*! @retval  Notify_E_INVALIDARG Invalid NULL fnNotifyCbck argument
+                                         provided. */
+        status = Notify_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "Notify_registerEvent",
+                             status,
+                             "Invalid NULL fnNotifyCbck provided.");
+    }
+    else if (strippedEventId >= (Notify_state.cfg.numEvents)) {
+        /*! @retval  Notify_E_EVTNOTREGISTERED Invalid eventId specified. */
+        status = Notify_E_EVTNOTREGISTERED;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "Notify_registerEvent",
+                             status,
+                             "Invalid eventId specified.");
+    }
+    else if (!ISRESERVED(eventId, Notify_state.cfg.reservedEvents)) {
+        /*! @retval  Notify_E_EVTRESERVED Invalid usage of reserved event
+                                            number. */
+        status = Notify_E_EVTRESERVED;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "Notify_registerEvent",
+                             status,
+                             "Invalid usage of reserved event number");
     }
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-        cmdArgs.handle = notifyDrvHandle->knlObject;
         cmdArgs.procId = procId;
-        cmdArgs.eventNo = eventNo;
-        cmdArgs.fnNotifyCbck = cbckFxn;
+        cmdArgs.lineId       = lineId;
+        cmdArgs.eventId      = eventId;
+        cmdArgs.fnNotifyCbck = fnNotifyCbck;
         cmdArgs.cbckArg = cbckArg;
         cmdArgs.pid = getpid ();
         status = NotifyDrvUsr_ioctl (CMD_NOTIFY_REGISTEREVENT, &cmdArgs);
@@ -356,7 +718,102 @@ Notify_registerEvent (NotifyDriver_Handle drvHandle,
 
     GT_1trace (curTrace, GT_LEAVE, "Notify_registerEvent", status);
 
-    /*! @retval NOTIFY_SUCCESS Operation successful */
+    /*! @retval Notify_S_SUCCESS Operation successful */
+    return (status);
+}
+
+
+/*!
+ *  @brief      This function removes a previously registered callback
+ *              with the driverHandle. The procId, lineId, and eventId must
+ *              exactly match the registered one.
+ *
+ *  @param      procId       Processor Id
+ *  @param      lineId       Interrupt line Id
+ *  @param      eventId      Event number to be unregistered
+ *
+ *  @sa         Notify_registerEventSingle
+ */
+Int
+Notify_unregisterEventSingle(UInt16 procId,
+                             UInt16 lineId,
+                             UInt32 eventId)
+{
+    Int32                         status          = Notify_S_SUCCESS;
+    UInt32                      strippedEventId = (eventId & Notify_EVENT_MASK);
+    Notify_CmdArgsUnregisterEvent cmdArgs;
+
+    GT_3trace (curTrace, GT_ENTER, "Notify_unregisterEventSingle",
+               procId, lineId, eventId);
+
+    GT_assert (curTrace, (procId < MultiProc_getNumProcessors ()));
+    GT_assert (curTrace, (lineId < Notify_MAX_INTLINES));
+    /* cbckArg is optional and may be NULL. */
+    GT_assert (curTrace, (strippedEventId < (Notify_state.cfg.numEvents)));
+    GT_assert (curTrace, \
+                        (ISRESERVED(eventId, Notify_state.cfg.reservedEvents)));
+
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+    if (procId >= MultiProc_getNumProcessors ()) {
+        /*! @retval  Notify_E_INVALIDARG Invalid procId argument
+                                         provided. */
+        status = Notify_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "Notify_unregisterEventSingle",
+                             status,
+                             "Invalid procId argument provided");
+    }
+    else if (lineId >= Notify_MAX_INTLINES) {
+        /*! @retval  Notify_E_INVALIDARG Invalid lineId argument
+                                         provided. */
+        status = Notify_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "Notify_unregisterEventSingle",
+                             status,
+                             "Invalid lineId argument provided");
+    }
+    else if (strippedEventId >= (Notify_state.cfg.numEvents)) {
+        /*! @retval  Notify_E_EVTNOTREGISTERED Invalid eventId specified. */
+        status = Notify_E_EVTNOTREGISTERED;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "Notify_unregisterEventSingle",
+                             status,
+                             "Invalid eventId specified.");
+    }
+    else if (!ISRESERVED(eventId, Notify_state.cfg.reservedEvents)) {
+        /*! @retval  Notify_E_EVTRESERVED Invalid usage of reserved event
+                                            number. */
+        status = Notify_E_EVTRESERVED;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "Notify_unregisterEventSingle",
+                             status,
+                             "Invalid usage of reserved event number");
+    }
+    else {
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+        cmdArgs.procId  = procId;
+        cmdArgs.lineId  = lineId;
+        cmdArgs.eventId = eventId;
+        cmdArgs.pid     = getpid();
+        status = NotifyDrvUsr_ioctl (CMD_NOTIFY_UNREGISTEREVENTSINGLE, &cmdArgs);
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+        if (status < 0) {
+            GT_setFailureReason (curTrace,
+                                 GT_4CLASS,
+                                 "Notify_unregisterEventSingle",
+                                 status,
+                                 "API (through IOCTL) failed on kernel-side!");
+        }
+    }
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+
+    GT_1trace (curTrace, GT_LEAVE, "Notify_unregisterEventSingle", status);
+
+    /*! @retval Notify_S_SUCCESS Operation successful */
     return (status);
 }
 
@@ -367,59 +824,93 @@ Notify_registerEvent (NotifyDriver_Handle drvHandle,
  *
  *  @param      handle       Handle to the Notify Driver
  *  @param      procId       Processor Id
- *  @param      eventNo      Event number to be unregistered
- *  @param      cbckFxn      Callback function to be unregistered
+ *  @param      eventId      Event number to be unregistered
+ *  @param      fnNotifyCbck Callback function to be unregistered
  *  @param      cbckArg      Optional call back argument
  *
  *  @sa         Notify_registerEvent
  */
-Int32
-Notify_unregisterEvent (NotifyDriver_Handle drvHandle,
-                        UInt16              procId,
-                        UInt32              eventNo,
-                        Notify_CallbackFxn  cbckFxn,
-                        Void *              cbckArg)
+Int
+Notify_unregisterEvent (UInt16              procId,
+                        UInt16              lineId,
+                        UInt32              eventId,
+                        Notify_FnNotifyCbck fnNotifyCbck,
+                        UArg                cbckArg)
 {
-    Int32                   status          = NOTIFY_SUCCESS;
-    Notify_CommonObject *   notifyDrvHandle = (Notify_CommonObject *) drvHandle;
-    Notify_CmdArgsUnregisterEvent  cmdArgs;
+    Int32                         status          = Notify_S_SUCCESS;
+    UInt32                      strippedEventId = (eventId & Notify_EVENT_MASK);
+    Notify_CmdArgsUnregisterEvent cmdArgs;
 
     GT_5trace (curTrace, GT_ENTER, "Notify_unregisterEvent",
-               drvHandle, procId, eventNo, cbckFxn, cbckArg);
+               procId, lineId, eventId, fnNotifyCbck, cbckArg);
 
     GT_assert (curTrace, (Notify_state.setupRefCount > 0));
-    GT_assert (curTrace, (drvHandle != NULL));
-    GT_assert (curTrace, (cbckFxn != NULL));
+    GT_assert (curTrace, (procId < MultiProc_getNumProcessors ()));
+    GT_assert (curTrace, (lineId < Notify_MAX_INTLINES));
+    GT_assert (curTrace, (fnNotifyCbck != NULL));
     /* cbckArg is optional and may be NULL. */
+    GT_assert (curTrace, (strippedEventId < (Notify_state.cfg.numEvents)));
+    GT_assert (curTrace, \
+                        (ISRESERVED(eventId, Notify_state.cfg.reservedEvents)));
 
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-    if (drvHandle == NULL) {
-        status = NOTIFY_E_HANDLE;
-        /*! @retval  NOTIFY_E_HANDLE Invalid NULL drvHandle provided. */
-        GT_setFailureReason (curTrace,
-                             GT_4CLASS,
-                             "Notify_unregisterEvent",
-                             status,
-                             "Invalid NULL drvHandle provided.");
-    }
-    else if (cbckFxn == NULL) {
-        /*! @retval  NOTIFY_E_INVALIDARG Invalid NULL cbckFxn argument
+    if (procId >= MultiProc_getNumProcessors ()) {
+        /*! @retval  Notify_E_INVALIDARG Invalid procId argument
                                          provided. */
-        status = NOTIFY_E_INVALIDARG;
+        status = Notify_E_INVALIDARG;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "Notify_unregisterEvent",
                              status,
-                             "Invalid NULL cbckFxn provided.");
+                             "Invalid procId argument provided");
+    }
+    else if (lineId >= Notify_MAX_INTLINES) {
+        /*! @retval  Notify_E_INVALIDARG Invalid lineId argument
+                                         provided. */
+        status = Notify_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "Notify_unregisterEvent",
+                             status,
+                             "Invalid lineId argument provided");
+    }
+    else if (fnNotifyCbck == NULL) {
+        /*! @retval  Notify_E_INVALIDARG Invalid NULL fnNotifyCbck argument
+                                         provided. */
+        status = Notify_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "Notify_unregisterEvent",
+                             status,
+                             "Invalid NULL fnNotifyCbck provided.");
+    }
+    else if (strippedEventId >= (Notify_state.cfg.numEvents)) {
+        /*! @retval  Notify_E_EVTNOTREGISTERED Invalid eventId specified. */
+        status = Notify_E_EVTNOTREGISTERED;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "Notify_unregisterEvent",
+                             status,
+                             "Invalid eventId specified.");
+    }
+    else if (!ISRESERVED(eventId, Notify_state.cfg.reservedEvents)) {
+        /*! @retval  Notify_E_EVTRESERVED Invalid usage of reserved event
+                                            number. */
+        status = Notify_E_EVTRESERVED;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "Notify_unregisterEvent",
+                             status,
+                             "Invalid usage of reserved event number");
     }
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-        cmdArgs.handle = notifyDrvHandle->knlObject;
-        cmdArgs.procId = procId;
-        cmdArgs.eventNo = eventNo;
-        cmdArgs.fnNotifyCbck = cbckFxn;
-        cmdArgs.cbckArg = cbckArg;
-        cmdArgs.pid = getpid ();
+        cmdArgs.procId       = procId;
+        cmdArgs.lineId       = lineId;
+        cmdArgs.eventId      = eventId;
+        cmdArgs.fnNotifyCbck = fnNotifyCbck;
+        cmdArgs.cbckArg      = cbckArg;
+        cmdArgs.pid          = getpid ();
         status = NotifyDrvUsr_ioctl (CMD_NOTIFY_UNREGISTEREVENT, &cmdArgs);
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
         if (status < 0) {
@@ -434,7 +925,7 @@ Notify_unregisterEvent (NotifyDriver_Handle drvHandle,
 
     GT_1trace (curTrace, GT_LEAVE, "Notify_unregisterEvent", status);
 
-    /*! @retval NOTIFY_SUCCESS Operation successful */
+    /*! @retval Notify_S_SUCCESS Operation successful */
     return (status);
 }
 
@@ -444,51 +935,89 @@ Notify_unregisterEvent (NotifyDriver_Handle drvHandle,
  *
  *  @param      handle      Handle to the Notify Driver
  *  @param      procId      Processor Id
- *  @param      eventNo     Event number to be sent.
+ *  @param      eventId     Event number to be sent.
  *  @param      payload     Payload to be sent alongwith the event.
  *  @param      waitClear   Indicates whether Notify driver will wait for
  *                          previous event to be cleared. If payload needs to
  *                          be sent across, this must be TRUE.
  *  @sa
  */
-Int32
-Notify_sendEvent (NotifyDriver_Handle drvHandle,
-                  UInt16              procId,
-                  UInt32              eventNo,
+Int
+Notify_sendEvent (UInt16              procId,
+                  UInt16              lineId,
+                  UInt32              eventId,
                   UInt32              payload,
                   Bool                waitClear)
 {
 
-    Int32                   status          = NOTIFY_SUCCESS;
-    Notify_CommonObject *   notifyDrvHandle = (Notify_CommonObject *) drvHandle;
+    Int32                   status          = Notify_S_SUCCESS;
+    UInt32                  strippedEventId = (eventId & Notify_EVENT_MASK);
     Notify_CmdArgsSendEvent cmdArgs;
 
     GT_5trace (curTrace, GT_ENTER, "Notify_sendEvent",
-               drvHandle, procId, eventNo, payload, waitClear);
+               procId, lineId, eventId, payload, waitClear);
 
     GT_assert (curTrace, (Notify_state.setupRefCount > 0));
-    GT_assert (curTrace, (drvHandle != NULL));
+    GT_assert (curTrace, (procId < MultiProc_getNumProcessors ()));
+    GT_assert (curTrace, (lineId < Notify_MAX_INTLINES));
+    GT_assert (curTrace, (strippedEventId < (Notify_state.cfg.numEvents)));
+    GT_assert (curTrace, \
+                        (ISRESERVED(eventId, Notify_state.cfg.reservedEvents)));
 
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-    if (drvHandle == NULL) {
-        status = NOTIFY_E_HANDLE;
-        /*! @retval  NOTIFY_E_HANDLE Invalid NULL drvHandle provided. */
+    if (procId >= MultiProc_getNumProcessors ()) {
+        /*! @retval  Notify_E_INVALIDARG Invalid procId argument
+                                         provided. */
+        status = Notify_E_INVALIDARG;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "Notify_sendEvent",
                              status,
-                             "Invalid NULL drvHandle provided.");
+                             "Invalid procId argument provided");
+    }
+    else if (lineId >= Notify_MAX_INTLINES) {
+        /*! @retval  Notify_E_INVALIDARG Invalid lineId argument
+                                         provided. */
+        status = Notify_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "Notify_sendEvent",
+                             status,
+                             "Invalid lineId argument provided");
+    }
+    else if (strippedEventId >= (Notify_state.cfg.numEvents)) {
+        /*! @retval  Notify_E_EVTNOTREGISTERED Invalid eventId specified. */
+        status = Notify_E_EVTNOTREGISTERED;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "Notify_sendEvent",
+                             status,
+                             "Invalid eventId specified.");
+    }
+    else if (!ISRESERVED(eventId, Notify_state.cfg.reservedEvents)) {
+        /*! @retval  Notify_E_EVTRESERVED Invalid usage of reserved event
+                                            number. */
+        status = Notify_E_EVTRESERVED;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "Notify_sendEvent",
+                             status,
+                             "Invalid usage of reserved event number");
     }
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-        cmdArgs.handle = notifyDrvHandle->knlObject;
         cmdArgs.procId = procId;
-        cmdArgs.eventNo = eventNo;
+        cmdArgs.lineId    = lineId;
+        cmdArgs.eventId   = eventId;
         cmdArgs.payload = payload;
         cmdArgs.waitClear = waitClear;
         status = NotifyDrvUsr_ioctl (CMD_NOTIFY_SENDEVENT, &cmdArgs);
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-        if (status < 0) {
+        /* Notify_E_NOTINITIALIZED and Notify_E_EVTNOTREGISTERED are run-time
+         * failures.
+         */
+        if (   (status < 0)
+            && (status != Notify_E_EVTNOTREGISTERED)) {
             GT_setFailureReason (curTrace,
                                  GT_4CLASS,
                                  "Notify_sendEvent",
@@ -500,7 +1029,7 @@ Notify_sendEvent (NotifyDriver_Handle drvHandle,
 
     GT_1trace (curTrace, GT_LEAVE, "Notify_sendEvent", status);
 
-    /*! @retval NOTIFY_SUCCESS Operation successful */
+    /*! @retval Notify_S_SUCCESS Operation successful */
     return (status);
 }
 
@@ -517,31 +1046,55 @@ Notify_sendEvent (NotifyDriver_Handle drvHandle,
  *
  *  @sa         Notify_restore
  */
-UInt32
-Notify_disable (UInt16 procId)
+UInt
+Notify_disable (UInt16 procId,
+                UInt16 lineId)
 {
-    Int32                   status = NOTIFY_SUCCESS;
+    Int32                   status = Notify_S_SUCCESS;
     UInt32                  key    = 0;
     Notify_CmdArgsDisable   cmdArgs;
 
-    GT_1trace (curTrace, GT_ENTER, "Notify_disable", procId);
+    GT_2trace (curTrace, GT_ENTER, "Notify_disable", procId, lineId);
 
     GT_assert (curTrace, (Notify_state.setupRefCount > 0));
+    GT_assert (curTrace, (procId < MultiProc_getNumProcessors ()));
+    GT_assert (curTrace, (lineId < Notify_MAX_INTLINES));
 
-    cmdArgs.procId = procId;
-    status = NotifyDrvUsr_ioctl (CMD_NOTIFY_DISABLE, &cmdArgs);
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-    if (status < 0) {
+    if (procId >= MultiProc_getNumProcessors ()) {
+        /* No retVal since this function does not return status. */
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "Notify_disable",
-                             status,
-                             "API (through IOCTL) failed on kernel-side!");
+                             Notify_E_INVALIDARG,
+                             "Invalid procId argument provided");
+    }
+    else if (lineId >= Notify_MAX_INTLINES) {
+        /* No retVal since this function does not return status. */
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "Notify_disable",
+                             Notify_E_INVALIDARG,
+                             "Invalid lineId argument provided");
     }
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-        key = cmdArgs.flags;
+        cmdArgs.procId = procId;
+        cmdArgs.lineId = lineId;
+        status = NotifyDrvUsr_ioctl (CMD_NOTIFY_DISABLE, &cmdArgs);
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
+        if (status < 0) {
+            GT_setFailureReason (curTrace,
+                                 GT_4CLASS,
+                                 "Notify_disable",
+                                 status,
+                                 "API (through IOCTL) failed on kernel-side!");
+        }
+        else {
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+            key = cmdArgs.flags;
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+        }
     }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
 
@@ -567,25 +1120,50 @@ Notify_disable (UInt16 procId)
  *  @sa         Notify_disable
  */
 Void
-Notify_restore (UInt32 key, UInt16 procId)
+Notify_restore (UInt16 procId,
+                UInt16 lineId,
+                UInt   key)
 {
-    Int32                   status = NOTIFY_SUCCESS;
+    Int32                   status = Notify_S_SUCCESS;
     Notify_CmdArgsRestore   cmdArgs;
 
-    GT_2trace (curTrace, GT_ENTER, "Notify_restore", key, procId);
+    GT_3trace (curTrace, GT_ENTER, "Notify_restore", procId, lineId, key);
 
     GT_assert (curTrace, (Notify_state.setupRefCount > 0));
+    GT_assert (curTrace, (procId < MultiProc_getNumProcessors ()));
+    GT_assert (curTrace, (lineId < Notify_MAX_INTLINES));
 
-    cmdArgs.key = key;
-    cmdArgs.procId = procId;
-    status = NotifyDrvUsr_ioctl (CMD_NOTIFY_RESTORE, &cmdArgs);
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-    if (status < 0) {
+    if (procId >= MultiProc_getNumProcessors ()) {
+        /* No retVal since this function does not return status. */
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "Notify_restore",
-                             status,
-                             "API (through IOCTL) failed on kernel-side!");
+                             Notify_E_INVALIDARG,
+                             "Invalid procId argument provided");
+    }
+    else if (lineId >= Notify_MAX_INTLINES) {
+        /* No retVal since this function does not return status. */
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "Notify_restore",
+                             Notify_E_INVALIDARG,
+                             "Invalid lineId argument provided");
+    }
+    else {
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+        cmdArgs.key = key;
+        cmdArgs.procId = procId;
+        cmdArgs.lineId = lineId;
+        status = NotifyDrvUsr_ioctl (CMD_NOTIFY_RESTORE, &cmdArgs);
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+        if (status < 0) {
+            GT_setFailureReason (curTrace,
+                                 GT_4CLASS,
+                                 "Notify_restore",
+                                 status,
+                                 "API (through IOCTL) failed on kernel-side!");
+        }
     }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
 
@@ -601,40 +1179,67 @@ Notify_restore (UInt32 key, UInt16 procId)
  *
  *  @param      handle    Handle to the Notify Driver
  *  @param      procId    Processor Id
- *  @param      eventNo   Event number to be disabled
+ *  @param      eventId   Event number to be disabled
  *
  *  @sa         Notify_enableEvent
  */
 Void
-Notify_disableEvent (NotifyDriver_Handle drvHandle,
-                     UInt16              procId,
-                     UInt32              eventNo)
+Notify_disableEvent (UInt16              procId,
+                     UInt16              lineId,
+                     UInt32              eventId)
 {
-    Int32                   status          = NOTIFY_SUCCESS;
-    Notify_CommonObject *   notifyDrvHandle = (Notify_CommonObject *) drvHandle;
+    Int32                      status      = Notify_S_SUCCESS;
+    UInt32                     strippedEventId = (eventId & Notify_EVENT_MASK);
     Notify_CmdArgsDisableEvent cmdArgs;
 
     GT_3trace (curTrace, GT_ENTER, "Notify_disableEvent",
-               drvHandle, procId, eventNo);
+               procId, lineId, eventId);
 
     GT_assert (curTrace, (Notify_state.setupRefCount > 0));
-    GT_assert (curTrace, (drvHandle != NULL));
+    GT_assert (curTrace, (procId < MultiProc_getNumProcessors ()));
+    GT_assert (curTrace, (lineId < Notify_MAX_INTLINES));
+    GT_assert (curTrace, (strippedEventId < (Notify_state.cfg.numEvents)));
+    GT_assert (curTrace, \
+                        (ISRESERVED(eventId, Notify_state.cfg.reservedEvents)));
 
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-    if (drvHandle == NULL) {
-        status = NOTIFY_E_HANDLE;
-        /*! @retval  NOTIFY_E_HANDLE Invalid NULL drvHandle provided. */
+    if (procId >= MultiProc_getNumProcessors ()) {
+        /*  No retVal since function is Void */
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "Notify_disableEvent",
-                             status,
-                             "Invalid NULL drvHandle provided.");
+                             Notify_E_INVALIDARG,
+                             "Invalid procId argument provided");
+    }
+    else if (lineId >= Notify_MAX_INTLINES) {
+        /*  No retVal since function is Void */
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "Notify_disableEvent",
+                             Notify_E_INVALIDARG,
+                             "Invalid lineId argument provided");
+    }
+    else if (strippedEventId >= (Notify_state.cfg.numEvents)) {
+        /*  No retVal since function is Void */
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "Notify_disableEvent",
+                             Notify_E_EVTNOTREGISTERED,
+                             "Invalid eventId specified.");
+    }
+    else if (!ISRESERVED(eventId, Notify_state.cfg.reservedEvents)) {
+        /*  No retVal since function is Void */
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "Notify_disableEvent",
+                             curTrace,
+                             "Invalid usage of reserved event number");
     }
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-        cmdArgs.handle = notifyDrvHandle->knlObject;
-        cmdArgs.procId = procId;
-        cmdArgs.eventNo = eventNo;
+        cmdArgs.procId  = procId;
+        cmdArgs.lineId  = lineId;
+        cmdArgs.eventId = eventId;
         status = NotifyDrvUsr_ioctl (CMD_NOTIFY_DISABLEEVENT, &cmdArgs);
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
         if (status < 0) {
@@ -658,40 +1263,67 @@ Notify_disableEvent (NotifyDriver_Handle drvHandle,
  *
  *  @param      handle    Handle to the Notify Driver
  *  @param      procId    Processor Id
- *  @param      eventNo   Event number to be enabled
+ *  @param      eventId   Event number to be enabled
  *
  *  @sa         Notify_disableEvent
  */
 Void
-Notify_enableEvent (NotifyDriver_Handle drvHandle,
-                    UInt16              procId,
-                    UInt32              eventNo)
+Notify_enableEvent (UInt16              procId,
+                    UInt16              lineId,
+                    UInt32              eventId)
 {
-    Int32                   status          = NOTIFY_SUCCESS;
-    Notify_CommonObject *   notifyDrvHandle = (Notify_CommonObject *) drvHandle;
+    Int32                     status          = Notify_S_SUCCESS;
+    UInt32                    strippedEventId = (eventId & Notify_EVENT_MASK);
     Notify_CmdArgsEnableEvent cmdArgs;
 
     GT_3trace (curTrace, GT_ENTER, "Notify_enableEvent",
-               drvHandle, procId, eventNo);
+               procId, lineId, eventId);
 
     GT_assert (curTrace, (Notify_state.setupRefCount > 0));
-    GT_assert (curTrace, (drvHandle != NULL));
+    GT_assert (curTrace, (procId < MultiProc_getNumProcessors ()));
+    GT_assert (curTrace, (lineId < Notify_MAX_INTLINES));
+    GT_assert (curTrace, (strippedEventId < (Notify_state.cfg.numEvents)));
+    GT_assert (curTrace, \
+                        (ISRESERVED(eventId, Notify_state.cfg.reservedEvents)));
 
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-    if (drvHandle == NULL) {
-        status = NOTIFY_E_HANDLE;
-        /*! @retval  NOTIFY_E_HANDLE Invalid NULL drvHandle provided. */
+    if (procId >= MultiProc_getNumProcessors ()) {
+        /*  No retVal since function is Void */
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
-                             "Notify_disableEvent",
-                             status,
-                             "Invalid NULL drvHandle provided.");
+                             "Notify_enableEvent",
+                             Notify_E_INVALIDARG,
+                             "Invalid procId argument provided");
+    }
+    else if (lineId >= Notify_MAX_INTLINES) {
+        /*  No retVal since function is Void */
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "Notify_enableEvent",
+                             Notify_E_INVALIDARG,
+                             "Invalid lineId argument provided");
+    }
+    else if (strippedEventId >= (Notify_state.cfg.numEvents)) {
+        /*  No retVal since function is Void */
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "Notify_enableEvent",
+                             Notify_E_EVTNOTREGISTERED,
+                             "Invalid eventId specified.");
+    }
+    else if (!ISRESERVED(eventId, Notify_state.cfg.reservedEvents)) {
+        /*  No retVal since function is Void */
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "Notify_enableEvent",
+                             curTrace,
+                             "Invalid usage of reserved event number");
     }
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-        cmdArgs.handle = notifyDrvHandle->knlObject;
-        cmdArgs.procId = procId;
-        cmdArgs.eventNo = eventNo;
+        cmdArgs.procId  = procId;
+        cmdArgs.lineId  = lineId;
+        cmdArgs.eventId = eventId;
         status = NotifyDrvUsr_ioctl (CMD_NOTIFY_ENABLEEVENT, &cmdArgs);
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
         if (status < 0) {
