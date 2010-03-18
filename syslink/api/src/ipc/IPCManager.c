@@ -1,16 +1,35 @@
 /*
- * Syslink-IPC for TI OMAP Processors
+ *  Syslink-IPC for TI OMAP Processors
  *
- * Copyright (C) 2009 Texas Instruments, Inc.
+ *  Copyright (c) 2008-2010, Texas Instruments Incorporated
+ *  All rights reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Lesser General Public License as published
- * by the Free Software Foundation version 2.1 of the License.
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted provided that the following conditions
+ *  are met:
  *
- * This program is distributed .as is. WITHOUT ANY WARRANTY of any kind,
- * whether express or implied; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
+ *  *  Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
+ *
+ *  *  Redistributions in binary form must reproduce the above copyright
+ *     notice, this list of conditions and the following disclaimer in the
+ *     documentation and/or other materials provided with the distribution.
+ *
+ *  *  Neither the name of Texas Instruments Incorporated nor the names of
+ *     its contributors may be used to endorse or promote products derived
+ *     from this software without specific prior written permission.
+ *
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ *  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ *  THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ *  PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ *  CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ *  EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ *  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+ *  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ *  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ *  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ *  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /** ============================================================================
  *  @file   IPCManager.c
@@ -25,29 +44,29 @@
 #include <Std.h>
 #include <Trace.h>
 
-#include <MultiProc.h>
+#include <ti/ipc/MultiProc.h>
 #include <MultiProcDrvDefs.h>
-#include <NameServer.h>
+#include <ti/ipc/NameServer.h>
 #include <NameServerDrvDefs.h>
-#include <SharedRegion.h>
+#include <ti/ipc/SharedRegion.h>
 #include <SharedRegionDrvDefs.h>
-#include <NameServerRemoteNotify.h>
-#include <NameServerRemoteNotifyDrvDefs.h>
-#include <GatePeterson.h>
-#include <HeapBuf.h>
-#include <MessageQ.h>
-#include <MessageQTransportShm.h>
-#include <ListMPSharedMemory.h>
-#include <GatePetersonDrvDefs.h>
-#include <HeapBufDrvDefs.h>
+#include <ti/ipc/GateMP.h>
+#include <GateMPDrvDefs.h>
+#include <ti/ipc/HeapBufMP.h>
+#include <HeapBufMPDrvDefs.h>
+#include <ti/ipc/HeapMemMP.h>
+#include <HeapMemMPDrvDefs.h>
+#include <ti/ipc/MessageQ.h>
 #include <MessageQDrvDefs.h>
-#include <MessageQTransportShmDrvDefs.h>
-#include <ListMPSharedMemoryDrvDefs.h>
-#include <GateHWSpinLockDrvDefs.h>
-#include <SysMgr.h>
-#include <SysMgrDrvDefs.h>
+#include <ti/ipc/ListMP.h>
+#include <ListMPDrvDefs.h>
+#include <ti/ipc/Ipc.h>
+#include <IpcUsr.h>
+#include <IpcDrvDefs.h>
+/*
 #include <SysMemMgr.h>
 #include <SysMemMgrDrvDefs.h>
+*/
 
 #define IPC_SOK   0
 #define IPC_EFAIL -1
@@ -59,17 +78,15 @@
 
 enum IPC_MODULES_ID {
     SHAREDREGION = 0,
-    GATEPETERSON,
-    HEAPBUF,
+    HEAPMEMMP,
+    GATEMP,
+    HEAPBUFMP,
     NAMESERVER,
     MESSAGEQ,
-    MESSAGEQTRANSPORTSHM,
-    LISTMPSHAREDMEMORY,
-    NAMESERVERREMOTENOTIFY,
+    LISTMP,
     MULTIPROC,
-    SYSMGR,
+    IPC,
     SYSMEMMGR,
-    GATEHWSPINLOCK,
     MAX_IPC_MODULES
 };
 struct name_id_table {
@@ -80,17 +97,15 @@ struct name_id_table {
 
 struct name_id_table name_id_table[MAX_IPC_MODULES] = {
     { "/dev/syslinkipc/SharedRegion", SHAREDREGION, 0 },
-    { "/dev/syslinkipc/GatePeterson", GATEPETERSON,  0},
-    { "/dev/syslinkipc/HeapBuf", HEAPBUF, 0},
+    { "/dev/syslinkipc/HeapMemMP", HEAPMEMMP, 0},
+    { "/dev/syslinkipc/GateMP", GATEMP, 0},
+    { "/dev/syslinkipc/HeapBufMP", HEAPBUFMP, 0},
     { "/dev/syslinkipc/NameServer", NAMESERVER, 0},
     { "/dev/syslinkipc/MessageQ", MESSAGEQ, 0},
-    { "/dev/syslinkipc/MessageQTransportShm", MESSAGEQTRANSPORTSHM, 0},
-    { "/dev/syslinkipc/ListMPSharedMemory", LISTMPSHAREDMEMORY, 0},
-    { "/dev/syslinkipc/NameServerRemoteNotify", NAMESERVERREMOTENOTIFY, 0},
+    { "/dev/syslinkipc/ListMP", LISTMP, 0},
     { "/dev/syslinkipc/MultiProc", MULTIPROC, 0},
-    { "/dev/syslinkipc/SysMgr", SYSMGR, 0},
+    { "/dev/syslinkipc/Ipc", IPC, 0},
     { "/dev/syslinkipc/SysMemMgr", SYSMEMMGR, 0},
-    { "/dev/syslinkipc/GateHWSpinLock", GATEHWSPINLOCK, 0}
 };
 
 /*  ----------------------------------- Globals */
@@ -100,163 +115,195 @@ static sem_t            semOpenClose;
 static bool             ipc_sem_initialized = false;
 
 
-Int getHeapBufStatus(Int apiStatus)
+Int getHeapBufMPStatus(Int apiStatus)
 {
-    Int status = HEAPBUF_E_OSFAILURE;
+    Int status = HeapBufMP_E_OSFAILURE;
 
     GT_1trace (curTrace, GT_2CLASS,
-        "IPCMGR-getHeapBufStatus: apiStatus=0x%x\n", apiStatus);
+        "IPCMGR-getHeapBufMPStatus: apiStatus=0x%x\n", apiStatus);
 
     switch(apiStatus) {
         case 0:
-            status = HEAPBUF_SUCCESS;
+            status = HeapBufMP_S_SUCCESS;
+            break;
+
+        case -EFAULT:
+            status = HeapBufMP_E_FAIL;
             break;
 
         case -EINVAL:
-            status = HEAPBUF_E_INVALIDARG;
+            status = HeapBufMP_E_INVALIDARG;
             break;
 
         case -ENOMEM:
-            status = HEAPBUF_E_MEMORY;
+            status = HeapBufMP_E_MEMORY;
             break;
 
         case -ENOENT:
-            status = HEAPBUF_E_NOTFOUND;
+            status = HeapBufMP_E_NOTFOUND;
             break;
 
         case -ENODEV:
-            status = HEAPBUF_E_INVALIDSTATE;
-            break;
-
-        case -EPERM:
-            status = HEAPBUF_E_NOTONWER;
-            break;
-
-        case -EBUSY:
-            status = HEAPBUF_E_INUSE;
+            status = HeapBufMP_E_INVALIDSTATE;
             break;
 
         case -EEXIST:
         case 1:
-            status = HEAPBUF_S_ALREADYSETUP;
+            status = HeapBufMP_S_ALREADYSETUP;
+            break;
+
+        case 2:
+            status = HeapBufMP_S_BUSY;
             break;
 
         default:
-            status = HEAPBUF_E_FAIL;
-            /* status =  HEAPBUF_E_OSFAILURE */
+            status = HeapBufMP_E_FAIL;
             break;
         }
 
         GT_1trace (curTrace, GT_2CLASS,
-            "IPCMGR-getHeapBufStatus: status=0x%x\n", status);
+            "IPCMGR-getHeapBufMPStatus: status=0x%x\n", status);
+        return status;
+}
+
+Int getHeapMemMPStatus(Int apiStatus)
+{
+    Int status = HeapMemMP_E_OSFAILURE;
+
+    GT_1trace (curTrace, GT_2CLASS,
+        "IPCMGR-getHeapMemMPStatus: apiStatus=0x%x\n", apiStatus);
+
+    switch(apiStatus) {
+        case 0:
+            status = HeapMemMP_S_SUCCESS;
+            break;
+
+        case -EFAULT:
+            status = HeapMemMP_E_FAIL;
+            break;
+
+        case -EINVAL:
+            status = HeapMemMP_E_INVALIDARG;
+            break;
+
+        case -ENOMEM:
+            status = HeapMemMP_E_MEMORY;
+            break;
+
+        case -ENOENT:
+            status = HeapMemMP_E_NOTFOUND;
+            break;
+
+        case -ENODEV:
+            status = HeapMemMP_E_INVALIDSTATE;
+            break;
+
+        case -EEXIST:
+        case 1:
+            status = HeapMemMP_S_ALREADYSETUP;
+            break;
+
+        case 2:
+            status = HeapMemMP_S_BUSY;
+            break;
+
+        default:
+            status = HeapMemMP_E_FAIL;
+            break;
+        }
+
+        GT_1trace (curTrace, GT_2CLASS,
+            "IPCMGR-getHeapMemMPStatus: status=0x%x\n", status);
         return status;
 }
 
 
-Int getGatePetersonStatus(Int apiStatus)
+Int getGateMPStatus(Int apiStatus)
 {
-    Int status = GATEPETERSON_E_OSFAILURE;
+    Int status = GateMP_E_OSFAILURE;
 
     GT_1trace (curTrace, GT_2CLASS,
-        "IPCMGR-getGatePetersonStatus: apiStatus=0x%x\n", apiStatus);
+        "IPCMGR-getGateMPStatus: apiStatus=0x%x\n", apiStatus);
 
     switch(apiStatus) {
     case 0:
-        status = GATEPETERSON_SUCCESS;
+        status = GateMP_S_SUCCESS;
         break;
 
     case -EINVAL:
-        status = GATEPETERSON_E_INVALIDARG;
+        status = GateMP_E_INVALIDARG;
         break;
 
     case -ENOMEM:
-        status = GATEPETERSON_E_MEMORY;
+        status = GateMP_E_MEMORY;
         break;
 
     case -ENOENT:
-        status = GATEPETERSON_E_NOTFOUND;
-        break;
-
-    case -ENXIO:
-        status = GATEPETERSON_E_VERSION;
+        status = GateMP_E_NOTFOUND;
         break;
 
     case -EEXIST:
+        status = GateMP_E_ALREADYEXISTS;
+        break;
+
     case 1:
-        status = GATEPETERSON_S_ALREADYSETUP;
+        status = GateMP_S_ALREADYSETUP;
         break;
 
     case -ENODEV:
-        status = GATEPETERSON_E_INVALIDSTATE;
-        break;
-
-    case -EPERM:
-        status = GATEPETERSON_E_NOTONWER;
-        break;
-
-    case -EBUSY:
-        status = GATEPETERSON_E_INUSE;
+        status = GateMP_E_INVALIDSTATE;
         break;
 
     default:
-        status = GATEPETERSON_E_FAIL;
-/*        status =  */
+        status = GateMP_E_FAIL;
         break;
     }
 
     GT_1trace (curTrace, GT_2CLASS,
-        "IPCMGR-getGatePetersonStatus: status=0x%x\n", status);
+        "IPCMGR-getGateMPStatus: status=0x%x\n", status);
     return status;
 }
 
 
 Int getSharedRegionStatus(Int apiStatus)
 {
-    Int status = SHAREDREGION_E_OSFAILURE;
+    Int status = SharedRegion_E_OSFAILURE;
 
     GT_1trace (curTrace, GT_2CLASS,
         "IPCMGR-getSharedRegionStatus: apiStatus=0x%x\n", apiStatus);
 
     switch(apiStatus) {
     case 0:
-        status = SHAREDREGION_SUCCESS;
+        status = SharedRegion_S_SUCCESS;
         break;
 
     case -EINVAL:
-        status = SHAREDREGION_E_INVALIDARG;
+        status = SharedRegion_E_INVALIDARG;
         break;
 
     case -ENOMEM:
-        status = SHAREDREGION_E_MEMORY;
-        break;
-
-    case -EBUSY:
-        status = SHAREDREGION_E_BUSY;
+        status = SharedRegion_E_MEMORY;
         break;
 
     case -ENOENT:
-        status = SHAREDREGION_E_NOTFOUND;
+        status = SharedRegion_E_NOTFOUND;
         break;
 
     case -EEXIST:
-        status = SHAREDREGION_E_ALREADYEXIST;
+        status = SharedRegion_E_ALREADYEXISTS;
         break;
 
     case -ENODEV:
-        status = SHAREDREGION_E_INVALIDSTATE;
-        break;
-
-    case -EPERM:
-        status = SHAREDREGION_E_OVERLAP;
+        status = SharedRegion_E_INVALIDSTATE;
         break;
 
     case 1:
-        status = SHAREDREGION_S_ALREADYSETUP;
+        status = SharedRegion_S_ALREADYSETUP;
         break;
 
+    case -1:
     default:
-        status = SHAREDREGION_E_FAIL;
-/*        status = SHAREDREGION_E_OSFAILURE; */
+        status = SharedRegion_E_FAIL;
         break;
     }
 
@@ -266,105 +313,48 @@ Int getSharedRegionStatus(Int apiStatus)
 }
 
 
-Int getNameServerRemoteNotifyStatus(Int apiStatus)
-{
-    Int status = NAMESERVERREMOTENOTIFY_E_OSFAILURE;
-
-    GT_1trace (curTrace, GT_2CLASS,
-        "IPCMGR-getNameServerRemoteNotifyStatus: apiStatus=0x%x\n", apiStatus);
-
-    switch(apiStatus) {
-    case 0:
-        status = NAMESERVERREMOTENOTIFY_SUCCESS;
-        break;
-
-    case -EEXIST:
-        status = NAMESERVERREMOTENOTIFY_E_ALREADYEXIST;
-        break;
-
-
-    case -EINVAL:
-        status = NAMESERVERREMOTENOTIFY_E_INVALIDARG;
-        break;
-
-    case -ENOMEM:
-        status = NAMESERVERREMOTENOTIFY_E_MEMORY;
-        break;
-
-    case -EBUSY:
-        status = NAMESERVERREMOTENOTIFY_E_BUSY;
-        break;
-
-    case -ENOENT:
-        status = NAMESERVERREMOTENOTIFY_E_NOTFOUND;
-        break;
-
-    case -ENODEV:
-        status = NAMESERVERREMOTENOTIFY_E_INVALIDSTATE;
-        break;
-
-    case -EPERM:
-        status = NAMESERVERREMOTENOTIFY_E_OVERLAP;
-        break;
-
-    case 1:
-        status = NAMESERVERREMOTENOTIFY_S_ALREADYSETUP;
-        break;
-
-    default:
-        status = NAMESERVERREMOTENOTIFY_E_FAIL;
-        /* status = NAMESERVER_E_OSFAILURE; */
-        break;
-    }
-
-    GT_1trace (curTrace, GT_2CLASS,
-        "IPCMGR-getNameServerRemoteNotifyStatus: status=0x%x\n", status);
-    return status;
-}
-
-
 Int getNameServerStatus(Int apiStatus)
 {
-    Int status = NAMESERVER_E_OSFAILURE;
+    Int status = NameServer_E_OSFAILURE;
 
     GT_1trace (curTrace, GT_2CLASS,
         "IPCMGR-getNameServerStatus: apiStatus=0x%x\n", apiStatus);
 
     switch(apiStatus) {
     case 0:
-        status = NAMESERVER_SUCCESS;
+        status = NameServer_S_SUCCESS;
         break;
 
     case -EINVAL:
-        status = NAMESERVER_E_INVALIDARG;
+        status = NameServer_E_INVALIDARG;
+        break;
+
+    case 1:
+        status = NameServer_S_ALREADYSETUP;
         break;
 
     case -EEXIST:
-    case 1:
-        status = NAMESERVER_S_ALREADYSETUP;
+        status = NameServer_E_ALREADYEXISTS;
         break;
 
     case -ENOMEM:
-        status = NAMESERVER_E_MEMORY;
-        break;
-
-    case -EBUSY:
-        status = NAMESERVER_E_BUSY;
+        status = NameServer_E_MEMORY;
         break;
 
     case -ENOENT:
-        status = NAMESERVER_E_NOTFOUND;
+        status = NameServer_E_NOTFOUND;
         break;
 
     case -ENODEV:
-        status = NAMESERVER_E_INVALIDSTATE;
+        status = NameServer_E_INVALIDSTATE;
         break;
 
+    case -EBUSY: /* NameServer instances are still present */
     default:
         if(apiStatus < 0) {
-            status = NAMESERVER_E_FAIL;
-            /* status = NAMESERVER_E_OSFAILURE; */
-        } else {
+            status = NameServer_E_FAIL;
+        }
+        else {
             status = apiStatus;
         }
         break;
@@ -378,49 +368,45 @@ Int getNameServerStatus(Int apiStatus)
 
 Int getMessageQStatus(Int apiStatus)
 {
-    Int status = MESSAGEQ_E_OSFAILURE;
+    Int status = MessageQ_E_OSFAILURE;
 
     GT_1trace (curTrace, GT_2CLASS,
         "IPCMGR-getMessageQ: apiStatus=0x%x\n", apiStatus);
 
     switch(apiStatus) {
     case 0:
-        status = MESSAGEQ_SUCCESS;
+        status = MessageQ_S_SUCCESS;
         break;
 
     case -EINVAL:
-        status = MESSAGEQ_E_INVALIDARG;
+        status = MessageQ_E_INVALIDARG;
         break;
 
     case -ENOMEM:
-        status = MESSAGEQ_E_MEMORY;
+        status = MessageQ_E_MEMORY;
         break;
 
     case -ENODEV:
-        status = MESSAGEQ_E_INVALIDSTATE;
-        break;
-
-    case -EBUSY:
-        status = MESSAGEQ_E_BUSY;
+        status = MessageQ_E_INVALIDSTATE;
         break;
 
     case -ENOENT:
-        status = MESSAGEQ_E_NOTFOUND;
+        status = MessageQ_E_NOTFOUND;
         break;
 
     case -ETIME:
-        status = MESSAGEQ_E_TIMEOUT;
+        status = MessageQ_E_TIMEOUT;
         break;
 
     case 1:
-        status = MESSAGEQ_S_ALREADYSETUP;
+        status = MessageQ_S_ALREADYSETUP;
         break;
 
     /* All error codes are not converted to kernel error codes */
     default:
         status = apiStatus;
-        /* status = MESSAGEQ_E_FAIL;
-        status = MESSAGEQ_E_OSFAILURE; */
+        /* status = MessageQ_E_FAIL;
+        status = MessageQ_E_OSFAILURE; */
         break;
     }
 
@@ -429,119 +415,75 @@ Int getMessageQStatus(Int apiStatus)
     return status;
 }
 
-
-Int getMessageQTransportShmStatus(Int apiStatus)
+Int getListMPStatus(Int apiStatus)
 {
-    Int status = MESSAGEQTRANSPORTSHM_E_OSFAILURE;
+    Int status = ListMP_E_OSFAILURE;
 
     GT_1trace (curTrace, GT_2CLASS,
-        "IPCMGR-getMessageQTransportShmStatus: apiStatus=0x%x\n", apiStatus);
+        "IPCMGR-getListMPStatus: apiStatus=0x%x\n", apiStatus);
 
     switch(apiStatus) {
     case 0:
-        status = MESSAGEQTRANSPORTSHM_SUCCESS;
+        status = ListMP_S_SUCCESS;
         break;
 
     case -EINVAL:
-        status = MESSAGEQTRANSPORTSHM_E_INVALIDARG;
+        status = ListMP_E_INVALIDARG;
         break;
 
     case -ENOMEM:
-        status = MESSAGEQTRANSPORTSHM_E_MEMORY;
-        break;
-
-    case 1:
-        status = MESSAGEQTRANSPORTSHM_S_ALREADYSETUP;
-        break;
-
-    /* All error codes are not converted to kernel error codes */
-    default:
-        status = apiStatus;
-        /* status = MESSAGEQTRANSPORTSHM_E_FAIL;
-        status = MESSAGEQTRANSPORTSHM_E_OSFAILURE; */
-        break;
-    }
-
-    GT_1trace (curTrace, GT_2CLASS,
-        "IPCMGR-getMessageQTransportShmStatus: status=0x%x\n", status);
-    return status;
-}
-
-
-Int getListMPSharedMemoryStatus(Int apiStatus)
-{
-    Int status = LISTMPSHAREDMEMORY_E_OSFAILURE;
-
-    GT_1trace (curTrace, GT_2CLASS,
-        "IPCMGR-getListMPSharedMemoryStatus: apiStatus=0x%x\n", apiStatus);
-
-    switch(apiStatus) {
-    case 0:
-        status = LISTMPSHAREDMEMORY_SUCCESS;
-        break;
-
-    case -EINVAL:
-        status = LISTMPSHAREDMEMORY_E_INVALIDARG;
-        break;
-
-    case -ENOMEM:
-        status = LISTMPSHAREDMEMORY_E_MEMORY;
+        status = ListMP_E_MEMORY;
         break;
 
     case -ENODEV:
-        status = LISTMPSHAREDMEMORY_E_INVALIDSTATE;
-        break;
-
-    case -EBUSY:
-        /* LISTMPSHAREDMEMORY_E_REMOTEACTIVE is also converted to this. */
-        status = LISTMPSHAREDMEMORY_E_INUSE;
+        status = ListMP_E_INVALIDSTATE;
         break;
 
     case 1:
-        status = LISTMPSHAREDMEMORY_S_ALREADYSETUP;
+        status = ListMP_S_ALREADYSETUP;
         break;
 
     /* All error codes are not converted to kernel error codes */
     default:
         status = apiStatus;
-        /* status = LISTMPSHAREDMEMORY_E_FAIL;
-        status = LISTMPSHAREDMEMORY_E_OSFAILURE; */
+        /* status = ListMP_E_FAIL;
+        status = ListMP_E_OSFAILURE; */
         break;
     }
 
     GT_1trace (curTrace, GT_2CLASS,
-        "IPCMGR-getListMPSharedMemory: status=0x%x\n", status);
+        "IPCMGR-getListMP: status=0x%x\n", status);
     return status;
 }
 
 
 Int getMultiProcStatus(Int apiStatus)
 {
-    Int status = MULTIPROC_E_OSFAILURE;
+    Int status = MultiProc_E_OSFAILURE;
 
     GT_1trace (curTrace, GT_2CLASS,
         "IPCMGR-getMultiProcStatus: apiStatus=0x%x\n", apiStatus);
 
     switch(apiStatus) {
     case 0:
-        status = MULTIPROC_SUCCESS;
+        status = MultiProc_S_SUCCESS;
         break;
 
     case -ENOMEM:
-        status = MULTIPROC_E_MEMORY;
+        status = MultiProc_E_MEMORY;
         break;
 
     case -EEXIST:
     case 1:
-        status = MULTIPROC_S_ALREADYSETUP;
+        status = MultiProc_S_ALREADYSETUP;
         break;
 
     case -ENODEV:
-        status = MULTIPROC_E_INVALIDSTATE;
+        status = MultiProc_E_INVALIDSTATE;
         break;
 
     default:
-        status = MULTIPROC_E_FAIL;
+        status = MultiProc_E_FAIL;
         break;
     }
 
@@ -551,42 +493,41 @@ Int getMultiProcStatus(Int apiStatus)
 }
 
 
-Int getSysMgrStatus(Int apiStatus)
+Int getIpcStatus(Int apiStatus)
 {
-    Int status = SYSMGR_E_OSFAILURE;
+    Int status = Ipc_E_OSFAILURE;
 
     GT_1trace (curTrace, GT_2CLASS,
         "IPCMGR-getSysMgrStatus: apiStatus=0x%x\n", apiStatus);
 
     switch(apiStatus) {
     case 0:
-        status = SYSMGR_SUCCESS;
+        status = Ipc_S_SUCCESS;
         break;
 
     case -ENOMEM:
-        status = SYSMGR_E_MEMORY;
+        status = Ipc_E_MEMORY;
         break;
 
-    case SYSMGR_S_ALREADYSETUP:
     case 1:
-        status = SYSMGR_S_ALREADYSETUP;
+        status = Ipc_S_ALREADYSETUP;
         break;
 
     case -ENODEV:
-        status = SYSMGR_E_INVALIDSTATE;
+        status = Ipc_E_INVALIDSTATE;
         break;
 
     default:
-        status = SYSMGR_E_FAIL;
+        status = Ipc_E_FAIL;
         break;
     }
 
     GT_1trace (curTrace, GT_2CLASS,
-        "IPCMGR-getSysMgrStatus: status=0x%x\n", status);
+        "IPCMGR-getIpcStatus: status=0x%x\n", status);
     return status;
 }
 
-
+#if 0 /* TBD:Temporarily comment. */
 Int getSysMemMgrStatus(Int apiStatus)
 {
     Int status = SYSMEMMGR_E_OSFAILURE;
@@ -621,7 +562,7 @@ Int getSysMemMgrStatus(Int apiStatus)
         "IPCMGR-getSysMemMgrStatus: status=0x%x\n", status);
     return status;
 }
-
+#endif /* TBD:Temporarily comment. */
 
 /* This function converts the os specific (Linux) error code to
  *  module specific error code
@@ -629,16 +570,17 @@ Int getSysMemMgrStatus(Int apiStatus)
 void IPCManager_getModuleStatus(Int module_id, Ptr args)
 {
     NameServerDrv_CmdArgs *ns_cmdargs = NULL;
-    NameServerRemoteNotifyDrv_CmdArgs *nsrn_cmdargs = NULL;
     SharedRegionDrv_CmdArgs *shrn_cmdargs = NULL;
-    GatePetersonDrv_CmdArgs *gp_cmdargs = NULL;
-    HeapBufDrv_CmdArgs *hb_cmdargs = NULL;
+    GateMPDrv_CmdArgs *gp_cmdargs = NULL;
+    HeapBufMPDrv_CmdArgs *hb_cmdargs = NULL;
+    HeapMemMPDrv_CmdArgs *hm_cmdargs = NULL;
     MessageQDrv_CmdArgs *mq_cmdargs = NULL;
-    MessageQTransportShmDrv_CmdArgs *mqt_cmdargs = NULL;
-    ListMPSharedMemoryDrv_CmdArgs *lstmp_cmdargs = NULL;
+    ListMPDrv_CmdArgs *lstmp_cmdargs = NULL;
     MultiProcDrv_CmdArgs *multiproc_cmdargs = NULL;
-    SysMgrDrv_CmdArgs *sysmgr_cmdargs = NULL;
+    IpcDrv_CmdArgs *ipc_cmdargs = NULL;
+#if 0 /* TBD:Temporarily comment. */
     SysMemMgrDrv_CmdArgs *sysmemmgr_cmdargs = NULL;
+#endif /* TBD:Temporarily comment. */
 
     switch(module_id) {
     case MULTIPROC:
@@ -651,25 +593,24 @@ void IPCManager_getModuleStatus(Int module_id, Ptr args)
         ns_cmdargs->apiStatus = getNameServerStatus(ns_cmdargs->apiStatus);
         break;
 
-    case NAMESERVERREMOTENOTIFY:
-        nsrn_cmdargs = (NameServerRemoteNotifyDrv_CmdArgs *)args;
-        nsrn_cmdargs->apiStatus = \
-                getNameServerRemoteNotifyStatus(nsrn_cmdargs->apiStatus);
-        break;
-
     case SHAREDREGION:
         shrn_cmdargs = (SharedRegionDrv_CmdArgs *)args;
         shrn_cmdargs->apiStatus = getSharedRegionStatus(shrn_cmdargs->apiStatus);
         break;
 
-    case GATEPETERSON: /* Above id and this has same value */
-        gp_cmdargs = (GatePetersonDrv_CmdArgs *)args;
-        gp_cmdargs->apiStatus = getGatePetersonStatus(gp_cmdargs->apiStatus);
+    case GATEMP: /* Above id and this has same value */
+        gp_cmdargs = (GateMPDrv_CmdArgs *)args;
+        gp_cmdargs->apiStatus = getGateMPStatus(gp_cmdargs->apiStatus);
         break;
 
-    case HEAPBUF:
-        hb_cmdargs = (HeapBufDrv_CmdArgs *)args;
-        hb_cmdargs->apiStatus = getHeapBufStatus(hb_cmdargs->apiStatus);
+    case HEAPBUFMP:
+        hb_cmdargs = (HeapBufMPDrv_CmdArgs *)args;
+        hb_cmdargs->apiStatus = getHeapBufMPStatus(hb_cmdargs->apiStatus);
+        break;
+
+    case HEAPMEMMP:
+        hm_cmdargs = (HeapMemMPDrv_CmdArgs *)args;
+        hm_cmdargs->apiStatus = getHeapMemMPStatus(hm_cmdargs->apiStatus);
         break;
 
     case MESSAGEQ:
@@ -677,31 +618,24 @@ void IPCManager_getModuleStatus(Int module_id, Ptr args)
         mq_cmdargs->apiStatus = getMessageQStatus(mq_cmdargs->apiStatus);
         break;
 
-    case MESSAGEQTRANSPORTSHM:
-        mqt_cmdargs = (MessageQTransportShmDrv_CmdArgs *)args;
-        mqt_cmdargs->apiStatus = \
-                        getMessageQTransportShmStatus(mqt_cmdargs->apiStatus);
-        break;
-
-    case LISTMPSHAREDMEMORY:
-        lstmp_cmdargs = (ListMPSharedMemoryDrv_CmdArgs *)args;
+    case LISTMP:
+        lstmp_cmdargs = (ListMPDrv_CmdArgs *)args;
         lstmp_cmdargs->apiStatus = \
-                        getListMPSharedMemoryStatus(lstmp_cmdargs->apiStatus);
+                        getListMPStatus(lstmp_cmdargs->apiStatus);
         break;
 
-    case SYSMGR:
-        sysmgr_cmdargs = (SysMgrDrv_CmdArgs *)args;
-        sysmgr_cmdargs->apiStatus = getSysMgrStatus(sysmgr_cmdargs->apiStatus);
+    case IPC:
+        ipc_cmdargs = (IpcDrv_CmdArgs *)args;
+        ipc_cmdargs->apiStatus = getIpcStatus(ipc_cmdargs->apiStatus);
         break;
 
+#if 0 /* TBD:Temporarily comment. */
     case SYSMEMMGR:
         sysmemmgr_cmdargs = (SysMemMgrDrv_CmdArgs *)args;
         sysmemmgr_cmdargs->apiStatus = \
                 getSysMemMgrStatus(sysmemmgr_cmdargs->apiStatus);
         break;
-
-    case GATEHWSPINLOCK:
-        break;
+#endif /* TBD:Temporarily comment. */
 
     default:
         GT_0trace (curTrace, GT_2CLASS, "IPCMGR-Unknown module\n");
@@ -734,11 +668,15 @@ Int createIpcModuleHandle(const char *name)
             module_handle = (name_id_table[i].module_id << 16) | ipc_handle;
             break;
 
-        case GATEPETERSON:
+        case GATEMP:
             module_handle = (name_id_table[i].module_id << 16) | ipc_handle;
             break;
 
-        case HEAPBUF:
+        case HEAPBUFMP:
+            module_handle = (name_id_table[i].module_id << 16) | ipc_handle;
+            break;
+
+        case HEAPMEMMP:
             module_handle = (name_id_table[i].module_id << 16) | ipc_handle;
             break;
 
@@ -750,27 +688,15 @@ Int createIpcModuleHandle(const char *name)
             module_handle = (name_id_table[i].module_id << 16) | ipc_handle;
             break;
 
-        case MESSAGEQTRANSPORTSHM:
+        case LISTMP:
             module_handle = (name_id_table[i].module_id << 16) | ipc_handle;
             break;
 
-        case LISTMPSHAREDMEMORY:
-            module_handle = (name_id_table[i].module_id << 16) | ipc_handle;
-            break;
-
-        case NAMESERVERREMOTENOTIFY:
-            module_handle = (name_id_table[i].module_id << 16) | ipc_handle;
-            break;
-
-        case SYSMGR:
+        case IPC:
             module_handle = (name_id_table[i].module_id << 16) | ipc_handle;
             break;
 
         case SYSMEMMGR:
-            module_handle = (name_id_table[i].module_id << 16) | ipc_handle;
-            break;
-
-        case GATEHWSPINLOCK:
             module_handle = (name_id_table[i].module_id << 16) | ipc_handle;
             break;
 
@@ -799,12 +725,16 @@ void trackIoctlCommandFlow(Int fd)
         name_id_table[SHAREDREGION].ioctl_count += 1;
         break;
 
-    case GATEPETERSON:
-        name_id_table[GATEPETERSON].ioctl_count += 1;
+    case GATEMP:
+        name_id_table[GATEMP].ioctl_count += 1;
         break;
 
-    case HEAPBUF:
-        name_id_table[HEAPBUF].ioctl_count += 1;
+    case HEAPBUFMP:
+        name_id_table[HEAPBUFMP].ioctl_count += 1;
+        break;
+
+    case HEAPMEMMP:
+        name_id_table[HEAPMEMMP].ioctl_count += 1;
         break;
 
     case NAMESERVER:
@@ -815,29 +745,19 @@ void trackIoctlCommandFlow(Int fd)
         name_id_table[MESSAGEQ].ioctl_count += 1;
         break;
 
-    case MESSAGEQTRANSPORTSHM:
-        name_id_table[MESSAGEQTRANSPORTSHM].ioctl_count += 1;
+    case LISTMP:
+        name_id_table[LISTMP].ioctl_count += 1;
         break;
 
-    case LISTMPSHAREDMEMORY:
-        name_id_table[LISTMPSHAREDMEMORY].ioctl_count += 1;
+    case IPC:
+        name_id_table[IPC].ioctl_count += 1;
         break;
 
-    case NAMESERVERREMOTENOTIFY:
-        name_id_table[NAMESERVERREMOTENOTIFY].ioctl_count += 1;
-        break;
-
-    case SYSMGR:
-        name_id_table[SYSMGR].ioctl_count += 1;
-        break;
-
+#if 0 /* TBD:Temporarily comment. */
     case SYSMEMMGR:
         name_id_table[SYSMEMMGR].ioctl_count += 1;
         break;
-
-    case GATEHWSPINLOCK:
-        name_id_table[GATEHWSPINLOCK].ioctl_count += 1;
-        break;
+#endif /* TBD: Temporarily comment. */
 
     default:
         break;
@@ -858,14 +778,19 @@ Void displayIoctlInfo(Int fd, UInt32 cmd, Ptr args)
             "IPCMGR: IOCTL command from SHAREDREGION module\n");
         break;
 
-    case GATEPETERSON:
+    case GATEMP:
         GT_0trace (curTrace, GT_2CLASS,
-            "IPCMGR: IOCTL command from GATEPETERSON module\n");
+            "IPCMGR: IOCTL command from GATEMP module\n");
         break;
 
-    case HEAPBUF:
+    case HEAPBUFMP:
         GT_0trace (curTrace, GT_2CLASS,
-            "IPCMGR: IOCTL command from HEAPBUF module\n");
+            "IPCMGR: IOCTL command from HEAPBUFMP module\n");
+        break;
+
+    case HEAPMEMMP:
+        GT_0trace (curTrace, GT_2CLASS,
+            "IPCMGR: IOCTL command from HEAPMEMMP module\n");
         break;
 
     case NAMESERVER:
@@ -878,34 +803,19 @@ Void displayIoctlInfo(Int fd, UInt32 cmd, Ptr args)
             "IPCMGR: IOCTL command from MESSAGEQ module\n");
         break;
 
-    case MESSAGEQTRANSPORTSHM:
+    case LISTMP:
         GT_0trace (curTrace, GT_2CLASS,
-            "IPCMGR: IOCTL command from MESSAGEQTRANSPORTSHM module\n");
+            "IPCMGR: IOCTL command from LISTMP module\n");
         break;
 
-    case LISTMPSHAREDMEMORY:
+    case IPC:
         GT_0trace (curTrace, GT_2CLASS,
-            "IPCMGR: IOCTL command from LISTMPSHAREDMEMORY module\n");
-        break;
-
-    case NAMESERVERREMOTENOTIFY:
-        GT_0trace (curTrace, GT_2CLASS,
-            "IPCMGR: IOCTL command from NAMESERVERREMOTENOTIFY module\n");
-        break;
-
-    case SYSMGR:
-        GT_0trace (curTrace, GT_2CLASS,
-            "IPCMGR: IOCTL command from SYSMGR module\n");
+            "IPCMGR: IOCTL command from IPC module\n");
         break;
 
     case SYSMEMMGR:
         GT_0trace (curTrace, GT_2CLASS,
             "IPCMGR: IOCTL command from SYSMEMMGR module\n");
-        break;
-
-   case GATEHWSPINLOCK:
-        GT_0trace (curTrace, GT_2CLASS,
-            "IPCMGR: IOCTL command from GATEHWSPINLOCK module\n");
         break;
 
     default:
