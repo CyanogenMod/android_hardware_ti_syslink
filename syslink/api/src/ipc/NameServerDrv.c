@@ -189,7 +189,10 @@ NameServerDrv_ioctl (UInt32 cmd, Ptr args)
 
     GT_assert (curTrace, (NameServerDrv_refCount > 0));
 
-    osStatus = ioctl (NameServerDrv_handle, cmd, args);
+    do {
+        osStatus = ioctl (NameServerDrv_handle, cmd, args);
+    } while( (osStatus < 0) && (errno == EINTR) );
+
     if (osStatus < 0) {
     /*! @retval NAMESERVER_E_OSFAILURE Driver ioctl failed */
         status = NAMESERVER_E_OSFAILURE;

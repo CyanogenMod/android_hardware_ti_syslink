@@ -207,7 +207,10 @@ SharedRegionDrv_ioctl (UInt32 cmd, Ptr args)
             sizeof(SharedRegion_Config));
     }
 
-    osStatus = ioctl (SharedRegionDrv_handle, cmd, args);
+    do {
+        osStatus = ioctl (SharedRegionDrv_handle, cmd, args);
+    } while( (osStatus < 0) && (errno == EINTR) );
+
     if (osStatus < 0) {
         /*! @retval SHAREDREGION_E_OSFAILURE Driver ioctl failed */
         status = SHAREDREGION_E_OSFAILURE;

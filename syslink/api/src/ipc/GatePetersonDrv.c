@@ -190,7 +190,10 @@ GatePetersonDrv_ioctl (UInt32 cmd, Ptr args)
 
     GT_assert (curTrace, (GatePetersonDrv_refCount > 0));
 
-    osStatus = ioctl (GatePetersonDrv_handle, cmd, args);
+    do {
+        osStatus = ioctl (GatePetersonDrv_handle, cmd, args);
+    } while( (osStatus < 0) && (errno == EINTR) );
+
     if (osStatus < 0) {
     /*! @retval GATEPETERSON_E_OSFAILURE Driver ioctl failed */
         status = GATEPETERSON_E_OSFAILURE;

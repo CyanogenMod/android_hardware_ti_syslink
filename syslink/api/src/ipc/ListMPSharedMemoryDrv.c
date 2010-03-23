@@ -198,7 +198,10 @@ ListMPSharedMemoryDrv_ioctl (UInt32 cmd, Ptr args)
 
     GT_assert (curTrace, (ListMPSharedMemoryDrv_refCount > 0));
 
-    osStatus = ioctl (ListMPSharedMemoryDrv_handle, cmd, args);
+    do {
+        osStatus = ioctl (ListMPSharedMemoryDrv_handle, cmd, args);
+    } while( (osStatus < 0) && (errno == EINTR) );
+
     if (osStatus < 0) {
     /*! @retval LISTMPSHAREDMEMORY_E_OSFAILURE Driver ioctl failed */
         status = LISTMPSHAREDMEMORY_E_OSFAILURE;

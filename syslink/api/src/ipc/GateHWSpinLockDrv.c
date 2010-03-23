@@ -194,7 +194,10 @@ GateHWSpinLockDrv_ioctl (UInt32 cmd, Ptr args)
 
     GT_assert (curTrace, (GateHWSpinLockDrv_refCount > 0));
 
-    osStatus = ioctl (GateHWSpinLockDrv_handle, cmd, args);
+    do {
+        osStatus = ioctl (GateHWSpinLockDrv_handle, cmd, args);
+    } while( (osStatus < 0) && (errno == EINTR) );
+
     if (osStatus < 0) {
         /*! @retval GATEHWSPINLOCK_E_OSFAILURE Driver ioctl failed */
         status = GATEHWSPINLOCK_E_OSFAILURE;

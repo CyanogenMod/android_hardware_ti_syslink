@@ -195,7 +195,10 @@ MultiProcDrv_ioctl (UInt32 cmd, Ptr args)
 
     GT_2trace (curTrace, GT_ENTER, "MultiProcDrv_ioctl", cmd, args);
 
-    osStatus = ioctl (MultiProcDrv_handle, cmd, args);
+    do {
+        osStatus = ioctl (MultiProcDrv_handle, cmd, args);
+    } while( (osStatus < 0) && (errno == EINTR) );
+
     if (osStatus < 0) {
     /*! @retval MULTIPROC_E_OSFAILURE Driver ioctl failed */
         status = MULTIPROC_E_OSFAILURE;

@@ -199,7 +199,10 @@ MessageQTransportShmDrv_ioctl (UInt32 cmd, Ptr args)
 
     GT_assert (curTrace, (MessageQTransportShmDrv_refCount > 0));
 
-    osStatus = ioctl (MessageQTransportShmDrv_handle, cmd, args);
+    do {
+        osStatus = ioctl (MessageQTransportShmDrv_handle, cmd, args);
+    } while( (osStatus < 0) && (errno == EINTR) );
+
     if (osStatus < 0) {
         /*! @retval MESSAGEQTRANSPORTSHM_E_OSFAILURE Driver ioctl failed */
         status = MESSAGEQTRANSPORTSHM_E_OSFAILURE;

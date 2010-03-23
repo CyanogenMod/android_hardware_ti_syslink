@@ -192,7 +192,10 @@ HeapBufDrv_ioctl (UInt32 cmd, Ptr args)
 
     GT_assert (curTrace, (HeapBufDrv_refCount > 0));
 
-    osStatus = ioctl (HeapBufDrv_handle, cmd, args);
+    do {
+        osStatus = ioctl (HeapBufDrv_handle, cmd, args);
+    } while( (osStatus < 0) && (errno == EINTR) );
+
     if (osStatus < 0) {
         /*! @retval HEAPBUF_E_OSFAILURE Driver ioctl failed */
         status = HEAPBUF_E_OSFAILURE;

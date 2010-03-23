@@ -202,7 +202,10 @@ NameServerRemoteNotifyDrv_ioctl (UInt32 cmd, Ptr args)
 
     GT_assert (curTrace, (NameServerRemoteNotifyDrv_refCount > 0));
 
-    osStatus = ioctl (NameServerRemoteNotifyDrv_handle, cmd, args);
+    do {
+        osStatus = ioctl (NameServerRemoteNotifyDrv_handle, cmd, args);
+    } while( (osStatus < 0) && (errno == EINTR) );
+
     if (osStatus < 0) {
         /*! @retval NAMESERVERREMOTENOTIFY_E_OSFAILURE Driver ioctl failed */
         status = NAMESERVERREMOTENOTIFY_E_OSFAILURE;
