@@ -1,16 +1,35 @@
 /*
- * Syslink-IPC for TI OMAP Processors
+ *  Syslink-IPC for TI OMAP Processors
  *
- * Copyright (C) 2009 Texas Instruments, Inc.
+ *  Copyright (c) 2008-2010, Texas Instruments Incorporated
+ *  All rights reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Lesser General Public License as published
- * by the Free Software Foundation version 2.1 of the License.
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted provided that the following conditions
+ *  are met:
  *
- * This program is distributed .as is. WITHOUT ANY WARRANTY of any kind,
- * whether express or implied; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
+ *  *  Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
+ *
+ *  *  Redistributions in binary form must reproduce the above copyright
+ *     notice, this list of conditions and the following disclaimer in the
+ *     documentation and/or other materials provided with the distribution.
+ *
+ *  *  Neither the name of Texas Instruments Incorporated nor the names of
+ *     its contributors may be used to endorse or promote products derived
+ *     from this software without specific prior written permission.
+ *
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ *  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ *  THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ *  PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ *  CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ *  EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ *  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+ *  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ *  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ *  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ *  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*============================================================================
  *  @file   omap4430proc.c
@@ -28,7 +47,8 @@
 #include <Trace.h>
 
 /* Module level headers */
-#include <MultiProc.h>
+#include <ti/ipc/MultiProc.h>
+#include <_MultiProc.h>
 #include <omap4430proc.h>
 #include <omap4430procDrvDefs.h>
 #include <omap4430procDrvUsr.h>
@@ -51,7 +71,7 @@ typedef struct OMAP4430PROC_ModuleObject_tag {
     UInt32      setupRefCount;
     /*!< Reference count for number of times setup/destroy were called in this
          process. */
-    Handle      procHandles [MULTIPROC_MAXPROCESSORS];
+    Handle      procHandles [MultiProc_MAXPROCESSORS];
     /*!< Processor handle array. */
 } OMAP4430PROC_ModuleObject;
 
@@ -301,7 +321,7 @@ OMAP4430PROC_destroy (Void)
         /* Check if any OMAP4430PROC instances have not been deleted so far. If
          * not, delete them.
          */
-        for (i = 0 ; i < MULTIPROC_MAXPROCESSORS ; i++) {
+        for (i = 0 ; i < MultiProc_MAXPROCESSORS ; i++) {
             GT_assert (curTrace, (OMAP4430PROC_state.procHandles [i] == NULL));
             if (OMAP4430PROC_state.procHandles [i] != NULL) {
                 OMAP4430PROC_delete (&(OMAP4430PROC_state.procHandles [i]));
@@ -865,7 +885,7 @@ OMAP4430PROC_close (OMAP4430PROC_Handle * handlePtr)
             if (procHandle->created == FALSE) {
                 /* Clear the OMAP4430PROC handle in the local array. */
                 GT_assert (curTrace,
-                           (procHandle->procId < MULTIPROC_MAXPROCESSORS));
+                           (procHandle->procId < MultiProc_MAXPROCESSORS));
                 OMAP4430PROC_state.procHandles [procHandle->procId] = NULL;
                 /* Free memory for the handle only if it was not created in
                  * this process.
