@@ -121,7 +121,7 @@
 #include <ArrayList.h>
 #include <dload_api.h>
 
-#include <IpcUsr.h>
+#include <_Ipc.h>
 
 #if defined (__cplusplus)
 extern "C" {
@@ -1538,7 +1538,8 @@ ProcMgr_start (ProcMgr_Handle        handle,
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
         /* FIXME: move sysmgr calls from Proc user space */
 #ifdef SYSLINK_USE_SYSMGR
-        status = Ipc_loadCallback (params->proc_id);
+        status = Ipc_control (params->proc_id, Ipc_CONTROLCMD_LOADCALLBACK,
+                              NULL);
 #endif
 
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
@@ -1577,7 +1578,8 @@ ProcMgr_start (ProcMgr_Handle        handle,
 
 #ifdef SYSLINK_USE_SYSMGR
     if (status > 0) {
-        status = Ipc_startCallback (params->proc_id);
+        status = Ipc_control (params->proc_id, Ipc_CONTROLCMD_STARTCALLBACK,
+                              NULL);
 #endif //#ifdef SYSLINK_USE_SYSMGR
 
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
@@ -1638,7 +1640,8 @@ ProcMgr_stop (ProcMgr_Handle handle, ProcMgr_StopParams * params)
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
 
 #ifdef SYSLINK_USE_SYSMGR
-        status = Ipc_stopCallback (params->proc_id);
+        status = Ipc_control (params->proc_id, Ipc_CONTROLCMD_STOPCALLBACK,
+                              NULL);
 #endif //#ifdef SYSLINK_USE_SYSMGR
 
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
