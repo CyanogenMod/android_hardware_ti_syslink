@@ -166,15 +166,6 @@ Int Ipc_setup (const Ipc_Config * cfgParams);
  */
 Int Ipc_destroy (void);
 
-/* Function to Ipc load callback */
-Int Ipc_loadCallback (ProcMgr_ProcId procId);
-
-/* Function to Ipc start callback */
-Int Ipc_startCallback (ProcMgr_ProcId procId);
-
-/* Function to Ipc stop callback */
-Int Ipc_stopCallback (ProcMgr_ProcId procId);
-
 
 #if defined (__cplusplus)
 }

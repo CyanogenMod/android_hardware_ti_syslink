@@ -217,13 +217,7 @@ Ipc_getConfig (Ipc_Config * config)
 }
 
 
-/*!
- *  @brief      Function to setup the System.
- *
- *  @param      cfg  Configuration values
- *
- *  @sa         Ipc_destroy
- */
+/* Function to setup the System. */
 Int
 Ipc_setup (const Ipc_Config * cfg)
 {
@@ -582,11 +576,7 @@ Ipc_setup (const Ipc_Config * cfg)
 }
 
 
-/*!
- *  @brief      Function to destroy the System.
- *
- *  @sa         Ipc_setup
- */
+/* Function to destroy the System. */
 Int
 Ipc_destroy (void)
 {
@@ -926,143 +916,25 @@ Ipc_destroy (void)
 }
 
 
-/*!
- *  @brief      Function to invoke load callback.
- *
- *  @param      procId  Processor Id
- *
- *  @sa         Ipc_startCallback, Ipc_stopCallback
- */
-Int
-Ipc_loadCallback (ProcMgr_ProcId procId)
-{
-    Int            status = Ipc_S_SUCCESS;
-    IpcDrv_CmdArgs cmdArgs;
-
-    GT_0trace (curTrace, GT_ENTER, "Ipc_loadCallback");
-
-#if !defined(SYSLINK_BUILD_OPTIMIZE)
-    if (procId >= PROC_END) {
-        GT_setFailureReason (curTrace,
-                                 GT_7CLASS,
-                                 "Ipc_loadCallback",
-                                 Ipc_E_INVALIDARG,
-                                 "Ipc_loadCallback INVALID PROC_ID");
-        return Ipc_E_INVALIDARG;
-    }
-#endif
-
-    cmdArgs.args.procId = procId;
-    status = IpcDrv_ioctl (CMD_IPC_LOADCALLBACK, &cmdArgs);
-#if !defined(SYSLINK_BUILD_OPTIMIZE)
-    if (status < 0) {
-        GT_setFailureReason (curTrace,
-                             GT_4CLASS,
-                             "Ipc_loadCallback",
-                             status,
-                             "API (through IOCTL) failed on kernel-side!");
-    }
-#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-
-    GT_1trace (curTrace, GT_LEAVE, "Ipc_loadCallback", status);
-
-    return status;
-}
-
-
-/*!
- *  @brief      Function to start callback.
- *
- *  @param      procId  Processor Id
- *
- *  @sa         Ipc_loadCallback, Ipc_stopCallback
- */
-Int32
-Ipc_startCallback (ProcMgr_ProcId procId)
-{
-    Int            status = Ipc_S_SUCCESS;
-    IpcDrv_CmdArgs cmdArgs;
-
-    GT_0trace (curTrace, GT_ENTER, "Ipc_startCallback");
-
-#if !defined(SYSLINK_BUILD_OPTIMIZE)
-    if (procId >= PROC_END) {
-        GT_setFailureReason (curTrace,
-                             GT_7CLASS,
-                             "Ipc_startCallback",
-                             Ipc_E_INVALIDARG,
-                             "Ipc_startCallback INVALID PROC_ID");
-        return Ipc_E_INVALIDARG;
-    }
-#endif
-
-    cmdArgs.args.procId = procId;
-    status = IpcDrv_ioctl (CMD_IPC_STARTCALLBACK, &cmdArgs);
-#if !defined(SYSLINK_BUILD_OPTIMIZE)
-    if (status < 0) {
-        GT_setFailureReason (curTrace,
-                             GT_4CLASS,
-                             "Ipc_startCallback",
-                             status,
-                             "API (through IOCTL) failed on kernel-side!");
-    }
-#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-
-    GT_1trace (curTrace, GT_LEAVE, "Ipc_startCallback", status);
-
-    return status;
-}
-
-/*!
- *  @brief      Function to stop callback.
- *
- *  @param      procId  Processor Id
- *
- *  @sa         Ipc_loadCallback, Ipc_startCallback
- */
-Int32
-Ipc_stopCallback (ProcMgr_ProcId procId)
-{
-    Int            status = Ipc_S_SUCCESS;
-    IpcDrv_CmdArgs cmdArgs;
-
-    GT_0trace (curTrace, GT_ENTER, "Ipc_stopCallback");
-
-#if !defined(SYSLINK_BUILD_OPTIMIZE)
-    if (procId >= PROC_END) {
-        GT_setFailureReason (curTrace,
-                                 GT_7CLASS,
-                                 "Ipc_stopCallback",
-                                 Ipc_E_INVALIDARG,
-                                 "Ipc_stopCallback INVALID PROC_ID");
-        return Ipc_E_INVALIDARG;
-    }
-#endif
-
-    cmdArgs.args.procId = procId;
-    status = IpcDrv_ioctl (CMD_IPC_STOPCALLBACK, &cmdArgs);
-#if !defined(SYSLINK_BUILD_OPTIMIZE)
-    if (status < 0) {
-        GT_setFailureReason (curTrace,
-                             GT_4CLASS,
-                             "Ipc_stopCallback",
-                             status,
-                             "API (through IOCTL) failed on kernel-side!");
-    }
-#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-
-    GT_1trace (curTrace, GT_LEAVE, "Ipc_stopCallback", status);
-
-    return status;
-}
 /* Function to destroy a Ipc instance for a slave */
 Int
 Ipc_control (UInt16 procId, Int cmdId, Ptr arg)
 {
     Int             status    = Ipc_S_SUCCESS;
-    IpcDrv_CmdArgs cmdArgs;
+    IpcDrv_CmdArgs  cmdArgs;
 
     GT_3trace (curTrace, GT_ENTER, "Ipc_control", procId, cmdId, arg);
+
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+    if (procId >= PROC_END) {
+        GT_setFailureReason (curTrace,
+                                 GT_7CLASS,
+                                 "Ipc_control",
+                                 Ipc_E_INVALIDARG,
+                                 "Invalid procId passed!");
+        return Ipc_E_INVALIDARG;
+    }
+#endif
 
     cmdArgs.args.control.procId = procId;
     cmdArgs.args.control.cmdId  = cmdId;

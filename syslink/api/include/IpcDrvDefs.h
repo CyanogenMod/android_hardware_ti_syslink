@@ -74,9 +74,6 @@ extern "C" {
 enum IpcDrvCmd {
     IPC_SETUP = IPC_BASE_CMD,
     IPC_DESTROY,
-    IPC_LOADCALLBACK,
-    IPC_STARTCALLBACK,
-    IPC_STOPCALLBACK,
     IPC_CONTROL,
     IPC_READCONFIG,
     IPC_WRITECONFIG
@@ -93,24 +90,6 @@ enum IpcDrvCmd {
  */
 #define CMD_IPC_DESTROY \
                 _IOWR(SYSIPC_IOC_MAGIC, IPC_DESTROY, \
-                IpcDrv_CmdArgs)
-/*!
- *  @brief  Command for Load callback
- */
-#define CMD_IPC_LOADCALLBACK \
-                _IOWR(SYSIPC_IOC_MAGIC, IPC_LOADCALLBACK, \
-                IpcDrv_CmdArgs)
-/*!
- *  @brief  Command for Start callback
- */
-#define CMD_IPC_STARTCALLBACK \
-                _IOWR(SYSIPC_IOC_MAGIC, IPC_STARTCALLBACK, \
-                IpcDrv_CmdArgs)
-/*!
- *  @brief  Command for Stop callback
- */
-#define CMD_IPC_STOPCALLBACK \
-                _IOWR(SYSIPC_IOC_MAGIC, IPC_STOPCALLBACK, \
                 IpcDrv_CmdArgs)
 /*!
  *  @brief  Command for Ipc_control
@@ -163,8 +142,6 @@ typedef struct IpcDrv_CmdArgs {
         struct {
             Ipc_Config * config;
         } setup;
-
-        Int32 procId;
     } args;
 
     Int32 apiStatus;
