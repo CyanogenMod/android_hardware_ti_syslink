@@ -27,7 +27,7 @@
 #include <List.h>
 
 /* Utilities headers */
-#include <MessageQ.h>
+#include <ti/ipc/MessageQ.h>
 
 /*!
  *  @def    RCMSERVER_MODULEID

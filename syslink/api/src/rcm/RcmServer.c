@@ -33,7 +33,7 @@
 /* Utility and IPC headers */
 #include <Std.h>
 #include <Trace.h>
-#include <MessageQ.h>
+#include <ti/ipc/MessageQ.h>
 #include <GateMutex.h>
 #include <OsalSemaphore.h>
 #include <Memory.h>
@@ -332,7 +332,7 @@ Int RcmServer_create(String name,
     }
 
     /* create the message queue for inbound messages */
-    MessageQ_Params_init(NULL, &msgQParams);
+    MessageQ_Params_init(&msgQParams);
 
     /* create the message queue for inbound messages */
     handle->msgQ = MessageQ_create(name, &msgQParams);
@@ -728,7 +728,7 @@ Void *RcmServer_serverRunFxn(IArg arg)
         /* block until message available, skip null messages */
         do {
             retval = MessageQ_get(handle->msgQ, &msgqMsg, 1000 /*MESSAGEQ_FOREVER*/);
-            if ((retval < 0) && (retval != MESSAGEQ_E_TIMEOUT)) {
+            if ((retval < 0) && (retval != MessageQ_E_TIMEOUT)) {
                 GT_setFailureReason (curTrace,
                                 GT_4CLASS,
                                 "MessageQ_get",

@@ -33,8 +33,9 @@
 /* OSAL, Utility and IPC headers */
 #include <Std.h>
 #include <Trace.h>
-#include <MessageQ.h>
+#include <ti/ipc/MessageQ.h>
 #include <GateMutex.h>
+#include <IGateProvider.h>
 #include <OsalSemaphore.h>
 #include <Memory.h>
 #include <List.h>
@@ -87,7 +88,7 @@ typedef struct RcmClient_Object_tag {
     UInt16  heapId; /* heap used for message allocation */
     Bool cbNotify; /* callback notification */
     UInt16  msgId; /* last used message id */
-    GateMutex_Handle gate; /* message id gate */
+    IGateProvider_Handle gate; /* message id gate */
     OsalSemaphore_Handle mbxLock; /* mailbox lock */
     OsalSemaphore_Handle queueLock; /* message queue lock */
     List_Handle recipients; /* list of waiting recipients */
@@ -360,7 +361,7 @@ Int RcmClient_create(String server,
     handle->heapId = 0xFFFF;
 
     /* create the message queue for inbound messages */
-    MessageQ_Params_init(NULL, &msgQParams);
+    MessageQ_Params_init(&msgQParams);
 
     /* create the message queue for inbound messages */
     handle->msgQ = MessageQ_create(NULL, &msgQParams);
@@ -377,7 +378,7 @@ Int RcmClient_create(String server,
     /* locate server message queue */
     retval = MessageQ_open (server, &(handle->serverMsgQ));
     if (retval < 0) {
-        if (retval == MESSAGEQ_E_NOTFOUND)
+        if (retval == MessageQ_E_NOTFOUND)
         {
             GT_0trace(curTrace, GT_4CLASS,
                 "MessageQ not found\n");
@@ -430,7 +431,7 @@ Int RcmClient_create(String server,
     }
 
     /* create a gate instance */
-    handle->gate = GateMutex_create();
+    handle->gate = (IGateProvider_Handle) GateMutex_create ();
     GT_assert (curTrace, (handle->gate != NULL));
     if (handle->gate == NULL) {
         GT_setFailureReason (curTrace,
@@ -534,7 +535,7 @@ Int RcmClient_create(String server,
     goto exit;
 
 newMail_fail:
-    retval = List_delete(&(handle->recipients));
+    List_delete(&(handle->recipients));
 
 recipients_fail:
     retval = OsalSemaphore_delete(&(handle->queueLock));
@@ -559,7 +560,7 @@ queueLock_fail:
     }
 
 mbxLock_fail:
-    GateMutex_delete(&(handle->gate));
+    GateMutex_delete((GateMutex_Handle *)&(handle->gate));
 
 gate_fail:
     /* TODO Default heap cleanup */
@@ -621,18 +622,18 @@ Int RcmClient_delete(RcmClient_Handle *handlePtr)
     if ((*handlePtr)->newMail) {
         while (!(List_empty((*handlePtr)->newMail))) {
             elem = List_get((*handlePtr)->newMail);
-            retval = List_remove((*handlePtr)->newMail, elem);
+            List_remove((*handlePtr)->newMail, elem);
         }
-        retval = List_delete(&((*handlePtr)->newMail));
+        List_delete(&((*handlePtr)->newMail));
     }
     (*handlePtr)->newMail = NULL;
 
     if ((*handlePtr)->recipients) {
         while (!(List_empty((*handlePtr)->recipients))) {
             elem = List_get((*handlePtr)->recipients);
-            retval = List_remove((*handlePtr)->recipients, elem);
+            List_remove((*handlePtr)->recipients, elem);
         }
-        retval = List_delete(&((*handlePtr)->recipients));
+        List_delete(&((*handlePtr)->recipients));
     }
     (*handlePtr)->recipients = NULL;
 
@@ -663,7 +664,7 @@ Int RcmClient_delete(RcmClient_Handle *handlePtr)
     }
 
     if (NULL != (*handlePtr)->gate) {
-        GateMutex_delete(&((*handlePtr)->gate));
+        GateMutex_delete((GateMutex_Handle *)&((*handlePtr)->gate));
         (*handlePtr)->gate = NULL;
     }
 
@@ -1429,7 +1430,7 @@ exit:
  */
 UInt16 genMsgId(RcmClient_Handle handle)
 {
-    UInt32 key;
+    IArg key;
     /* FIXME: (KW) ADD Check for msgID  = 0 in the calling function */
     UInt16 msgId = 0;
     Int status = RCMCLIENT_SOK;
@@ -1456,10 +1457,10 @@ UInt16 genMsgId(RcmClient_Handle handle)
     }
 
     /* generate a new message id */
-    key = GateMutex_enter(handle->gate);
+    key = IGateProvider_enter (handle->gate);
     msgId = (handle->msgId == 0xFFFF ? handle->msgId = 1
                         : ++(handle->msgId));
-    GateMutex_leave(handle->gate, key);
+    IGateProvider_leave (handle->gate, key);
 
 exit:
     GT_1trace (curTrace, GT_LEAVE, "genMsgId", status);
@@ -1543,17 +1544,7 @@ Int getReturnMsg(RcmClient_Handle handle,
         while ((elem = List_next(handle->newMail, elem)) != NULL) {
             packet = getPacketAddrElem(elem);
             if (msgId == packet->msgId) {
-                retval = List_remove(handle->newMail, elem);
-                if (retval < 0) {
-                    GT_setFailureReason (curTrace,
-                                 GT_4CLASS,
-                                 "List_remove",
-                                 retval,
-                                 "unable to remove"
-                                      "element");
-                    status = RCMCLIENT_ERESOURCE;
-                    goto exit;
-                }
+                List_remove(handle->newMail, elem);
                 returnMsg = &packet->message;
                 messageFound = TRUE;
                 retval = OsalSemaphore_post(handle->mbxLock);
@@ -1594,7 +1585,7 @@ Int getReturnMsg(RcmClient_Handle handle,
                 /* get message from queue if available (non-blocking) */
                 if (NULL == msgqMsg) {
                     retval = MessageQ_get(msgQ, &msgqMsg, WAIT_NONE);
-                    if ((retval < 0) && (retval != MESSAGEQ_E_TIMEOUT)) {
+                    if ((retval < 0) && (retval != MessageQ_E_TIMEOUT)) {
                         GT_setFailureReason (curTrace,
                                      GT_4CLASS,
                                      "MessageQ_get",
@@ -1687,20 +1678,10 @@ Int getReturnMsg(RcmClient_Handle handle,
                     if (!messageDelivered) {
                         /* use the elem in the MessageQ hdr */
                         elem = (List_Elem *)&packet->msgqHeader;
-                        retval = List_put
-                            (handle->newMail, elem);
-                        if (retval < 0) {
-                            GT_setFailureReason (curTrace,
-                                         GT_4CLASS,
-                                         "List_put",
-                                         retval,
-                                         "New mail List_put error");
-                            status = RCMCLIENT_ERESOURCE;
-                            goto exit;
-                        }
+                        List_put (handle->newMail, elem);
                     }
                     retval = MessageQ_get(msgQ, &msgqMsg, WAIT_NONE);
-                    if ((retval < 0) && (retval != MESSAGEQ_E_TIMEOUT)) {
+                    if ((retval < 0) && (retval != MessageQ_E_TIMEOUT)) {
                         GT_setFailureReason (curTrace,
                                      GT_4CLASS,
                                      "MessageQ_get",
@@ -1729,7 +1710,7 @@ Int getReturnMsg(RcmClient_Handle handle,
                 }
 
                 /* get next message, this blocks the thread */
-                retval = MessageQ_get(msgQ, &msgqMsg, MESSAGEQ_FOREVER);
+                retval = MessageQ_get(msgQ, &msgqMsg, MessageQ_FOREVER);
                  if (retval < 0) {
                       GT_setFailureReason (curTrace,
                                     GT_4CLASS,
@@ -1826,17 +1807,7 @@ Int getReturnMsg(RcmClient_Handle handle,
             }
 
             /* remove recipient from wait list */
-            retval = List_remove(handle->recipients, elem);
-            if (retval < 0) {
-                GT_setFailureReason (curTrace,
-                             GT_4CLASS,
-                             "List_remove",
-                             retval,
-                             "recipients List"
-                            "remove error");
-                status = RCMCLIENT_ERESOURCE;
-                goto exit;
-            }
+            List_remove(handle->recipients, elem);
             retval = OsalSemaphore_delete(&(self.event));
             if (retval < 0){
                 GT_setFailureReason (curTrace,
