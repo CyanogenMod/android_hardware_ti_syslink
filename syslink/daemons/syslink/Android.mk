@@ -13,7 +13,7 @@ LOCAL_C_INCLUDES += \
 	$(LOCAL_PATH)/../inc \
 	$(LOCAL_PATH) \
 	$(LOCAL_PATH)/../../api/include \
-	$(LOCAL_PATH)/../../../tiler/memmgr
+	hardware/ti/tiler/memmgr
 
 LOCAL_SHARED_LIBRARIES := \
 	libipcutils \
