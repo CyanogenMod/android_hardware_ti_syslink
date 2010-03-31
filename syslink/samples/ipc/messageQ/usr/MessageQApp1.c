@@ -13,7 +13,7 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-/*============================================================================
+/*==============================================================================
  *  @file   MessageQApp1.c
  *
  *  @brief  Sample application for MessageQ module between MPU & AppM3
@@ -337,7 +337,8 @@ MessageQApp_startup (UInt32 notifyAddr, UInt32 sharedAddr)
         }
         else {
             MessageQApp_shAddrBase = sharedAddr;
-            Osal_printf ("Virt address of shared address base: [0x%x]\n", sharedAddr);
+            Osal_printf ("Virt address of shared address base: [0x%x]\n",
+                            sharedAddr);
         }
     }
 
@@ -605,7 +606,8 @@ MessageQApp_execute (Void)
 
     if (status >=0) {
         do {
-            status = MessageQ_open (DUCATI_CORE1_MESSAGEQNAME, &MessageQApp_queueId);
+            status = MessageQ_open (DUCATI_CORE1_MESSAGEQNAME,
+                                    &MessageQApp_queueId);
         } while (status == MESSAGEQ_E_NOTFOUND);
         if (status < 0) {
             Osal_printf ("Error in MessageQ_open [0x%x]\n", status);
@@ -651,13 +653,15 @@ MessageQApp_execute (Void)
             }
             else {
                 /* Validate the returned message. */
-                if (MessageQ_getMsgId (msg) != ((i % 16) + 1) ) {
-                    Osal_printf ("Data integrity failure!\n"
-                                 "    Expected %d\n"
-                                 "    Received %d\n",
-                                 ((i % 16) + 1),
-                                 MessageQ_getMsgId (msg));
-                    break;
+                if (msg != NULL) {
+                    if (MessageQ_getMsgId (msg) != ((i % 16) + 1) ) {
+                        Osal_printf ("Data integrity failure!\n"
+                                     "    Expected %d\n"
+                                     "    Received %d\n",
+                                     ((i % 16) + 1),
+                                     MessageQ_getMsgId (msg));
+                        break;
+                    }
                 }
 
                 status = MessageQ_free (msg);
@@ -702,15 +706,23 @@ MessageQApp_execute (Void)
         if (status < 0) {
             Osal_printf ("\nError in MessageQ_get (die message)!\n");
         }
-
-        /* Validate the returned message. */
-        if (MessageQ_getMsgId (msg) == DIEMESSAGE) {
-            Osal_printf ("\nSuccessfully received die response from the remote"
-                        "processor\n");
-            Osal_printf ("Sample application successfully completed!\n");
-        }
         else {
-            Osal_printf ("\nUnsuccessful run of the sample application!\n");
+            /* Validate the returned message. */
+            if (msg != NULL) {
+                if (MessageQ_getMsgId (msg) == DIEMESSAGE) {
+                    Osal_printf ("\nSuccessfully received die response from the"
+                                 " remote processor\n");
+                    Osal_printf ("Sample application successfully completed\n");
+                }
+                else {
+                    Osal_printf("\nUnsuccessful run of the sample "
+                                "application!\n");
+                }
+            }
+            else {
+                Osal_printf ("\nUnsuccessful run of the sample application "
+                                "msg == NULL!\n");
+            }
         }
         MessageQ_free(msg);
     }
