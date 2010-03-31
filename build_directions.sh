@@ -177,6 +177,27 @@ function build_syslink()
 	    exit 0
 	fi
 
+	cd ${PREFIX}/syslink/d2c
+	echo "							  "
+	echo "****************************************************"
+	echo "                    Building D2C                    "
+	echo "****************************************************"
+	echo "							  "
+	export PKG_CONFIG_PATH=${TILER_USERSPACE}/target/lib/pkgconfig
+	./bootstrap.sh
+	./configure --prefix ${PREFIX}/target --host ${HOST} ${ENABLE_UNIT_TESTS}
+	make clean
+	make
+	make install
+	if [[ $? -ne 0 ]] ; then
+	    exit 0
+	fi
+	make install
+	if [[ $? -ne 0 ]] ; then
+	    exit 0
+	fi
+	cd -
+
 	cd ${PREFIX}
 }
 
