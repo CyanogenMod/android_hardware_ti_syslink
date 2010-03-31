@@ -115,7 +115,7 @@ int main(int argc, char * argv[])
 
     while ((opt = getopt_test (argc, (char * const)argv, "+lx:p:ZPR:")) != EOF) {
         switch (opt) {
-          case 'x':
+        case 'x':
             /* use given executable */
             image_path = (char *) optarg;
             Osal_printf ("image_path is %s\n",image_path);
@@ -131,6 +131,10 @@ int main(int argc, char * argv[])
             fError = TRUE;
             break;
         }
+    }
+
+    if (image_path == NULL) {
+        fError = TRUE;
     }
 
     argv += cArgc + 1;
@@ -191,12 +195,12 @@ int main(int argc, char * argv[])
 
         stop_params.proc_id = uProcId;
         status = ProcMgr_stop (ProcMgrApp_handle, &stop_params);
-
-        Osal_printf ("Loading Image %s ..... \n",image_path);
         if (status != PROCMGR_SUCCESS) {
             fprintf(stdout, "ProcMgr_stop failed for status = 0x%x\n", status);
             exit(1);
         }
+
+        Osal_printf("Loading Image %s ..... \n", image_path);
         status  = ProcMgr_load (ProcMgrApp_handle, image_path, argc, &image_path,
                                 &entry_point, &fileId, uProcId);
 
