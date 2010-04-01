@@ -338,7 +338,7 @@ ProcMgrApp_startup ()
 //new for testing DMMs
         Osal_printf ("calling Malloc the buffer \n");
 
-        aBufferSend = (UInt32 *)malloc(ulSendBufferSize);
+        aBufferSend = (UInt32 *) malloc (sizeof (UInt32) * ulSendBufferSize);
         if (aBufferSend == NULL) {
             Osal_printf ("Memory allocation failed.\n");
             status = -1;
