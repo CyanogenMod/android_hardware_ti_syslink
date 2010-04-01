@@ -224,6 +224,7 @@ Ipc_setup (const Ipc_Config * cfg)
     Int            status = Ipc_S_SUCCESS;
     Ipc_Config *   config = NULL;
     Ipc_Config     tConfig;
+    IpcKnl_Config  kConfig;
     IpcDrv_CmdArgs cmdArgs;
 
     GT_1trace (curTrace, GT_ENTER, "Ipc_setup", cfg);
@@ -250,6 +251,7 @@ Ipc_setup (const Ipc_Config * cfg)
                    Ipc_state.setupRefCount);
     }
     else {
+        /* Call the kernel Ipc_setup to allow configuration from user-space */
         /* Open the driver handle. */
         status = IpcDrv_open ();
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
@@ -262,7 +264,10 @@ Ipc_setup (const Ipc_Config * cfg)
         }
         else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-            cmdArgs.args.setup.config = (Ipc_Config *) config;
+            /* Configure the ipcSyncConfig as PAIR always */
+            kConfig.ipcSyncConfig = Ipc_ProcSync_PAIR;
+
+            cmdArgs.args.setup.config = (IpcKnl_Config *) &kConfig;
             status = IpcDrv_ioctl (CMD_IPC_SETUP, &cmdArgs);
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
             if (status < 0) {

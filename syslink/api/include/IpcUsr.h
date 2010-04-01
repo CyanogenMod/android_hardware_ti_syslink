@@ -97,6 +97,23 @@ extern "C" {
  * =============================================================================
  */
 /*!
+ *  The different options for processor synchronization
+ */
+typedef enum IpcProcSync_Config {
+    Ipc_ProcSync_NONE,          /* don't do any processor sync            */
+    Ipc_ProcSync_PAIR,          /* sync pair of processors in Ipc_attach  */
+    Ipc_ProcSync_ALL            /* sync all processors, done in Ipc_start */
+} IpcProcSync_Config;
+
+/*!
+ *  @brief  Structure defining config parameters for overall System.
+ */
+typedef struct IpcKnl_Config {
+    IpcProcSync_Config              ipcSyncConfig;
+    /*!< Ipc Proc Sync config parameter */
+} IpcKnl_Config;
+
+/*!
  *  @brief  Structure defining config parameters for overall System.
  */
 typedef struct Ipc_Config {

@@ -140,7 +140,7 @@ typedef struct IpcDrv_CmdArgs {
         } writeConfig;
 
         struct {
-            Ipc_Config * config;
+            IpcKnl_Config       * config;
         } setup;
     } args;
 
