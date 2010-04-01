@@ -369,7 +369,7 @@ ListMPApp_execute (UInt32 sharedAddr)
     if(status >= 0) {
         Osal_printf ("Opening the list created by remote processor at 0x%08x\n", listAddr);
         status = ListMP_open(&listHandle,&listMPParams);
-        if(status < 0){
+        if ((status < 0) || (listHandle == NULL)) {
             Osal_printf ("Error in ListMP_open [0x%x]\n", status);
         }
         else {
