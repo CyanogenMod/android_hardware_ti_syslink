@@ -142,6 +142,11 @@ extern "C" {
 #define __PROCMGR_FLUSH_MEMORY  (__ARM_NR_BASE+0x0007ff)
 
 /*!
+ *  @brief  Symbol name for Ipc Synchronization section
+ */
+#define RESETVECTOR_SYMBOL          "_Ipc_ResetVector"
+
+/*!
  *  @brief  ProcMgr Module state object
  */
 typedef struct ProcMgr_ModuleObject_tag {
@@ -1519,6 +1524,10 @@ ProcMgr_start (ProcMgr_Handle        handle,
     Int                     status          = PROCMGR_SUCCESS;
     ProcMgr_Object *        procMgrHandle   = (ProcMgr_Object *) handle;
     ProcMgr_CmdArgsStart    cmdArgs;
+#ifdef SYSLINK_USE_SYSMGR
+    UInt32                  start;
+    UInt32                  fileId;
+#endif
 
     GT_2trace (curTrace, GT_ENTER, "ProcMgr_start", handle, params);
 
@@ -1538,50 +1547,62 @@ ProcMgr_start (ProcMgr_Handle        handle,
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
         /* FIXME: move sysmgr calls from Proc user space */
 #ifdef SYSLINK_USE_SYSMGR
-        status = Ipc_control (params->proc_id, Ipc_CONTROLCMD_LOADCALLBACK,
-                              NULL);
-#endif
-
+        /* read the symbol from slave binary */
+        status = ProcMgr_getSymbolAddress (handle,
+                                           fileId,
+                                           RESETVECTOR_SYMBOL,
+                                           &start);
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-
-#ifdef SYSLINK_USE_SYSMGR
         if (status < 0) {
-             GT_setFailureReason (curTrace,
+            status = ProcMgr_E_FAIL;
+            GT_setFailureReason (curTrace,
                                  GT_4CLASS,
                                  "ProcMgr_start",
                                  status,
-                                 "Ipc API failed on kernel-side!");
+                                 "ProcMgr_getSymbolAddress failed");
         }
         else {
-#endif //#ifdef SYSLINK_USE_SYSMGR
-
 #endif
-            cmdArgs.handle = procMgrHandle->knlObject;
-            cmdArgs.params = params;
-            cmdArgs.entry_point = entry_point;
-            status = ProcMgrDrvUsr_ioctl (CMD_PROCMGR_START, &cmdArgs);
+            status = Ipc_control (params->proc_id, Ipc_CONTROLCMD_LOADCALLBACK,
+                                  NULL);
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
             if (status < 0) {
-                GT_setFailureReason (curTrace,
-                                 GT_4CLASS,
-                                 "ProcMgr_start",
-                                 status,
-                                 "API (through IOCTL) failed on kernel-side!");
+                 GT_setFailureReason (curTrace,
+                                     GT_4CLASS,
+                                     "ProcMgr_start",
+                                     status,
+                                     "Ipc API failed on kernel-side!");
             }
-
+            else {
+#endif
+#endif
+                cmdArgs.handle = procMgrHandle->knlObject;
+                cmdArgs.params = params;
+                cmdArgs.entry_point = entry_point;
+                status = ProcMgrDrvUsr_ioctl (CMD_PROCMGR_START, &cmdArgs);
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+                if (status < 0) {
+                    GT_setFailureReason (curTrace,
+                                     GT_4CLASS,
+                                     "ProcMgr_start",
+                                     status,
+                                     "API (through IOCTL) failed on kernel-side!");
+                }
+#endif
 #ifdef SYSLINK_USE_SYSMGR
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+            }
         }
-#endif //#ifdef SYSLINK_USE_SYSMGR
-
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+#endif //#ifdef SYSLINK_USE_SYSMGR
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
     }
+#endif
 
 #ifdef SYSLINK_USE_SYSMGR
-    if (status > 0) {
+    if (status >= 0) {
         status = Ipc_control (params->proc_id, Ipc_CONTROLCMD_STARTCALLBACK,
                               NULL);
-#endif //#ifdef SYSLINK_USE_SYSMGR
-
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
         if (status < 0) {
             GT_setFailureReason (curTrace,
@@ -1591,8 +1612,6 @@ ProcMgr_start (ProcMgr_Handle        handle,
                                  "SYSMGR API failed on kernel-side!");
         }
 #endif
-
-#ifdef SYSLINK_USE_SYSMGR
     }
 #endif //#ifdef SYSLINK_USE_SYSMGR
 
