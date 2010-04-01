@@ -56,7 +56,8 @@
 #include <Trace.h>
 
 /* Module level headers */
-#include <MultiProc.h>
+#include <ti/ipc/MultiProc.h>
+#include <_MultiProc.h>
 #include <ProcMgr.h>
 
 #include "Queue.h"
@@ -76,7 +77,7 @@ typedef struct DLoad4430_ModuleObject_tag {
          process. */
     DLoad_Config defCfg;
     /* Default module configuration */
-    DLoad4430_Handle dLoadHandles [MULTIPROC_MAXPROCESSORS];
+    DLoad4430_Handle dLoadHandles [MultiProc_MAXPROCESSORS];
     /*!< Array of Handles of DLoad instances */
 } DLoad4430_ModuleObject;
 
@@ -190,7 +191,7 @@ DLoad4430_setup (DLoad_Config * cfg)
     }
     else {
         /* Set all handles to NULL -- in order for destroy() to work */
-        for (i = 0 ; i < MULTIPROC_MAXPROCESSORS ; i++) {
+        for (i = 0 ; i < MultiProc_MAXPROCESSORS ; i++) {
             DLoad_state.dLoadHandles [i] = NULL;
         }
     }
@@ -236,7 +237,7 @@ DLoad4430_destroy (Void)
         /* Check if any ProcMgr instances have not been deleted so far. If not,
          * delete them.
          */
-        for (i = 0 ; i < MULTIPROC_MAXPROCESSORS ; i++) {
+        for (i = 0 ; i < MultiProc_MAXPROCESSORS ; i++) {
             GT_assert (curTrace, (DLoad_state.procHandles [i] == NULL));
             if (DLoad_state.dLoadHandles [i] != NULL) {
                 DLoad4430_delete (&(DLoad_state.dLoadHandles [i]));
@@ -459,7 +460,7 @@ DLoad4430_delete (DLoad4430_Handle * handlePtr)
 
         if (status >= 0) {
             /* Clear the ProcMgr handle in the local array. */
-            GT_assert (curTrace,(handle->procId < MULTIPROC_MAXPROCESSORS));
+            GT_assert (curTrace,(handle->procId < MultiProc_MAXPROCESSORS));
             DLOAD_destroy(handle->loaderHandle);
             DLoad_state.dLoadHandles [handle->procId] = NULL;
             handle->loaderHandle = NULL;
