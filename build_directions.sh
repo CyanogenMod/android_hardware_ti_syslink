@@ -183,7 +183,6 @@ function build_syslink()
 	echo "                    Building D2C                    "
 	echo "****************************************************"
 	echo "							  "
-	export PKG_CONFIG_PATH=${TILER_USERSPACE}/target/lib/pkgconfig
 	./bootstrap.sh
 	./configure --prefix ${PREFIX}/target --host ${HOST} ${ENABLE_UNIT_TESTS}
 	make clean
