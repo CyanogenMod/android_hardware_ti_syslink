@@ -121,6 +121,7 @@ echo Found libpthread.so in $LIBPTHREAD
 
 #.. uncomment to include our unit tests as well
 ENABLE_UNIT_TESTS=--enable-unit-tests
+ENABLE_TESTS=--enable-tests
 
 #.. uncomment to export the tilermgr.h header - this is currently needed by
 #   syslink
@@ -184,7 +185,7 @@ function build_syslink()
 	echo "****************************************************"
 	echo "							  "
 	./bootstrap.sh
-	./configure --prefix ${PREFIX}/target --host ${HOST} ${ENABLE_UNIT_TESTS}
+	./configure --prefix ${PREFIX}/target --host ${HOST} ${ENABLE_TESTS}
 	make clean
 	make
 	make install
