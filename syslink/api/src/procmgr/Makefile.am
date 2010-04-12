@@ -59,8 +59,8 @@ libprocmgr_la_CPPFLAGS    = \
 libprocmgr_la_LIBTOOLFLAGS = --tag=disable-static
 libprocmgr_la_LDFLAGS = -version-info 0:0:0
 libprocmgr_la_LIBADD = \
-$(PROJROOT)/api/src/utils/libutils.la \
-$(PROJROOT)/api/src/sysmgr/libsysmgr.la
+../utils/libutils.la \
+../sysmgr/libsysmgr.la
 
 
 lib_LTLIBRARIES  += libprocmgr_nonsysmgr.la
@@ -75,4 +75,4 @@ libprocmgr_nonsysmgr_la_CPPFLAGS    = \
 libprocmgr_nonsysmgr_la_LIBTOOLFLAGS = --tag=disable-static
 libprocmgr_nonsysmgr_la_LDFLAGS = -version-info 0:0:0
 libprocmgr_nonsysmgr_la_LIBADD = \
-$(PROJROOT)/api/src/utils/libutils.la
+../utils/libutils.la
