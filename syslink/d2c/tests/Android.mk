@@ -7,7 +7,7 @@ LOCAL_ARM_MODE := arm
 
 LOCAL_SRC_FILES:= \
 	d2c_test.c \
-	../../../tiler/utils/testlib.c
+	testlib.c
 
 LOCAL_C_INCLUDES += \
 	hardware/ti/tiler/utils \
