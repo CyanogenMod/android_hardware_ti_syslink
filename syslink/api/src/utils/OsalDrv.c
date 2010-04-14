@@ -87,9 +87,6 @@ OsalDrv_open (Void)
     GT_0trace (curTrace, GT_ENTER, "OsalDrv_open");
 
     if (OsalDrv_refCount == 0) {
-        /* TBD: Protection for refCount. */
-        OsalDrv_refCount++;
-
         OsalDrv_handle = open (OSALDRV_DRIVER_NAME, O_SYNC | O_RDWR);
         if (OsalDrv_handle < 0) {
             perror ("OsalDrv driver open: " OSALDRV_DRIVER_NAME);
@@ -113,6 +110,10 @@ OsalDrv_open (Void)
                                      "OsalDrv_open",
                                      status,
                                      "Failed to set file descriptor flags!");
+            }
+            else {
+                /* TBD: Protection for refCount. */
+                OsalDrv_refCount++;
             }
         }
     }
