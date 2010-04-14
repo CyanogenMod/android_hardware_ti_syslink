@@ -62,8 +62,6 @@ Void printSysM3Traces (Void *arg)
     UInt32        * writePointer;
     Char          * traceBuffer;
 
-    UsrUtilsDrv_setup ();
-
     Osal_printf ("\nSpawning SysM3 trace thread\n ");
 
     /* Get the user virtual address of the buffer */
@@ -121,9 +119,7 @@ Void printAppM3Traces (Void *arg)
     UInt32        * writePointer;
     Char          * traceBuffer;
 
-    UsrUtilsDrv_setup ();
-
-    Osal_printf ("\nSpawning APP-M3 trace thread\n ");
+    Osal_printf ("\nSpawning AppM3 trace thread\n ");
 
     /* Get the user virtual address of the buffer */
     traceinfo.src  = APPM3_TRACE_BUFFER_PHYS_ADDR;
@@ -210,6 +206,8 @@ Int main (Int argc, Char * argv [])
 
     sem_init(&semPrint, 0, 1);
 
+    UsrUtilsDrv_setup ();
+
     pthread_create (&thread_sys, NULL, (Void *)&printSysM3Traces,
                     NULL);
     pthread_create (&thread_app, NULL, (Void *)&printAppM3Traces,
@@ -219,6 +217,8 @@ Int main (Int argc, Char * argv [])
     Osal_printf ("SysM3 trace thread exited\n");
     pthread_join (thread_app, NULL);
     Osal_printf ("AppM3 trace thread exited\n");
+
+    UsrUtilsDrv_destroy ();
 
     sem_destroy(&semPrint);
 
