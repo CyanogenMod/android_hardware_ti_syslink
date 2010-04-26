@@ -34,62 +34,81 @@
 #include <RcmClient.h>
 #include <RcmServer.h>
 
-/* Sample headers */
-#include <Client.h>
-#include <Server.h>
-
 #if defined (__cplusplus)
 extern "C" {
 #endif /* defined (__cplusplus) */
+
+/* Sample test functions */
+extern Int MpuRcmServerTest (Int testCase);
+
+extern Int MpuRcmClientTest (Int testCase);
+
+
+Void printUsage (Void)
+{
+    Osal_printf ("Usage: ./rcm_singletest.out <Test#> <Sub Test#>\n"
+                    "Options:\n");
+    Osal_printf ("\t./rcm_singletest.out 1 1 : "
+                    "MPU RCM Client <--> SysM3 RCM Server\n");
+    Osal_printf ("\t./rcm_singletest.out 1 2 : "
+                    "MPU RCM Server <--> SysM3 RCM Client\n");
+    Osal_printf ("\t./rcm_singletest.out 2 1 : "
+                    "MPU RCM Client <--> AppM3 RCM Server\n");
+    Osal_printf ("\t./rcm_singletest.out 2 2 : "
+                    "MPU RCM Server <--> AppM3 RCM Client\n");
+
+    return;
+}
 
 /*
  *  ======== main ========
  */
 Int main (Int argc, Char * argv [])
 {
-    Int status = 0;
+    Int status      = 0;
     Int testNo;
     Int subTestNo;
 
-    Osal_printf ("\n== RCM Client and Server Sample ==\n");
+    Osal_printf ("\n== RCM Client or Server Sample ==\n");
 
-    if (argc < 3)
-    {
-        Osal_printf ("Usage: ./rcm_singletest.out <Test#> <Sub Test#>\n"
-                        "Options:\n");
-        Osal_printf ("\t./rcm_singletest.out 1 1 : "
-                        "MPU RCM Client <--> SysM3 RCM Server\n");
-        Osal_printf ("\t./rcm_singletest.out 1 2 : "
-                        "MPU RCM Client <--> AppM3 RCM Server\n");
-        Osal_printf ("\t./rcm_singletest.out 2 1 : "
-                        "MPU RCM Server <--> SysM3 RCM Client\n");
-        Osal_printf ("\t./rcm_singletest.out 2 2 : "
-                        "MPU RCM Server <--> AppM3 RCM Client\n");
+    if (argc < 3) {
+        printUsage ();
         goto exit;
     }
 
     testNo = atoi (argv[1]);
     subTestNo = atoi (argv[2]);
+    if ((testNo != 1 && testNo != 2) || (subTestNo != 1 && subTestNo != 2)) {
+        printUsage ();
+        goto exit;
+    }
 
     /* Run RCM client test */
-    if(testNo == 1) {
-        Osal_printf ("RCM Client test invoked\n");
-        status = MpuRcmClientTest (subTestNo);
+    if(subTestNo == 1) {
+        Osal_printf ("RCM Client sample invoked\n");
+        status = MpuRcmClientTest (testNo);
         if (status < 0) {
-            Osal_printf ("Error in RCM Client test \n");
+            Osal_printf ("Error in RCM Client sample\n");
         }
     }
 
     /* Run RCM server test */
-    if(testNo == 2) {
-        Osal_printf ("RCM Server test invoked\n");
-        status = MpuRcmServerTest (subTestNo);
+    if(subTestNo == 2) {
+        Osal_printf ("RCM Server sample invoked\n");
+        status = MpuRcmServerTest (testNo);
         if (status < 0)
-            Osal_printf ("Error in RCM Server test \n");
+            Osal_printf ("Error in RCM Server sample\n");
     }
 
 exit:
     Osal_printf ("\n== Sample End ==\n");
+
+    /* Trace for TITAN support */
+    if (status < 0)
+        Osal_printf ("test_case_status=%d\n", status);
+    else
+        Osal_printf ("test_case_status=0\n");
+
     return status;
 }
 
