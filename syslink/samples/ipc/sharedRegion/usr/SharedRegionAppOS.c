@@ -142,8 +142,6 @@ main (int argc, char ** argv)
 
     sharedRegionApp_startup ();
     sharedRegionApp_execute ();
-    Osal_printf ("Press any key to continue ...\n");
-    getchar ();
     sharedRegionApp_shutdown ();
 
     return 0;

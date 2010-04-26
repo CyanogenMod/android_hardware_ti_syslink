@@ -43,15 +43,11 @@
 #include <String.h>
 
 /* Module level headers */
-#if defined (SYSLINK_USE_SYSMGR)
-#include <SysMgr.h>
-#else /* if defined (SYSLINK_USE_SYSMGR) */
-#include <UsrUtilsDrv.h>
-#include <MultiProc.h>
-#include <NameServer.h>
-#include <SharedRegion.h>
-#include <GatePeterson.h>
-#endif /* if defined(SYSLINK_USE_SYSMGR) */
+//#include <ti/ipc/Ipc.h>
+#include <IpcUsr.h>
+#include <ti/ipc/MultiProc.h>
+#include <ti/ipc/NameServer.h>
+#include <ti/ipc/SharedRegion.h>
 
 #include <ProcMgr.h>
 #include <ProcDefs.h>
@@ -81,8 +77,24 @@ extern "C" {
  */
 #define MAX_RUNTIMEENTRIES 10u
 
+
+/*!
+ *  @brief  Shared memory base
+ */
+#define SHAREDREGION_ID         1
+
+/*!
+ *  @brief  Number of shared regions to be configured
+ */
+#define NUM_SHAREDREGIONS       3
+
+/*!
+ *  @brief  Shared memory size
+ */
+#define SHAREDREGION_SIZE       0x54000
+
 #define SHAREDMEM               0xA0000000
-#define SHAREDMEMSIZE           0xF000
+#define SHAREDMEMSIZE           0x54000
 
 /*
 #define SHAREDMEM_PHY           0x83f00000
@@ -97,6 +109,7 @@ UInt32 curAddr;
 
 void * ProcMgrApp_startup ();
 
+#define NOTIFY_SYSM3_IMAGE_PATH "./Notify_MPUSYS_reroute_Test_Core0.xem3"
 
 /** ============================================================================
  *  Functions
@@ -105,51 +118,24 @@ void * ProcMgrApp_startup ();
 Int
 sharedRegionApp_startup (Void)
 {
-    Int  status          = 0;
-    NameServer_Params    NameServerParams;
-    SharedRegion_Config  cfgShrParams;
-#if !defined (SYSLINK_USE_SYSMGR)
-    MultiProc_Config multiProcConfig;
-#else /* if !defined(SYSLINK_USE_SYSMGR) */
-    SysMgr_Config config;
-#endif /* if !defined(SYSLINK_USE_SYSMGR) */
+    Int                  status     = 0;
+    SharedRegion_Entry   entry;
+    UInt32               fileId;
+    UInt32               entryPoint = 0;
+    ProcMgr_StartParams  startParams;
+    char *               image_path;
+    Ipc_Config config;
+    ProcMgr_AttachParams attachParams;
+    ProcMgr_State        state;
+    Int                  i;
+    Char                 tmpStr[80];
 
     Osal_printf ("Entered sharedRegionApp_startup\n");
 
-#if defined(SYSLINK_USE_SYSMGR)
-    SysMgr_getConfig (&config);
-    status = SysMgr_setup (&config);
+    Ipc_getConfig (&config);
+    status = Ipc_setup (&config);
     if (status < 0) {
-        Osal_printf ("Error in SysMgr_setup [0x%x]\n", status);
-    }
-#else /* if defined(SYSLINK_USE_SYSMGR) */
-    UsrUtilsDrv_setup ();
-
-    multiProcConfig.maxProcessors = 4;
-    multiProcConfig.id = 0;
-    String_cpy (multiProcConfig.nameList [0], "MPU");
-    String_cpy (multiProcConfig.nameList [1], "Tesla");
-    String_cpy (multiProcConfig.nameList [2], "SysM3");
-    String_cpy (multiProcConfig.nameList [3], "AppM3");
-    status = MultiProc_setup(&multiProcConfig);
-    if (status < 0) {
-        Osal_printf ("Error in MultiProc_setup [0x%x]\n", status);
-    }
-
-    NameServerParams.maxNameLen           = MAX_NAME_LENGTH;
-    NameServerParams.maxRuntimeEntries = MAX_VALUE_LENGTH;
-    NameServerParams.maxValueLen       = MAX_RUNTIMEENTRIES;
-
-    status = NameServer_setup();
-    Osal_printf ("NameServer_setup [0x%x]\n", status);
-#endif /* if defined(SYSLINK_USE_SYSMGR) */
-
-    cfgShrParams.gateHandle = NULL;
-    cfgShrParams.heapHandle = NULL;
-    cfgShrParams.maxRegions = 4;
-    status = SharedRegion_setup(&cfgShrParams);
-    if (status < 0) {
-        Osal_printf ("Error in SharedRegion_setup [0x%x]\n", status);
+        Osal_printf ("Error in Ipc_setup [0x%x]\n", status);
     }
 
     status = ProcMgr_open (&sharedRegionApp_procMgrHandle,
@@ -158,6 +144,39 @@ sharedRegionApp_startup (Void)
         Osal_printf ("Error in ProcMgr_open [0x%x]\n", status);
     }
 
+    if (status >= 0) {
+        ProcMgr_getAttachParams (NULL, &attachParams);
+        /* Default params will be used if NULL is passed. */
+        status = ProcMgr_attach (sharedRegionApp_procMgrHandle, &attachParams);
+        if (status < 0) {
+            Osal_printf ("ProcMgr_attach failed [0x%x]\n", status);
+        }
+        else {
+            Osal_printf ("ProcMgr_attach status: [0x%x]\n", status);
+            state = ProcMgr_getState (sharedRegionApp_procMgrHandle);
+            Osal_printf ("After attach: ProcMgr_getState\n"
+                         "    state [0x%x]\n", state);
+        }
+    }
+
+    startParams.proc_id = MultiProc_getId("SysM3");
+    image_path = NOTIFY_SYSM3_IMAGE_PATH;
+    status = ProcMgr_load (sharedRegionApp_procMgrHandle, NOTIFY_SYSM3_IMAGE_PATH,
+                           2, &image_path, &entryPoint,
+                           &fileId, startParams.proc_id);
+    if (status < 0) {
+        Osal_printf ("Error in ProcMgr_load [0x%x]:SYSM3\n", status);
+        return status;
+    }
+    else {
+        Osal_printf ("ProcMgr_load successful!\n");
+    }
+
+    status = ProcMgr_start (sharedRegionApp_procMgrHandle, 0, &startParams);
+    if (status < 0) {
+        Osal_printf ("Error in ProcMgr_start [0x%x]:SYSM3\n", status);
+        return status;
+    }
     status = ProcMgr_translateAddr (sharedRegionApp_procMgrHandle,
                                     (Ptr) &sharedRegionApp_shAddrBase,
                                     ProcMgr_AddrType_MasterUsrVirt,
@@ -172,9 +191,50 @@ sharedRegionApp_startup (Void)
                     SHAREDMEM, sharedRegionApp_shAddrBase);
     }
 
-    curAddr = sharedRegionApp_shAddrBase;
-    SharedRegion_add(0,(Ptr)curAddr, SHAREDMEMSIZE);
+    for (i = 0 ; i < NUM_SHAREDREGIONS ; i++) {
+        /*  Create a shared region with an id  identified by i */
+        /* base address of the region */
+        entry.base = (Ptr) (sharedRegionApp_shAddrBase
+                                       + (i * SHAREDREGION_SIZE));
 
+        /*Length of the region */
+        entry.len = SHAREDREGION_SIZE;
+
+        /*MultiProc id of the owner of the region */
+        entry.ownerProcId = MultiProc_self();
+
+        /*Whether the region is valid */
+        entry.isValid = TRUE;
+
+        /*Whether to perform cache operations for the region */
+        entry.cacheEnable = TRUE;
+
+        /*The cache line size of the region */
+        entry.cacheLineSize = 128;
+        entry.createHeap = TRUE;
+        /*The name of the region */
+        sprintf(tmpStr,"AppSharedRegion%d" ,i);
+        entry.name = tmpStr;
+
+        status = SharedRegion_setEntry ((SHAREDREGION_ID + i), &entry);
+
+        if (status < 0) {
+            Osal_printf ("Error in SharedRegion_setEntry. Status [0x%x]"
+                         " for:\n"
+                         "    ID     : [%d]\n"
+                         "    Address: [0x%x]\n"
+                         "    Size   : [0x%x]\n",
+                         status,
+                         (SHAREDREGION_ID + i),
+                         (Ptr) (sharedRegionApp_shAddrBase
+                                        + (i * SHAREDREGION_SIZE)),
+                         SHAREDREGION_SIZE);
+            break;
+        }
+        else {
+            Osal_printf ("SharedRegion_setEntry Status [0x%x]\n", status);
+        }
+    }
     return 0;
 }
 
@@ -184,18 +244,13 @@ sharedRegionApp_execute (Void)
     UInt32              usrVirtAddress = sharedRegionApp_shAddrBase;
     SharedRegion_SRPtr  srPtr;
     UInt32              Index = (~0);
-    SharedRegion_Info   info_set;
-    SharedRegion_Info   info_get;
-
-
-    info_set.isValid = 1;
-    info_set.base = (Ptr)(usrVirtAddress + SHAREDMEMSIZE);
-    info_set.len = SHAREDMEMSIZE;
+    SharedRegion_Entry  info_set;
+    SharedRegion_Entry  info_get;
 
     usrVirtAddress += 0x100;
 
     Osal_printf ("User virtual address  =  [0x%x]\n", usrVirtAddress);
-    srPtr = SharedRegion_getSRPtr((Ptr)usrVirtAddress,0);
+    srPtr = SharedRegion_getSRPtr((Ptr)usrVirtAddress, 1);
     Osal_printf ("SharedRegion pointer  =  [0x%x]\n", srPtr);
     usrVirtAddress = (UInt32)SharedRegion_getPtr(srPtr);
     Osal_printf ("User virtual pointer  =  [0x%x]\n", usrVirtAddress);
@@ -203,36 +258,42 @@ sharedRegionApp_execute (Void)
     usrVirtAddress += 0x200;
 
     Osal_printf ("User virtual address  =  [0x%x]\n", usrVirtAddress);
-    srPtr = SharedRegion_getSRPtr((Ptr)usrVirtAddress,0);
+    srPtr = SharedRegion_getSRPtr((Ptr)usrVirtAddress, 1);
     Osal_printf ("SharedRegion pointer  =  [0x%x]\n", srPtr);
     usrVirtAddress = (UInt32)SharedRegion_getPtr(srPtr);
     Osal_printf ("User virtual pointer  =  [0x%x]\n", usrVirtAddress);
 
-    Index = SharedRegion_getIndex((Ptr)usrVirtAddress);
+    Index = SharedRegion_getId((Ptr)usrVirtAddress);
     Osal_printf ("User virtual address [0x%x] is in"
         " table entry with index = [0x%x]\n", usrVirtAddress, Index);
 
 
-    SharedRegion_setTableInfo (2, MultiProc_getId("SysM3"), &info_set);
-    SharedRegion_getTableInfo (2, MultiProc_getId("SysM3"), &info_get);
+    info_set.isValid = 1;
+    info_set.base = (Ptr)(usrVirtAddress + 4 * SHAREDMEMSIZE);
+    info_set.len = SHAREDMEMSIZE;
+
+    SharedRegion_clearEntry (2);
+    SharedRegion_setEntry (2, &info_set);
+    SharedRegion_getEntry (2, &info_get);
     Osal_printf ("User virtual pointer in table with index 2 is [0x%x]\n"
                  " with size [0x%x]\n", info_get.base, info_get.len);
 
 
+    usrVirtAddress = usrVirtAddress + 4 * SHAREDMEMSIZE;
     usrVirtAddress += 0x6000;
 
     Osal_printf ("User virtual address  =  [0x%x]\n", usrVirtAddress);
-    srPtr = SharedRegion_getSRPtr((Ptr)usrVirtAddress,0);
+    srPtr = SharedRegion_getSRPtr((Ptr)usrVirtAddress, 2);
     Osal_printf ("User region pointer   =  [0x%x]\n", srPtr);
     usrVirtAddress = (UInt32)SharedRegion_getPtr(srPtr);
     Osal_printf ("User virtual pointer  =  [0x%x]\n", usrVirtAddress);
 
 
-    Osal_printf ("Passing an address which is not in any of the SharedRegion"
-        " areas registered\n");
+    Osal_printf ("Passing an address which is not in any of the SharedRegion\n"
+        "areas registered -- this should fail!\n");
     usrVirtAddress += 0x200000;
     Osal_printf ("User virtual address  =  [0x%x]\n", usrVirtAddress);
-    srPtr = SharedRegion_getSRPtr((Ptr)usrVirtAddress,0);
+    srPtr = SharedRegion_getSRPtr((Ptr)usrVirtAddress, 0);
     Osal_printf ("User region pointer   =  [0x%x]\n", srPtr);
     usrVirtAddress = (UInt32)SharedRegion_getPtr(srPtr);
     Osal_printf ("User virtual pointer  =  [0x%x]\n", usrVirtAddress);
@@ -244,30 +305,31 @@ Int
 sharedRegionApp_shutdown (Void)
 {
     Int32 status = 0;
+    ProcMgr_StopParams  stopParams;
 
-    SharedRegion_remove(0);
+    stopParams.proc_id = MultiProc_getId ("SysM3");
+    status = ProcMgr_stop (sharedRegionApp_procMgrHandle, &stopParams);
+    if (status < 0) {
+        Osal_printf ("Error in ProcMgr_stop [0x%d]:SYSM3\n", status);
+        return status;
+    }
+    Osal_printf ("ProcMgr_stop status: [0x%x]\n", status);
 
-    status = SharedRegion_destroy();
-    Osal_printf ("SharedRegion_destroy status: [0x%x]\n", status);
+    status =  ProcMgr_detach (sharedRegionApp_procMgrHandle);
+    if (status < 0) {
+        Osal_printf ("Error in ProcMgr_detach [0x%d]\n", status);
+        return status;
+    }
+    Osal_printf ("ProcMgr_detach status: [0x%x]\n", status);
 
     status = ProcMgr_close (&sharedRegionApp_procMgrHandle);
     Osal_printf ("ProcMgr_close status: [0x%x]\n", status);
 
-#if defined (SYSLINK_USE_SYSMGR)
-    SysMgr_destroy ();
-#else /* if defined (SYSLINK_USE_SYSMGR) */
-    status = NameServer_destroy();
-    Osal_printf ("NameServer_destroy status: [0x%x]\n", status);
-
-    status = MultiProc_destroy ();
-    Osal_printf ("Multiproc_destroy status: [0x%x]\n", status);
-
-    UsrUtilsDrv_destroy ();
-#endif /* if defined(SYSLINK_USE_SYSMGR) */
+    Ipc_destroy ();
 
     Osal_printf ("Leaving sharedRegionApp_shutdown\n");
 
-    return (0);
+    return status;
 }
 
 #if defined (__cplusplus)
