@@ -1,26 +1,45 @@
 /*
- * Syslink-IPC for TI OMAP Processors
+ *  Syslink-IPC for TI OMAP Processors
  *
- * Copyright (C) 2009 Texas Instruments, Inc.
+ *  Copyright (c) 2008-2010, Texas Instruments Incorporated
+ *  All rights reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Lesser General Public License as published
- * by the Free Software Foundation version 2.1 of the License.
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted provided that the following conditions
+ *  are met:
  *
- * This program is distributed .as is. WITHOUT ANY WARRANTY of any kind,
- * whether express or implied; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
+ *  *  Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
+ *
+ *  *  Redistributions in binary form must reproduce the above copyright
+ *     notice, this list of conditions and the following disclaimer in the
+ *     documentation and/or other materials provided with the distribution.
+ *
+ *  *  Neither the name of Texas Instruments Incorporated nor the names of
+ *     its contributors may be used to endorse or promote products derived
+ *     from this software without specific prior written permission.
+ *
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ *  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ *  THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ *  PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ *  CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ *  EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ *  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+ *  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ *  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ *  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ *  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*============================================================================
  *  @file   ListMP.c
  *
- *  @brief      Defines for shared memory doubly linked list on HLOS side.
+ *  @brief      Defines for shared memory doubly linked list.
  *
- *              This module implements the ListMP on hlos side.
- *              ListMP is a linked-list based module designed to be used in a
- *              multi-processor environment.  It is designed to provide a means
- *              of communication between different processors.
+ *              This module implements the ListMP.
+ *              ListMP is a linked-list based module designed to be
+ *              used in a multi-processor environment.  It is designed to
+ *              provide a means of communication between different processors.
  *              processors.
  *              This module is instance based. Each instance requires a small
  *              piece of shared memory. This is specified via the #sharedAddr
@@ -34,29 +53,32 @@
  *              be unique for all ListMP instances.
  *              The #create also initializes the shared memory as needed. The
  *              shared memory must be initialized to 0 or all ones
- *              (e.g. 0xFFFFFFFFF) before the ListMP instance is created.
+ *              (e.g. 0xFFFFFFFFF) before the ListMP instance
+ *              is created.
  *              Once an instance is created, an open can be performed. The #open
  *              is used to gain access to the same ListMP instance.
  *              Generally an instance is created on one processor and opened
  *              on the other processor.
- *              The open returns a ListMP instance handle like the create,
- *              however the open does not modify the shared memory. Generally an
- *              instance is created on one processor and opened on the other
- *              processor.
+ *              The open returns a ListMP instance handle like the
+ *              create, however the open does not modify the shared memory.
+ *              Generally an instance is created on one processor and opened
+ *              on the other processor.
  *              There are two options when opening the instance:
  *              @li Supply the same name as specified in the create. The
- *              ListMP module queries the NameServer to get the needed
- *              information.
+ *              ListMP module queries the NameServer to get the
+ *              needed information.
  *              @li Supply the same #sharedAddr value as specified in the
- *              create. If the open is called before the instance is created,
- *              open returns NULL.
+ *              create.
+ *              If the open is called before the instance is created, open
+ *              returns NULL.
  *              There is currently a list of restrictions for the module:
  *              @li Both processors must have the same endianness. Endianness
- *              conversion may supported in a future version of ListMP.
+ *              conversion may supported in a future version of
+ *              ListMP.
+ *              @li The module will be made a gated module
  *
  *  ============================================================================
  */
-
 
 
 /* Standard headers */
@@ -64,432 +86,1017 @@
 
 /* Osal And Utils  headers */
 #include <String.h>
-#include <List.h>
 #include <Trace.h>
+#include <Memory.h>
+#include <String.h>
+#include <_GateMP.h>
+#include <ti/ipc/GateMP.h>
+#include <_SharedRegion.h>
 
 /* Module level headers */
-#include <NameServer.h>
 #include <_ListMP.h>
-#include <ListMP.h>
-#include <ListMPSharedMemory.h>
+#include <ti/ipc/ListMP.h>
+#include <ListMPDrv.h>
+#include <ListMPDrvDefs.h>
 
 
 #if defined (__cplusplus)
 extern "C" {
 #endif
 
-/*!
- *  @brief      Initializes ListMP parameters.
- *
- *  @param      handle  ListMP handle.
- *  @param      params  Instance config-params structure.
- *
- *  @sa         ListMP_Params_init
+/* =============================================================================
+ * Globals
+ * =============================================================================
  */
-Void ListMP_Params_init (ListMP_Handle   handle,
-                         ListMP_Params * params)
-{
-    GT_2trace (curTrace, GT_ENTER, "ListMP_Params_init", handle, params);
+/*!
+ *  @brief  Cache size
+ */
+#define ListMP_CACHESIZE   128u
+/* =============================================================================
+ * Structures & Enums
+ * =============================================================================
+ */
 
-    GT_assert (curTrace, (params != NULL));
-    /* handle may be NULL and hence is not checked. */
+/* Structure defining object for the Gate */
+typedef struct ListMP_Object_tag {
+    Ptr         knlObject;
+    /*!< Pointer to the kernel-side ListMP object. */
+} ListMP_Object;
+
+/*!
+ *  @brief  ListMP Module state object
+ */
+typedef struct ListMP_ModuleObject_tag {
+    UInt32                    setupRefCount;
+    /*!< Reference count for number of times setup/destroy were called in this
+         process. */
+} ListMP_ModuleObject;
+
+
+/* =============================================================================
+ *  Globals
+ * =============================================================================
+ */
+/*!
+ *  @var    ListMP_state
+ *
+ *  @brief  ListMP state object variable
+ */
+#if !defined(SYSLINK_BUILD_DEBUG)
+static
+#endif /* if !defined(SYSLINK_BUILD_DEBUG) */
+ListMP_ModuleObject ListMP_state =
+{
+    .setupRefCount = 0
+};
+
+/*!
+ *  @var    ListMP_module
+ *
+ *  @brief  Pointer to the ListMP module state.
+ */
+#if !defined(SYSLINK_BUILD_DEBUG)
+static
+#endif /* if !defined(SYSLINK_BUILD_DEBUG) */
+ListMP_ModuleObject * ListMP_module = &ListMP_state;
+
+
+/* =============================================================================
+ *  Internal functions
+ * =============================================================================
+ */
+Int32
+ _ListMP_create(ListMP_Handle       * listMPHandle,
+                ListMPDrv_CmdArgs     cmdArgs,
+                UInt16                createFlag);
+
+
+/* =============================================================================
+ * APIS
+ * =============================================================================
+ */
+/*
+ *  Function to get configuration parameters to setup
+ *  the ListMP module.
+ */
+Void
+ListMP_getConfig (ListMP_Config * cfgParams)
+{
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+    Int               status = ListMP_S_SUCCESS;
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+    ListMPDrv_CmdArgs cmdArgs;
+
+    GT_1trace (curTrace, GT_ENTER, "ListMP_getConfig", cfgParams);
+
+    GT_assert (curTrace, (cfgParams != NULL));
 
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-    if (params == NULL) {
-        /*! @retval NULL Invalid NULL params pointer
-         *          specified
-         */
+    if (cfgParams == NULL) {
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "ListMP_getConfig",
+                             ListMP_E_INVALIDARG,
+                             "Argument of type (ListMP_Config *) passed "
+                             "is null!");
+    }
+    else {
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+        /* Temporarily open the handle to get the configuration. */
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+        status =
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+        ListMPDrv_open ();
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+        if (status < 0) {
+            GT_setFailureReason (curTrace,
+                                 GT_4CLASS,
+                                 "ListMP_getConfig",
+                                 status,
+                                 "Failed to open driver handle!");
+        }
+        else {
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+            cmdArgs.args.getConfig.config = cfgParams;
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+            status =
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+            ListMPDrv_ioctl (CMD_LISTMP_GETCONFIG, &cmdArgs);
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+            if (status < 0) {
+                GT_setFailureReason (curTrace,
+                                  GT_4CLASS,
+                                  "ListMP_getConfig",
+                                  status,
+                                  "API (through IOCTL) failed on kernel-side!");
+
+            }
+        }
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+        /* Close the driver handle. */
+        ListMPDrv_close ();
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+    }
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+
+    GT_0trace (curTrace, GT_LEAVE, "ListMP_getConfig");
+}
+
+
+/*
+ *  Function to setup the ListMP module.
+ */
+Int
+ListMP_setup (ListMP_Config * config)
+{
+    Int               status = ListMP_S_SUCCESS;
+    ListMPDrv_CmdArgs cmdArgs;
+
+    GT_1trace (curTrace, GT_ENTER, "ListMP_setup", config);
+
+    /* TBD: Protect from multiple threads. */
+    ListMP_module->setupRefCount++;
+    /* This is needed at runtime so should not be in SYSLINK_BUILD_OPTIMIZE. */
+    if (ListMP_module->setupRefCount > 1) {
+        status = ListMP_S_ALREADYSETUP;
+        GT_1trace (curTrace,
+                   GT_1CLASS,
+                   "ListMP module has been already setup in this"
+                   " process.\n RefCount: [%d]\n",
+                   ListMP_module->setupRefCount);
+    }
+    else {
+        /* Open the driver handle. */
+        status = ListMPDrv_open ();
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+        if (status < 0) {
+            GT_setFailureReason (curTrace,
+                                 GT_4CLASS,
+                                 "ListMP_setup",
+                                 status,
+                                 "Failed to open driver handle!");
+        }
+        else {
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+            cmdArgs.args.setup.config = (ListMP_Config *) config;
+            status = ListMPDrv_ioctl (CMD_LISTMP_SETUP,
+                                      &cmdArgs);
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+            if (status < 0) {
+                GT_setFailureReason (curTrace,
+                                     GT_4CLASS,
+                                     "ListMP_setup",
+                                     status,
+                                     "API (through IOCTL) failed"
+                                     " on kernel-side!");
+            }
+        }
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+    }
+
+    GT_1trace (curTrace, GT_LEAVE, "ListMP_setup", status);
+
+    return status;
+}
+
+
+/*
+ *  Function to destroy the ListMP module.
+ */
+Int
+ListMP_destroy (void)
+{
+    Int                           status = ListMP_S_SUCCESS;
+    ListMPDrv_CmdArgs    cmdArgs;
+
+    GT_0trace (curTrace, GT_ENTER, "ListMP_destroy");
+
+    /* TBD: Protect from multiple threads. */
+    ListMP_module->setupRefCount--;
+    /* This is needed at runtime so should not be in SYSLINK_BUILD_OPTIMIZE. */
+    if (ListMP_module->setupRefCount >= 1) {
+        status = ListMP_S_ALREADYSETUP;
+        GT_1trace (curTrace,
+                   GT_1CLASS,
+                   "ListMP module has been setup by other clients"
+                   " in this process.\n"
+                   "    RefCount: [%d]\n",
+                   ListMP_module->setupRefCount);
+    }
+    else {
+        status = ListMPDrv_ioctl (CMD_LISTMP_DESTROY,
+                                  &cmdArgs);
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+        if (status < 0) {
+            GT_setFailureReason (curTrace,
+                                 GT_4CLASS,
+                                 "ListMP_destroy",
+                                 status,
+                                 "API (through IOCTL) failed on kernel-side!");
+        }
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+
+        /* Close the driver handle. */
+        ListMPDrv_close ();
+    }
+
+    GT_1trace (curTrace, GT_LEAVE, "ListMP_destroy", status);
+
+    return status;
+}
+
+
+/*
+ *  Initialize this config-params structure with supplier-specified
+ *  defaults before instance creation.
+ */
+Void
+ListMP_Params_init (ListMP_Params * params)
+{
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+    Int                  status = ListMP_S_SUCCESS;
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+    ListMPDrv_CmdArgs    cmdArgs;
+
+    GT_1trace (curTrace,
+               GT_ENTER,
+               "ListMP_Params_init",
+               params);
+
+    GT_assert (curTrace, (params != NULL));
+
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+    if (ListMP_module->setupRefCount == 0) {
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "ListMP_Params_init",
-                             LISTMP_E_INVALIDARG,
-                             "Invalid NULL params pointer specified!");
+                             ListMP_E_INVALIDSTATE,
+                             "Module is not initialized!");
+    }
+    else if (params == NULL) {
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "ListMP_Params_init",
+                             ListMP_E_INVALIDARG,
+                             "Argument of type (ListMP_Params *) "
+                             " passed is null!");
     }
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-        ListMPSharedMemory_Params_init (handle, params);
+        cmdArgs.args.ParamsInit.params = params;
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
+        status =
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+        ListMPDrv_ioctl (CMD_LISTMP_PARAMS_INIT,
+                         &cmdArgs);
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+        if (status < 0) {
+            GT_setFailureReason (curTrace,
+                                 GT_4CLASS,
+                                 "ListMP_Params_init",
+                                 status,
+                                 "API (through IOCTL) failed on kernel-side!");
+        }
     }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+
     GT_0trace (curTrace, GT_LEAVE, "ListMP_Params_init");
+
+    return;
 }
 
 
-/*!
- *  @brief      Creates and initializes ListMP module.
- *
- *  @param      params  Instance config-params structure.
- *
- *  @sa         ListMP_delete
- *              ListMPSharedMemory_create
+/*
+ *  Creates a new instance of ListMP module.
  */
-ListMP_Handle ListMP_create (ListMP_Params * params)
+ListMP_Handle
+ListMP_create (const ListMP_Params * params)
 {
-    ListMP_Object * handle  = NULL;
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+    Int               status = 0;
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+    ListMP_Handle     handle = NULL;
+    ListMPDrv_CmdArgs cmdArgs;
+    UInt16            index;
 
-    GT_1trace (curTrace, GT_ENTER, "LISTMP_create", params);
+    GT_1trace (curTrace, GT_ENTER, "ListMP_create", params);
 
     GT_assert (curTrace, (params != NULL));
 
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-    if (params == NULL) {
-        /*! @retval NULL Invalid NULL params pointer
-         *          specified
-         */
+    if (ListMP_module->setupRefCount == 0) {
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "ListMP_create",
-                             LISTMP_E_INVALIDARG,
-                             "Invalid NULL params pointer specified!");
+                             ListMP_E_INVALIDSTATE,
+                             "Module is not initialized!");
+    }
+    else if (params == NULL) {
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "ListMP_create",
+                             ListMP_E_INVALIDARG,
+                             "Params passed is NULL!");
+    }
+    else if ((params->sharedAddr == (UInt32)NULL)
+             &&(params->regionId == SharedRegion_INVALIDREGIONID)) {
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "ListMP_create",
+                             ListMP_E_INVALIDARG,
+                             "Please provide a valid shared region "
+                             "address or Region Id!");
     }
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-        if (params->listType == ListMP_Type_SHARED) {
-            handle = (ListMP_Object *)ListMPSharedMemory_create (params);
+        cmdArgs.args.create.params = (ListMP_Params *) params;
+
+        /* Translate sharedAddr to SrPtr. */
+        GT_1trace (curTrace,
+                   GT_2CLASS,
+                   "    ListMP_create: Shared addr [0x%x]\n",
+                   params->sharedAddr);
+        if  (params->sharedAddr != NULL) {
+            index = SharedRegion_getId (params->sharedAddr);
+            cmdArgs.args.create.sharedAddrSrPtr = SharedRegion_getSRPtr (
+                                                            params->sharedAddr,
+                                                            index);
+        }
+        else {
+            cmdArgs.args.create.sharedAddrSrPtr = SharedRegion_INVALIDSRPTR;
+        }
+        GT_1trace (curTrace,
+                   GT_2CLASS,
+                   "    ListMP_create: "
+                   "Shared buffer addr SrPtr [0x%x]\n",
+                   cmdArgs.args.create.sharedAddrSrPtr);
+
+        /* Translate Gate handle to kernel-side gate handle. */
+        if (params->gate != NULL) {
+            cmdArgs.args.create.knlGate = GateMP_getKnlHandle (params->gate);
+        }
+        else {
+            cmdArgs.args.create.knlGate = NULL;
+        }
+        if (params->name != NULL) {
+            cmdArgs.args.create.nameLen = (String_len (params->name)+ 1u);
+        }
+        else {
+            cmdArgs.args.create.nameLen = 0;
         }
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
+        status =
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+        ListMPDrv_ioctl (CMD_LISTMP_CREATE,
+                                     &cmdArgs);
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+        if (status < 0) {
+            GT_setFailureReason (curTrace,
+                                 GT_4CLASS,
+                                 "ListMP_create",
+                                 status,
+                                 "API (through IOCTL) failed on kernel-side!");
+        }
+        else {
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+            status =
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+            _ListMP_create (&handle, cmdArgs, TRUE);
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+            if (status < 0) {
+                GT_setFailureReason (curTrace,
+                            GT_4CLASS,
+                            "ListMP_create",
+                            status,
+                            "ListMP creation failed on user-side!");
+            }
+        }
     }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
 
-    GT_1trace (curTrace, GT_LEAVE, "LISTMP_create", handle);
+    GT_1trace (curTrace, GT_LEAVE, "ListMP_create", handle);
 
-    /*! @retval Valid-handle Operation successful */
-    /*! @retval NULL         Operation not successful */
-    return ((ListMP_Handle) handle);
+    return handle;
 }
 
 
-/*!
- *  @brief      Deletes an instance of ListMPSharedMemory module.
- *
- *  @param      listMPHandlePtr  Pointer to Instance handle
- *
- *  @sa         ListMP_create
+/*
+ *  Deletes a instance of ListMP module.
  */
-Int ListMP_delete (ListMP_Handle * listMPHandlePtr)
+Int
+ListMP_delete (ListMP_Handle * handlePtr)
 {
-    Int  status = LISTMP_SUCCESS;
+    Int               status = ListMP_S_SUCCESS;
+    ListMP_Object   * obj    = NULL;
+    ListMPDrv_CmdArgs cmdArgs;
 
-    GT_1trace (curTrace, GT_ENTER, "ListMP_delete", listMPHandlePtr);
+    GT_1trace (curTrace, GT_ENTER, "ListMP_delete", handlePtr);
 
-    GT_assert (curTrace, (listMPHandlePtr != NULL));
-    GT_assert (curTrace, (   (listMPHandlePtr != NULL)
-                          && (*listMPHandlePtr != NULL)));
+    GT_assert (curTrace, (handlePtr != NULL));
+    GT_assert (curTrace, ((handlePtr != NULL) && (*handlePtr != NULL)));
 
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-    if (listMPHandlePtr == NULL) {
-        /*! @retval LISTMP_E_INVALIDARG listMPHandlePtr passed is NULL */
-        status = LISTMP_E_INVALIDARG;
+    if (ListMP_module->setupRefCount == 0) {
+        status = ListMP_E_INVALIDSTATE;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "ListMP_delete",
                              status,
-                             "The parameter listMPHandlePtr i.e. pointer to "
-                             "handle passed is NULL!");
+                             "Module is not initialized!");
     }
-    else if (*listMPHandlePtr == NULL) {
-        /*! @retval LISTMP_E_INVALIDARG *listMPHandlePtr passed is NULL */
-        status = LISTMP_E_INVALIDARG;
+    else if (handlePtr == NULL) {
+        status = ListMP_E_INVALIDARG;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "ListMP_delete",
                              status,
-                             "Invalid NULL passed for *listMPHandlePtr!");
+                             "handlePtr passed is NULL!");
+    }
+    else if (*handlePtr == NULL) {
+        status = ListMP_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "ListMP_delete",
+                             status,
+                             "*handlePtr passed is NULL!");
     }
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-        if (((ListMP_Object *)(*listMPHandlePtr))->listType ==
-                                                           ListMP_Type_SHARED) {
-            status = ListMPSharedMemory_delete (listMPHandlePtr);
+        obj = (ListMP_Object *) (*handlePtr);
+        cmdArgs.args.deleteInstance.handle = obj->knlObject;
+
+        status = ListMPDrv_ioctl (CMD_LISTMP_DELETE, &cmdArgs);
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+        if (status < 0) {
+            GT_setFailureReason (curTrace,
+                                 GT_4CLASS,
+                                 "ListMP_delete",
+                                 status,
+                                 "API (through IOCTL) failed on kernel-side!");
         }
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+
+        Memory_free (NULL,
+                     (*handlePtr),
+                     sizeof (ListMP_Object));
+        *handlePtr = NULL;
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
     }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
 
     GT_1trace (curTrace, GT_LEAVE, "ListMP_delete", status);
 
-    /*! @retval LISTMP_SUCCESS Operation successful */
-    return (status);
+    return status;
 }
 
 
-/*!
- *  @brief      Opens an instance of previously created ListMPSharedMemory
- *              module.
- *
- *  @param      listMPHandlePtr  Pointer to Instance handle
- *  @param      params           Instance config-params structure.
- *
- *  @sa         ListMP_close
+/*
+ *  Amount of shared memory required for creation of each instance.
  */
-Int ListMP_open (ListMP_Handle * listMPHandlePtr, ListMP_Params * params)
+SizeT
+ListMP_sharedMemReq (const ListMP_Params * params)
 {
-    Int status = LISTMP_SUCCESS;
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+    Int32                 status = ListMP_S_SUCCESS;
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+    SizeT                 retVal = 0u;
+    UInt16                index;
+    ListMPDrv_CmdArgs     cmdArgs;
 
-    GT_2trace (curTrace, GT_ENTER, "ListMP_open", listMPHandlePtr, params);
+    GT_1trace (curTrace, GT_ENTER, "ListMP_sharedMemReq", params);
 
-    GT_assert (curTrace, (listMPHandlePtr != NULL));
     GT_assert (curTrace, (params != NULL));
 
-
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-    if (listMPHandlePtr == NULL) {
-        /*! @retval NULL Invalid NULL listMPHandlePtr pointer
-         *          specified
-         */
+   if (params == NULL) {
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
-                             "ListMP_open",
-                             LISTMP_E_INVALIDARG,
-                             "Invalid NULL listMPHandlePtr pointer specified!");
-    }
-    else if (params == NULL) {
-        /*! @retval NULL Invalid NULL params pointer
-         *          specified
-         */
-        GT_setFailureReason (curTrace,
-                             GT_4CLASS,
-                             "ListMP_open",
-                             LISTMP_E_INVALIDARG,
-                             "Invalid NULL params pointer specified!");
+                             "ListMP_sharedMemReq",
+                             ListMP_E_INVALIDARG,
+                             "params passed is NULL!");
     }
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-        if (params->listType == ListMP_Type_SHARED) {
-            status = ListMPSharedMemory_open (listMPHandlePtr, params);
+        index = SharedRegion_getId (params->sharedAddr);
+        cmdArgs.args.sharedMemReq.sharedAddrSrPtr = SharedRegion_getSRPtr (
+                                                            params->sharedAddr,
+                                                            index);
+        if (params->gate != NULL) {
+            cmdArgs.args.sharedMemReq.knlGate =
+                                        GateMP_getKnlHandle (params->gate);
         }
+
+        if (params->name != NULL) {
+            cmdArgs.args.sharedMemReq.nameLen = (String_len (params->name)+ 1u);
+        }
+        else {
+            cmdArgs.args.sharedMemReq.nameLen = 0;
+        }
+
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
+        status =
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+        ListMPDrv_ioctl (CMD_LISTMP_SHAREDMEMREQ, &cmdArgs);
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+        if (status < 0) {
+            GT_setFailureReason (curTrace,
+                                 GT_4CLASS,
+                                 "ListMP_sharedMemReq",
+                                 status,
+                                 "API (through IOCTL) failed on kernel-side!");
+        }
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+
+        retVal = cmdArgs.args.sharedMemReq.bytes;
+
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+        }
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+
+    GT_1trace (curTrace, GT_LEAVE, "ListMP_sharedMemReq", retVal);
+
+    return retVal;
+}
+
+
+/*
+ *  Function to open an ListMP instance
+ */
+Int ListMP_open (String            name,
+                 ListMP_Handle   * handlePtr)
+{
+    Int               status = ListMP_S_SUCCESS;
+    ListMPDrv_CmdArgs cmdArgs;
+
+    GT_2trace (curTrace,
+               GT_ENTER,
+               "ListMP_open",
+               name,
+               handlePtr);
+
+    GT_assert (curTrace, (name != NULL));
+    GT_assert (curTrace, (handlePtr != NULL));
+
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+    if (ListMP_module->setupRefCount == 0) {
+        status = ListMP_E_INVALIDSTATE;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "ListMP_open",
+                             status,
+                             "Module is not initialized!");
+    }
+    else if (name == NULL) {
+        status = ListMP_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "ListMP_open",
+                             status,
+                             "name passed is NULL!");
+    }
+    else if (handlePtr == NULL) {
+        status = ListMP_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "ListMP_open",
+                             status,
+                             "Invalid NULL handlePtr specified!");
+    }
+    else {
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+        if (name != NULL) {
+            cmdArgs.args.open.nameLen = (String_len (name)+ 1u);
+        }
+        else {
+            cmdArgs.args.open.nameLen = 0;
+        }
+        cmdArgs.args.open.name = name;
+        status = ListMPDrv_ioctl (CMD_LISTMP_OPEN, &cmdArgs);
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+        if (status < 0) {
+            /* ListMP_E_NOTFOUND is an expected run-time failure. */
+            if (status != ListMP_E_NOTFOUND) {
+                GT_setFailureReason (curTrace,
+                                     GT_4CLASS,
+                                     "ListMP_open",
+                                     status,
+                                     "API (through IOCTL) failed on "
+                                     "kernel-side!");
+            }
+        }
+        else {
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+           status = _ListMP_create (handlePtr, cmdArgs, FALSE);
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+        }
     }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
 
     GT_1trace (curTrace, GT_LEAVE, "ListMP_open", status);
 
-    /*! @retval LISTMP_SUCCESS Operation successful */
-    return (status);
+    return status;
 }
 
 
-
-/*!
- *  @brief      Closes an instance of a previously opened ListMPSharedMemory
- *              module.
- *
- *  @param      listMPHandle  Instance handle
- *
- *  @sa         ListMP_open
+/*
+ *  Function to open an ListMP instance
  */
-Int ListMP_close (ListMP_Handle * listMPHandle)
+Int ListMP_openByAddr (Ptr               sharedAddr,
+                       ListMP_Handle   * handlePtr)
 {
-    Int  status = LISTMP_SUCCESS;
+    Int               status = ListMP_S_SUCCESS;
+    ListMPDrv_CmdArgs cmdArgs;
+    UInt16            index;
 
-    GT_1trace (curTrace, GT_ENTER, "ListMP_close", listMPHandle);
+    GT_2trace (curTrace,
+               GT_ENTER,
+               "ListMP_openByAddr",
+               sharedAddr,
+               handlePtr);
 
-    GT_assert (curTrace, (listMPHandle != NULL));
-    GT_assert (curTrace, ((listMPHandle != NULL) && (*listMPHandle != NULL)));
+    GT_assert (curTrace, (sharedAddr != NULL));
+    GT_assert (curTrace, (handlePtr  != NULL));
 
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-    if (listMPHandle == NULL) {
-        /*! @retval LISTMP_E_INVALIDARG Invalid NULL listMPHandle pointer
-         *          specified
-         */
-        status = LISTMP_E_INVALIDARG;
+    if (ListMP_module->setupRefCount == 0) {
+        status = ListMP_E_INVALIDSTATE;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
-                             "ListMP_close",
+                             "ListMP_openByAddr",
                              status,
-                             "Invalid NULL listMPHandle pointer specified!");
+                             "Module is not initialized!");
     }
-    else if (*listMPHandle == NULL) {
-        /*! @retval LISTMP_E_INVALIDARG Invalid NULL listMPHandle pointer
-         *          specified
-         */
-        status = LISTMP_E_INVALIDARG;
+    else if (handlePtr == NULL) {
+        status = ListMP_E_INVALIDARG;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
-                             "ListMP_close",
+                             "ListMP_openByAddr",
                              status,
-                             "Invalid NULL *listMPHandle specified!");
+                             "Invalid NULL handlePtr specified!");
     }
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-        if (((ListMP_Object *)(*listMPHandle))->listType == ListMP_Type_SHARED) {
-            status = ListMPSharedMemory_close (listMPHandle);
+        index = SharedRegion_getId (sharedAddr);
+        cmdArgs.args.openByAddr.sharedAddrSrPtr = SharedRegion_getSRPtr (
+                                                            sharedAddr,
+                                                            index);
+        status = ListMPDrv_ioctl (CMD_LISTMP_OPENBYADDR,
+                                  &cmdArgs);
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+        if (status < 0) {
+            /* ListMP_E_NOTFOUND is an expected run-time failure. */
+            if (status != ListMP_E_NOTFOUND) {
+                GT_setFailureReason (curTrace,
+                                     GT_4CLASS,
+                                     "ListMP_openByAddr",
+                                     status,
+                                     "API (through IOCTL) failed on kernel-side!");
+            }
         }
+        else {
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+           status = _ListMP_create (handlePtr, cmdArgs, FALSE);
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+        }
+    }
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
 
+    GT_1trace (curTrace, GT_LEAVE, "ListMP_openByAddr", status);
+
+    return status;
+}
+
+
+/*
+ *  Function to close a previously opened instance
+ */
+Int ListMP_close (ListMP_Handle * handlePtr)
+{
+    Int               status = ListMP_S_SUCCESS;
+    ListMP_Object   * obj = NULL;
+    ListMPDrv_CmdArgs cmdArgs;
+
+    GT_1trace (curTrace, GT_ENTER, "ListMP_close", handlePtr);
+
+    GT_assert (curTrace, (handlePtr != NULL));
+    GT_assert (curTrace, ((handlePtr != NULL) && (*handlePtr != NULL)));
+
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+    if (ListMP_module->setupRefCount == 0) {
+        status = ListMP_E_INVALIDSTATE;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "ListMP_close",
+                             status,
+                             "Module is not initialized!");
+    }
+    else if (handlePtr == NULL) {
+        status = ListMP_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "ListMP_close",
+                             status,
+                             "handlePtr passed is NULL!");
+    }
+    else if (*handlePtr == NULL) {
+        status = ListMP_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "ListMP_close",
+                             status,
+                             "*handlePtr passed is NULL!");
+    }
+    else {
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+        obj = (ListMP_Object *) *handlePtr;
+        cmdArgs.args.close.handle = obj->knlObject;
+
+        status = ListMPDrv_ioctl (CMD_LISTMP_CLOSE, &cmdArgs);
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+        if (status < 0) {
+            GT_setFailureReason (curTrace,
+                                 GT_4CLASS,
+                                 "ListMP_close",
+                                 status,
+                                 "API (through IOCTL) failed on kernel-side!");
+        }
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+
+        Memory_free (NULL,
+                     (*handlePtr),
+                     sizeof (ListMP_Object));
+
+        *handlePtr = NULL;
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
     }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
 
     GT_1trace (curTrace, GT_LEAVE, "ListMP_close", status);
 
-    /*! @retval LISTMP_SUCCESS Operation successful */
-    return (status);
+    return status;
 }
 
 
-/*!
- *  @brief      Function to check if list is empty
- *
- *  @param      listMPHandle Handle to listMP instance
- *
- *  @sa         none
+/*
+ *  Function to check if list is empty
  */
-Bool ListMP_empty (ListMP_Handle listMPHandle)
+Bool
+ListMP_empty (ListMP_Handle  listMPHandle)
 {
-    Bool            isEmpty   = FALSE;
-    ListMP_Object * handle    = NULL;
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+    Int                status   = ListMP_S_SUCCESS;
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+    Bool               isEmpty  = FALSE;
+    ListMPDrv_CmdArgs  cmdArgs;
+    ListMP_Object *    obj = NULL;
 
     GT_1trace (curTrace, GT_ENTER, "ListMP_empty", listMPHandle);
 
     GT_assert (curTrace, (listMPHandle != NULL));
 
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-    if (listMPHandle == NULL) {
-        /*! @retval LISTMP_E_INVALIDARG Invalid NULL listMPHandle pointer
-         *          specified
-         */
+    if (ListMP_module->setupRefCount == 0) {
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "ListMP_create",
+                             ListMP_E_INVALIDSTATE,
+                             "Module is not initialized!");
+    }
+    else if (listMPHandle == NULL) {
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "ListMP_empty",
-                             LISTMP_E_INVALIDARG,
+                             ListMP_E_INVALIDARG,
                              "Invalid NULL listMPHandle pointer specified!");
     }
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-
-        handle = (ListMP_Object *)listMPHandle;
-
-        GT_assert (curTrace, (handle->empty != NULL));
-        isEmpty = handle->empty (listMPHandle);
-
+        obj = (ListMP_Object *) listMPHandle;
+        cmdArgs.args.isEmpty.handle = obj->knlObject;
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
+        status =
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+        ListMPDrv_ioctl (CMD_LISTMP_ISEMPTY, &cmdArgs);
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+        if (status < 0) {
+            GT_setFailureReason (curTrace,
+                                 GT_4CLASS,
+                                 "ListMP_empty",
+                                 status,
+                                 "API (through IOCTL) failed on kernel-side!");
+        }
+        else {
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+            isEmpty = cmdArgs.args.isEmpty.isEmpty ;
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+        }
     }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
 
     GT_1trace (curTrace, GT_LEAVE, "ListMP_empty", isEmpty);
 
-    /*! @retval TRUE list is empty */
-    /*! @retval FALSE list is not empty */
-    return (isEmpty);
+     return (isEmpty);
 }
 
 
-/*!
- *  @brief      Function to get head element from list
- *
- *  @param      listMPHandle Handle to listMP instance
- *
- *  @sa         ListMP_getTail
+/*
+ *  Function to get head element from list
  */
 Ptr ListMP_getHead (ListMP_Handle listMPHandle)
 {
-    ListMP_Object * handle       = NULL;
-    ListMP_Elem   * elem         = NULL;
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+    Int                status = ListMP_S_SUCCESS;
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+    ListMP_Elem      * elem   = NULL;
+    ListMPDrv_CmdArgs  cmdArgs;
+    ListMP_Object *    obj = NULL;
 
     GT_1trace (curTrace, GT_ENTER, "ListMP_getHead", listMPHandle);
 
     GT_assert (curTrace, (listMPHandle != NULL));
 
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-    if (listMPHandle == NULL) {
-
-        /*! @retval NULL Invalid NULL listMPHandle pointer specified*/
+    if (ListMP_module->setupRefCount == 0) {
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "ListMP_getHead",
-                             LISTMP_E_INVALIDARG,
+                             ListMP_E_INVALIDSTATE,
+                             "Module is not initialized!");
+    }
+    else if (listMPHandle == NULL) {
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "ListMP_getHead",
+                             ListMP_E_INVALIDARG,
                              "Invalid NULL listMPHandle pointer specified!");
     }
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-        handle = (ListMP_Object *)listMPHandle;
-
-        GT_assert (curTrace, (handle->getHead != NULL));
-        elem = handle->getHead (listMPHandle);
+        obj = (ListMP_Object *)listMPHandle;
+        cmdArgs.args.getHead.handle = obj->knlObject;
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
+        status =
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+        ListMPDrv_ioctl (CMD_LISTMP_GETHEAD, &cmdArgs);
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+        if (status < 0) {
+            GT_setFailureReason (curTrace,
+                                 GT_4CLASS,
+                                 "ListMP_getHead",
+                                 status,
+                                 "API (through IOCTL) failed on kernel-side!");
+        }
+        else {
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+            if (cmdArgs.args.getHead.elemSrPtr != SharedRegion_INVALIDSRPTR) {
+                elem = (ListMP_Elem *) SharedRegion_getPtr(
+                                                cmdArgs.args.getHead.elemSrPtr);
+            }
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+        }
     }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
 
     GT_1trace (curTrace, GT_LEAVE, "ListMP_getHead", elem);
 
-    /*! @retval Valid-head-element Operation Successful */
     return elem;
 }
 
 
-/*!
- *  @brief      Function to get tail element from list
- *
- *  @param      listMPHandle Handle to listMP instance
- *
- *  @sa         ListMP_getHead
+/*
+ *  Function to get tail element from list
  */
 Ptr ListMP_getTail (ListMP_Handle listMPHandle)
 {
-    ListMP_Object * handle = NULL;
-    ListMP_Elem   * elem   = NULL;
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+    Int                status = ListMP_S_SUCCESS;
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+    ListMP_Elem      * elem   = NULL;
+    ListMPDrv_CmdArgs  cmdArgs;
+    ListMP_Object *    obj = NULL;
 
     GT_1trace (curTrace, GT_ENTER, "ListMP_getTail", listMPHandle);
 
     GT_assert (curTrace, (listMPHandle != NULL));
 
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-    if (listMPHandle == NULL) {
-        /*! @retval NULL Invalid NULL listMPHandle pointer specified
-         */
+    if (ListMP_module->setupRefCount == 0) {
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "ListMP_getTail",
-                             LISTMP_E_INVALIDARG,
+                             ListMP_E_INVALIDSTATE,
+                             "Module is not initialized!");
+    }
+    else if (listMPHandle == NULL) {
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "ListMP_getTail",
+                             ListMP_E_INVALIDARG,
                              "Invalid NULL listMPHandle pointer specified!");
     }
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-        handle = (ListMP_Object *)listMPHandle;
-
-        GT_assert (curTrace, (handle->getTail != NULL));
-        elem   = handle->getTail (listMPHandle);
+        obj = (ListMP_Object *)listMPHandle;
+        cmdArgs.args.getTail.handle = obj->knlObject;
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+        status =
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+        ListMPDrv_ioctl (CMD_LISTMP_GETTAIL, &cmdArgs);
 
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
+        if (status < 0) {
+            GT_setFailureReason (curTrace,
+                                 GT_4CLASS,
+                                 "ListMP_getTail",
+                                 status,
+                                 "API (through IOCTL) failed on kernel-side!");
+        }
+        else {
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+            if (cmdArgs.args.getTail.elemSrPtr != SharedRegion_INVALIDSRPTR) {
+                elem = (ListMP_Elem *) SharedRegion_getPtr(
+                                                cmdArgs.args.getTail.elemSrPtr);
+            }
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+        }
     }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
 
     GT_1trace (curTrace, GT_LEAVE, "ListMP_getTail", elem);
 
-    /*! @retval Valid-tail-element Operation Successful */
     return elem;
 }
 
 
 /*!
- *  @brief      Function to put head element into list
- *
- *  @param      listMPHandle Handle to listMP instance
- *  @param      elem         ListMP_Elem element to be be added at head
- *
- *  @sa         ListMP_putTail
+ *  Function to put head element into list
  */
-Int ListMP_putHead(ListMP_Handle     listMPHandle,
-                   ListMP_Elem     * elem)
+Int ListMP_putHead (ListMP_Handle  listMPHandle,
+                    ListMP_Elem  * elem)
 {
-    Int             status = LISTMP_SUCCESS;
-    ListMP_Object * handle = NULL;
+    Int                status = ListMP_S_SUCCESS;
+    ListMP_Object *    obj = NULL;
+    ListMPDrv_CmdArgs  cmdArgs;
+    UInt16             index;
 
-    GT_2trace (curTrace, GT_ENTER, "ListMP_putHead",
-                                    listMPHandle,
-                                    elem);
+
+    GT_1trace (curTrace, GT_ENTER, "ListMP_putHead", listMPHandle);
 
     GT_assert (curTrace, (listMPHandle != NULL));
-    GT_assert (curTrace, (elem         != NULL));
-
+    GT_assert (curTrace, (elem != NULL));
 
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-    if (listMPHandle == NULL) {
-        /*! @retval LISTMPSHAREDMEMORY_E_INVALIDARG
-         *          Invalid NULL listMPHandle pointer
-         *          specified
-         */
-        status = LISTMP_E_INVALIDARG;
+    if (ListMP_module->setupRefCount == 0) {
+        status = ListMP_E_INVALIDSTATE;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "ListMP_putHead",
+                             status,
+                             "Module is not initialized!");
+    }
+    else if (listMPHandle == NULL) {
+        status = ListMP_E_INVALIDARG;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "ListMP_putHead",
@@ -497,61 +1104,66 @@ Int ListMP_putHead(ListMP_Handle     listMPHandle,
                              "Invalid NULL listMPHandle pointer specified!");
     }
     else if (elem == NULL) {
-        /*! @retval LISTMPSHAREDMEMORY_E_INVALIDARG
-         *          Invalid NULL elem pointer specified
-         */
-        status = LISTMP_E_INVALIDARG;
+        status = ListMP_E_INVALIDARG;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "ListMP_putHead",
                              status,
-                             "Invalid NULL elem pointer specified");
+                             "elem passed is NULL!");
     }
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-        handle = (ListMP_Object *) listMPHandle;
+        obj = (ListMP_Object *) listMPHandle;
+        cmdArgs.args.putHead.handle = obj->knlObject;
 
-        GT_assert (curTrace, (handle->putHead != NULL));
-        status = handle->putHead (listMPHandle, elem);
+        index = SharedRegion_getId (elem);
+        cmdArgs.args.putHead.elemSrPtr =  SharedRegion_getSRPtr (elem,index);
+        status = ListMPDrv_ioctl (CMD_LISTMP_PUTHEAD, &cmdArgs);
 
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
+        if (status < 0) {
+            GT_setFailureReason (curTrace,
+                                 GT_4CLASS,
+                                 "ListMP_putHead",
+                                 status,
+                                 "API (through IOCTL) failed on kernel-side!");
+        }
     }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
 
     GT_1trace (curTrace, GT_LEAVE, "ListMP_putHead", status);
 
-    /*! @retval LISTMP_SUCCESS Operation Successful*/
     return status;
 }
 
 
-/*!
- *  @brief      Function to put tail element from list
- *
- *  @param      listMPHandle Handle to listMP instance
- *  @param      elem         ListMP_Elem element to be added at tail
- *
- *  @sa         ListMP_putHead
+/*
+ *  Function to put tail element into list
  */
 Int ListMP_putTail (ListMP_Handle    listMPHandle,
                     ListMP_Elem    * elem)
 {
-    Int             status       = LISTMP_SUCCESS;
-    ListMP_Object * handle       = NULL;
+    Int                status = ListMP_S_SUCCESS;
+    ListMP_Object *    obj = NULL;
+    ListMPDrv_CmdArgs  cmdArgs;
+    UInt16             index;
 
-    GT_2trace (curTrace, GT_ENTER, "ListMP_putTail", listMPHandle,
-                                                     elem);
+    GT_1trace (curTrace, GT_ENTER, "ListMP_putTail", listMPHandle);
 
     GT_assert (curTrace, (listMPHandle != NULL));
     GT_assert (curTrace, (elem         != NULL));
 
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-    if (listMPHandle == NULL) {
-        /*! @retval LISTMPSHAREDMEMORY_E_INVALIDARG
-         *          Invalid NULL listMPHandle pointer
-         *          specified
-         */
-        status = LISTMP_E_INVALIDARG;
+    if (ListMP_module->setupRefCount == 0) {
+        status = ListMP_E_INVALIDSTATE;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "ListMP_putTail",
+                             status,
+                             "Module is not initialized!");
+    }
+    else if (listMPHandle == NULL) {
+        status = ListMP_E_INVALIDARG;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "ListMP_putTail",
@@ -559,148 +1171,144 @@ Int ListMP_putTail (ListMP_Handle    listMPHandle,
                              "Invalid NULL listMPHandle pointer specified!");
     }
     else if (elem == NULL) {
-        /*! @retval LISTMPSHAREDMEMORY_E_INVALIDARG
-         *          Invalid NULL elem pointer specified
-         */
-        status = LISTMP_E_INVALIDARG;
+        status = ListMP_E_INVALIDARG;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "ListMP_putTail",
                              status,
-                             "Invalid NULL elem pointer specified");
+                             "elem passed is NULL!");
     }
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-        handle = (ListMP_Object *)listMPHandle;
+        obj = (ListMP_Object *) listMPHandle;
+        cmdArgs.args.putTail.handle = obj->knlObject;
+        index = SharedRegion_getId (elem);
+        cmdArgs.args.putTail.elemSrPtr =  SharedRegion_getSRPtr (elem,index);
 
-        GT_assert (curTrace, (handle->putTail != NULL));
-        status = handle->putTail (listMPHandle,
-                                  elem);
+        status = ListMPDrv_ioctl (CMD_LISTMP_PUTTAIL, &cmdArgs);
 
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
+        if (status < 0) {
+            GT_setFailureReason (curTrace,
+                                 GT_4CLASS,
+                                 "ListMP_putTail",
+                                 status,
+                                 "API (through IOCTL) failed on kernel-side!");
+        }
     }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
 
     GT_1trace (curTrace, GT_LEAVE, "ListMP_putTail", status);
 
-    /*! @retval LISTMP_SUCCESS Operation Successful*/
     return status;
 }
 
 
-/*!
- *  @brief      Function to insert element into list
- *
- *  @param      listMPHandle Handle to listMP instance
- *  @param      elem         ListMP_Elem element to be inserted
- *  @param      curElem      Current element before which element
- *                           to be inserted. If NULL, element
- *                           is inserted before head.
- *
- *  @sa         ListMP_insert
+/*
+ * Function to insert element into list
  */
-Int ListMP_insert (ListMP_Handle    listMPHandle,
-                   ListMP_Elem    * elem,
-                   ListMP_Elem    * curElem)
+Int ListMP_insert (ListMP_Handle  listMPHandle,
+                   ListMP_Elem  * newElem,
+                   ListMP_Elem  * curElem)
 {
-    Int                   status   = LISTMP_SUCCESS;
-    ListMP_Object         * handle = NULL;
+    Int                status = ListMP_S_SUCCESS;
+    ListMP_Object *    obj = NULL;
+    ListMPDrv_CmdArgs  cmdArgs;
+    UInt16             index;
 
-    GT_3trace (curTrace, GT_ENTER, "ListMP_insert",
-                                   listMPHandle,
-                                   elem,
-                                   curElem);
+    GT_1trace (curTrace, GT_ENTER, "ListMP_insert", listMPHandle);
 
     GT_assert (curTrace, (listMPHandle != NULL));
-    GT_assert (curTrace, (elem         != NULL));
-    GT_assert (curTrace, (curElem      != NULL));
+    GT_assert (curTrace, (newElem != NULL));
+    GT_assert (curTrace, (curElem != NULL));
 
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-    if (listMPHandle == NULL) {
-        /*! @retval LISTMPSHAREDMEMORY_E_INVALIDARG
-         *          Invalid NULL listMPHandle pointer
-         *          specified
-         */
-        status = LISTMP_E_INVALIDARG;
+    if (ListMP_module->setupRefCount == 0) {
+        status = ListMP_E_INVALIDSTATE;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "ListMP_insert",
+                             status,
+                             "Module is not initialized!");
+    }
+    else if (listMPHandle == NULL) {
+        status = ListMP_E_INVALIDARG;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "ListMP_insert",
                              status,
                              "Invalid NULL listMPHandle pointer specified!");
     }
-    else if (elem == NULL) {
-        /*! @retval LISTMPSHAREDMEMORY_E_INVALIDARG
-         *          Invalid NULL elem pointer specified
-         */
-        status = LISTMP_E_INVALIDARG;
+    else if (newElem == NULL) {
+        status = ListMP_E_INVALIDARG;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "ListMP_insert",
                              status,
-                             "Invalid NULL elem pointer specified");
+                             "newElem passed is NULL!");
     }
     else if (curElem == NULL) {
-        /*! @retval LISTMPSHAREDMEMORY_E_INVALIDARG
-         *          Invalid NULL curElem pointer specified
-         */
-        status = LISTMP_E_INVALIDARG;
+        status = ListMP_E_INVALIDARG;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "ListMP_insert",
                              status,
-                             "Invalid NULL curElem pointer specified");
+                             "curElem passed is NULL!");
     }
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-        handle = (ListMP_Object *)listMPHandle;
+        obj = (ListMP_Object *) listMPHandle;
+        cmdArgs.args.insert.handle = obj->knlObject;
 
-
-        GT_assert (curTrace, (handle->insert != NULL));
-        status = handle->insert (listMPHandle,
-                                 elem,
-                                 curElem);
-
+        index = SharedRegion_getId (newElem);
+        cmdArgs.args.insert.newElemSrPtr =SharedRegion_getSRPtr (newElem,index);
+        index = SharedRegion_getId (curElem);
+        cmdArgs.args.insert.curElemSrPtr =SharedRegion_getSRPtr (curElem,index);
+        status = ListMPDrv_ioctl (CMD_LISTMP_INSERT,
+                                              &cmdArgs);
 
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-            }
+        if (status < 0) {
+            GT_setFailureReason (curTrace,
+                                 GT_4CLASS,
+                                 "ListMP_insert",
+                                 status,
+                                 "API (through IOCTL) failed on kernel-side!");
+        }
+    }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
 
-    GT_1trace (curTrace, GT_LEAVE, "ListMP_insert", status);
-
-    /*! @retval SUCCESS Operation Successful*/
     return status;
 }
 
 
-/*!
- *  @brief      Function to remove element from list
- *
- *  @param      listMPHandle Handle to listMP instance
- *  @param      elem         ListMP_Elem element to be removed
- *
- *  @sa         ListMP_insert
+/*
+ * Function to remove element from list
  */
 Int ListMP_remove (ListMP_Handle   listMPHandle,
                    ListMP_Elem   * elem)
 {
-    Int             status   = LISTMP_SUCCESS;
-    ListMP_Object * handle   = NULL;
+    Int                status = ListMP_S_SUCCESS;
+    ListMPDrv_CmdArgs  cmdArgs;
+    ListMP_Object *    obj = NULL;
+    UInt16             index;
 
-    GT_2trace (curTrace,
-               GT_ENTER,
-               "ListMP_remove",
-               listMPHandle,
-               elem);
+    GT_1trace (curTrace, GT_ENTER, "ListMP_remove", listMPHandle);
 
     GT_assert (curTrace, (listMPHandle != NULL));
     GT_assert (curTrace, (elem         != NULL));
 
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-    if (listMPHandle == NULL) {
-        /*! @retval LISTMPSHAREDMEMORY_E_INVALIDARG Invalid NULL listMPHandle
-         *          pointer specified
-         */
-        status = LISTMP_E_INVALIDARG;
+    if (ListMP_module->setupRefCount == 0) {
+        status = ListMP_E_INVALIDSTATE;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "ListMP_remove",
+                             status,
+                             "Module is not initialized!");
+    }
+    else if (listMPHandle == NULL) {
+        status = ListMP_E_INVALIDARG;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "ListMP_remove",
@@ -708,171 +1316,245 @@ Int ListMP_remove (ListMP_Handle   listMPHandle,
                              "Invalid NULL listMPHandle pointer specified!");
     }
     else if (elem == NULL) {
-        /*! @retval LISTMPSHAREDMEMORY_E_INVALIDARG
-         *          Invalid NULL elem pointer specified
-         */
-        status = LISTMP_E_INVALIDARG;
+        status = ListMP_E_INVALIDARG;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "ListMP_remove",
                              status,
-                             "Invalid NULL elem pointer specified");
+                             "elem pointer passed is NULL!");
     }
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-        handle = (ListMP_Object *)listMPHandle;
+        obj = (ListMP_Object *) listMPHandle;
+        cmdArgs.args.remove.handle = obj->knlObject;
 
-        GT_assert (curTrace, (handle->remove != NULL));
-        status = handle->remove (listMPHandle, elem);
+        index = SharedRegion_getId (elem);
+        cmdArgs.args.remove.elemSrPtr = SharedRegion_getSRPtr (elem,index);
 
+        status = ListMPDrv_ioctl (CMD_LISTMP_REMOVE, &cmdArgs);
 
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
+        if (status < 0) {
+            GT_setFailureReason (curTrace,
+                                 GT_4CLASS,
+                                 "ListMP_remove",
+                                 status,
+                                 "API (through IOCTL) failed on kernel-side!");
+        }
     }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
 
     GT_1trace (curTrace, GT_LEAVE, "ListMP_remove", status);
 
-    /*! @retval LISTMP_SUCCESS Operation Successful*/
-    return status ;
+    return status;
 }
 
 
-/*!
- *  @brief      Function to put next element into list
- *
- *  @param      listMPHandle Handle to listMP instance
- *  @param      elem         ListMP_Elem element whose next
- *                           is to be traversed. If NULL
- *                           traversal starts after head
- *
- *
- *  @sa         ListMP_next
+/*
+ *  Function to traverse to next element in list
  */
 Ptr ListMP_next (ListMP_Handle   listMPHandle,
                  ListMP_Elem   * elem)
 {
-    ListMP_Object * handle       = NULL;
-    ListMP_Elem   * nextElem     = NULL;
+    Int                status = ListMP_S_SUCCESS;
+    Ptr                next   = NULL;
+    ListMPDrv_CmdArgs  cmdArgs;
+    ListMP_Object *    obj = NULL;
+    UInt16             index;
 
     GT_1trace (curTrace, GT_ENTER, "ListMP_next", listMPHandle);
 
     GT_assert (curTrace, (listMPHandle != NULL));
+    /* elem can be NULL to return the first element in the list. */
 
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-    if (listMPHandle == NULL) {
-        /*! @retval LISTMPSHAREDMEMORY_E_INVALIDARG
-         *          Invalid NULL listMPHandle pointer
-         *          specified
-         */
+    if (ListMP_module->setupRefCount == 0) {
+        status = ListMP_E_INVALIDSTATE;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "ListMP_next",
-                             LISTMP_E_INVALIDARG,
+                             status,
+                             "Module is not initialized!");
+    }
+    else if (listMPHandle == NULL) {
+        status = ListMP_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "ListMP_next",
+                             status,
                              "Invalid NULL listMPHandle pointer specified!");
     }
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-        handle = (ListMP_Object *)listMPHandle;
+        obj = (ListMP_Object *) listMPHandle;
+        cmdArgs.args.next.handle = obj->knlObject;
 
-        GT_assert (curTrace, (handle->next != NULL));
-        nextElem = handle->next (listMPHandle, elem);
+        if (elem != NULL){
+            index = SharedRegion_getId (elem);
+            cmdArgs.args.next.elemSrPtr = SharedRegion_getSRPtr (elem,index);
+        }
+        else{
+            cmdArgs.args.next.elemSrPtr = SharedRegion_INVALIDSRPTR;
+        }
 
+        status = ListMPDrv_ioctl (CMD_LISTMP_NEXT,
+                                  &cmdArgs);
 
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
+        if (status < 0) {
+            GT_setFailureReason (curTrace,
+                                 GT_4CLASS,
+                                 "ListMP_next",
+                                 status,
+                                 "API (through IOCTL) failed on kernel-side!");
+        }
+        else {
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+            if (cmdArgs.args.next.nextElemSrPtr != SharedRegion_INVALIDSRPTR) {
+                next = (ListMP_Elem *)SharedRegion_getPtr(
+                                               cmdArgs.args.next.nextElemSrPtr);
+            }
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+        }
     }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
 
-    GT_1trace (curTrace, GT_LEAVE, "ListMP_next", nextElem);
+    GT_1trace (curTrace, GT_LEAVE, "ListMP_next", next);
 
-    /*! @retval Next-element Operation Successful */
-    return nextElem;
+    return next;
 }
 
 
-/*!
- *  @brief      Function to get prev element from list
- *
- *  @param      listMPHandle Handle to listMP instance
- *  @param      elem         ListMP_Elem element whose prev
- *                           is to be traversed. If NULL
- *                           traversal starts before head
- *
- *  @sa         ListMP_next
+/*
+ *  Function to traverse to prev element in list
  */
-Ptr ListMP_prev (ListMP_Handle  listMPHandle,
-                 ListMP_Elem  * elem)
+Ptr ListMP_prev (ListMP_Handle    listMPHandle,
+                 ListMP_Elem    * elem)
 {
-    ListMP_Object * handle       = NULL;
-    ListMP_Elem   * prevElem     = NULL;
+    Int                status = ListMP_S_SUCCESS;
+    Ptr                prev   = NULL;
+    ListMPDrv_CmdArgs  cmdArgs;
+    ListMP_Object *    obj = NULL;
+    UInt16             index;
 
     GT_1trace (curTrace, GT_ENTER, "ListMP_prev", listMPHandle);
 
     GT_assert (curTrace, (listMPHandle != NULL));
+    /* elem can be NULL to return the first element in the list. */
 
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-    if (listMPHandle == NULL) {
-        /*! @retval LISTMPSHAREDMEMORY_E_INVALIDARG
-         *          Invalid NULL listMPHandle pointer
-         *          specified
-         */
+    if (ListMP_module->setupRefCount == 0) {
+        status = ListMP_E_INVALIDSTATE;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "ListMP_prev",
-                             LISTMP_E_INVALIDARG,
+                             status,
+                             "Module is not initialized!");
+    }
+    else if (listMPHandle == NULL) {
+        status = ListMP_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "ListMP_prev",
+                             status,
                              "Invalid NULL listMPHandle pointer specified!");
     }
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-        handle = (ListMP_Object *)listMPHandle;
+        obj = (ListMP_Object *) listMPHandle;
 
-        GT_assert (curTrace, (handle->prev != NULL));
-        prevElem = handle->prev (listMPHandle, elem);
+        cmdArgs.args.prev.handle = obj->knlObject;
+        if(elem != NULL){
+            index = SharedRegion_getId (elem);
+            cmdArgs.args.prev.elemSrPtr = SharedRegion_getSRPtr (elem,index);
+        }
+        else{
+            cmdArgs.args.prev.elemSrPtr = SharedRegion_INVALIDSRPTR;
+        }
+
+        status = ListMPDrv_ioctl (CMD_LISTMP_PREV, &cmdArgs);
+
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
+        if (status < 0) {
+            GT_setFailureReason (curTrace,
+                                 GT_4CLASS,
+                                 "ListMP_prev",
+                                 status,
+                                 "API (through IOCTL) failed on kernel-side!");
+        }
+        else {
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+            if (cmdArgs.args.prev.prevElemSrPtr != SharedRegion_INVALIDSRPTR) {
+                prev = (ListMP_Elem *)SharedRegion_getPtr(
+                                               cmdArgs.args.prev.prevElemSrPtr);
+            }
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+        }
     }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
 
-    GT_1trace (curTrace, GT_LEAVE, "ListMP_prev", prevElem);
+    GT_1trace (curTrace, GT_LEAVE, "ListMP_prev", prev);
 
-    /*! @retval Previous-element Operation Successful */
-    return prevElem;
+    return prev;
 }
 
 
-/*!
- *  @brief      Gets shared memory rewuirement for the module.
- *
- *  @param      params  Instance config-params structure.
- *
- *  @sa         ListMP_delete
+/*=============================================================================
+    Internal functions
+  =============================================================================
+*/
+/*
+ * Create and populates handle and obj.
  */
-Int ListMP_sharedMemReq (ListMP_Params * params)
+Int32
+_ListMP_create(ListMP_Handle     * handlePtr,
+               ListMPDrv_CmdArgs   cmdArgs,
+               UInt16              createFlag)
 {
-    Int sharedMemReq = 0;
+    Int32 status = ListMP_S_SUCCESS;
 
-    GT_1trace (curTrace, GT_ENTER, "ListMP_sharedMemReq",params);
+    GT_assert (curTrace, (handlePtr != NULL));
 
-    GT_assert (curTrace, (params != NULL));
-
+    /* Allocate memory for the handle */
+    *handlePtr = (ListMP_Handle) Memory_calloc (NULL,
+                                                sizeof (ListMP_Object),
+                                                0);
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-    if (params == NULL) {
-        /*! @retval 0 Invalid NULL params pointer specified */
+    if (*handlePtr == NULL) {
+        status = ListMP_E_MEMORY;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
-                             "ListMP_sharedMemReq",
-                             LISTMP_E_INVALIDARG,
-                             "Invalid NULL params pointer specified!");
+                             "ListMP_create",
+                             status,
+                             "Memory allocation failed for handle!");
     }
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-        sharedMemReq = ListMPSharedMemory_sharedMemReq (params);
+        /* Set pointer to kernel object into the user handle. */
+        if (createFlag == TRUE) {
+            ((ListMP_Object *)(*handlePtr))->knlObject =
+                                                    cmdArgs.args.create.handle;
+        }
+        else{
+            ((ListMP_Object *)(*handlePtr))->knlObject =
+                                                     cmdArgs.args.open.handle;
+        }
+
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
     }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-    GT_0trace (curTrace, GT_LEAVE, "ListMP_sharedMemReq");
 
-    /*! @retval Shared-memory-requirements Operation Successful */
-    return (sharedMemReq);
+    return(status);
 }
+
+/*
+ *  Retrieves the GateMP handle associated with the ListMP instance.
+ */
+GateMP_Handle ListMP_getGate (ListMP_Handle handle)
+{
+    return NULL; /* TBD */
+}
+
 
 
 #if defined (__cplusplus)
