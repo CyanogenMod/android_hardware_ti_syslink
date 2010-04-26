@@ -1,34 +1,50 @@
 #
-#  syslink/api/include/Makefile.am
+#   Syslink-IPC for TI OMAP Processors
 #
-#  SysLink API include install Makefile.am file.
+#   Copyright (c) 2008-2010, Texas Instruments Incorporated
+#   All rights reserved.
 #
-#  Copyright (C) 2009 Texas Instruments, Inc.
+#   Redistribution and use in source and binary forms, with or without
+#   modification, are permitted provided that the following conditions
+#   are met:
 #
-#  This program is free software; you can redistribute it and/or modify it
-#  under the terms of the GNU Lesser General Public License as published
-#  by the Free Software Foundation version 2.1 of the License.
+#   *  Redistributions of source code must retain the above copyright
+#      notice, this list of conditions and the following disclaimer.
 #
-#  This program is distributed .as is. WITHOUT ANY WARRANTY of any kind,
-#  whether express or implied; without even the implied warranty of
-#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-#  Lesser General Public License for more details.
+#   *  Redistributions in binary form must reproduce the above copyright
+#      notice, this list of conditions and the following disclaimer in the
+#     documentation and/or other materials provided with the distribution.
 #
-#  ----------------------------------------------------------------------------
-#  Revision History
+#   *  Neither the name of Texas Instruments Incorporated nor the names of
+#      its contributors may be used to endorse or promote products derived
+#      from this software without specific prior written permission.
 #
+#   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+#   AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+#   THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+#   PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+#   CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+#   EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+#   PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+#   OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+#   WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+#   OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+#   EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-#      REF=ORG
-#      Original version.
-#  ----------------------------------------------------------------------------
+
 library_include_HEADERS = \
 arm_dynamic.h \
-HeapBuf.h  \
+ti/ipc/HeapBufMP.h \
+ti/ipc/HeapMemMP.h \
+ti/ipc/HeapMultiBufMP.h \
 MultiProcDrv.h \
 ProcMgrDrvUsr.h \
+dload4430.h \
 arm_elf32.h \
+IHeap.h \
 Heap.h \
-MultiProc.h \
+_MultiProc.h \
+ti/ipc/MultiProc.h \
 ProcMgr.h \
 ArrayList.h    \
 host_os.h \
@@ -40,39 +56,34 @@ NameServerDrv.h  \
 Queue.h \
 bin_loader.h  \
 ipcdefs.h \
-NameServer.h   \
+_NameServer.h \
+ti/ipc/NameServer.h \
 RcmClient.h \
 _bitops.h \
-_ipc.h  \
+_Ipc.h  \
 NameServerRemote.h \
 RcmServer.h \
+RcmTypes.h \
 Bitops.h \
-ipc.h \
-NameServerRemoteNotifyDrvDefs.h \
 relocate.h \
 Cache.h  \
-ipc_ioctl.h \
-NameServerRemoteNotifyDrv.h  \
 _safe.h \
 constants.h  \
 ipcioctl.h   \
-NameServerRemoteNotify.h  \
 SharedRegionDrvDefs.h \
 dbc.h  \
 IPCManager.h \
 notifydefs.h \
 SharedRegionDrv.h \
 dload_api.h  \
-IPCMultiProc.h  \
 _NotifyDefs.h \
-SharedRegion.h \
+_SharedRegion.h \
+ti/ipc/SharedRegion.h \
 dload_endian.h  \
-ipctrap.h  \
 notify_driverdefs.h  \
 shmdefs.h \
 dload.h  \
 isr.h  \
-NotifyDriverDefs.h   \
 _signature.h \
 dlw_debug.h \
 linkcfgdefs_os.h  \
@@ -80,54 +91,48 @@ notify_driver.h  \
 Stack.h \
 dlw_dsbt.h \
 List.h \
-NotifyDriverShmDrvDefs.h \
 static_loader.h \
 dlw_trgmem.h \
 _ListMP.h \
-NotifyDriverShmDrvUsr.h \
 Std.h \
 dpc.h \
-ListMP.h \
-NotifyDriverShm.h  \
+ti/ipc/ListMP.h \
+ListMPDrvDefs.h \
+ListMPDrv.h \
 std_linux.h \
 _drvdefs.h \
-ListMPSharedMemoryDrvDefs.h \
 NotifyDrvDefs.h \
 String.h \
 elf32.h \
-ListMPSharedMemoryDrv.h  \
 NotifyDrvUsr.h \
 symtab.h \
 Gate.h \
-ListMPSharedMemory.h\
 notifyerr.h \
 sync.h \
-GateHWSpinLockDrvDefs.h \
 load.h \
 _Notify.h \
 SysLinkMemUtils.h \
-GateHWSpinLockDrv.h \
-Notify.h \
-SysMemMgrDrvDefs.h \
-GateHWSpinLock.h \
+ti/ipc/Notify.h \
 _notify_shmDriver.h \
-SysMemMgrDrv.h \
 GateMutex.h \
 notify_shmDriver.h \
-SysMemMgr.h \
-GatePetersonDrvDefs.h\
+GateMPDrvDefs.h\
 mem.h \
 omap4430procDrvDefs.h \
-SysMgrDrvDefs.h \
-GatePetersonDrv.h \
+IpcDrvDefs.h \
+GateMPDrv.h \
 MemoryDefs.h \
 omap4430proc.h \
-SysMgrDrv.h \
-GatePeterson.h \
+IpcDrv.h \
+IGateProvider.h \
+IObject.h \
+_GateMP.h \
+ti/ipc/GateMP.h \
 Memory.h \
 OsalDrv.h \
-SysMgr.h \
-GateSpinlock.h \
+IpcUsr.h \
+IpcCmdBase.h \
+ti/ipc/Ipc.h \
 MemoryOS.h \
 osal.h \
 test_arm_reloc.h \
@@ -144,23 +149,27 @@ MessageQDrv.h \
 OsalSemaphore.h \
 trc.h \
 hal_interrupt.h \
-MessageQ.h \
+IMessageQTransport.h \
+_MessageQ.h \
+ti/ipc/MessageQ.h \
 platform.h \
 UsrUtilsDrv.h \
 hal_platform.h \
-MessageQTransportShmDrvDefs.h \
 print.h \
 util.h \
-HeapBufDrvDefs.h \
-MessageQTransportShmDrv.h \
+HeapBufMPDrvDefs.h \
+HeapMemMPDrvDefs.h \
 ProcDefs.h \
 version.h \
-HeapBufDrv.h \
-MessageQTransportShm.h \
+HeapBufMPDrv.h \
+HeapMemMPDrv.h \
 _ProcMgrDefs.h \
-_HeapBuf.h \
+_HeapBufMP.h \
+_HeapMemMP.h \
 MultiProcDrvDefs.h \
-ProcMgrDrvDefs.h
+ProcMgrDrvDefs.h \
+TraceDrv.h \
+TraceDrvDefs.h
 
 library_includedir=$(includedir)/syslink
 
