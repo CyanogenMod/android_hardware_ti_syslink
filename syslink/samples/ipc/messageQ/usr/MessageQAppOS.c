@@ -42,9 +42,10 @@
 
 /* Module headers */
 #if defined (SYSLINK_USE_SYSMGR)
-#include <SysMgr.h>
+//#include <ti/ipc/Ipc.h>
+#include <IpcUsr.h>
 #endif /* if defined (SYSLINK_USE_SYSMGR) */
-#include <MultiProc.h>
+#include <ti/ipc/MultiProc.h>
 //#include <ProcMgr.h>
 #include <UsrUtilsDrv.h>
 
@@ -70,7 +71,7 @@ extern "C" {
 /*!
  *  @brief  Function to execute the startup for MessageQApp sample application
  */
-extern Int MessageQApp_startup (UInt32 sharedAddr);
+extern Int MessageQApp_startup (Void);
 
 /*!
  *  @brief  Function to execute the startup for MessageQApp sample application
@@ -171,7 +172,7 @@ main (int argc, char ** argv)
         }
     }
 
-    status = MessageQApp_startup (0);
+    status = MessageQApp_startup ();
 
     if (status >= 0) {
         MessageQApp_execute ();
