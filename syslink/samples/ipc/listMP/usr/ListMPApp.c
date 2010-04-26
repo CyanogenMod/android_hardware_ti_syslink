@@ -28,6 +28,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <errno.h>
+#include <string.h>
 
 /* Standard headers */
 #include <Std.h>
@@ -39,20 +40,14 @@
 #include <String.h>
 
 /* Module level headers */
-#if defined (SYSLINK_USE_SYSMGR)
-#include <SysMgr.h>
-#else /* if defined (SYSLINK_USE_SYSMGR) */
-#include <UsrUtilsDrv.h>
-#include <MultiProc.h>
-#include <ProcMgr.h>
-#include <NameServer.h>
-#include <SharedRegion.h>
-#include <GatePeterson.h>
-#include <ListMP.h>
-#include <ListMPSharedMemory.h>
-#endif /* if defined(SYSLINK_USE_SYSMGR) */
+//#include <ti/ipc/Ipc.h>
+#include <IpcUsr.h>
 #include <omap4430proc.h>
 #include <ConfigNonSysMgrSamples.h>
+#include <ti/ipc/MultiProc.h>
+#include <ti/ipc/SharedRegion.h>
+#include <ti/ipc/NameServer.h>
+#include <ti/ipc/ListMP.h>
 
 #if defined (__cplusplus)
 extern "C" {
@@ -63,36 +58,31 @@ extern "C" {
  *  Macros and types
  *  ============================================================================
  */
-/*!
- *  @brief  Maximum name length
- */
-#define MAX_NAME_LENGTH 32u
-/*!
- *  @brief  Maximum name length
- */
-#define MAX_VALUE_LENGTH 32u
-/*!
- *  @brief  Maximum name length
- */
-#define MAX_RUNTIMEENTRIES 10u
+/* prefix for the host listmp. */
+#define LISTMPHOST_PREFIX          "LISTMPHOST"
 
-/*!
- *  @brief  shared memory size
- */
+/* prefix for the slave listmp. */
+#define LISTMPSLAVE_PREFIX         "LISTMPSLAVE"
+
+/* Length of ListMP Names */
+#define  LISTMPAPP_NAMELENGTH       80u
+
+/* Shared Region ID */
+#define APP_SHAREDREGION_ENTRY_ID   0u
+
+/* shared memory size */
 #define SHAREDMEM               0xA0000000
-#define SHAREDMEMSIZE           0x1B000
 
 /* Memory for the Notify Module */
 #define NOTIFYMEM               (SHAREDMEM)
 #define NOTIFYMEMSIZE           0x4000
 
 /* Memory a GatePeterson instance */
-#define GATEPETERSONMEM         (NOTIFYMEM + NOTIFYMEMSIZE)
-#define GATEPETERSONMEMSIZE     0x1000
-
+#define GATEMPMEM               (NOTIFYMEM + NOTIFYMEMSIZE)
+#define GATEMPMEMSIZE           0x1000
 
 /* Memory a HeapMultiBuf instance */
-#define HEAPMBMEM_CTRL          (GATEPETERSONMEM + GATEPETERSONMEMSIZE)
+#define HEAPMBMEM_CTRL          (GATEMPMEM + GATEMPMEMSIZE)
 #define HEAPMBMEMSIZE_CTRL      0x1000
 #define HEAPMBMEM_BUFS          (HEAPMBMEM_CTRL + HEAPMBMEMSIZE_CTRL)
 #define HEAPMBMEMSIZE_BUFS      0x3000
@@ -113,54 +103,34 @@ extern "C" {
 #define HEAPBUF_NS_MEM          (MESSAGEQ_NS_MEM + MESSAGEQ_NS_MEMSIZE)
 #define HEAPBUF_NS_MEMSIZE      0x1000
 
-#define GATEPETERSONMEM1        (HEAPBUF_NS_MEM + HEAPBUF_NS_MEMSIZE)
-#define GATEPETERSONMEMSIZE1    0x1000
+#define GATEMPMEM1              (HEAPBUF_NS_MEM + HEAPBUF_NS_MEMSIZE)
+#define GATEMPMEMSIZE1          0x1000
 
 /* Memory for the Notify Module */
-#define HEAPMEM                 (GATEPETERSONMEM1 + GATEPETERSONMEMSIZE1)
+#define HEAPMEM                 (GATEMPMEM1 + GATEMPMEMSIZE1)
 #define HEAPMEMSIZE             0x1000
 
 #define HEAPMEM1                (HEAPMEM + HEAPMEMSIZE)
 #define HEAPMEMSIZE1            0x1000
 
-#define List                    (HEAPMEM1 + HEAPMEMSIZE1)
-#define ListSIZE                0x1000
+#define LOCAL_LIST              (HEAPMEM1 + HEAPMEMSIZE1)
+#define LOCAL_LIST_SIZE         0x1000
 
-#define List1                   (List + ListSIZE)
-#define ListSIZE1               0x1000
+#define REMOTE_LIST             (LOCAL_LIST + LOCAL_LIST_SIZE)
+#define REMOTE_LIST_SIZE        0x1000
 
-#define LISTMP_OFFSET           (List - SHAREDMEM)
-#define LISTMP1_OFFSET          (List1 - SHAREDMEM)
-#define GATEPETERSON_OFFSET     (GATEPETERSONMEM - SHAREDMEM)
+#define LOCAL_LIST_OFFSET       (LOCAL_LIST - SHAREDMEM)
+#define REMOTE_LIST_OFFSET      (REMOTE_LIST - SHAREDMEM)
 
-#define LISTMP_SYSM3_IMAGE_PATH "./ListMPTestApps_SYSM3_MPU.xem3"
-
-/*
- * POSSIBLE TEST CASES
- * 1.  create and open the list on same processor and try list operations
- * 2.  create on DSP insert element from GPP
- * 3.  remove element when only one / no element in the list
- * 4.  keep inserting nodes till allocated shared region limit crosses. Try
- *     putHead, putail and insert after this
- *       - we should put ckeck for this.
- * 5.  open the list and try to delete it. (It should give error)
- * 6.  open list simultaneously on two or more processors
- * 7.  create list simultaneously on two or more processors with same sharedAddr
- * 8.  Try next/prev after getHead/getTail of list with only one node.
- * 9.  Try remove from empty list
- * 10. list delete after list destroy.
- */
-
-
+/* Base Image to be loaded */
+#define LISTMP_SYSM3_IMAGE_PATH "./ListMP_MPUSYS_Test_Core0.xem3"
 /** ============================================================================
  *  Globals
  *  ============================================================================
  */
-/*!
- *  @brief  Handle to the ListMP instance used.
- */
-ListMPSharedMemory_Handle ListMPApp_handle;
-GatePeterson_Handle       ListMPApp_gateHandle;
+/* Handle to the ListMP instance used. */
+ListMP_Handle             ListMPApp_handle;
+GateMP_Handle             ListMPApp_gateHandle;
 UInt32  ListMPApp_shAddrBase;
 
 typedef struct ListMP_Node_Tag
@@ -169,118 +139,55 @@ typedef struct ListMP_Node_Tag
     Int32  id;
 }ListMP_Node;
 
-typedef struct ListMP_Node1_Tag
-{
-    ListMP_Elem elem;
-    Int32  id;
-}ListMP_Node1;
+
+/*  ============================================================================
+ *  Functions
+ *  ============================================================================
+ */
 
 
 Int
 ListMPApp_startup (UInt32 sharedAddr)
 {
     Int                       status  = 0;
-#if defined(SYSLINK_USE_SYSMGR)
-    SysMgr_Config config;
-#else
-    SharedRegion_Config       cfgShrParams;
-    GatePeterson_Config       gpConfig;
-    NameServer_Params         nameServerParams;
-    ListMPSharedMemory_Config cfgLstParams;
-#endif
+    Ipc_Config config;
+    ProcMgr_AttachParams      attachParams;
+    ProcMgr_State             state;
 
     Osal_printf ("\nEntered ListMPApp_startup\n");
 
-#if defined(SYSLINK_USE_SYSMGR)
-    SysMgr_getConfig (&config);
-    Osal_printf ("Calling SysMgr_setup \n");
-    status = SysMgr_setup (&config);
+    Ipc_getConfig (&config);
+    Osal_printf ("Calling Ipc_setup \n");
+    status = Ipc_setup (&config);
     if (status < 0) {
-        Osal_printf ("Error in SysMgr_setup [0x%x]\n", status);
+        Osal_printf ("Error in Ipc_setup [0x%x]\n", status);
     }
     status = ProcMgr_open (&procHandle,
                            MultiProc_getId("SysM3"));
     if (status < 0) {
         Osal_printf ("Error in ProcMgr_open [0x%x]\n", status);
     }
-#else /* if defined(SYSLINK_USE_SYSMGR) */
-    UsrUtilsDrv_setup ();
-#endif
+    else {
+        Osal_printf ("ProcMgr_open Status [0x%x]\n", status);
+        ProcMgr_getAttachParams (NULL, &attachParams);
+        /* Default params will be used if NULL is passed. */
+        status = ProcMgr_attach (procHandle, &attachParams);
+        if (status < 0) {
+            Osal_printf ("ProcMgr_attach failed [0x%x]\n", status);
+        }
+        else {
+            Osal_printf ("ProcMgr_attach status: [0x%x]\n", status);
+            state = ProcMgr_getState (procHandle);
+            Osal_printf ("After attach: ProcMgr_getState\n"
+                         "    state [0x%x]\n", status);
+        }
+    }
 
     procId = 2;
 
-#if !defined(SYSLINK_USE_SYSMGR)
-    cfgShrParams.gateHandle = NULL;
-    cfgShrParams.heapHandle = NULL;
-    cfgShrParams.maxRegions = 4;
+    ProcUtil_load(LISTMP_SYSM3_IMAGE_PATH);
+    ProcUtil_start();
 
-    /* SharedRegion module setup */
-    status = SharedRegion_setup (&cfgShrParams);
-    if (status < 0) {
-        Osal_printf ("Error in SharedRegion_setup [0x%x]\n", status);
-    }
-    else {
-        Osal_printf ("SharedRegion_setup status [0x%x]\n", status);
-    }
-    Osal_printf ("SharedRegion_setup successfully\n");
-
-    ProcUtil_setup ();
-    Osal_printf("ProcUtil_setup done\n");
-
-    NameServer_setup ();
-#endif
-
-    status = ProcMgr_translateAddr (procHandle,
-                                    (Ptr) &ListMPApp_shAddrBase,
-                                    ProcMgr_AddrType_MasterUsrVirt,
-                                    (Ptr) SHAREDMEM,
-                                    ProcMgr_AddrType_SlaveVirt);
-
-    sharedAddr = ListMPApp_shAddrBase;
-    Osal_printf ("After ProcMgr_translateAddr sharedAddr=%x\n",sharedAddr);
-
-    if (status < 0) {
-        Osal_printf ("Error in ProcMgr_translateAddr [0x%x]\n", status);
-    }
-    SharedRegion_add (0, (Ptr) sharedAddr, SHAREDMEMSIZE);
-
-#if !defined(SYSLINK_USE_SYSMGR)
-    NameServer_Params_init (&nameServerParams);
-    nameServerParams.maxNameLen        = MAX_NAME_LENGTH;
-    nameServerParams.maxRuntimeEntries = MAX_VALUE_LENGTH;
-    nameServerParams.maxValueLen       = MAX_RUNTIMEENTRIES;
-
-    ListMPSharedMemory_getConfig(&cfgLstParams);
-    cfgLstParams.maxNameLen = MAX_NAME_LENGTH;
-
-    if (status >= 0)
-    {
-        /* ListMPSharedMemory module setup */
-        status = ListMPSharedMemory_setup(&cfgLstParams);
-        if (status < 0) {
-            Osal_printf("Error in ListMPSharedMemory_setup [0x%x]\n", status);
-        }
-        else {
-            Osal_printf ("ListMPSharedMemory_setup status [0x%x]\n", status);
-        }
-    }
-
-    if (status >= 0) {
-        /* GatePeterson module setup */
-        GatePeterson_getConfig (&gpConfig);
-        status = GatePeterson_setup (&gpConfig);
-        if (status < 0) {
-            Osal_printf ("Error in GatePeterson_setup. Status [0x%x]\n",
-                         status);
-        }
-        else {
-            Osal_printf ("GatePeterson_setup status [0x%x]\n", status);
-        }
-    }
-#endif
-
-    ProcUtil_load (LISTMP_SYSM3_IMAGE_PATH);
-    Osal_printf ("Done loading image to SYSM3\n");
     Osal_printf ("Leaving ListMPApp_startup\n");
 
     return (status);
@@ -290,149 +197,182 @@ ListMPApp_startup (UInt32 sharedAddr)
 Int
 ListMPApp_execute (UInt32 sharedAddr)
 {
+    Int               status  = -1;
+    ListMP_Params     listMPParamsLocal;
+    ListMP_Handle     ListMPApp_handleRemote;
+    ListMP_Handle     ListMPApp_handleLocal;
+    ListMP_Node *     node;
+    UInt32            localProcId;
+    Char              tempStr [LISTMPAPP_NAMELENGTH];
+    UInt              i;
+    Ptr               ListMPApp_heapHandle;
+    SharedRegion_Entry      entry;
+    Memory_Stats            stats;
 
-    Int                         status  = -1;
-    ListMPSharedMemory_Params   listMPParams;
-    ListMPSharedMemory_Params   listMPParams1;
-    ListMP_Handle               listHandle;
-    ListMP_Handle               listHandle1;
-    ListMP_Node *               node;
-    GatePeterson_Params         gateParams;
-    UInt32                      listAddr;
-    UInt32                      list1Addr;
-    UInt32                      gateAddr;
+//    sharedAddr = ListMPApp_shAddrBase;
+    SharedRegion_getEntry(0, &entry);
+    sharedAddr = (UInt32)entry.base;
 
-    sharedAddr = ListMPApp_shAddrBase;
+    Osal_printf("\nEntered ListMPApp_execute\n");
+    localProcId = MultiProc_self();
 
-    Osal_printf ("\nEntered ListMPApp_execute\n");
+    ListMPApp_heapHandle = SharedRegion_getHeap(APP_SHAREDREGION_ENTRY_ID);
 
-    // Compute locations in user memory
-    listAddr    = sharedAddr + LISTMP_OFFSET;
-    list1Addr   = sharedAddr + LISTMP1_OFFSET;
-    gateAddr    = sharedAddr + GATEPETERSON_OFFSET;
-
-    procId = 2;
-    ProcUtil_start ();
-    Osal_printf ("Started Ducati:SYSM3\n");
-
-    GatePeterson_Params_init (ListMPApp_gateHandle, &gateParams);
-    gateParams.sharedAddrSize = GatePeterson_sharedMemReq (&gateParams);
-    Osal_printf ("Memory required for GatePeterson instance [0x%x]"
-                 " bytes \n",
-                 gateParams.sharedAddrSize);
-    do {
-        gateParams.sharedAddr     = (Ptr)(gateAddr);
-        status = GatePeterson_open (&ListMPApp_gateHandle,
-                                    &gateParams);
-    }
-    while ((status == GATEPETERSON_E_NOTFOUND) ||
-            (status == GATEPETERSON_E_VERSION));
-    if (status < 0) {
-        Osal_printf ("Error in GatePeterson_open [0x%x]\n", status);
+    if (ListMPApp_heapHandle == NULL) {
+        status = ListMP_E_FAIL;
+        Osal_printf ("Error in SharedRegion_getHeap\n");
     }
     else {
-        Osal_printf ("GatePeterson_open status [0x%x]\n", status);
+        Osal_printf ("Heap in SharedRegion_getHeap : 0x%x\n",
+                     ListMPApp_heapHandle);
+
+        Memory_getStats(ListMPApp_heapHandle, &stats);
+        Osal_printf("Heap stats: 0x%x bytes free, "
+            "0x%x bytes total\n", stats.totalFreeSize, stats.totalSize);
     }
 
-    if(status >= 0) {
-        ListMPSharedMemory_Params_init(NULL,&listMPParams);
-        listMPParams.gate            = ListMPApp_gateHandle;
-        listMPParams.sharedAddr     = (Ptr)listAddr;
-        listMPParams.listType       = ListMP_Type_SHARED;
-        listMPParams.sharedAddrSize = ListMP_sharedMemReq(&listMPParams);
+    /* -------------------------------------------------------------------------
+     * Create and open lists
+     * -------------------------------------------------------------------------
+     */
+    ListMP_Params_init(&listMPParamsLocal);
+    listMPParamsLocal.regionId = APP_SHAREDREGION_ENTRY_ID;/*
+    memset (tempStr, 0, LISTMPAPP_NAMELENGTH);
+    sprintf (tempStr,
+            "%s_%d%d",
+            LISTMPSLAVE_PREFIX,
+            procId,
+            localProcId);
+    listMPParamsLocal.name = tempStr;
+    */
+    sprintf(tempStr, "MPU List");
+    listMPParamsLocal.sharedAddr = (Void *)(sharedAddr + LOCAL_LIST_OFFSET);
+    ListMPApp_handleLocal = ListMP_create(&listMPParamsLocal);
+    Osal_printf("created list\n");
+    /* Open remote list. */
+    /*
+    memset (tempStr, 0, LISTMPAPP_NAMELENGTH);
+    sprintf (tempStr,
+            "%s_%d%d",
+            LISTMPHOST_PREFIX,
+            procId,
+            localProcId);
+    */
+    sprintf(tempStr, "Ducati List");
 
-        ListMPSharedMemory_Params_init(NULL,&listMPParams1);
-        listMPParams1.gate             = ListMPApp_gateHandle;
-        listMPParams1.sharedAddr     = (Ptr)list1Addr;
-        listMPParams1.listType       = ListMP_Type_SHARED;
-        listMPParams1.sharedAddrSize = ListMP_sharedMemReq(&listMPParams1);
-
-        Osal_printf("Creating ListMP at 0x%08x\n", list1Addr);
-
-        listHandle1 = ListMP_create(&listMPParams1);
-
-        // Get next unused shared memory
-        sharedAddr = list1Addr + listMPParams1.sharedAddrSize;
-
-        node = (ListMP_Node *) (sharedAddr + 64);
-        node->id = 100;
-
-        ListMP_putTail((ListMP_Handle)listHandle1,&(node->elem));
-    }
-
-    if(status >= 0) {
-        Osal_printf ("Opening the list created by remote processor at 0x%08x\n", listAddr);
-        status = ListMP_open(&listHandle,&listMPParams);
-        if ((status < 0) || (listHandle == NULL)) {
-            Osal_printf ("Error in ListMP_open [0x%x]\n", status);
-        }
-        else {
-            Osal_printf ("List opened successfully\n");
-            node = (ListMP_Node *)ListMP_getHead(listHandle);
-            Osal_printf ("List Head element  ID = %d\n",node->id);
-            node = (ListMP_Node *) (sharedAddr + 64);
-            node->id = 111;
-            Osal_printf ("List PutTail       ID = %d\n",node->id);
-            ListMP_putTail((ListMP_Handle)listHandle,&(node->elem));
-            node = (ListMP_Node *) (sharedAddr + 128);
-            node->id = 333;
-            Osal_printf ("List PutTail       ID = %d\n",node->id);
-            ListMP_putTail((ListMP_Handle)listHandle,&(node->elem));
-            node = (ListMP_Node *) (sharedAddr + 192);
-            node->id = 222;
-            Osal_printf ("List insertElement ID = %d ",node->id);
-            Osal_printf ("before element ID = %d\n",
-                                           (((ListMP_Node *) (sharedAddr + 128))->id));
-            status = ListMP_insert((ListMP_Handle)listHandle,
-                                   &(node->elem),
-                                   &(((ListMP_Node *) (sharedAddr + 128))->elem));
-            if(status < 0) {
-                Osal_printf ("List insertElement failed\n");
-            }
-            else {
-                node = (ListMP_Node *) ListMP_next(listHandle,NULL);
-                Osal_printf ("Testing ListMP_next with NULL elem ID = %d\n",
-                                                                          node->id);
-                node = (ListMP_Node *) ListMP_prev(listHandle,NULL);
-                Osal_printf ("Testing ListMP_prev with NULL elem ID = %d\n",
-                                                                          node->id);
-
-                Osal_printf ("Removing element from list ID = %d\n",
-                                         (((ListMP_Node *) (sharedAddr + 64))->id));
-                status = ListMP_remove((ListMP_Handle)listHandle,
-                                         &(((ListMP_Node *) (sharedAddr + 64))->elem));
-                if(status < 0){
-                    Osal_printf ("List removeElement failed\n");
-                }
-
-                node = (ListMP_Node *)ListMP_getTail((ListMP_Handle)listHandle);
-                Osal_printf ("Testing ListMP_getTail ID = %d\n",node->id);
-
-                node = (ListMP_Node *) (sharedAddr + 64);
-                node->id = 555;
-                Osal_printf ("Testing ListMP_putHead ID = %d\n",node->id);
-                node = (ListMP_Node *)ListMP_putHead((ListMP_Handle)listHandle,
-                                                     &(node->elem));
-
-                node = (ListMP_Node *)ListMP_getHead(listHandle);
-                Osal_printf ("Testing ListMP_getHead ID = %d\n",node->id);
-            }
-
-            Osal_printf ("Closing the shared List\n");
-            status = ListMP_close(&listHandle);
-            if(status < 0){
-                Osal_printf ("ListMP_close failed\n");
-            }
-
-            Osal_printf("Closing the GatePeterson\n");
-            status = GatePeterson_close(&ListMPApp_gateHandle);
-            if(status < 0){
-                Osal_printf ("GatePeterson_close failed\n");
-            }
+    Osal_printf("Opening list\n");
+    /* Open the remote list by name */
+    do {
+        //status = ListMP_open(tempStr,&ListMPApp_handleRemote);
+        status = ListMP_openByAddr((Void *)(sharedAddr + REMOTE_LIST_OFFSET),&ListMPApp_handleRemote);
+        if (status == ListMP_E_NOTFOUND) {
+            Osal_printf("List %s not found, trying again.\n", tempStr);
+            /* Sleep for a while before trying again. */
+            usleep (1000);
         }
     }
+    while (status != ListMP_S_SUCCESS);
+    Osal_printf("List %s successfully opened.\n", tempStr);
 
+    /* -------------------------------------------------------------------------
+     * Get nodes from locally created list.
+     * -------------------------------------------------------------------------
+     */
+    for (i = 0; i < 4; i++) {
+        do {
+            node = (ListMP_Node *) ListMP_getHead (ListMPApp_handleLocal);
+            /* Sleep for a while if the element is not yet available. */
+            if (node == NULL) {
+                usleep (1000);
+            }
+        }
+        while (node == NULL);
+        Osal_printf("Obtained node 0x%x with id 0x%x.\n", (UInt32) node, node->id);
+
+        Memory_free (ListMPApp_heapHandle,
+                      node,
+                      sizeof (ListMP_Node));
+    }
+
+    /* -------------------------------------------------------------------------
+     * Put nodes in remotely created list.
+     * -------------------------------------------------------------------------
+     */
+    for (i = 0; i < 4; i++) {
+        node = (ListMP_Node *) Memory_alloc (
+                                   (IHeap_Handle)ListMPApp_heapHandle,
+                                   sizeof (ListMP_Node),
+                                   0);
+        Osal_printf("Allocated node at 0x%x\n", (UInt32)node);
+        node->id = 0x0 + i;
+        ListMP_putTail (ListMPApp_handleRemote, &(node->elem));
+
+        Osal_printf("Node 0x%x with id 0x%x successfully put.\n", (UInt32)node, node->id);
+    }
+    Osal_printf("Waiting for synchronization, press key to continue.\n");
+    getchar();
+
+    /* -------------------------------------------------------------------------
+     * Put nodes in locally created list.
+     * -------------------------------------------------------------------------
+     */
+    for (i = 0; i < 4; i++) {
+        node = (ListMP_Node *) Memory_alloc (
+                                   (IHeap_Handle)ListMPApp_heapHandle,
+                                    sizeof (ListMP_Node),
+                                    0);
+        Osal_printf("Allocated node at 0x%x\n", (UInt32)node);
+        node->id = 0x100 + i;
+        ListMP_putTail (ListMPApp_handleLocal, &(node->elem));
+
+        Osal_printf("Node 0x%x with id 0x%x successfully put.\n", (UInt32)node, node->id);
+    }
+
+    /* -------------------------------------------------------------------------
+     * Get nodes from remotely created list.
+     * -------------------------------------------------------------------------
+     */
+    for (i = 0; i < 4; i++) {
+        do {
+            node = (ListMP_Node *) ListMP_getTail (ListMPApp_handleRemote);
+            /* Sleep for a while if the element is not yet available. */
+            if (node == NULL) {
+                usleep (1000);
+            }
+        }
+        while (node == NULL);
+
+        Osal_printf("Obtained node 0x%x with id 0x%x.\n", (UInt32) node, node->id);
+        Memory_getStats(ListMPApp_heapHandle, &stats);
+
+        Memory_free (ListMPApp_heapHandle,
+                      node,
+                      sizeof (ListMP_Node));
+    }
+    /* -------------------------------------------------------------------------
+     * Cleanup
+     * -------------------------------------------------------------------------
+     */
+    status = ListMP_close (&ListMPApp_handleRemote);
+    if (status != ListMP_S_SUCCESS) {
+        Osal_printf("ERROR: ListMP_close failed.status [0x%x]\n", status);
+    } else {
+        Osal_printf("ListMP_close status [0x%x]\n", status);
+    }
+
+    status = ListMP_delete (&ListMPApp_handleLocal);
+    if (status != ListMP_S_SUCCESS) {
+        Osal_printf("ERROR: ListMP_delete failed.status [0x%x]\n", status);
+    } else {
+        Osal_printf("ListMP_delete status [0x%x]\n", status);
+    }
+
+    Memory_getStats(ListMPApp_heapHandle, &stats);
+    Osal_printf("Heap stats: 0x%x bytes free, "
+        "0x%x bytes total\n", stats.totalFreeSize, stats.totalSize);
     Osal_printf ("Leaving ListMPApp_execute\n");
+
+    getchar();
     return (0);
 }
 
@@ -444,32 +384,15 @@ ListMPApp_shutdown (Void)
 
     Osal_printf ("\nEntered ListMPApp_shutdown\n");
 
-#if defined(SYSLINK_USE_SYSMGR)
-    SharedRegion_remove (0);
     ProcUtil_stop ();
+    status = ProcMgr_detach (procHandle);
+    Osal_printf ("ProcMgr_detach status: [0x%x]\n", status);
     status = ProcMgr_close (&procHandle);
     Osal_printf ("ProcMgr_close status: [0x%x]\n", status);
-    SysMgr_destroy ();
-#else
-
-    status = ListMPSharedMemory_destroy();
-    Osal_printf ("ListMPSharedMemory_destroy status: [0x%x]\n", status);
-
-    status = GatePeterson_destroy ();
-    Osal_printf ("GatePeterson_destroy status: [0x%x]\n", status);
-
-    SharedRegion_remove (0);
-
-    status = SharedRegion_destroy();
-    Osal_printf ("SharedRegion_destroy status: [0x%x]\n", status);
-
-    ProcUtil_stop ();
-    ProcUtil_shutdown ();
-    UsrUtilsDrv_destroy ();
-#endif
+    Ipc_destroy ();
 
     Osal_printf ("Leaving ListMPApp_shutdown\n");
-    return (0);
+    return status;
 }
 
 #if defined (__cplusplus)

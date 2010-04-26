@@ -163,8 +163,6 @@ main (int argc, char ** argv)
         status = ListMPApp_execute (ListMPApp_shAddrBase);
     }
 
-    Osal_printf ("Press any key to continue ...\n");
-    getchar ();
     status = ListMPApp_shutdown ();
 
     return 0;
