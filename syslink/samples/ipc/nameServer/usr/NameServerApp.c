@@ -44,11 +44,13 @@
 
 /* Module level headers */
 #if defined (SYSLINK_USE_SYSMGR)
-#include <SysMgr.h>
+#include <IpcUsr.h>
 #else /* if defined (SYSLINK_USE_SYSMGR) */
 #include <UsrUtilsDrv.h>
-#include <MultiProc.h>
-#include <NameServer.h>
+#include <_MultiProc.h>
+#include <ti/ipc/MultiProc.h>
+#include <_NameServer.h>
+#include <ti/ipc/NameServer.h>
 #endif /* if defined(SYSLINK_USE_SYSMGR) */
 
 #if defined (__cplusplus)
@@ -198,17 +200,16 @@ NameServer_Handle NameServerApp_setup()
     nameServerParams.maxNameLen        = MAX_NAME_LENGTH;
     nameServerParams.maxRuntimeEntries = MAX_VALUE_LENGTH;
     nameServerParams.maxValueLen       = MAX_RUNTIMEENTRIES;
-    nameServerParams.checkExisting     = TRUE; /* Checsk if exists */
-    nameServerParams.gate              = NULL;
+    nameServerParams.checkExisting     = TRUE; /* Checks if exists */
 
     UsrUtilsDrv_setup ();
 
-    multiProcConfig.maxProcessors = 4;
-    multiProcConfig.id = 0;
-    String_cpy (multiProcConfig.nameList [0], "MPU");
-    String_cpy (multiProcConfig.nameList [1], "Tesla");
+    multiProcConfig.numProcessors = 4;
+    multiProcConfig.id = 3;
+    String_cpy (multiProcConfig.nameList [0], "Tesla");
+    String_cpy (multiProcConfig.nameList [1], "AppM3");
     String_cpy (multiProcConfig.nameList [2], "SysM3");
-    String_cpy (multiProcConfig.nameList [3], "AppM3");
+    String_cpy (multiProcConfig.nameList [3], "MPU");
     status = MultiProc_setup(&multiProcConfig);
     if (status < 0) {
         Osal_printf ("Error in MultiProc_setup [0x%x]\n", status);
@@ -251,20 +252,21 @@ int NameServerApp_execute(NameServer_Handle handle)
     UInt16 proc_id[4] = { 0, 1, 2, 0xFFFF };
     int buf[2] = { 0 };
     void *entry[2] = { NULL, NULL };
+    UInt32 size = sizeof(int);
 
     proc_id[0] = MultiProc_getId(NULL);
     entry[0] =NameServer_add(handle, nstable[0].name, &nstable[0].value, sizeof(int));
     entry[1] =  NameServer_addUInt32(handle, nstable[1].name, nstable[1].value);
 
 
-    NameServer_getLocal(handle, nstable[0].name, &buf[0], sizeof(int));
+    NameServer_getLocal(handle, nstable[0].name, &buf[0], &size);
     if(buf[0] != nstable[0].value) {
         printf("NameServer_getLocal returned wrong value %x\n", buf[0]);
     } else {
         printf("NameServer_getLocal returned correct value %x\n", buf[0]);
     }
 
-    NameServer_getLocal(handle, nstable[1].name, &buf[1], sizeof(int));
+    NameServer_getLocal(handle, nstable[1].name, &buf[1], &size);
     if(buf[1] != nstable[1].value) {
         printf("NameServer_get returned wrong value from local table %x\n",
                 buf[1]);
