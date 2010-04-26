@@ -116,19 +116,11 @@ Handle          proc4430Handle;
 static inline Void ProcUtil_setup (Void)
 {
     ProcMgr_Config          cfg;
-    MultiProc_Config        multiProcConfig;
     OMAP4430PROC_Config     procConfig;
     OMAP4430PROC_Params     procParams;
     ProcMgr_AttachParams    ducatiParams;
     ProcMgr_Params          procMgrParams;
     Int                     status = 0;
-
-    Osal_printf ("Calling MultiProc getConfig\n");
-    MultiProc_getConfig (&multiProcConfig);
-    Osal_printf ("Calling MultiProc setup\n");
-    status = MultiProc_setup (&multiProcConfig);
-
-    Osal_printf ("MultiProc_setup status %x\n", status);
 
     ProcMgr_getConfig (&cfg);
     status = ProcMgr_setup (&cfg);
@@ -209,7 +201,6 @@ static inline Void ProcUtil_shutdown (Void)
     /* Call Omap4430 delete() and destroy()*/
     OMAP4430PROC_delete (&proc4430Handle);
     OMAP4430PROC_destroy ();
-    MultiProc_destroy ();
 }
 
 
