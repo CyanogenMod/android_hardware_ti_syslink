@@ -1,16 +1,35 @@
 /*
- * Syslink-IPC for TI OMAP Processors
+ *  Syslink-IPC for TI OMAP Processors
  *
- * Copyright (C) 2009 Texas Instruments, Inc.
+ *  Copyright (c) 2008-2010, Texas Instruments Incorporated
+ *  All rights reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Lesser General Public License as published
- * by the Free Software Foundation version 2.1 of the License.
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted provided that the following conditions
+ *  are met:
  *
- * This program is distributed .as is. WITHOUT ANY WARRANTY of any kind,
- * whether express or implied; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
+ *  *  Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
+ *
+ *  *  Redistributions in binary form must reproduce the above copyright
+ *     notice, this list of conditions and the following disclaimer in the
+ *     documentation and/or other materials provided with the distribution.
+ *
+ *  *  Neither the name of Texas Instruments Incorporated nor the names of
+ *     its contributors may be used to endorse or promote products derived
+ *     from this software without specific prior written permission.
+ *
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ *  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ *  THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ *  PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ *  CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ *  EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ *  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+ *  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ *  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ *  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ *  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
  * RcmClient.c
@@ -41,13 +60,13 @@
 #include <List.h>
 
 /* Module level headers */
+#include <RcmTypes.h>
 #include <RcmClient.h>
 
 /* =============================================================================
  * RCM client defines
  * =============================================================================
  */
-#define RCMCLIENT_INVALID_FUNCTION_INDEX 0xFFFFFFFF
 #define RCMCLIENT_DESC_TYPE_SHIFT 8 /* field shift width */
 #define RCMCLIENT_HEAPID_ARRAY_LENGTH 4
 #define RCMCLIENT_HEAPID_ARRAY_BLOCKSIZE 256
@@ -58,16 +77,6 @@
  * Structures & Enums
  * =============================================================================
  */
-
-/*
- * RCM Client packet structure
- */
-typedef struct RcmClient_Packet_tag{
-    MessageQ_MsgHeader msgqHeader; /* MessageQ header */
-    UInt16 desc; /* protocol version, descriptor, status */
-    UInt16 msgId; /* message id */
-    RcmClient_Message message; /* client message body (4 words) */
-} RcmClient_Packet;
 
 /*
  * recipient list elem structure
@@ -146,146 +155,60 @@ static inline RcmClient_Packet *getPacketAddr(RcmClient_Message *msg);
 static inline RcmClient_Packet *getPacketAddrMsgqMsg(MessageQ_Msg msg);
 static inline RcmClient_Packet *getPacketAddrElem(List_Elem *elem);
 static Int getReturnMsg(RcmClient_Handle handle, const UInt16 msgId,
-                    RcmClient_Message *returnMsg);
+                    RcmClient_Message **returnMsg);
 
 /*
- *  @brief      Function to get default configuration for the RcmClient module.
- *
- *  @param      cfgParams   Configuration values.
- *
- *  @sa         RcmClient_setup
+ *  ======== RcmClient_init ========
+ * Purpose:
+ * Setup RCM client module
  */
-Int RcmClient_getConfig (RcmClient_Config *cfgParams)
+Void RcmClient_init(Void)
 {
-    Int status = RCMCLIENT_SOK;
+    Int status = RcmClient_S_SUCCESS;
 
-    GT_1trace (curTrace, GT_ENTER, "RcmClient_getConfig", cfgParams);
+    GT_0trace (curTrace, GT_ENTER, "RcmClient_init");
 
-    GT_assert (curTrace, (cfgParams != NULL));
+    /* TBD: Protect from multiple threads. */
+    RcmClient_module->setupRefCount++;
 
-#if !defined(SYSLINK_BUILD_OPTIMIZE)
-    if (cfgParams == NULL) {
-        /* @retval RCMCLIENT_EINVALIDARG Argument of type
-         *          (RcmClient_Config *) passed is null
+    /* This is needed at runtime so should not be in
+     * SYSLINK_BUILD_OPTIMIZE.
+     */
+    if (RcmClient_module->setupRefCount > 1) {
+        /* @retval RcmClient_S_ALREADYSETUP Success: RcmClient module has been
+         *          already setup in this process
          */
-        status = RCMCLIENT_EINVALIDARG;
-        GT_setFailureReason (curTrace,
-                             GT_4CLASS,
-                             "RcmClient_getConfig",
-                             status,
-                             "Argument of type (RcmClient_Config *) passed is null!");
+        status = RcmClient_S_ALREADYSETUP;
+        GT_1trace (curTrace,
+                GT_1CLASS,
+                "RcmClient module has been already setup in this process.\n"
+                " RefCount: [%d]\n",
+                RcmClient_module->setupRefCount);
     }
-    else {
-#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-        *cfgParams = RcmClient_module->defaultCfg;
-#if !defined(SYSLINK_BUILD_OPTIMIZE)
-    }
-#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
 
-     GT_1trace (curTrace, GT_LEAVE, "RcmClient_getConfig", status);
-
-    /* @retval RCMCLIENT_SOK Operation was Successful */
-    return status;
+    GT_1trace (curTrace, GT_LEAVE, "RcmClient_init", status);
 }
 
-
 /*
- *  @brief     Function to setup the RcmClient module.
- *
- *  @param     config  Module configuration parameters
- *
- *  @sa        RcmClientf_destroy
+ *  ======== RcmClient_exit ========
+ * Purpose:
+ * Clean up RCM Client module
  */
-Int RcmClient_setup(const RcmClient_Config *config)
+Void RcmClient_exit(Void)
 {
-    Int status = RCMCLIENT_SOK;
-    Int i;
+    Int status = RcmClient_S_SUCCESS;
 
-    GT_1trace (curTrace, GT_ENTER, "RcmClient_setup", config);
-
-    GT_assert (curTrace, (config != NULL));
-
-#if !defined(SYSLINK_BUILD_OPTIMIZE)
-    if (config == NULL) {
-        /* @retval RCMCLIENT_EINVALIDARG
-         *          Argument of type
-         *          (RcmClient_Config *) passed is null
-         */
-        status = RCMCLIENT_EINVALIDARG;
-        GT_setFailureReason (curTrace,
-                             GT_4CLASS,
-                             "RcmClient_setup",
-                             status,
-                             "Argument of type (Heap_Config *) passed "
-                             "is null!");
-    } else if (config->maxNameLen == 0) {
-        /* @retval RCMCLIENT_EINVALIDARG Config->maxNameLen passed is 0 */
-        status = RCMCLIENT_EINVALIDARG;
-        GT_setFailureReason (curTrace,
-                             GT_4CLASS,
-                             "RcmClient_setup",
-                             status,
-                             "Config->maxNameLen passed is 0!");
-    } else {
-#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-
-        /* TBD: Protect from multiple threads. */
-        RcmClient_module->setupRefCount++;
-
-        /* This is needed at runtime so should not be in
-         * SYSLINK_BUILD_OPTIMIZE.
-         */
-        GT_assert (curTrace, (RcmClient_module->setupRefCount < 2));
-        if (RcmClient_module->setupRefCount > 1) {
-            /* @retval RCMCLIENT_SALREADYSETUP Success: RcmClient module has been
-             *          already setup in this process
-             */
-            status = RCMCLIENT_SALREADYSETUP;
-            GT_1trace (curTrace,
-                    GT_1CLASS,
-                    "RcmClient module has been already setup in this process.\n"
-                    " RefCount: [%d]\n",
-                    RcmClient_module->setupRefCount);
-        } else {
-            for (i = 0;
-                 i < RcmClient_module->defaultCfg.defaultHeapIdArrayLength;
-                 i++) {
-                /* TODO setup of default heaps for proc ID */
-                RcmClient_module->heapIdAry[i] = 0xFFFF;
-            }
-        }
-#if !defined(SYSLINK_BUILD_OPTIMIZE)
-    }
-#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-
-    /* @retval RCMCLIENT_SOK Operation Successful */
-    return status;
-}
-
-
-/*
- *  @brief      Function to destroy the RcmClient module.
- *
- *  @param      None
- *
- *  @sa         RcmClient_destroy
- */
-Int RcmClient_destroy(void)
-{
-    Int status = RCMCLIENT_SOK;
-
-    GT_0trace (curTrace, GT_ENTER, "RcmClient_destroy");
+    GT_0trace (curTrace, GT_ENTER, "RcmClient_exit");
 
     /* TBD: Protect from multiple threads. */
     RcmClient_module->setupRefCount--;
 
     /* This is needed at runtime so should not be in SYSLINK_BUILD_OPTIMIZE. */
-
     if (RcmClient_module->setupRefCount < 0) {
-        /* @retval RCMCLIENT_SALREADYCLEANEDUP:RcmClient module has been
+        /* @retval RcmClient_S_ALREADYCLEANEDUP:RcmClient module has been
          *          already setup in this process
          */
-        status = RCMCLIENT_SALREADYCLEANEDUP;
+        status = RcmClient_S_ALREADYCLEANEDUP;
         GT_1trace (curTrace,
                    GT_1CLASS,
                    "RcmClient module has been already been cleaned up in this process.\n"
@@ -293,37 +216,30 @@ Int RcmClient_destroy(void)
                    RcmClient_module->setupRefCount);
     }
 
-    GT_1trace (curTrace, GT_LEAVE, "RcmClient_destroy", status);
-    /* @retval RCMCLIENT_SOK Operation Successful */
-    return status;
+    GT_1trace (curTrace, GT_LEAVE, "RcmClient_exit", status);
 }
 
 /*
- *  ======== rcmclient_create ========
+ *  ======== RcmClient_create ========
  * Purpose:
  * Create a RCM client instance
  */
 Int RcmClient_create(String server,
-             const RcmClient_Params *params,
-             RcmClient_Handle *rcmclientHandle)
+             RcmClient_Params *params,
+             RcmClient_Handle *handle)
 {
     MessageQ_Params msgQParams;
     UInt16 procId;
-    RcmClient_Object *handle = NULL;
+    RcmClient_Object *obj = NULL;
     List_Params  listParams;
-    RcmClient_Message *rcmMsg;
-    RcmClient_Packet *packet;
-    UInt16 msgId;
-    MessageQ_Handle msgqInst;
-    MessageQ_Msg msgqMsg;
     Int retval = 0;
-    Int status = RCMCLIENT_SOK;
+    Int status = RcmClient_S_SUCCESS;
 
     GT_0trace (curTrace, GT_ENTER, "RcmClient_create");
 
     if (RcmClient_module->setupRefCount == 0) {
         /*! @retval FRAMEQ_E_INVALIDSTATE Modules is invalidstate*/
-        status = RCMCLIENT_EINVALIDSTATE;
+        status = RcmClient_E_INVALIDSTATE;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "RcmClient_create",
@@ -334,55 +250,61 @@ Int RcmClient_create(String server,
 
     if (NULL == params) {
         GT_0trace(curTrace, GT_4CLASS, "RcmClient_create: invalid argument\n");
-        status = RCMCLIENT_EINVALIDARG;
+        status = RcmClient_E_INVALIDARG;
         goto exit;
     }
 
     if ((strlen(server)) > RcmClient_module->defaultCfg.maxNameLen) {
         GT_0trace(curTrace, GT_4CLASS,
             "rcmclient_create: server name too long\n");
-        status = RCMCLIENT_ENAMELENGTHLIMIT;
+        status = RcmClient_E_INVALIDARG;
         goto exit;
     }
 
-    handle = (RcmClient_Object *)Memory_calloc(NULL,
+    obj = (RcmClient_Object *)Memory_calloc(NULL,
                          sizeof(RcmClient_Object),
                          0);
-    if (NULL == handle) {
+    if (NULL == obj) {
         GT_0trace(curTrace,
               GT_4CLASS,
               "RcmClient_create: memory calloc failed\n");
-        status = RCMCLIENT_EMEMORY;
+        status = RcmClient_E_NOMEMORY;
         goto exit;
     }
 
     /* initialize instance data */
-    handle->msgQ = NULL;
-    handle->heapId = 0xFFFF;
+    obj->heapId = 0xFFFF;
+    obj->msgId = 0xFFFF;
+    obj->serverMsgQ = MessageQ_INVALIDMESSAGEQ;
+    obj->msgQ = NULL;
+    obj->mbxLock = NULL;
+    obj->queueLock = NULL;
+    obj->recipients = NULL;
+    obj->newMail = NULL;
 
     /* create the message queue for inbound messages */
     MessageQ_Params_init(&msgQParams);
 
     /* create the message queue for inbound messages */
-    handle->msgQ = MessageQ_create(NULL, &msgQParams);
-    if (handle->msgQ == NULL) {
+    obj->msgQ = MessageQ_create(NULL, &msgQParams);
+    if (obj->msgQ == NULL) {
         GT_setFailureReason (curTrace,
                      GT_4CLASS,
                      "MessageQ_create",
                      status,
                      "Unable to create MessageQ");
-        status = RCMCLIENT_EOBJECT;
+        status = RcmClient_E_MSGQCREATEFAILED;
         goto exit;
     }
 
     /* locate server message queue */
-    retval = MessageQ_open (server, &(handle->serverMsgQ));
+    retval = MessageQ_open (server, &(obj->serverMsgQ));
     if (retval < 0) {
         if (retval == MessageQ_E_NOTFOUND)
         {
             GT_0trace(curTrace, GT_4CLASS,
                 "MessageQ not found\n");
-            status = RCMCLIENT_ESERVER;
+            status = RcmClient_E_SERVERNOTFOUND;
         }
         else
         {
@@ -391,14 +313,14 @@ Int RcmClient_create(String server,
                          "MessageQ_open",
                          retval,
                          "Error in opening MessageQ");
-            status = RCMCLIENT_EOBJECT;
+            status = RcmClient_E_MSGQOPENFAILED;
         }
         goto serverMsgQ_fail;
     }
 
-    handle->cbNotify = params->callbackNotification;
+    obj->cbNotify = params->callbackNotification;
     /* create callback server */
-    if (handle->cbNotify == true) {
+    if (obj->cbNotify == true) {
         /* TODO create callback server thread */
         /* make sure to free resources acquired by thread */
         GT_0trace (curTrace,
@@ -407,14 +329,14 @@ Int RcmClient_create(String server,
     }
 
     /* register the heapId used for message allocation */
-    handle->heapId = params->heapId;
-    if (RCMCLIENT_DEFAULT_HEAPID == handle->heapId) {
+    obj->heapId = params->heapId;
+    if (RCMCLIENT_DEFAULT_HEAPID == obj->heapId) {
         GT_0trace (curTrace,
                    GT_4CLASS,
                    "Rcm default heaps not supported \n");
         /* extract procId from the server queue id */
-        //procId = MessageQ_getProcId(&(handle->serverMsgQ));
-        procId = (UInt16) ((UInt32)handle->serverMsgQ) >> 16;
+        //procId = MessageQ_getProcId(&(obj->serverMsgQ));
+        procId = (UInt16) ((UInt32)obj->serverMsgQ) >> 16;
         /* MessageQ_getProcId needs to be fixed!*/
 
         if (procId >= RCMCLIENT_HEAPID_ARRAY_LENGTH) {
@@ -424,162 +346,127 @@ Int RcmClient_create(String server,
                          status,
                          "procId >="
                           "RCMCLIENT_HEAPID_ARRAY_LENGTH");
-            status = RCMCLIENT_ERANGE;
+            status = RcmClient_E_FAIL;
             goto serverMsgQ_fail;
         }
-        handle->heapId = RcmClient_module->heapIdAry[procId];
+        obj->heapId = RcmClient_module->heapIdAry[procId];
     }
 
     /* create a gate instance */
-    handle->gate = (IGateProvider_Handle) GateMutex_create ();
-    GT_assert (curTrace, (handle->gate != NULL));
-    if (handle->gate == NULL) {
+    obj->gate = (IGateProvider_Handle) GateMutex_create ();
+    GT_assert (curTrace, (obj->gate != NULL));
+    if (obj->gate == NULL) {
         GT_setFailureReason (curTrace,
                         GT_4CLASS,
                         "GateMutex_create",
                         status,
                         "Unable to create mutex");
-        status = RCMCLIENT_EOBJECT;
+        status = RcmClient_E_FAIL;
         goto gate_fail;
     }
 
     /* create the mailbox lock */
-    handle->mbxLock = OsalSemaphore_create(OsalSemaphore_Type_Counting, 1);
-    GT_assert (curTrace, (handle->mbxLock != NULL));
-    if (handle->mbxLock ==  NULL) {
+    obj->mbxLock = OsalSemaphore_create(OsalSemaphore_Type_Counting, 1);
+    GT_assert (curTrace, (obj->mbxLock != NULL));
+    if (obj->mbxLock ==  NULL) {
         GT_setFailureReason (curTrace,
                         GT_4CLASS,
                         "OsalSemaphore_create",
                         status,
                         "Unable to create mbx lock");
-        status = RCMCLIENT_EOBJECT;
+        status = RcmClient_E_FAIL;
         goto mbxLock_fail;
     }
 
     /* create the message queue lock */
-    handle->queueLock = OsalSemaphore_create(OsalSemaphore_Type_Counting, 1);
-    GT_assert (curTrace, (handle->queueLock != NULL));
-    if (handle->queueLock ==  NULL) {
+    obj->queueLock = OsalSemaphore_create(OsalSemaphore_Type_Counting, 1);
+    GT_assert (curTrace, (obj->queueLock != NULL));
+    if (obj->queueLock ==  NULL) {
         GT_setFailureReason (curTrace,
                         GT_4CLASS,
                         "OsalSemaphore_create",
                         status,
                         "Unable to create queue lock");
-        status = RCMCLIENT_EOBJECT;
+        status = RcmClient_E_FAIL;
         goto queueLock_fail;
     }
 
     /* create the return message recipient list */
     List_Params_init(&listParams);
-    handle->recipients = List_create(&listParams);
-    GT_assert (curTrace, (handle->recipients != NULL));
-    if (handle->recipients == NULL) {
+    obj->recipients = List_create(&listParams);
+    GT_assert (curTrace, (obj->recipients != NULL));
+    if (obj->recipients == NULL) {
             GT_setFailureReason (curTrace,
                         GT_4CLASS,
                         "List_create",
                         status,
                         "Unable to create recipients list");
-            status = RCMCLIENT_EOBJECT;
+            status = RcmClient_E_LISTCREATEFAILED;
             goto recipients_fail;
     }
 
     /* create list of undelivered messages (new mail) */
-    handle->newMail = List_create(&listParams);
-    GT_assert (curTrace, (handle->newMail != NULL));
-    if (handle->newMail == NULL) {
+    obj->newMail = List_create(&listParams);
+    GT_assert (curTrace, (obj->newMail != NULL));
+    if (obj->newMail == NULL) {
         GT_setFailureReason (curTrace,
                         GT_4CLASS,
                         "List_create",
                         status,
                         "Unable to create new mail list");
-        status = RCMCLIENT_EOBJECT;
+        status = RcmClient_E_LISTCREATEFAILED;
         goto newMail_fail;
     }
 
-    rcmMsg = RcmClient_alloc(handle, sizeof(UInt32));
-    packet = getPacketAddr(rcmMsg);
-    packet->desc |= RcmClient_Desc_CONNECT << RCMCLIENT_DESC_TYPE_SHIFT;
-    msgId = packet->msgId;
-
-    /* set the return address to this instance's message queue */
-    msgqInst = (MessageQ_Handle)handle->msgQ;
-    msgqMsg = (MessageQ_Msg)packet;
-    MessageQ_setReplyQueue(msgqInst, msgqMsg);
-
-    /* send the message to the server */
-    retval = MessageQ_put(handle->serverMsgQ, msgqMsg);
-    if (retval < 0) {
-        GT_setFailureReason (curTrace,
-                     GT_4CLASS,
-                     "MessageQ_put",
-                     retval,
-                     "Message put fails");
-        status = RCMCLIENT_ESENDMSG;
-        goto serverMsgQ_fail;
-    }
-
-    /* get the return message from the server */
-    status = getReturnMsg(handle, msgId, rcmMsg);
-    if (status < 0) {
-        GT_setFailureReason (curTrace,
-                     GT_4CLASS,
-                     "getReturnMsg",
-                     status,
-                     "Get return message failed");
-        goto serverMsgQ_fail;
-    }
-
-    RcmClient_free(handle, rcmMsg);
-
-    *rcmclientHandle = (RcmClient_Handle)handle;
+    *handle = (RcmClient_Handle)obj;
     goto exit;
 
 newMail_fail:
-    List_delete(&(handle->recipients));
+    List_delete(&(obj->recipients));
 
 recipients_fail:
-    retval = OsalSemaphore_delete(&(handle->queueLock));
+    retval = OsalSemaphore_delete(&(obj->queueLock));
     if (retval < 0){
         GT_setFailureReason (curTrace,
                      GT_4CLASS,
                      "OsalSemaphore_delete",
                      status,
                      "queue lock delete failed");
-        status = RCMCLIENT_ERESOURCE;
+        status = RcmClient_E_FAIL;
     }
 
 queueLock_fail:
-    retval = OsalSemaphore_delete(&(handle->mbxLock));
+    retval = OsalSemaphore_delete(&(obj->mbxLock));
     if (retval < 0){
         GT_setFailureReason (curTrace,
                      GT_4CLASS,
                      "OsalSemaphore_delete",
                      retval,
                      "mbx lock delete failed");
-        status = RCMCLIENT_ERESOURCE;
+        status = RcmClient_E_FAIL;
     }
 
 mbxLock_fail:
-    GateMutex_delete((GateMutex_Handle *)&(handle->gate));
+    GateMutex_delete((GateMutex_Handle *)&(obj->gate));
 
 gate_fail:
     /* TODO Default heap cleanup */
     GT_1trace (curTrace, GT_LEAVE, "RcmClient_setup", status);
 
 serverMsgQ_fail:
-    retval = MessageQ_delete(&(handle->msgQ));
+    retval = MessageQ_delete(&(obj->msgQ));
     if (retval < 0) {
         GT_setFailureReason (curTrace,
                      GT_4CLASS,
                      "MessageQ_delete",
                      retval,
                      "Unable to delete MessageQ");
-        status = RCMCLIENT_ECLEANUP;
+        status = RcmClient_E_FAIL;
     }
-    handle->msgQ = NULL;
-    handle->heapId = 0xFFFF;
-    Memory_free(NULL, (RcmClient_Object *)handle, sizeof(RcmClient_Object));
-    handle = NULL;
+    obj->msgQ = NULL;
+    obj->heapId = 0xFFFF;
+    Memory_free(NULL, (RcmClient_Object *)obj, sizeof(RcmClient_Object));
+    obj = NULL;
 
 exit:
     GT_1trace (curTrace, GT_LEAVE, "RcmClient_create", status);
@@ -596,13 +483,13 @@ Int RcmClient_delete(RcmClient_Handle *handlePtr)
 {
     List_Elem *elem = NULL;
     Int retval = 0;
-    Int status = RCMCLIENT_SOK;
+    Int status = RcmClient_S_SUCCESS;
 
     GT_0trace (curTrace, GT_ENTER, "RcmClient_delete");
 
     if (RcmClient_module->setupRefCount == 0) {
         /*! @retval FRAMEQ_E_INVALIDSTATE Modules is invalidstate*/
-        status = RCMCLIENT_EINVALIDSTATE;
+        status = RcmClient_E_INVALIDSTATE;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "RcmClient_delete",
@@ -615,7 +502,7 @@ Int RcmClient_delete(RcmClient_Handle *handlePtr)
         GT_0trace(curTrace,
               GT_4CLASS,
               "RcmClient_delete: invalid argument\n");
-        status = RCMCLIENT_EHANDLE;
+        status = RcmClient_E_INVALIDARG;
         goto exit;
     }
 
@@ -645,7 +532,7 @@ Int RcmClient_delete(RcmClient_Handle *handlePtr)
                         "OsalSemaphore_delete",
                         retval,
                         "queue lock delete failed");
-            status = RCMCLIENT_ERESOURCE;
+            status = RcmClient_E_FAIL;
         }
         (*handlePtr)->queueLock = NULL;
     }
@@ -658,7 +545,7 @@ Int RcmClient_delete(RcmClient_Handle *handlePtr)
                         "OsalSemaphore_delete",
                         retval,
                         "mbx lock delete failed");
-            status = RCMCLIENT_ERESOURCE;
+            status = RcmClient_E_FAIL;
         }
         (*handlePtr)->mbxLock = NULL;
     }
@@ -685,7 +572,7 @@ Int RcmClient_delete(RcmClient_Handle *handlePtr)
         GT_0trace (curTrace,
                           GT_4CLASS,
                    "RcmClient_delete: Error in MessageQ_delete\n");
-        status = RCMCLIENT_ECLEANUP;
+        status = RcmClient_E_FAIL;
         goto exit;
         }
     }
@@ -706,10 +593,9 @@ exit:
  *
  *  @sa         RcmClient_create
  */
-Int RcmClient_Params_init(RcmClient_Handle handle,
-                          RcmClient_Params *params)
+Int RcmClient_Params_init(RcmClient_Params *params)
 {
-    Int status = RCMCLIENT_SOK;
+    Int status = RcmClient_S_SUCCESS;
 
     GT_1trace (curTrace, GT_ENTER, "RcmClient_Params_init", params);
 
@@ -720,12 +606,12 @@ Int RcmClient_Params_init(RcmClient_Handle handle,
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "RcmClient_Params_init",
-                             RCMCLIENT_EINVALIDSTATE,
+                             RcmClient_E_INVALIDSTATE,
                              "Modules is invalidstate!");
     }
     else if (params == NULL) {
         /* No retVal comment since this is a Void function. */
-        status = RCMCLIENT_EINVALIDARG;
+        status = RcmClient_E_INVALIDARG;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "RcmClient_Params_init",
@@ -735,12 +621,9 @@ Int RcmClient_Params_init(RcmClient_Handle handle,
     }
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-        if (handle == NULL) {
-            *params = RcmClient_module->defaultInst_params;
-        } else {
-            params->heapId = handle->heapId,
-            params->callbackNotification = handle->cbNotify;
-        }
+        params->heapId = RcmClient_module->defaultInst_params.heapId;
+        params->callbackNotification = \
+                    RcmClient_module->defaultInst_params.callbackNotification;
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
     }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
@@ -754,17 +637,17 @@ Int RcmClient_Params_init(RcmClient_Handle handle,
  * Adds symbol to server, return the function index.
  */
 Int RcmClient_addSymbol(RcmClient_Handle        handle,
-                        String                  funcName,
-                        RcmClient_RemoteFuncPtr address,
-                        UInt32 *                fxn_idx)
+                        String                  name,
+                        RcmClient_RemoteFuncPtr addr,
+                        UInt32 *                index)
 {
-    Int status = RCMCLIENT_ENOTSUPPORTED;
+    Int status = RcmClient_E_NOTSUPPORTED;
 
     GT_0trace (curTrace, GT_ENTER, "RcmClient_addSymbol");
 
    if (RcmClient_module->setupRefCount == 0) {
         /*! @retval FRAMEQ_E_INVALIDSTATE Modules is invalidstate*/
-        status = RCMCLIENT_EINVALIDSTATE;
+        status = RcmClient_E_INVALIDSTATE;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "RcmClient_addSymbol",
@@ -803,18 +686,18 @@ Int RcmClient_getHeaderSize (Void)
  * Purpose:
  * Allocates memory for RCM message on heap, populates MessageQ and RCM message.
  */
-RcmClient_Message *RcmClient_alloc(RcmClient_Handle handle, UInt32 dataSize)
+Int RcmClient_alloc(RcmClient_Handle handle, UInt32 dataSize,
+    RcmClient_Message **message)
 {
     Int totalSize;
     RcmClient_Packet *packet;
-    RcmClient_Message *rcmMsg = NULL;
-    Int status = RCMCLIENT_SOK;
+    Int status = RcmClient_S_SUCCESS;
 
     GT_0trace (curTrace, GT_ENTER, "RcmClient_alloc");
 
     if (RcmClient_module->setupRefCount == 0) {
         /*! @retval FRAMEQ_E_INVALIDSTATE Modules is invalidstate*/
-        status = RCMCLIENT_EINVALIDSTATE;
+        status = RcmClient_E_INVALIDSTATE;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "RcmClient_alloc",
@@ -827,7 +710,7 @@ RcmClient_Message *RcmClient_alloc(RcmClient_Handle handle, UInt32 dataSize)
         GT_0trace(curTrace,
               GT_4CLASS,
               "RcmClient_alloc: invalid argument\n");
-        status = RCMCLIENT_EHANDLE;
+        status = RcmClient_E_INVALIDARG;
         goto exit;
     }
 
@@ -839,24 +722,24 @@ RcmClient_Message *RcmClient_alloc(RcmClient_Handle handle, UInt32 dataSize)
     packet = (RcmClient_Packet*)MessageQ_alloc(handle->heapId, totalSize);
 
     if (NULL == packet) {
-        rcmMsg = NULL;
-        status = RCMCLIENT_EMEMORY;
+        *message = NULL;
+        status = RcmClient_E_MSGALLOCFAILED;
         goto exit;
     }
 
     /* initialize the packet structure */
     packet->desc = 0;
     packet->msgId = genMsgId(handle);
-    packet->message.fxnIdx = RCMCLIENT_INVALID_FUNCTION_INDEX;
+    packet->message.fxnIdx = RcmClient_INVALIDFXNIDX;
     packet->message.result = 0;
     packet->message.dataSize = dataSize;
 
-    /* set rcmMsg pointer to start of the message struct */
-    rcmMsg = (RcmClient_Message *)(&(packet->message));
+    /* set cmdMsg pointer to start of the message struct */
+    *message = (RcmClient_Message *)(&(packet->message));
 
 exit:
     GT_1trace (curTrace, GT_LEAVE, "RcmClient_alloc", status);
-    return rcmMsg;
+    return status;
 }
 
 
@@ -866,20 +749,22 @@ exit:
  * Requests RCM server to execute remote function
  */
 Int RcmClient_exec(RcmClient_Handle handle,
-           RcmClient_Message *rcmMsg)
+           RcmClient_Message *cmdMsg, RcmClient_Message **returnMsg)
 {
     RcmClient_Packet *packet;
     MessageQ_Handle msgqInst;
     MessageQ_Msg msgqMsg;
+    RcmClient_Message *rtnMsg;
     UInt16 msgId;
+    UInt16 serverStatus;
     Int retval = 0;
-    Int status = RCMCLIENT_SOK;
+    Int status = RcmClient_S_SUCCESS;
 
     GT_0trace (curTrace, GT_ENTER, "RcmClient_exec");
 
     if (RcmClient_module->setupRefCount == 0) {
         /*! @retval FRAMEQ_E_INVALIDSTATE Modules is invalidstate*/
-        status = RCMCLIENT_EINVALIDSTATE;
+        status = RcmClient_E_INVALIDSTATE;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "RcmClient_exec",
@@ -892,12 +777,12 @@ Int RcmClient_exec(RcmClient_Handle handle,
         GT_0trace(curTrace,
               GT_4CLASS,
               "RcmClient_exec: invalid argument\n");
-        status = RCMCLIENT_EHANDLE;
+        status = RcmClient_E_INVALIDARG;
         goto exit;
     }
 
     /* classify this message */
-    packet = getPacketAddr(rcmMsg);
+    packet = getPacketAddr(cmdMsg);
     packet->desc |= RcmClient_Desc_RCM_MSG << RCMCLIENT_DESC_TYPE_SHIFT;
     msgId = packet->msgId;
 
@@ -914,18 +799,58 @@ Int RcmClient_exec(RcmClient_Handle handle,
                      "MessageQ_put",
                      retval,
                      "Message put fails");
-        status = RCMCLIENT_ESENDMSG;
+        status = RcmClient_E_EXECFAILED;
         goto exit;
     }
 
     /* get the return message from the server */
-    status = getReturnMsg(handle, msgId, rcmMsg);
+    status = getReturnMsg(handle, msgId, &rtnMsg);
     if (status < 0) {
         GT_setFailureReason (curTrace,
                      GT_4CLASS,
                      "getReturnMsg",
                      status,
                      "Get return message failed");
+        *returnMsg = NULL;
+        goto exit;
+    }
+    *returnMsg = rtnMsg;
+
+    /* check the server's status stored in the packet header */
+    packet = getPacketAddr(rtnMsg);
+    serverStatus = (RcmClient_Desc_TYPE_MASK & packet->desc) >>
+            RcmClient_Desc_TYPE_SHIFT;
+
+    switch (serverStatus) {
+        case RcmServer_Status_SUCCESS:
+            break;
+
+        case RcmServer_Status_INVALID_FXN:
+            GT_setFailureReason (curTrace,
+                GT_4CLASS,
+                "RcmClient_exec",
+                serverStatus,
+                "Invalid function index");
+            status = RcmClient_E_INVALIDFXNIDX;
+            goto exit;
+
+        case RcmServer_Status_MSG_FXN_ERR:
+            GT_setFailureReason (curTrace,
+                GT_4CLASS,
+                "RcmClient_exec",
+                serverStatus,
+                "Message function error");
+            status = RcmClient_E_MSGFXNERR;
+            goto exit;
+
+        default:
+            GT_setFailureReason (curTrace,
+                GT_4CLASS,
+                "RcmClient_exec",
+                serverStatus,
+                "The server returned error");
+            status = RcmClient_E_SERVERERROR;
+            goto exit;
     }
 
 exit:
@@ -940,21 +865,21 @@ exit:
  * Requests RCM  server to execute remote function, it is asynchronous
  */
 Int RcmClient_execAsync(RcmClient_Handle handle,
-             RcmClient_Message *rcmMsg,
-             RcmClient_CallbackFuncPtr callback,
+             RcmClient_Message *cmdMsg,
+             RcmClient_CallbackFxn callback,
              Ptr appData)
 {
     RcmClient_Packet *packet;
     MessageQ_Handle msgqInst;
     MessageQ_Msg msgqMsg;
     Int retval = 0;
-    Int status = RCMCLIENT_SOK;
+    Int status = RcmClient_S_SUCCESS;
 
     GT_0trace (curTrace, GT_ENTER, "RcmClient_execAsync");
 
     if (RcmClient_module->setupRefCount == 0) {
         /*! @retval FRAMEQ_E_INVALIDSTATE Modules is invalidstate*/
-        status = RCMCLIENT_EINVALIDSTATE;
+        status = RcmClient_E_INVALIDSTATE;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "RcmClient_execAsync",
@@ -967,13 +892,13 @@ Int RcmClient_execAsync(RcmClient_Handle handle,
         GT_0trace(curTrace,
               GT_4CLASS,
               "RcmClient_execAsync: invalid argument\n");
-        status = RCMCLIENT_EHANDLE;
+        status = RcmClient_E_INVALIDARG;
         goto exit;
     }
 
     /* cannot use this function if callback notification is false */
     if (!handle->cbNotify) {
-        status = RCMCLIENT_EASYNCENABLED;
+        status = RcmClient_E_EXECASYNCNOTENABLED;
         GT_setFailureReason (curTrace,
                      GT_4CLASS,
                      "!cbNotify",
@@ -983,7 +908,7 @@ Int RcmClient_execAsync(RcmClient_Handle handle,
     }
 
     /* classify this message */
-    packet = getPacketAddr(rcmMsg);
+    packet = getPacketAddr(cmdMsg);
     packet->desc |= RcmClient_Desc_RCM_MSG << RCMCLIENT_DESC_TYPE_SHIFT;
 
     /* set the return address to this instance's message queue */
@@ -999,7 +924,7 @@ Int RcmClient_execAsync(RcmClient_Handle handle,
                      "MessageQ_put",
                      retval,
                      "Message put fails");
-        status = RCMCLIENT_ESENDMSG;
+        status = RcmClient_E_EXECFAILED;
         goto exit;
     }
 
@@ -1018,20 +943,21 @@ exit:
  * does not wait for completion of remote function for reply
  */
 Int RcmClient_execDpc(RcmClient_Handle handle,
-              RcmClient_Message *rcmMsg)
+              RcmClient_Message *cmdMsg, RcmClient_Message **returnMsg)
 {
     RcmClient_Packet *packet;
+    RcmClient_Message *rtnMsg;
     MessageQ_Handle msgqInst;
     MessageQ_Msg msgqMsg;
     UInt16 msgId;
     Int retval = 0;
-    Int status = RCMCLIENT_SOK;
+    Int status = RcmClient_S_SUCCESS;
 
     GT_0trace (curTrace, GT_ENTER, "RcmClient_execDpc");
 
     if (RcmClient_module->setupRefCount == 0) {
         /*! @retval FRAMEQ_E_INVALIDSTATE Modules is invalidstate*/
-        status = RCMCLIENT_EINVALIDSTATE;
+        status = RcmClient_E_INVALIDSTATE;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "RcmClient_execDpc",
@@ -1044,12 +970,12 @@ Int RcmClient_execDpc(RcmClient_Handle handle,
         GT_0trace(curTrace,
               GT_4CLASS,
               "RcmClient_execDpc: invalid argument\n");
-        status = RCMCLIENT_EHANDLE;
+        status = RcmClient_E_INVALIDARG;
         goto exit;
     }
 
     /* classify this message */
-    packet = getPacketAddr(rcmMsg);
+    packet = getPacketAddr(cmdMsg);
     packet->desc |= RcmClient_Desc_DPC << RCMCLIENT_DESC_TYPE_SHIFT;
     msgId = packet->msgId;
 
@@ -1066,19 +992,22 @@ Int RcmClient_execDpc(RcmClient_Handle handle,
                      "MessageQ_put",
                      retval,
                      "Message put fails");
-        status = RCMCLIENT_ESENDMSG;
+        status = RcmClient_E_EXECFAILED;
         goto exit;
     }
 
     /* get the return message from the server */
-    status = getReturnMsg(handle, msgId, rcmMsg);
+    status = getReturnMsg(handle, msgId, &rtnMsg);
     if (status < 0) {
         GT_setFailureReason (curTrace,
                      GT_4CLASS,
                      "getReturnMsg",
                      status,
                      "Get return message failed");
+        *returnMsg = NULL;
+        goto exit;
     }
+    *returnMsg = rtnMsg;
 
 exit:
     GT_1trace (curTrace, GT_LEAVE, "RcmClient_execDpc", status);
@@ -1093,20 +1022,20 @@ exit:
  * provides a msgId to wait on later
  */
 Int RcmClient_execNoWait(RcmClient_Handle handle,
-             RcmClient_Message *rcmMsg,
+             RcmClient_Message *cmdMsg,
              UInt16 *msgId)
 {
     RcmClient_Packet *packet;
     MessageQ_Handle msgqInst;
     MessageQ_Msg msgqMsg;
     Int retval = 0;
-    Int status = RCMCLIENT_SOK;
+    Int status = RcmClient_S_SUCCESS;
 
     GT_0trace (curTrace, GT_ENTER, "RcmClient_execNoWait");
 
     if (RcmClient_module->setupRefCount == 0) {
         /*! @retval FRAMEQ_E_INVALIDSTATE Modules is invalidstate*/
-        status = RCMCLIENT_EINVALIDSTATE;
+        status = RcmClient_E_INVALIDSTATE;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "RcmClient_execNoWait",
@@ -1119,12 +1048,12 @@ Int RcmClient_execNoWait(RcmClient_Handle handle,
         GT_0trace(curTrace,
               GT_4CLASS,
               "RcmClient_execNoWait: invalid argument\n");
-        status = RCMCLIENT_EHANDLE;
+        status = RcmClient_E_INVALIDARG;
         goto exit;
     }
 
     /* classify this message */
-    packet = getPacketAddr(rcmMsg);
+    packet = getPacketAddr(cmdMsg);
     packet->desc |= RcmClient_Desc_RCM_MSG << RCMCLIENT_DESC_TYPE_SHIFT;
     *msgId = packet->msgId;
 
@@ -1141,7 +1070,7 @@ Int RcmClient_execNoWait(RcmClient_Handle handle,
                      "MessageQ_put",
                      retval,
                      "Message put fails");
-        status = RCMCLIENT_ESENDMSG;
+        status = RcmClient_E_EXECFAILED;
     }
 
 exit:
@@ -1157,18 +1086,18 @@ exit:
  * without waiting for the reply.
  */
 Int RcmClient_execNoReply(RcmClient_Handle handle,
-             RcmClient_Message *rcmMsg)
+             RcmClient_Message *cmdMsg)
 {
     RcmClient_Packet *packet;
     MessageQ_Msg msgqMsg;
     Int retval = 0;
-    Int status = RCMCLIENT_SOK;
+    Int status = RcmClient_S_SUCCESS;
 
     GT_0trace (curTrace, GT_ENTER, "RcmClient_execNoReply");
 
     if (RcmClient_module->setupRefCount == 0) {
         /*! @retval FRAMEQ_E_INVALIDSTATE Modules is invalidstate*/
-        status = RCMCLIENT_EINVALIDSTATE;
+        status = RcmClient_E_INVALIDSTATE;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "RcmClient_execNoReply",
@@ -1181,12 +1110,12 @@ Int RcmClient_execNoReply(RcmClient_Handle handle,
         GT_0trace(curTrace,
               GT_4CLASS,
               "RcmClient_execNoWait: invalid argument\n");
-        status = RCMCLIENT_EHANDLE;
+        status = RcmClient_E_INVALIDARG;
         goto exit;
     }
 
     /* classify this message */
-    packet = getPacketAddr(rcmMsg);
+    packet = getPacketAddr(cmdMsg);
     packet->desc |= RcmClient_Desc_RCM_NO_REPLY << RCMCLIENT_DESC_TYPE_SHIFT;
 
     msgqMsg = (MessageQ_Msg)packet;
@@ -1199,7 +1128,7 @@ Int RcmClient_execNoReply(RcmClient_Handle handle,
                      "MessageQ_put",
                      retval,
                      "Message put fails");
-        status = RCMCLIENT_ESENDMSG;
+        status = RcmClient_E_EXECFAILED;
     }
 
 exit:
@@ -1213,16 +1142,17 @@ exit:
  * Purpose:
  * Frees the RCM message and allocated memory
  */
-Void RcmClient_free(RcmClient_Handle handle, RcmClient_Message *rcmMsg)
+Int RcmClient_free(RcmClient_Handle handle, RcmClient_Message *cmdMsg)
 {
-    MessageQ_Msg msgqMsg = (MessageQ_Msg)getPacketAddr(rcmMsg);
-    Int status = RCMCLIENT_SOK;
+    Int retval;
+    MessageQ_Msg msgqMsg = (MessageQ_Msg)getPacketAddr(cmdMsg);
+    Int status = RcmClient_S_SUCCESS;
 
     GT_0trace (curTrace, GT_ENTER, "RcmClient_free");
 
     if (RcmClient_module->setupRefCount == 0) {
         /*! @retval FRAMEQ_E_INVALIDSTATE Modules is invalidstate*/
-        status = RCMCLIENT_EINVALIDSTATE;
+        status = RcmClient_E_INVALIDSTATE;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "RcmClient_free",
@@ -1231,11 +1161,22 @@ Void RcmClient_free(RcmClient_Handle handle, RcmClient_Message *rcmMsg)
         goto exit;
     }
 
-    MessageQ_free(msgqMsg);
+    retval = MessageQ_free(msgqMsg);
+
+    if (retval < 0) {
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "MessageQ_free",
+                             status,
+                             "MessageQ free failed");
+        status = RcmClient_E_IPCERR;
+        goto exit;
+    }
+
 
 exit:
     GT_1trace (curTrace, GT_LEAVE, "RcmClient_free", status);
-    return;
+    return status;
 }
 
 
@@ -1245,23 +1186,24 @@ exit:
  * Gets symbol index
  */
 Int RcmClient_getSymbolIndex(RcmClient_Handle handle,
-                 String funcName,
-                 UInt32 *fxnIdx)
+                 String name,
+                 UInt32 *index)
 {
     Int len;
-    RcmClient_Message *rcmMsg;
+    RcmClient_Message *cmdMsg = NULL;
     RcmClient_Packet *packet;
     UInt16 msgId;
     MessageQ_Handle msgqInst;
     MessageQ_Msg msgqMsg;
     Int retval = 0;
-    Int status = RCMCLIENT_SOK;
+    UInt16 serverStatus;
+    Int status = RcmClient_S_SUCCESS;
 
     GT_0trace (curTrace, GT_ENTER, "RcmClient_getSymbolIndex");
 
     if (RcmClient_module->setupRefCount == 0) {
         /*! @retval FRAMEQ_E_INVALIDSTATE Modules is invalidstate*/
-        status = RCMCLIENT_EINVALIDSTATE;
+        status = RcmClient_E_INVALIDSTATE;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "RcmClient_getSymbolIndex",
@@ -1274,27 +1216,27 @@ Int RcmClient_getSymbolIndex(RcmClient_Handle handle,
         GT_0trace(curTrace,
               GT_4CLASS,
               "RcmClient_getSymbolIndex: invalid argument\n");
-        status = RCMCLIENT_EHANDLE;
+        status = RcmClient_E_INVALIDARG;
         goto exit;
     }
 
-    *fxnIdx = RCMCLIENT_INVALID_FUNCTION_INDEX;
+    *index = RcmClient_E_INVALIDFXNIDX;
 
     /* allocate a message */
-    len = strlen(funcName) + 1;
-    rcmMsg = RcmClient_alloc(handle, len);
-
-    if (rcmMsg == NULL) {
+    len = strlen(name) + 1;
+    retval = RcmClient_alloc(handle, len, &cmdMsg);
+    if (retval < 0) {
         Osal_printf ("Error allocating RCM message\n");
+        status = retval;
         goto exit;
     }
 
     /* copy the function name into the message payload */
-    rcmMsg->dataSize = len;  //TODO this is not proper!
-    strcpy((Char *)rcmMsg->data, funcName);
+    cmdMsg->dataSize = len;  //TODO this is not proper!
+    strcpy((Char *)cmdMsg->data, name);
 
     /* classify this message */
-    packet = getPacketAddr(rcmMsg);
+    packet = getPacketAddr(cmdMsg);
     packet->desc |= RcmClient_Desc_SYM_IDX << RCMCLIENT_DESC_TYPE_SHIFT;
     msgId = packet->msgId;
 
@@ -1311,37 +1253,57 @@ Int RcmClient_getSymbolIndex(RcmClient_Handle handle,
                      "MessageQ_put",
                      retval,
                      "Message put fails");
-        status = RCMCLIENT_ESENDMSG;
+        status = RcmClient_E_EXECFAILED;
         goto exit;
     }
 
     /* get the return message from the server */
-    status = getReturnMsg(handle, msgId, rcmMsg);
-    if (status < 0) {
+    retval = getReturnMsg(handle, msgId, &cmdMsg);
+    if (retval < 0) {
         GT_setFailureReason (curTrace,
                      GT_4CLASS,
                      "getReturnMsg",
                      status,
                      "Get return message failed");
+        status = retval;
         goto exit;
     }
 
     /* extract return value and free message */
-    packet = getPacketAddr(rcmMsg);
-    *fxnIdx = (UInt32)packet->message.result;
-    RcmClient_free(handle, rcmMsg);
+    packet = getPacketAddr(cmdMsg);
 
-    /* raise an error if the symbol was not found */
-    if (RCMCLIENT_INVALID_FUNCTION_INDEX == *fxnIdx) {
-        status = RCMCLIENT_ESYMBOLNOTFOUND;
-        GT_setFailureReason (curTrace,
-                     GT_4CLASS,
-                     "symbol not found",
-                     status,
-                     "symbol not found");
+    serverStatus = (RcmClient_Desc_TYPE_MASK & packet->desc) >>
+            RcmClient_Desc_TYPE_SHIFT;
+    switch (serverStatus) {
+        case RcmServer_Status_SUCCESS:
+            break;
+
+        case RcmServer_Status_SYMBOL_NOT_FOUND:
+            GT_setFailureReason (curTrace,
+                GT_4CLASS,
+                "RcmClient_getSymbolIndex",
+                serverStatus,
+                "Given symbol not found");
+            status = RcmClient_E_SYMBOLNOTFOUND;
+            goto exit;
+
+        default:
+            GT_setFailureReason (curTrace,
+                GT_4CLASS,
+                "RcmClient_getSymbolIndex",
+                serverStatus,
+                "Server returned error");
+            status = RcmClient_E_SERVERERROR;
+            goto exit;
     }
+    /* extract return value */
+    *index = cmdMsg->data[0];
 
 exit:
+    if (cmdMsg != NULL) {
+        RcmClient_free(handle, cmdMsg);
+    }
+
     GT_1trace (curTrace, GT_LEAVE, "RcmClient_getSymbolIndex", status);
     return status;
 }
@@ -1352,15 +1314,15 @@ exit:
  * Purpose:
  * Removes symbol (remote function) from registry
  */
-Int RcmClient_removeSymbol(RcmClient_Handle handle, String funcName)
+Int RcmClient_removeSymbol(RcmClient_Handle handle, String name)
 {
-    Int status = RCMCLIENT_ENOTSUPPORTED;
+    Int status = RcmClient_E_NOTSUPPORTED;
 
     GT_0trace (curTrace, GT_ENTER, "RcmClient_removeSymbol");
 
     if (RcmClient_module->setupRefCount == 0) {
         /*! @retval FRAMEQ_E_INVALIDSTATE Modules is invalidstate*/
-        status = RCMCLIENT_EINVALIDSTATE;
+        status = RcmClient_E_INVALIDSTATE;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "RcmClient_removeSymbol",
@@ -1381,15 +1343,17 @@ Int RcmClient_removeSymbol(RcmClient_Handle handle, String funcName)
  */
 Int RcmClient_waitUntilDone(RcmClient_Handle handle,
                 UInt16 msgId,
-                RcmClient_Message *rcmMsg)
+                RcmClient_Message **returnMsg)
 {
-    Int status = RCMCLIENT_SOK;
+    Int status = RcmClient_S_SUCCESS;
+    Int retval = 0;
+    RcmClient_Message *rtnMsg = NULL;
 
     GT_0trace (curTrace, GT_ENTER, "RcmClient_waitUntilDone");
 
     if (RcmClient_module->setupRefCount == 0) {
         /*! @retval FRAMEQ_E_INVALIDSTATE Modules is invalidstate*/
-        status = RCMCLIENT_EINVALIDSTATE;
+        status = RcmClient_E_INVALIDSTATE;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "RcmClient_waitUntilDone",
@@ -1402,20 +1366,23 @@ Int RcmClient_waitUntilDone(RcmClient_Handle handle,
         GT_0trace(curTrace,
               GT_4CLASS,
               "RcmClient_waitUntilDone: invalid argument\n");
-        status = RCMCLIENT_EHANDLE;
+        status = RcmClient_E_INVALIDARG;
         goto exit;
     }
 
     /* get the return message from the server */
-    status = getReturnMsg(handle, msgId, rcmMsg);
-    if (status < 0) {
+    retval = getReturnMsg(handle, msgId, &rtnMsg);
+    if (retval < 0) {
         GT_setFailureReason (curTrace,
                      GT_4CLASS,
                      "getReturnMsg",
-                     status,
+                     retval,
                      "Get return message failed");
+        *returnMsg = NULL;
+        retval = status;
         goto exit;
     }
+    *returnMsg = rtnMsg;
 
 exit:
     GT_1trace (curTrace, GT_LEAVE, "RcmClient_waitUntilDone", status);
@@ -1433,13 +1400,13 @@ UInt16 genMsgId(RcmClient_Handle handle)
     IArg key;
     /* FIXME: (KW) ADD Check for msgID  = 0 in the calling function */
     UInt16 msgId = 0;
-    Int status = RCMCLIENT_SOK;
+    Int status = RcmClient_S_SUCCESS;
 
     GT_0trace (curTrace, GT_ENTER, "genMsgId");
 
     if (RcmClient_module->setupRefCount == 0) {
         /*! @retval FRAMEQ_E_INVALIDSTATE Modules is invalidstate*/
-        status = RCMCLIENT_EINVALIDSTATE;
+        status = RcmClient_E_INVALIDSTATE;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "genMsgId",
@@ -1452,7 +1419,7 @@ UInt16 genMsgId(RcmClient_Handle handle)
         GT_0trace(curTrace,
               GT_4CLASS,
               "genMsgId: invalid argument\n");
-        status = RCMCLIENT_EHANDLE;
+        status = RcmClient_E_INVALIDARG;
         goto exit;
     }
 
@@ -1487,7 +1454,7 @@ exit:
  */
 Int getReturnMsg(RcmClient_Handle handle,
                  const UInt16 msgId,
-                 RcmClient_Message *returnMsg)
+                 RcmClient_Message **returnMsg)
 {
     List_Elem *elem;
     Recipient *recipient;
@@ -1498,13 +1465,13 @@ Int getReturnMsg(RcmClient_Handle handle,
     Bool messageFound = FALSE;
     Int queueLockAcquired = 0;
     Int retval = 0;
-    Int status = RCMCLIENT_SOK;
+    Int status = RcmClient_S_SUCCESS;
 
     GT_0trace (curTrace, GT_ENTER, "getReturnMsg");
 
     if (RcmClient_module->setupRefCount == 0) {
         /*! @retval FRAMEQ_E_INVALIDSTATE Modules is invalidstate*/
-        status = RCMCLIENT_EINVALIDSTATE;
+        status = RcmClient_E_INVALIDSTATE;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "getReturnMsg",
@@ -1517,12 +1484,12 @@ Int getReturnMsg(RcmClient_Handle handle,
         GT_0trace(curTrace,
               GT_4CLASS,
               "RcmClient_waitUntilDone: invalid argument\n");
-        status = RCMCLIENT_EHANDLE;
+        status = RcmClient_E_INVALIDARG;
         goto exit;
     }
 
     msgQ = (MessageQ_Handle)handle->msgQ;
-    returnMsg = NULL;
+    *returnMsg = NULL;
 
     /* keep trying until message found */
     while (!messageFound) {
@@ -1535,7 +1502,7 @@ Int getReturnMsg(RcmClient_Handle handle,
                          "OsalSemaphore_pend",
                          retval,
                          "handle->mbxLock pend fails");
-            status = RCMCLIENT_ERESOURCE;
+            status = RcmClient_E_FAIL;
             goto exit;
         }
 
@@ -1545,7 +1512,7 @@ Int getReturnMsg(RcmClient_Handle handle,
             packet = getPacketAddrElem(elem);
             if (msgId == packet->msgId) {
                 List_remove(handle->newMail, elem);
-                returnMsg = &packet->message;
+                *returnMsg = &packet->message;
                 messageFound = TRUE;
                 retval = OsalSemaphore_post(handle->mbxLock);
                 if (retval < 0) {
@@ -1554,7 +1521,7 @@ Int getReturnMsg(RcmClient_Handle handle,
                                  "OsalSemphore post",
                                  retval,
                                  "handle->mbxLock post fails");
-                    status = RCMCLIENT_ERESOURCE;
+                    status = RcmClient_E_FAIL;
                     goto exit;
                 }
                 goto exit;
@@ -1571,7 +1538,7 @@ Int getReturnMsg(RcmClient_Handle handle,
                          "OsalSemaphore_pend",
                          status,
                          "handle->queueLock fails");
-            status = RCMCLIENT_ERESOURCE;
+            status = RcmClient_E_FAIL;
             goto exit;
         }
 
@@ -1591,7 +1558,7 @@ Int getReturnMsg(RcmClient_Handle handle,
                                      "MessageQ_get",
                                      retval,
                                      "handle->MessageQ get fails");
-                        status = RCMCLIENT_EGETMSG;
+                        status = RcmClient_E_LOSTMSG;
                         goto exit;
                     }
                 }
@@ -1601,7 +1568,7 @@ Int getReturnMsg(RcmClient_Handle handle,
                     packet = getPacketAddrMsgqMsg(msgqMsg);
                     messageFound = (msgId == packet->msgId);
                     if (messageFound) {
-                        returnMsg = &packet->message;
+                        *returnMsg = &packet->message;
 
                         /* search wait list for new mailman */
                         elem = NULL;
@@ -1615,7 +1582,7 @@ Int getReturnMsg(RcmClient_Handle handle,
                                                  "Osal Semaphore post",
                                                  retval,
                                                  "recipient->event post fails");
-                                    status = RCMCLIENT_ERESOURCE;
+                                    status = RcmClient_E_FAIL;
                                     goto exit;
                                 }
                                 break;
@@ -1630,7 +1597,7 @@ Int getReturnMsg(RcmClient_Handle handle,
                                          "Osal Semaphore post",
                                          retval,
                                          "handle->queueLock post fails");
-                            status = RCMCLIENT_ERESOURCE;
+                            status = RcmClient_E_FAIL;
                             goto exit;
                         }
 
@@ -1642,7 +1609,7 @@ Int getReturnMsg(RcmClient_Handle handle,
                                          "Osal Semaphore post",
                                          retval,
                                          "handle->mbxLock post fails");
-                            status = RCMCLIENT_ERESOURCE;
+                            status = RcmClient_E_FAIL;
                         }
                         goto exit;
                     }
@@ -1666,7 +1633,7 @@ Int getReturnMsg(RcmClient_Handle handle,
                                              "Osal Semaphore post",
                                              retval,
                                              "recipient->event post fails");
-                                status = RCMCLIENT_ERESOURCE;
+                                status = RcmClient_E_FAIL;
                                 goto exit;
                             }
                             messageDelivered = TRUE;
@@ -1680,6 +1647,8 @@ Int getReturnMsg(RcmClient_Handle handle,
                         elem = (List_Elem *)&packet->msgqHeader;
                         List_put (handle->newMail, elem);
                     }
+
+                        /* get next message from queue if available */
                     retval = MessageQ_get(msgQ, &msgqMsg, WAIT_NONE);
                     if ((retval < 0) && (retval != MessageQ_E_TIMEOUT)) {
                         GT_setFailureReason (curTrace,
@@ -1687,7 +1656,7 @@ Int getReturnMsg(RcmClient_Handle handle,
                                      "MessageQ_get",
                                      retval,
                                      "handle->MessageQ get fails");
-                        status = RCMCLIENT_EGETMSG;
+                        status = RcmClient_E_LOSTMSG;
                         goto exit;
                     }
                 }
@@ -1705,7 +1674,7 @@ Int getReturnMsg(RcmClient_Handle handle,
                                  retval,
                                  "uhandle->mbxLock"
                                     "post fails");
-                    status = RCMCLIENT_ERESOURCE;
+                    status = RcmClient_E_FAIL;
                     goto exit;
                 }
 
@@ -1717,14 +1686,14 @@ Int getReturnMsg(RcmClient_Handle handle,
                                     "MessageQ_get",
                                     retval,
                                     "handle->MessageQ get fails");
-                       status = RCMCLIENT_EGETMSG;
+                       status = RcmClient_E_LOSTMSG;
                        goto exit;
                    }
 
                 if (msgqMsg == NULL) {
                     GT_0trace(curTrace, GT_4CLASS,
                         "get_return_msg: msgq_msg == NULL\n");
-                    status = RCMCLIENT_EGETMSG;
+                    status = RcmClient_E_LOSTMSG;
                     goto exit;
                 }
 
@@ -1737,7 +1706,7 @@ Int getReturnMsg(RcmClient_Handle handle,
                                  "OsalSemaphore_pend",
                                  retval,
                                  "handle->queueLock fails");
-                    status = RCMCLIENT_ERESOURCE;
+                    status = RcmClient_E_FAIL;
                 }
             }
         } else {
@@ -1753,7 +1722,7 @@ Int getReturnMsg(RcmClient_Handle handle,
                              status,
                              "thread event"
                              "construct fails");
-                status = RCMCLIENT_ERESOURCE;
+                status = RcmClient_E_FAIL;
                 goto exit;
             }
 
@@ -1770,7 +1739,7 @@ Int getReturnMsg(RcmClient_Handle handle,
                              retval,
                              "handle->mbxLock"
                              "post fails");
-                status = RCMCLIENT_ERESOURCE;
+                status = RcmClient_E_FAIL;
                 goto exit;
             }
 
@@ -1783,7 +1752,7 @@ Int getReturnMsg(RcmClient_Handle handle,
                              "OsalSemaphore_pend",
                              retval,
                              "thread event pend fails");
-                status = RCMCLIENT_ERESOURCE;
+                status = RcmClient_E_FAIL;
                 goto exit;
             }
 
@@ -1796,13 +1765,13 @@ Int getReturnMsg(RcmClient_Handle handle,
                              "OsalSemaphore_pend",
                              retval,
                              "handle->mbxLock pend fails");
-                status = RCMCLIENT_ERESOURCE;
+                status = RcmClient_E_FAIL;
                 goto exit;
             }
 
             if (NULL != self.msg) {
                 /* pickup message */
-                returnMsg = self.msg;
+                *returnMsg = self.msg;
                 messageFound = TRUE;
             }
 
@@ -1815,7 +1784,7 @@ Int getReturnMsg(RcmClient_Handle handle,
                              "OsalSemaphore_delete",
                              retval,
                              "thread event delete failed");
-                status = RCMCLIENT_ERESOURCE;
+                status = RcmClient_E_FAIL;
                 goto exit;
             }
 
@@ -1827,7 +1796,7 @@ Int getReturnMsg(RcmClient_Handle handle,
                              "OsalSemaphore_post",
                              retval,
                              "handle->mbxLock post fails");
-                status = RCMCLIENT_ERESOURCE;
+                status = RcmClient_E_FAIL;
             }
         }
     }

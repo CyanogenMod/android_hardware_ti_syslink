@@ -1,16 +1,35 @@
 /*
- * Syslink-IPC for TI OMAP Processors
+ *  Syslink-IPC for TI OMAP Processors
  *
- * Copyright (C) 2009 Texas Instruments, Inc.
+ *  Copyright (c) 2008-2010, Texas Instruments Incorporated
+ *  All rights reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Lesser General Public License as published
- * by the Free Software Foundation version 2.1 of the License.
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted provided that the following conditions
+ *  are met:
  *
- * This program is distributed .as is. WITHOUT ANY WARRANTY of any kind,
- * whether express or implied; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
+ *  *  Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
+ *
+ *  *  Redistributions in binary form must reproduce the above copyright
+ *     notice, this list of conditions and the following disclaimer in the
+ *     documentation and/or other materials provided with the distribution.
+ *
+ *  *  Neither the name of Texas Instruments Incorporated nor the names of
+ *     its contributors may be used to endorse or promote products derived
+ *     from this software without specific prior written permission.
+ *
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ *  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ *  THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ *  PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ *  CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ *  EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ *  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+ *  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ *  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ *  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ *  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
 * rcmclient.h
@@ -31,7 +50,7 @@
 
 /*!
  *  @def    RCMCLIENT_MODULEID
- *  @brief  Unique module ID.
+ *   Unique module ID.
  */
 #define RCMCLIENT_MODULEID              (0xfef2)
 
@@ -40,125 +59,184 @@
  * =============================================================================
  */
 
-/*!
- *  @def    RCMCLIENT_STATUSCODEBASE
- *  @brief  Error code base for Rcm Client.
+/*
+ *  Success return code
  */
-#define RCMCLIENT_STATUSCODEBASE        (RCMCLIENT_MODULEID << 12u)
-
-/*!
- *  @def    RCMCLIENT_MAKE_FAILURE
- *  @brief  Macro to make error code.
- */
-#define RCMCLIENT_MAKE_FAILURE(x)       ((Int)  (  0x80000000                  \
-                                            + (RCMCLIENT_STATUSCODEBASE  \
-                                            + (x))))
-
-/*!
- *  @def    RCMCLIENT_MAKE_SUCCESS
- *  @brief  Macro to make success code.
- */
-#define RCMCLIENT_MAKE_SUCCESS(x)       (RCMCLIENT_STATUSCODEBASE + (x))
+#define RcmClient_S_SUCCESS (0)
 
 /*
- *  SUCCESS Codes
+ *  Success, already set up
+ */
+#define RcmClient_S_ALREADYSETUP (1)
+
+/*
+ *  Success, already cleaned up
+ */
+#define RcmClient_S_ALREADYCLEANEDUP (2)
+
+/*
+ *  General failure return code
+ */
+#define RcmClient_E_FAIL (-1)
+
+/*
+ *  The client has not been configured for asynchronous notification
  *
+ *  In order to use the RcmClient_execAsync() function, the RcmClient
+ *  must be configured with callbackNotification set to true in the
+ *  instance create parameters.
  */
-/* Generic success code for RCMCLIENT module */
-#define RCMCLIENT_SOK                   RCMCLIENT_MAKE_SUCCESS(0)
-
-/* The module/ driver is already setup or loaded */
-#define RCMCLIENT_SALREADYSETUP         RCMCLIENT_MAKE_SUCCESS(1)
-
-/* The module/ driver is already cleaned up */
-#define RCMCLIENT_SALREADYCLEANEDUP     RCMCLIENT_MAKE_SUCCESS(2)
-
-/* The server thread was not shutdown as there are attached clients */
-#define RCMCLIENT_SCLIENTSATTACHED      RCMCLIENT_MAKE_SUCCESS(3)
+#define RcmClient_E_EXECASYNCNOTENABLED (-2)
 
 /*
- *  FAILURE Codes
+ *  The client was unable to send the command message to the server
  *
+ *  An IPC transport error occurred. The message was never sent to the server.
  */
-/* This failure code indicates that an operation has timed out. */
-#define RCMCLIENT_ETIMEOUT              RCMCLIENT_MAKE_FAILURE(1)
-
-/* This failure code indicates a configuration error */
-#define RCMCLIENT_ECONFIG               RCMCLIENT_MAKE_FAILURE(2)
-
-/* This failure code indicates that the RCMCLIENT module has already been
- * initialized.
- */
-#define RCMCLIENT_EALREADYINIT          RCMCLIENT_MAKE_FAILURE(3)
-
-/* This failure code indicates that the specified entity was not found */
-#define RCMCLIENT_ENOTFOUND             RCMCLIENT_MAKE_FAILURE(4)
-
-/* This failure code indicates that the specified feature is not supported */
-#define RCMCLIENT_ENOTSUPPORTED         RCMCLIENT_MAKE_FAILURE(5)
+#define RcmClient_E_EXECFAILED (-3)
 
 /*
- * This failure code indicates that a provided parameter was outside its valid
- * range.
+ *  A heap id must be provided in the create params
+ *
+ *  When an RcmClient instance is created, a heap id must be given
+ *  in the create params. This heap id must be registered with MessageQ
+ *  before calling RcmClient_create().
  */
-#define RCMCLIENT_ERANGE                RCMCLIENT_MAKE_FAILURE(6)
-
-/* This failure code indicates that the specified handle is invalid */
-#define RCMCLIENT_EHANDLE               RCMCLIENT_MAKE_FAILURE(7)
-
-/* This failure code indicates that an invalid argument was specified */
-#define RCMCLIENT_EINVALIDARG           RCMCLIENT_MAKE_FAILURE(8)
-
-/* This failure code indicates a memory related failure */
-#define RCMCLIENT_EMEMORY               RCMCLIENT_MAKE_FAILURE(9)
+#define RcmClient_E_INVALIDHEAPID (-4)
 
 /*
- * This failure code indicates that the RCMCLIENT module
- * has not been initialized
+ *  Invalid function index
+ *
+ *  An RcmClient_Message was sent to the server which contained a
+ *  function index value (in the fxnIdx field) that was not found
+ *  in the server's function table.
  */
-#define RCMCLIENT_EINIT                 RCMCLIENT_MAKE_FAILURE(10)
-
-/* This failure code indicates that a resource was not available.*/
-#define RCMCLIENT_ERESOURCE             RCMCLIENT_MAKE_FAILURE(11)
-
-/* This failure code indicates that the specified entity already exists. */
-#define RCMCLIENT_EALREADYEXISTS        RCMCLIENT_MAKE_FAILURE(12)
-
-/* This failure code indicates that the specified name is too long. */
-#define RCMCLIENT_ENAMELENGTHLIMIT      RCMCLIENT_MAKE_FAILURE(13)
+#define RcmClient_E_INVALIDFXNIDX (-5)
 
 /*
- * This failure code indicates that there was an error in
- * creating/ initializing the object
+ *  Message function error
+ *
+ *  There was an error encountered in either the message function or
+ *  the library function invoked by the message function. The semantics
+ *  of the error code are implementation dependent.
  */
-#define RCMCLIENT_EOBJECT               RCMCLIENT_MAKE_FAILURE(14)
+#define RcmClient_E_MSGFXNERR (-6)
 
 /*
- * This failure code indicates that there was an an issue
- * in object/ resource cleanup
+ *  An unknown error has been detected from the IPC layer
+ *
+ *  Check the error log for additional information.
  */
-#define RCMCLIENT_ECLEANUP              RCMCLIENT_MAKE_FAILURE(15)
+#define RcmClient_E_IPCERR (-7)
 
-/* This failure code indicates that there was an issue in opening the req. server */
-#define RCMCLIENT_ESERVER               RCMCLIENT_MAKE_FAILURE(16)
+/*
+ *  Failed to create the list object
+ */
+#define RcmClient_E_LISTCREATEFAILED (-8)
 
-/* This failure code indicates that there was an issue in sending a message */
-#define RCMCLIENT_ESENDMSG              RCMCLIENT_MAKE_FAILURE(17)
+/*
+ *  The expected reply message from the server was lost
+ *
+ *  A command message was sent to the RcmServer but the reply
+ *  message was not received. This is an internal error.
+ */
+#define RcmClient_E_LOSTMSG (-9)
 
-/* This failure code indicates that asynch RCM transfers are not enabled */
-#define RCMCLIENT_EASYNCENABLED         RCMCLIENT_MAKE_FAILURE(18)
+/*
+ *  Insufficient memory to allocate a message
+ *
+ *  The message heap cannot allocate a buffer of the requested size.
+ *  The reported size it the requested data size and the underlying
+ *  message header size.
+ */
+#define RcmClient_E_MSGALLOCFAILED (-10)
 
-/* This failure code indicates that the symbol was not found */
-#define RCMCLIENT_ESYMBOLNOTFOUND       RCMCLIENT_MAKE_FAILURE(19)
+/*
+ *  The client message queue could not be created
+ *
+ *  Each RcmClient instance must create its own message queue for
+ *  receiving return messages from the RcmServer. The creation of
+ *  this message queue failed, thus failing the RcmClient instance
+ *  creation.
+ */
+#define RcmClient_E_MSGQCREATEFAILED (-11)
 
-/* This failure code indicates that there was an issue in getting a message */
-#define RCMCLIENT_EGETMSG               RCMCLIENT_MAKE_FAILURE(20)
+/*
+ *  The server message queue could not be opened
+ *
+ *  Each RcmClient instance must open the server's message queue.
+ *  This error is raised when an internal error occurred while trying
+ *  to open the server's message queue.
+ */
+#define RcmClient_E_MSGQOPENFAILED (-12)
 
-/* This failure code indicates that the module is in an invalid state */
-#define RCMCLIENT_EINVALIDSTATE         RCMCLIENT_MAKE_FAILURE(21)
+/*
+ *  The server returned an unknown error code
+ *
+ *  The server encountered an error with the given message but
+ *  the error code is not recognized by the client.
+ */
+#define RcmClient_E_SERVERERROR (-13)
 
-/* Generic failure code for RCMCLIENT module */
-#define RCMCLIENT_EFAIL                 RCMCLIENT_MAKE_FAILURE(22)
+/*
+ *  The server specified in the create params was not found
+ *
+ *  When creating an RcmClient instance, the specified server could not
+ *  be found. This could occur if the server name is incorrect, or
+ *  if the RcmClient instance is created before the RcmServer. In such an
+ *  instance, the client can retry when the RcmServer is expected to
+ *  have been created.
+ */
+#define RcmClient_E_SERVERNOTFOUND (-14)
+
+/*
+ *  The given symbol was not found in the server symbol table
+ *
+ *  This error could occur if the symbol spelling is incorrect or
+ *  if the RcmServer is still loading its symbol table.
+ */
+#define RcmClient_E_SYMBOLNOTFOUND (-15)
+
+/*
+ *  There is insufficient memory left in the heap
+ */
+#define RcmClient_E_NOMEMORY (-16)
+
+/*
+ *  Invalid argument
+ */
+#define RcmClient_E_INVALIDARG (-17)
+
+/*
+ *  Invalid module state
+ */
+#define RcmClient_E_INVALIDSTATE (-18)
+
+/*
+ *  Function not supported
+ */
+#define RcmClient_E_NOTSUPPORTED (-19)
+
+
+/* =============================================================================
+ *  constants and types
+ * =============================================================================
+ */
+/*
+ *  Invalid function index
+ */
+#define RcmClient_INVALIDFXNIDX ((UInt32)(0xFFFFFFFF))
+
+/*
+ *  Invalid heap id
+ */
+#define RcmClient_INVALIDHEAPID ((UInt16)(0xFFFF))
+
+/*
+ *  Invalid message id
+ */
+#define RcmClient_INVALIDMSGID ((UInt16)(0))
+
 
 /*
  * RCM message descriptors
@@ -171,6 +249,17 @@
 #define RcmClient_Desc_CONNECT          0x6 /*  RcmClient connected message */
 #define RcmClient_Desc_RCM_NO_REPLY     0x7 /*  RcmClient No Reply */
 
+#define RcmClient_Desc_TYPE_MASK  0x0F00    /* field mask */
+#define RcmClient_Desc_TYPE_SHIFT 8         /* field shift width */
+
+/* server status codes must be 0 - 15, it has to fit in a 4-bit field */
+#define RcmServer_Status_SUCCESS ((UInt16)(0)) /* success */
+#define RcmServer_Status_INVALID_FXN ((UInt16)(1)) /* invalid function index */
+#define RcmServer_Status_SYMBOL_NOT_FOUND ((UInt16)(2)) /* symbol not found */
+#define RcmServer_Status_INVALID_MSG_TYPE ((UInt16)(3)) /* invalid message type */
+#define RcmServer_Status_MSG_FXN_ERR ((UInt16)(4)) /* message function error */
+#define RcmServer_Status_ERROR ((UInt16)(5)) /* general failure */
+
 /*
  * RCM client default heap ID
  */
@@ -182,7 +271,7 @@
  * =============================================================================
  */
 /*!
- *  @brief  Structure defining config parameters for the RcmClient module.
+ *   Structure defining config parameters for the RcmClient module.
  */
 typedef struct RcmClient_Config_tag {
     UInt32 maxNameLen;
@@ -214,12 +303,12 @@ typedef struct RcmClient_Message_tag {
 /*
  * RCM remote function pointer.
  */
-typedef Int32 (*RcmClient_RemoteFuncPtr)(UInt32, UInt32 *);
+typedef Int32 (*RcmClient_RemoteFuncPtr)(RcmClient_Message *, Ptr);
 
 /*
  * RCM callback function pointer
  */
-typedef Void (*RcmClient_CallbackFuncPtr)(RcmClient_Message *, Ptr);
+typedef Void (*RcmClient_CallbackFxn)(RcmClient_Message *, Ptr);
 
 /* =============================================================================
  *  Forward declarations
@@ -227,7 +316,7 @@ typedef Void (*RcmClient_CallbackFuncPtr)(RcmClient_Message *, Ptr);
  */
 
 /*!
- *  @brief  Handle for the RcmClient.
+ *   Handle for the RcmClient.
  */
 typedef struct RcmClient_Object_tag *RcmClient_Handle;
 
@@ -236,32 +325,28 @@ typedef struct RcmClient_Object_tag *RcmClient_Handle;
  * =============================================================================
  */
 
-/* Function to get default configuration for the RcmClient module */
-Int RcmClient_getConfig (RcmClient_Config *cfgParams);
+/* Function to setup RCM client */
+Void RcmClient_init (Void);
 
-/* Function to setup the RCM Client module */
-Int RcmClient_setup (const RcmClient_Config *config);
-
-/* Function to destroy the RCM Client module */
-Int RcmClient_destroy (void);
+/* Function to clean up RCM client */
+Void RcmClient_exit (Void);
 
 /* Function to create a RCM client instance */
 Int RcmClient_create (String                     server,
-                      const RcmClient_Params *   params,
-                      RcmClient_Handle *         rcmclientHandle);
+                      RcmClient_Params *         params,
+                      RcmClient_Handle *         handle);
 
 /* Function to delete RCM Client instance */
 Int RcmClient_delete (RcmClient_Handle * handlePtr);
 
 /* Initialize this config-params structure with supplier-specified defaults */
-Int RcmClient_Params_init (RcmClient_Handle      handle,
-                           RcmClient_Params *    params);
+Int RcmClient_Params_init (RcmClient_Params *    params);
 
 /* Function adds symbol to server, return the function index */
 Int RcmClient_addSymbol (RcmClient_Handle        handle,
-                         String                  funcName,
-                         RcmClient_RemoteFuncPtr address,
-                         UInt32 *                fxn_idx);
+                         String                  name,
+                         RcmClient_RemoteFuncPtr addr,
+                         UInt32 *                index);
 
 /* Function returns size (in bytes) of RCM header. */
 Int RcmClient_getHeaderSize (Void);
@@ -270,16 +355,19 @@ Int RcmClient_getHeaderSize (Void);
  * Function allocates memory for RCM message on heap,
  * populates MessageQ and RCM message.
  */
-RcmClient_Message *RcmClient_alloc (RcmClient_Handle handle, UInt32 dataSize);
+Int RcmClient_alloc (RcmClient_Handle handle,
+                     UInt32 dataSize,
+                     RcmClient_Message **message);
 
 /* Function requests RCM server to execute remote function */
 Int RcmClient_exec (RcmClient_Handle    handle,
-                    RcmClient_Message * rcmMsg);
+                    RcmClient_Message * cmdMsg,
+                    RcmClient_Message **returnMsg);
 
 /*Function requests RCM  server to execute remote function, it is asynchronous*/
 Int RcmClient_execAsync (RcmClient_Handle           handle,
-                         RcmClient_Message *        rcmMsg,
-                         RcmClient_CallbackFuncPtr  callback,
+                         RcmClient_Message *        cmdMsg,
+                         RcmClient_CallbackFxn      callback,
                          Ptr                        appData);
 
 /*
@@ -287,33 +375,34 @@ Int RcmClient_execAsync (RcmClient_Handle           handle,
  * does not wait for completion of remote function for reply
  */
 Int RcmClient_execDpc (RcmClient_Handle     handle,
-                       RcmClient_Message *  rcmMsg);
+                       RcmClient_Message *  cmdMsg,
+                       RcmClient_Message ** returnMsg);
 
 /*
  * Function requests RCM server to execute remote function,
  * provides a msgId to wait on later
  */
 Int RcmClient_execNoWait (RcmClient_Handle      handle,
-                          RcmClient_Message *   rcmMsg,
+                          RcmClient_Message *   cmdMsg,
                           UInt16 *              msgId);
 /*
  * Function requests RCM server to execute remote function,
  * without waiting for the reply.
  */
 Int RcmClient_execNoReply (RcmClient_Handle      handle,
-                           RcmClient_Message *   rcmMsg);
+                           RcmClient_Message *   cmdMsg);
 
 
 /* Function frees the RCM message and allocated memory  */
-Void RcmClient_free (RcmClient_Handle handle, RcmClient_Message *rcmMsg);
+Int RcmClient_free (RcmClient_Handle handle, RcmClient_Message *msg);
 
 /* Function gets symbol index */
 Int RcmClient_getSymbolIndex (RcmClient_Handle  handle,
-                              String            funcName,
-                              UInt32 *          fxnIdx);
+                              String            name,
+                              UInt32 *          index);
 
 /* Function removes symbol (remote function) from registry */
-Int RcmClient_removeSymbol (RcmClient_Handle handle, String funcName);
+Int RcmClient_removeSymbol (RcmClient_Handle handle, String name);
 
 /*
  * Function waits till invoked remote function completes
@@ -321,6 +410,6 @@ Int RcmClient_removeSymbol (RcmClient_Handle handle, String funcName);
  */
 Int RcmClient_waitUntilDone (RcmClient_Handle       handle,
                              UInt16                 msgId,
-                             RcmClient_Message *    rcmMsg);
+                             RcmClient_Message **   returnMsg);
 
 #endif /* RCMCLIENT_H_ */

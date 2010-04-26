@@ -1,19 +1,38 @@
 /*
- * Syslink-IPC for TI OMAP Processors
+ *  Syslink-IPC for TI OMAP Processors
  *
- * Copyright (C) 2009 Texas Instruments, Inc.
+ *  Copyright (c) 2008-2010, Texas Instruments Incorporated
+ *  All rights reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Lesser General Public License as published
- * by the Free Software Foundation version 2.1 of the License.
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted provided that the following conditions
+ *  are met:
  *
- * This program is distributed .as is. WITHOUT ANY WARRANTY of any kind,
- * whether express or implied; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
+ *  *  Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
+ *
+ *  *  Redistributions in binary form must reproduce the above copyright
+ *     notice, this list of conditions and the following disclaimer in the
+ *     documentation and/or other materials provided with the distribution.
+ *
+ *  *  Neither the name of Texas Instruments Incorporated nor the names of
+ *     its contributors may be used to endorse or promote products derived
+ *     from this software without specific prior written permission.
+ *
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ *  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ *  THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ *  PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ *  CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ *  EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ *  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+ *  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ *  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ *  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ *  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
- * rcmserver.c
+ * RcmServer.c
  *
  * The RCM server module receives RCM messages from the RCM client,
  * executes remote function and sends replies to the RCM client.
@@ -39,6 +58,7 @@
 #include <Memory.h>
 
 /* Module level headers */
+#include <RcmTypes.h>
 #include <RcmServer.h>
 
 /* RCM client defines */
@@ -49,25 +69,27 @@
 #define RCMSERVER_DESC_TYPE_MASK 0x0F00 /* field mask */
 #define RCMSERVER_DESC_TYPE_SHIFT 8 /* field shift width */
 
+#define _RCM_KeyResetValue 0x07FF /* key reset value */
+#define _RCM_KeyMask 0x7FF00000 /* key mask in function index */
+#define _Rcm_KeyShift 20 /* key bit position in function index */
+
+#define RcmServer_MAX_TABLES 9          // max number of function tables
+
 /* =============================================================================
  * Structures & Enums
  * =============================================================================
  */
+/* function table element */
+typedef struct RcmServer_FxnTabElem_tag {
+    String                      name;
+    RcmServer_MsgFxn            addr;
+    UInt16                      key;
+} RcmServer_FxnTabElem;
 
-/*
- * RCM Server packet structure
- */
-typedef struct RcmServer_Packet_tag{
-    MessageQ_MsgHeader msgqHeader; /* MessageQ header */
-    UInt16 desc; /* protocol version, descriptor, status */
-    UInt16 msgId; /* message id */
-    RcmServer_Message message; /* client message body (4 words) */
-} RcmServer_Packet;
-
-typedef struct FxnDesc_tag {
+typedef struct RcmServer_FxnDesc_tag {
     String name;
-    RcmServer_RemoteFuncPtr addr;
-} FxnDesc;
+    RcmServer_MsgFxn addr;
+} RcmServer_FxnDesc;
 
 /*
  * RCM Server instance object structure
@@ -76,10 +98,11 @@ typedef struct RcmServer_Object_tag {
     MessageQ_Handle msgQ; /* inbound message queue */
     OsalSemaphore_Handle run; /* synch for starting RCM server thread */
     pthread_t thread; /* server thread object */
-    FxnDesc *fxnTab[RCMSERVER_MAX_TABLES]; /* function table base pointers */
+    RcmServer_FxnTabElem *fxnTab[RCMSERVER_MAX_TABLES]; /* function table base pointers */
     Int priority;    /* Priority of RCM server */
     Int numAttachedClients; /* number of attached clients */
     Int shutdown; /* signal shutdown by application */
+    UInt16 key; /* function index key */
 } RcmServer_Object;
 
 /* structure for RcmServer module state */
@@ -125,92 +148,28 @@ RcmServer_ModuleObject* RcmServer_module = &RcmServer_module_obj;
  *  private functions
  * =============================================================================
  */
-static Void execMsg(RcmServer_Handle handle, RcmServer_Message *msg);
-static RcmServer_RemoteFuncPtr getFxnAddr(RcmServer_Handle handle,
-                                          UInt16 fxnIdx);
-static UInt16 getSymbolIndex(RcmServer_Handle handle, String name);
-Void *RcmServer_serverRunFxn(IArg arg);
+static Int execMsg(RcmServer_Object *obj, RcmClient_Message *msg);
 
-/*  @brief      Function to get default configuration for the RcmServer module.
- *
- *  @param      cfgParams   Configuration values.
- *
- *  @sa         RcmServer_setup
- */
-Int RcmServer_getConfig (RcmServer_Config *cfgParams)
-{
-    Int status = RCMSERVER_SOK;
+static Int rcmGetFxnAddr(RcmServer_Object *obj, UInt32 fxnIdx,
+                    RcmServer_MsgFxn *addrPtr);
 
-    GT_1trace (curTrace, GT_ENTER, "RcmServer_getConfig", cfgParams);
+static Int rcmGetSymbolIndex(RcmServer_Object *obj, String name, UInt32 *index);
+static Void setStatusCode(RcmClient_Packet *packet, UInt16 code);
 
-    GT_assert (curTrace, (cfgParams != NULL));
+static UInt16 rcmGetNextKey(RcmServer_Object *obj);
 
-#if !defined(SYSLINK_BUILD_OPTIMIZE)
-    if (cfgParams == NULL) {
-        /* @retval RcmServer_EINVALIDARG Argument of type
-         *          (RcmServer_Config *) passed is null
-         */
-        status = RCMSERVER_EINVALIDARG;
-        GT_setFailureReason (curTrace,
-                             GT_4CLASS,
-                             "RcmServer_getConfig",
-                             status,
-                             "Argument of type (RcmServer_Config *) passed"
-                             "is null!");
-    }
-    else {
-#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-        *cfgParams = RcmServer_module->defaultCfg;
-#if !defined(SYSLINK_BUILD_OPTIMIZE)
-    }
-#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-
-    GT_1trace (curTrace, GT_ENTER, "RcmServer_getConfig", status);
-
-    /* @retval RcmServer_SOK Operation was Successful */
-    return status;
-}
+static Void RcmServer_serverRunFxn(IArg arg);
 
 /*
- *  @brief     Function to setup the RcmServer module.
- *
- *  @param     config  Module configuration parameters
- *
- *  @sa        RcmServerf_destroy
+ *  ======== RcmServer_init ========
+ * Purpose:
+ * Setup RCM server module
  */
-Int RcmServer_setup(const RcmServer_Config *config)
+Void RcmServer_init (Void)
 {
-    Int status = RCMSERVER_SOK;
+    Int status = RcmServer_S_SUCCESS;
 
-    GT_1trace (curTrace, GT_ENTER, "RcmServer_setup", config);
-
-    GT_assert (curTrace, (config != NULL));
-
-#if !defined(SYSLINK_BUILD_OPTIMIZE)
-    if (config == NULL) {
-        /* @retval RcmServer_EINVALIDARG
-         *          Argument of type
-         *          (RcmServer_Config *) passed is null
-         */
-        status = RCMSERVER_EINVALIDARG;
-        GT_setFailureReason (curTrace,
-                             GT_4CLASS,
-                             "RcmServer_setup",
-                             status,
-                             "Argument of type (Heap_Config *) passed "
-                             "is null!");
-    } else if (config->maxNameLen == 0) {
-        /* @retval RcmServer_EINVALIDARG Config->defaultCfg.maxNameLen
-         *          passed is 0
-         */
-        status = RCMSERVER_EINVALIDARG;
-        GT_setFailureReason (curTrace,
-                             GT_4CLASS,
-                             "RcmServer_setup",
-                             status,
-                             "Config->defaultCfg.maxNameLen passed is 0!");
-    }
-#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+    GT_0trace (curTrace, GT_ENTER, "RcmServer_init");
 
     /* TBD: Protect from multiple threads. */
     RcmServer_module->setupRefCount++;
@@ -219,44 +178,40 @@ Int RcmServer_setup(const RcmServer_Config *config)
      * SYSLINK_BUILD_OPTIMIZE.
      */
     if (RcmServer_module->setupRefCount > 1) {
-    /* @retval RCMSERVER_SALREADYSETUP Success: RcmServer module has been
-     *          already setup in this process
-     */
-    status = RCMSERVER_SALREADYSETUP;
-    GT_1trace (curTrace,
-            GT_1CLASS,
-            "RcmServer module has been already setup in this process.\n"
-            " RefCount: [%d]\n",
-            RcmServer_module->setupRefCount);
+        /* @retval RcmClient_S_ALREADYSETUP Success: RcmClient module has been
+         *          already setup in this process
+         */
+        status = RcmServer_S_ALREADYSETUP;
+        GT_1trace (curTrace,
+                GT_1CLASS,
+                "RcmServer module has been already setup in this process.\n"
+                " RefCount: [%d]\n",
+                RcmClient_module->setupRefCount);
     }
 
-    /* @retval RCMSERVER_SOK Operation Successful */
-    GT_1trace (curTrace, GT_LEAVE, "RcmServer_setup", status);
-    return status;
+    GT_1trace (curTrace, GT_LEAVE, "RcmServer_init", status);
 }
 
 /*
- *  @brief      Function to destroy the RcmServer module.
- *
- *  @param      None
- *
- *  @sa         RcmServer_create
+ *  ======== RcmServer_exit ========
+ * Purpose:
+ * Clean up RCM Server module
  */
-Int RcmServer_destroy(void)
+Void RcmServer_exit (Void)
 {
-    Int status = RCMSERVER_SOK;
+    Int status = RcmServer_S_SUCCESS;
 
-    GT_0trace (curTrace, GT_ENTER, "RcmServer_destroy");
+    GT_0trace (curTrace, GT_ENTER, "RcmServer_exit");
 
     /* TBD: Protect from multiple threads. */
     RcmServer_module->setupRefCount--;
 
     /* This is needed at runtime so should not be in SYSLINK_BUILD_OPTIMIZE. */
     if (RcmServer_module->setupRefCount < 0) {
-        /* @retval RCMSERVER_SALREADYSETUP :RcmServer module has been
-         *          already setup in this process
+        /* @retval RcmServer_S_ALREADYCLEANEDUP :RcmServer module has been
+         *          already cleaned up in this process
          */
-        status = RCMSERVER_SALREADYCLEANEDUP;
+        status = RcmServer_S_ALREADYCLEANEDUP;
         GT_1trace (curTrace,
                    GT_1CLASS,
                    "RcmServer module has been already been cleaned up in this"
@@ -264,9 +219,7 @@ Int RcmServer_destroy(void)
                    RcmServer_module->setupRefCount);
     }
 
-    /* @retval RCMSERVER_SOK Operation Successful */
-    GT_1trace (curTrace, GT_LEAVE, "RcmServer_destroy", status);
-    return status;
+    GT_1trace (curTrace, GT_LEAVE, "RcmServer_exit", status);
 }
 
 /*
@@ -275,19 +228,19 @@ Int RcmServer_destroy(void)
  * Create a RCM Server instance
  */
 Int RcmServer_create(String name,
-             const RcmServer_Params *params,
+             RcmServer_Params *params,
              RcmServer_Handle *rcmserverHandle)
 {
     MessageQ_Params msgQParams;
     Int i;
     RcmServer_Object *handle = NULL;
-    Int status = RCMSERVER_SOK;
+    Int status = RcmServer_S_SUCCESS;
 
     GT_0trace (curTrace, GT_ENTER, "RcmServer_create");
 
     if (RcmServer_module->setupRefCount == 0) {
-        /*! @retval FRAMEQ_E_INVALIDSTATE Modules is invalidstate*/
-        status = RCMSERVER_EINVALIDSTATE;
+        /* Modules is invalidstate*/
+        status = RcmServer_E_INVALIDSTATE;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "RcmServer_create",
@@ -300,7 +253,7 @@ Int RcmServer_create(String name,
         GT_0trace(curTrace,
               GT_4CLASS,
               "RcmServer_create: invalid argument\n");
-        status = RCMSERVER_EINVALIDARG;
+        status = RcmServer_E_INVALIDARG;
         goto exit;
     }
 
@@ -308,7 +261,7 @@ Int RcmServer_create(String name,
         GT_0trace(curTrace,
               GT_4CLASS,
               "RcmServer_create: server name too long\n");
-        status = RCMSERVER_ENAMELENGTHLIMIT;
+        status = RcmServer_E_FAIL;
         goto exit;
     }
 
@@ -319,11 +272,14 @@ Int RcmServer_create(String name,
         GT_0trace(curTrace,
               GT_4CLASS,
               "RcmServer_create: memory calloc failed\n");
-        status = RCMSERVER_EMEMORY;
+        status = RcmServer_E_NOMEMORY;
         goto exit;
     }
 
     /* initialize instance state */
+    handle->shutdown = FALSE;
+    handle->key = 0;
+    handle->run = NULL;
     handle->msgQ = NULL;
 
     /* initialize the function table */
@@ -342,7 +298,7 @@ Int RcmServer_create(String name,
                      "MessageQ_create",
                      status,
                      "Unable to create MessageQ");
-        status = RCMSERVER_EOBJECT;
+        status = RcmServer_E_MSGQCREATEFAILED;
         goto exit;
     }
 
@@ -355,7 +311,7 @@ Int RcmServer_create(String name,
                      "OsalSemaphore_create",
                      status,
                      "Unable to create sync for RCM server thread");
-        status = RCMSERVER_EOBJECT;
+        status = RcmServer_E_FAIL;
         goto exit;
     }
 
@@ -380,14 +336,14 @@ exit:
  */
 Int RcmServer_delete(RcmServer_Handle *handlePtr)
 {
-    Int status = RCMSERVER_SOK;
+    Int status = RcmServer_S_SUCCESS;
     Int retval = 0;
 
     GT_0trace (curTrace, GT_ENTER, "RcmServer_delete");
 
     if (RcmServer_module->setupRefCount == 0) {
         /*! @retval FRAMEQ_E_INVALIDSTATE Modules is invalidstate*/
-        status = RCMSERVER_EINVALIDSTATE;
+        status = RcmServer_E_INVALIDSTATE;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "RcmServer_delete",
@@ -400,7 +356,7 @@ Int RcmServer_delete(RcmServer_Handle *handlePtr)
         GT_0trace(curTrace,
               GT_4CLASS,
               "RcmServer_delete: invalid argument\n");
-        status = RCMSERVER_EHANDLE;
+        status = RcmServer_E_INVALIDARG;
         goto exit;
     }
 
@@ -419,7 +375,7 @@ Int RcmServer_delete(RcmServer_Handle *handlePtr)
                      "OsalSemaphore_delete",
                      retval,
                      "Unable to delete RCM server thread sync");
-        status = RCMSERVER_ECLEANUP;
+        status = RcmServer_E_FAIL;
         goto exit;
     }
 
@@ -430,7 +386,7 @@ Int RcmServer_delete(RcmServer_Handle *handlePtr)
         GT_0trace (curTrace,
                    GT_4CLASS,
                    "RcmServer_delete: Error in MessageQ_delete\n");
-        status = RCMSERVER_ECLEANUP;
+        status = RcmServer_E_FAIL;
             goto exit;
         }
     }
@@ -451,10 +407,9 @@ exit:
  *
  *  @sa         RcmServer_create
  */
-Int RcmServer_Params_init(RcmServer_Handle handle,
-                          RcmServer_Params *params)
+Int RcmServer_Params_init(RcmServer_Params *params)
 {
-    Int status = RCMSERVER_SOK;
+    Int status = RcmServer_S_SUCCESS;
 
     GT_1trace (curTrace, GT_ENTER, "RcmServer_Params_init", params);
 
@@ -465,12 +420,12 @@ Int RcmServer_Params_init(RcmServer_Handle handle,
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "RcmServer_Params_init",
-                             RCMSERVER_EINVALIDSTATE,
+                             RcmServer_E_INVALIDSTATE,
                              "Modules is invalidstate!");
     }
     else if (params == NULL) {
         /* No retVal comment since this is a Void function. */
-        status = RCMSERVER_EINVALIDARG;
+        status = RcmServer_E_INVALIDARG;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "RcmServer_Params_init",
@@ -480,11 +435,7 @@ Int RcmServer_Params_init(RcmServer_Handle handle,
     }
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-        if (handle == NULL) {
-            *params = RcmServer_module->defaultInst_params;
-        } else {
-            params->priority = handle->priority;
-        }
+        params->priority = RcmServer_module->defaultInst_params.priority;
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
     }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
@@ -498,15 +449,15 @@ Int RcmServer_Params_init(RcmServer_Handle handle,
  * Adds symbol to server, return the function index
  */
 Int RcmServer_addSymbol(RcmServer_Handle handle,
-               String funcName,
-               RcmServer_RemoteFuncPtr address,
+               String name,
+               RcmServer_MsgFxn address,
                UInt32 *fxnIdx)
 {
     UInt i, j;
     UInt tabCount;
     Int tabSize;
-    FxnDesc *slot = NULL;
-    Int status = RCMSERVER_SOK;
+    RcmServer_FxnTabElem *slot = NULL;
+    Int status = RcmServer_S_SUCCESS;
 
     GT_0trace (curTrace, GT_ENTER, "RcmServer_addSymbol");
 
@@ -514,7 +465,7 @@ Int RcmServer_addSymbol(RcmServer_Handle handle,
 
     if (RcmServer_module->setupRefCount == 0) {
         /*! @retval FRAMEQ_E_INVALIDSTATE Modules is invalidstate*/
-        status = RCMSERVER_EINVALIDSTATE;
+        status = RcmServer_E_INVALIDSTATE;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "RcmServer_addSymbol",
@@ -527,7 +478,7 @@ Int RcmServer_addSymbol(RcmServer_Handle handle,
         GT_0trace(curTrace,
               GT_4CLASS,
               "RcmServer_addSymbol: invalid argument\n");
-        status = RCMSERVER_EHANDLE;
+        status = RcmServer_E_INVALIDARG;
         goto exit;
     }
 
@@ -544,9 +495,10 @@ Int RcmServer_addSymbol(RcmServer_Handle handle,
             }
         }
         else {
+            /* all previous tables are full, allocate a new table */
             tabCount = (1 << (i + 4));
-            tabSize = tabCount * sizeof(FxnDesc);
-            handle->fxnTab[i] = (FxnDesc *)Memory_alloc(
+            tabSize = tabCount * sizeof(RcmServer_FxnTabElem);
+            handle->fxnTab[i] = (RcmServer_FxnTabElem *)Memory_alloc(
                 NULL, tabSize, sizeof(Ptr));
             if (NULL == handle->fxnTab[i]) {
                 GT_setFailureReason (curTrace,
@@ -555,15 +507,18 @@ Int RcmServer_addSymbol(RcmServer_Handle handle,
                              status,
                              "Memory_alloc for"
                             "fxntab failed");
-                status = RCMSERVER_EMEMORY;
+                status = RcmServer_E_NOMEMORY;
                 goto exit;
             }
 
+            /* initialize the new table */
             for (j = 0; j < tabCount; j++) {
                 ((handle->fxnTab[i])+j)->addr = 0;
                 ((handle->fxnTab[i])+j)->name = NULL;
+                ((handle->fxnTab[i])+j)->key = 0;
             }
 
+            /* use first slot in new table */
             j = 0;
             slot = (handle->fxnTab[i])+j;
         }
@@ -577,7 +532,7 @@ Int RcmServer_addSymbol(RcmServer_Handle handle,
     if (slot != NULL) {
         slot->addr = address;
         slot->name = (String)Memory_alloc(NULL,
-                          strlen(funcName) + 1,
+                          strlen(name) + 1,
                           sizeof(Char *));
         if (NULL == slot->name) {
             GT_setFailureReason (curTrace,
@@ -585,18 +540,19 @@ Int RcmServer_addSymbol(RcmServer_Handle handle,
                          "Memory_alloc",
                          status,
                          "Memory_alloc for fxntab failed");
-            status = RCMSERVER_EMEMORY;
+            status = RcmServer_E_NOMEMORY;
             goto exit;
         }
-        strcpy(slot->name, funcName);
-        *fxnIdx = (i << 12) | j;
+        strcpy(slot->name, name);
+        slot->key = rcmGetNextKey(handle);
+        *fxnIdx = (slot->key << _Rcm_KeyShift) | (i << 12) | j;
     }
     else {
         /* no more room to add new symbol */
         GT_0trace(curTrace,
               GT_4CLASS,
               "rcmserver_add_symbol: no room to add new symbol");
-        status = RCMSERVER_ENOFREESLOT;
+        status = RcmServer_E_SYMBOLTABLEFULL;
     }
 
 exit:
@@ -610,16 +566,19 @@ exit:
  * Purpose:
  * Removes symbol from server.
  */
-Int RcmServer_removeSymbol(RcmServer_Handle handle, String funcName)
+Int RcmServer_removeSymbol(RcmServer_Handle handle, String name)
 {
-    UInt i, j;
-    Int status = RCMSERVER_ESYMBOLNOTFOUND;
+    UInt32 fxnIdx;
+    UInt tabIdx, tabOff;
+    RcmServer_FxnTabElem *slot;
+    Int retval;
+    Int status = RcmServer_S_SUCCESS;
 
     GT_0trace (curTrace, GT_ENTER, "RcmServer_removeSymbol");
 
     if (RcmServer_module->setupRefCount == 0) {
         /*! @retval FRAMEQ_E_INVALIDSTATE Modules is invalidstate*/
-        status = RCMSERVER_EINVALIDSTATE;
+        status = RcmServer_E_INVALIDSTATE;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "RcmServer_removeSymbol",
@@ -632,31 +591,40 @@ Int RcmServer_removeSymbol(RcmServer_Handle handle, String funcName)
         GT_0trace(curTrace,
               GT_4CLASS,
               "RcmServer_removeSymbol: invalid argument\n");
-        status = RCMSERVER_EHANDLE;
+        status = RcmServer_E_INVALIDARG;
         goto exit;
     }
 
-    /* search tables for given function name */
-    for (i = 0; i < RcmServer_module->defaultCfg.maxTables; i++) {
-        if (handle->fxnTab[i] != NULL) {
-            for (j = 0; j < (1 << (i + 4)); j++) {
-                if (((((handle->fxnTab[i]) + j)->name) != NULL) &&
-                    strcmp(((handle->fxnTab[i]) + j)->name, funcName) == 0) {
-                    /* Free the memory allocated in addSymbol*/
-                    Memory_free (NULL, ((handle->fxnTab[i]) + j) ->name,
-                        strlen (funcName));
-                    ((handle->fxnTab[i]) + j) ->name = NULL;
-                    ((handle->fxnTab[i]) + j) ->addr = NULL;
-                    status = RCMSERVER_SOK;
-                    break;
-                }
-            }
-        }
+    /* find the symbol in the table */
+    retval = rcmGetSymbolIndex(handle, name, &fxnIdx);
 
-        if(status == RCMSERVER_SOK) {
-            break;
-        }
+    if (retval < 0) {
+        status = retval;
+        goto exit;
     }
+
+    /* static symbols have bit-31 set, cannot remove these symbols */
+    if (fxnIdx & 0x80000000) {
+        GT_1trace (curTrace,
+            GT_3CLASS,
+            "RcmServer_removeSymbol: cannot remove static symbol %s",
+            name);
+        status = RcmServer_E_SYMBOLSTATIC;
+        goto exit;
+    }
+
+    /* get slot pointer */
+    tabIdx = (fxnIdx & 0xF000) >> 12;
+    tabOff = (fxnIdx & 0xFFF);
+    slot = (handle->fxnTab[tabIdx]) + tabOff;
+
+    /* clear the table index */
+    slot->addr = 0;
+    if (slot->name != NULL) {
+        Memory_free(NULL, slot->name, strlen(slot->name) + 1);
+        slot->name = NULL;
+    }
+    slot->key = 0;
 
 exit:
     GT_1trace (curTrace, GT_LEAVE, "RcmServer_removeSymbol", status);
@@ -668,10 +636,9 @@ exit:
  * Purpose:
  * Starts RCM server thread by posting sync.
  */
-Int RcmServer_start(RcmServer_Handle handle)
+Void RcmServer_start(RcmServer_Handle handle)
 {
     Int retval = 0;
-    Int status = RCMSERVER_SOK;
 
     /* signal the run synchronizer, unblocks the server thread */
     retval = OsalSemaphore_post(handle->run);
@@ -679,14 +646,12 @@ Int RcmServer_start(RcmServer_Handle handle)
     retval = OsalSemaphore_post(handle->run); /* signal once more for Android */
 #endif
     if (retval < 0) {
-        status = RCMSERVER_EINVALIDSTATE;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "OsalSemaphore_post",
-                             status,
+                             RcmServer_E_INVALIDSTATE,
                              "Could not post sync semaphore");
     }
-    return status;
 }
 
 /*
@@ -694,26 +659,26 @@ Int RcmServer_start(RcmServer_Handle handle)
  * Purpose:
  * RCM server thread function.
  */
-Void *RcmServer_serverRunFxn(IArg arg)
+Void RcmServer_serverRunFxn(IArg arg)
 {
-    RcmServer_Packet *packet;
+    RcmClient_Packet *packet;
     MessageQ_Msg msgqMsg;
     String name;
-    UInt16 fxnIdx;
-    RcmServer_RemoteFuncPtr fxn;
-    RcmServer_Message *rcmMsg;
+    UInt32 fxnIdx;
+    RcmServer_MsgFxn fxn;
+    RcmClient_Message *rcmMsg;
     UInt16 messageType;
     RcmServer_Handle handle = (RcmServer_Object *)arg;
     Bool running = TRUE;
     Int retval = 0;
-    Int status = RCMSERVER_SOK;
+    Int status = RcmServer_S_SUCCESS;
 
     GT_0trace (curTrace, GT_ENTER, "RcmServer_serverRunFxn");
 
     /* wait until ready to run */
     retval = OsalSemaphore_pend(handle->run, OSALSEMAPHORE_WAIT_FOREVER);
     if (retval < 0) {
-        status = RCMSERVER_EINVALIDSTATE;
+        status = RcmServer_E_INVALIDSTATE;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "OsalSemaphore_pend",
@@ -734,7 +699,7 @@ Void *RcmServer_serverRunFxn(IArg arg)
                                 "MessageQ_get",
                                 retval,
                                 "RcmClient_module->MessageQ get fails");
-                status = RCMSERVER_EGETMSG;
+                status = RcmServer_E_FAIL;
                 goto exit;
             }
         } while ((NULL == msgqMsg) && !(handle->shutdown));
@@ -747,7 +712,7 @@ Void *RcmServer_serverRunFxn(IArg arg)
             }
         }
 
-        packet = (RcmServer_Packet *)msgqMsg;
+        packet = (RcmClient_Packet *)msgqMsg;
         rcmMsg = &packet->message;
 
         /* extract the message type from the packet descriptor field */
@@ -758,7 +723,23 @@ Void *RcmServer_serverRunFxn(IArg arg)
         switch (messageType) {
 
         case RcmClient_Desc_RCM_MSG:
-            execMsg(handle, rcmMsg);
+            retval = execMsg(handle, rcmMsg);
+            if (retval < 0) {
+                switch (retval) {
+                    case RcmServer_E_INVALIDFXNIDX:
+                        setStatusCode(packet, RcmServer_Status_INVALID_FXN);
+                        break;
+                    default:
+                        setStatusCode(packet, RcmServer_Status_ERROR);
+                        break;
+                }
+            }
+            else if (rcmMsg->result < 0) {
+                setStatusCode(packet, RcmServer_Status_MSG_FXN_ERR);
+            }
+            else {
+                setStatusCode(packet, RcmServer_Status_SUCCESS);
+            }
 
             retval = MessageQ_put(MessageQ_getReplyQueue
                            (msgqMsg), msgqMsg);
@@ -768,13 +749,16 @@ Void *RcmServer_serverRunFxn(IArg arg)
                              "MessageQ_put",
                              retval,
                              "Msg put fails");
-                status = RCMSERVER_ESENDMSG;
+                status = RcmServer_E_FAIL;
                 goto exit;
             }
             break;
 
         case RcmClient_Desc_DPC:
-            fxn = getFxnAddr(handle, rcmMsg->fxnIdx);
+            retval = rcmGetFxnAddr(handle, rcmMsg->fxnIdx, &fxn);
+
+            if (retval < 0)
+                setStatusCode(packet, RcmServer_Status_SYMBOL_NOT_FOUND);
             /* TODO: copy the context into a buffer */
 
             retval = MessageQ_put(MessageQ_getReplyQueue
@@ -785,7 +769,7 @@ Void *RcmServer_serverRunFxn(IArg arg)
                              "MessageQ_put",
                              retval,
                              "Msg put fails");
-                status = RCMSERVER_ESENDMSG;
+                status = RcmServer_E_FAIL;
                 goto exit;
             }
             /* invoke the function with a null context */
@@ -797,16 +781,16 @@ Void *RcmServer_serverRunFxn(IArg arg)
 
         case RcmClient_Desc_SYM_IDX:
             name = (String)rcmMsg->data;
-            fxnIdx = getSymbolIndex(handle, name);
-            if (fxnIdx == 0xFFFF) {
-                GT_setFailureReason (curTrace,
-                             GT_4CLASS,
-                             "getSymbolIndex",
-                             status,
-                             "Symbol not found");
-                goto exit;
+            retval = rcmGetSymbolIndex(handle, name, &fxnIdx);
+
+            if (retval < 0) {
+                setStatusCode(packet, RcmServer_Status_SYMBOL_NOT_FOUND);
             }
-            rcmMsg->result = (Int32)fxnIdx;
+            else {
+                setStatusCode(packet, RcmServer_Status_SUCCESS);
+                rcmMsg->data[0] = fxnIdx;
+                rcmMsg->result = 0;
+            }
 
             retval = MessageQ_put(MessageQ_getReplyQueue(msgqMsg), msgqMsg);
             if (retval < 0) {
@@ -815,7 +799,7 @@ Void *RcmServer_serverRunFxn(IArg arg)
                              "MessageQ_put",
                              retval,
                              "Msg put fails");
-                status = RCMSERVER_ESENDMSG;
+                status = RcmServer_E_FAIL;
                 goto exit;
             }
             break;
@@ -833,7 +817,7 @@ Void *RcmServer_serverRunFxn(IArg arg)
                              "MessageQ_put",
                              retval,
                              "Msg put fails");
-                status = RCMSERVER_ESENDMSG;
+                status = RcmServer_E_FAIL;
                 goto exit;
             }
             break;
@@ -847,7 +831,7 @@ Void *RcmServer_serverRunFxn(IArg arg)
                              "MessageQ_free",
                              retval,
                              "Msg free fails");
-                status = RCMSERVER_EFREEMSG;
+                status = RcmServer_E_FAIL;
                 goto exit;
             }
             break;
@@ -860,67 +844,100 @@ Void *RcmServer_serverRunFxn(IArg arg)
 
 exit:
     GT_1trace (curTrace, GT_LEAVE, "RcmServer_serverRunFxn", status);
-    return (Void *)status;
 }
 
 /*
- *  ======== getFxnAddr ========
+ *  ======== rcmGetFxnAddr ========
  * Purpose:
  * Get function addresss using input function index.
  */
-RcmServer_RemoteFuncPtr getFxnAddr(RcmServer_Handle handle, UInt16 fxnIdx)
+Int rcmGetFxnAddr(RcmServer_Handle handle, UInt32 fxnIdx,
+    RcmServer_MsgFxn *addrPtr)
 {
     UInt i, j;
-    FxnDesc *slot;
+    UInt16 key;
+    RcmServer_FxnTabElem *slot;
+    RcmServer_MsgFxn addr = 0;
+    Int status = RcmServer_S_SUCCESS;
 
-    GT_0trace (curTrace, GT_ENTER, "getFxnAddr");
+    GT_0trace (curTrace, GT_ENTER, "rcmGetFxnAddr");
+
+    /* extract the key from the function index */
+    key = (fxnIdx & _RCM_KeyMask) >> _Rcm_KeyShift;
 
     i = (fxnIdx & 0xF000) >> 12;
-    j = (fxnIdx & 0x0FFF);
-    slot = (handle->fxnTab[i])+j;
+    if ((i > 0) && (i <= RcmServer_MAX_TABLES) && (handle->fxnTab[i] != NULL)) {
+        /* fetch the function address from the table */
+        j = (fxnIdx & 0x0FFF);
+        slot = (handle->fxnTab[i])+j;
+        addr = slot->addr;
 
-    GT_0trace (curTrace, GT_LEAVE, "getFxnAddr");
-    return slot->addr;
+        /* validate the key */
+        if (key != slot->key) {
+            GT_3trace(curTrace,
+                  GT_3CLASS,
+                  "rcmGetFxnAddr: key %d does not match entry key %d, fxnIdx %d\n",
+                  key, slot->key, fxnIdx);
+            status = RcmServer_E_INVALIDFXNIDX;
+        }
+    }
+    if (status >= 0) {
+        *addrPtr = addr;
+    }
+
+    GT_0trace (curTrace, GT_LEAVE, "rcmGetFxnAddr");
+    return status;
 }
 
 /*
- *  ======== getSymbolIndex ========
+ *  ======== rcmGetSymbolIndex ========
  * Purpose:
  * Gets the sumbol index given the name of the symbol.
  */
-UInt16 getSymbolIndex(RcmServer_Handle handle, String name)
+Int rcmGetSymbolIndex(RcmServer_Handle handle, String name, UInt32 *index)
 {
     UInt i, j;
-    UInt16 fxnIdx = 0xFFFF;
+    RcmServer_FxnTabElem *slot;
+    UInt32 fxnIdx = 0xFFFFFFFF;
+    Int status = RcmServer_S_SUCCESS;
 
-    GT_0trace (curTrace, GT_ENTER, "getSymbolIndex");
+    GT_0trace (curTrace, GT_ENTER, "rcmGetSymbolIndex");
 
     /* search tables for given function name */
     for (i = 0; i < RcmServer_module->defaultCfg.maxTables; i++) {
         if (handle->fxnTab[i] != NULL) {
             for (j = 0; j < (1 << (i + 4)); j++) {
+                slot = (handle->fxnTab[i]) + j;
                 if (((((handle->fxnTab[i]) + j)->name) != NULL) &&
                     strcmp(((handle->fxnTab[i]) + j)->name, name) == 0) {
-                    fxnIdx = (i << 12) | j;
+                    if (i == 0) {
+                        fxnIdx = 0x80000000 | j;
+                    } else {
+                        fxnIdx = (slot->key << _Rcm_KeyShift) | (i << 12) | j;
+                    }
                     break;
                 }
             }
         }
 
-        if (0xFFFF != fxnIdx) {
+        if (0xFFFFFFFF != fxnIdx) {
             break;
         }
     }
 
     /* raise an error if the symbol was not found */
-    if (0xFFFF == fxnIdx) {
+    if (0xFFFFFFFF == fxnIdx) {
         GT_0trace(curTrace,
               GT_3CLASS,
-              "getSymbolIndex: symbol was not found\n");
+              "rcmGetSymbolIndex: symbol was not found\n");
+        status = RcmServer_E_SYMBOLNOTFOUND;
     }
 
-    GT_0trace (curTrace, GT_LEAVE, "getSymbolIndex");
-    return fxnIdx;
+    if (status >= 0)
+        *index = fxnIdx;
+
+    GT_0trace (curTrace, GT_LEAVE, "rcmGetSymbolIndex");
+    return status;
 }
 
 /*
@@ -928,17 +945,61 @@ UInt16 getSymbolIndex(RcmServer_Handle handle, String name)
  * Purpose:
  * Execute function in address.
  */
-Void execMsg(RcmServer_Handle handle, RcmServer_Message *msg)
+Int execMsg(RcmServer_Handle handle, RcmClient_Message *msg)
 {
-    RcmServer_RemoteFuncPtr fxn;
+    RcmServer_MsgFxn fxn;
+    Int retval;
 
     GT_0trace (curTrace, GT_ENTER, "execMsg");
 
-    fxn = getFxnAddr(handle, msg->fxnIdx);
+    retval = rcmGetFxnAddr(handle, msg->fxnIdx, &fxn);
+    if (retval < 0)
+        goto leave;
 
     msg->result = (*fxn)(msg->dataSize, msg->data);
 
     GT_0trace (curTrace, GT_LEAVE, "execMsg");
+leave:
+    return retval;
+}
 
-    return;
+
+/*
+ *  ======== rcmGetNextKey ========
+ */
+UInt16 rcmGetNextKey(RcmServer_Object *obj)
+{
+    UInt16 key;
+
+    /* TODO: enter gate */
+
+    if (obj->key <= 1) {
+        obj->key = _RCM_KeyResetValue;  /* don't use 0 as a key value */
+    }
+    else {
+        (obj->key)--;
+    }
+    key = obj->key;
+
+    /* TODO: leave gate */
+
+    return(key);
+}
+
+/*
+ *  ======== setStatusCode ========
+ */
+Void setStatusCode(RcmClient_Packet *packet, UInt16 code)
+{
+
+    /* code must be 0 - 15, it has to fit in 4-bit field */
+    if (code >= 16) {
+        GT_1trace (curTrace, GT_4CLASS, "setStatusCode: invalid "
+            "code %d\n", code);
+        return;
+    }
+
+    packet->desc &= ~(RCMSERVER_DESC_TYPE_MASK);
+    packet->desc |= ((code << RCMSERVER_DESC_TYPE_SHIFT)
+        & RCMSERVER_DESC_TYPE_MASK);
 }

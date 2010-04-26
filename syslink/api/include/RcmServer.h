@@ -1,16 +1,35 @@
 /*
- * Syslink-IPC for TI OMAP Processors
+ *  Syslink-IPC for TI OMAP Processors
  *
- * Copyright (C) 2009 Texas Instruments, Inc.
+ *  Copyright (c) 2008-2010, Texas Instruments Incorporated
+ *  All rights reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Lesser General Public License as published
- * by the Free Software Foundation version 2.1 of the License.
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted provided that the following conditions
+ *  are met:
  *
- * This program is distributed .as is. WITHOUT ANY WARRANTY of any kind,
- * whether express or implied; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
+ *  *  Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
+ *
+ *  *  Redistributions in binary form must reproduce the above copyright
+ *     notice, this list of conditions and the following disclaimer in the
+ *     documentation and/or other materials provided with the distribution.
+ *
+ *  *  Neither the name of Texas Instruments Incorporated nor the names of
+ *     its contributors may be used to endorse or promote products derived
+ *     from this software without specific prior written permission.
+ *
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ *  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ *  THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ *  PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ *  CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ *  EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ *  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+ *  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ *  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ *  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ *  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
 * rcmserver.h
@@ -29,9 +48,9 @@
 /* Utilities headers */
 #include <ti/ipc/MessageQ.h>
 
-/*!
+/*
  *  @def    RCMSERVER_MODULEID
- *  @brief  Unique module ID.
+ *   Unique module ID.
  */
 #define RCMSERVER_MODULEID              (0xeee2)
 
@@ -40,126 +59,91 @@
  * =============================================================================
  */
 
-/*!
- *  @def    RCMSERVER_STATUSCODEBASE
- *  @brief  Error code base for RCM Server.
+/*
+ *  Success return code
  */
-#define RCMSERVER_STATUSCODEBASE        (RCMSERVER_MODULEID << 12u)
-
-/*!
- *  @def    RCMSERVER_MAKE_FAILURE
- *  @brief  Macro to make error code.
- */
-#define RCMSERVER_MAKE_FAILURE(x)       ((Int) ( 0x80000000                    \
-                                             + (RCMSERVER_STATUSCODEBASE       \
-                                             + (x))))
-
-/*!
- *  @def    RCMSERVER_MAKE_SUCCESS
- *  @brief  Macro to make success code.
- */
-#define RCMSERVER_MAKE_SUCCESS(x)       (RCMSERVER_STATUSCODEBASE + (x))
-
+#define RcmServer_S_SUCCESS (0)
 
 /*
- *  SUCCESS Codes
+ *  Module already setup
+ */
+#define RcmServer_S_ALREADYSETUP (1)
+
+/*
+ *  Module already cleaned up
+ */
+#define RcmServer_S_ALREADYCLEANEDUP (1)
+
+/*
+ *  General failure return code
+ */
+#define RcmServer_E_FAIL (-1)
+
+/*
+ *  Invalid function index
  *
+ *  An RcmClient_Message was received which contained a function
+ *  index value that was not found in the server's function table.
  */
-/* Generic success code for RCMSERVER module */
-#define RCMSERVER_SOK               RCMSERVER_MAKE_SUCCESS(0)
-
-/* The module/ driver is already setup or loaded */
-#define RCMSERVER_SALREADYSETUP     RCMSERVER_MAKE_SUCCESS(1)
-
-/* The module/ driver is already cleaned up */
-#define RCMSERVER_SALREADYCLEANEDUP RCMSERVER_MAKE_SUCCESS(2)
+#define RcmServer_E_INVALIDFXNIDX (-2)
 
 /*
- *  FAILURE Codes
+ *  An unknown error has been detected from the IPC layer
  *
+ *  Check the error log for additional information.
  */
-/* This failure code indicates that an operation has timed out. */
-#define RCMSERVER_ETIMEOUT          RCMSERVER_MAKE_FAILURE(1)
-
-/* This failure code indicates a configuration error */
-#define RCMSERVER_ECONFIG           RCMSERVER_MAKE_FAILURE(2)
-
-/* This failure code indicates that the RCMSERVER module has already been
- * initialized.
- */
-#define RCMSERVER_EALREADYINIT      RCMSERVER_MAKE_FAILURE(3)
-
-/* This failure code indicates that the specified entity was not found */
-#define RCMSERVER_ENOTFOUND         RCMSERVER_MAKE_FAILURE(4)
-
-/* This failure code indicates that the specified feature is not supported */
-#define RCMSERVER_ENOTSUPPORTED     RCMSERVER_MAKE_FAILURE(5)
-
-/* This failure code indicates that a provided parameter was outside its valid
- * range.
- */
-#define RCMSERVER_ERANGE            RCMSERVER_MAKE_FAILURE(6)
-
-/* This failure code indicates that the specified handle is invalid */
-#define RCMSERVER_EHANDLE           RCMSERVER_MAKE_FAILURE(7)
-
-/* This failure code indicates that an invalid argument was specified */
-#define RCMSERVER_EINVALIDARG       RCMSERVER_MAKE_FAILURE(8)
-
-/* This failure code indicates a memory related failure */
-#define RCMSERVER_EMEMORY           RCMSERVER_MAKE_FAILURE(9)
+#define RcmServer_E_IPCERR (-3)
 
 /*
- *  This failure code indicates that the RCMSERVER module
- *  has not been initialized
+ *  The client message queue could not be created
+ *
+ *  Each RcmClient instance must create its own message queue for
+ *  receiving return messages from the RcmServer. The creation of
+ *  this message queue failed, thus failing the RcmClient instance
+ *  creation.
  */
-#define RCMSERVER_EINIT             RCMSERVER_MAKE_FAILURE(10)
-
-/* This failure code indicates that a resource was not available.*/
-#define RCMSERVER_ERESOURCE         RCMSERVER_MAKE_FAILURE(11)
-
-/* This failure code indicates that the specified entity already exists. */
-#define RCMSERVER_EALREADYEXISTS    RCMSERVER_MAKE_FAILURE(12)
-
-/* This failure code indicates that the specified name is too long. */
-#define RCMSERVER_ENAMELENGTHLIMIT  RCMSERVER_MAKE_FAILURE(13)
+#define RcmServer_E_MSGQCREATEFAILED (-4)
 
 /*
- * This failure code indicates that there was an error in
- * creating/ initializing the object
+ *  The given symbol was not found in the server's symbol table
+ *
+ *  This error could occur if the symbol spelling is incorrect or
+ *  if the RcmServer is still loading its symbol table.
  */
-#define RCMSERVER_EOBJECT           RCMSERVER_MAKE_FAILURE(14)
+#define RcmServer_E_SYMBOLNOTFOUND (-5)
 
 /*
- * This failure code indicates that there was an an issue in
- * object/ resource cleanup
+ *  The given symbols is in the static table, it cannot be removed
+ *
+ *  All symbols installed at instance create time are added to the
+ *  static symbol table. They cannot be removed. The statis symbol
+ *  table must remain intact for the lifespan of the server instance.
  */
-#define RCMSERVER_ECLEANUP          RCMSERVER_MAKE_FAILURE(15)
+#define RcmServer_E_SYMBOLSTATIC (-6)
 
 /*
- * This failure code indicates that there was no space
- * in the fxn table to store the symbol
+ *  The server's symbol table is full
+ *
+ *  The symbol table is full. You must remove some symbols before
+ *  any new symbols can be added.
  */
-#define RCMSERVER_ENOFREESLOT       RCMSERVER_MAKE_FAILURE(16)
+#define RcmServer_E_SYMBOLTABLEFULL (-7)
 
-/* This failure code indicates that the symbol was not found */
-#define RCMSERVER_ESYMBOLNOTFOUND   RCMSERVER_MAKE_FAILURE(17)
+/*
+ *  The was insufficient memory left on the heap
+ */
+#define RcmServer_E_NOMEMORY (-8)
 
-/* This failure code indicates that there was an issue in sending a message */
-#define RCMSERVER_ESENDMSG          RCMSERVER_MAKE_FAILURE(18)
+/*
+ *  Invalid argument
+ */
+#define RcmServer_E_INVALIDARG (-9)
 
-/* This failure code indicates that the module is in an invalid state */
-#define RCMSERVER_EINVALIDSTATE     RCMSERVER_MAKE_FAILURE(19)
+/*
+ *  Module not initialized
+ */
+#define RcmServer_E_INVALIDSTATE (-10)
 
-/* This failure code indicates that there was an issue in getting a message */
-#define RCMSERVER_EGETMSG           RCMSERVER_MAKE_FAILURE(20)
-
-/* This failure code indicates that there was an issue freeing the message */
-#define RCMSERVER_EFREEMSG          RCMSERVER_MAKE_FAILURE(21)
-
-/*FIXME have a different value for EFAIL */
-/* Generic failure code for RCMSERVER module */
-#define RCMSERVER_EFAIL             RCMSERVER_MAKE_FAILURE(20)
 
 /*
  * RCM message descriptors
@@ -175,12 +159,20 @@
 #define RCMSERVER_HIGH_PRIORITY     0xFF
 #define RCMSERVER_REGULAR_PRIORITY  0x01
 
+/* server status codes must be 0 - 15, it has to fit in a 4-bit field */
+#define RcmServer_Status_SUCCESS ((UInt16)(0)) // success
+#define RcmServer_Status_INVALID_FXN ((UInt16)(1)) // invalid function index
+#define RcmServer_Status_SYMBOL_NOT_FOUND ((UInt16)(2)) // symbol not found
+#define RcmServer_Status_INVALID_MSG_TYPE ((UInt16)(3)) // invalid message type
+#define RcmServer_Status_MSG_FXN_ERR ((UInt16)(4)) // message function error
+#define RcmServer_Status_ERROR ((UInt16)(5)) // general failure
+
 /* =============================================================================
  * Structures & Enums
  * =============================================================================
  */
-/*!
- *  @brief  Structure defining config parameters for the RcmClient module.
+/*
+ *   Structure defining config parameters for the RcmClient module.
  */
 typedef struct RcmServer_Config_tag {
     UInt32 maxNameLen; /* Maximum length of name */
@@ -201,7 +193,21 @@ typedef struct RcmServer_Message_tag {
     UInt32    data[1];  /*  data buffer of dataSize chars */
 } RcmServer_Message;
 
-typedef Int32 (*RcmServer_RemoteFuncPtr)(UInt32, UInt32 *);
+/*
+ *   Remote function type
+ *
+ *  All functions executed by the RcmServer must be of this
+ *  type. Typically, these functions are simply wrappers to the vendor
+ *  function. The server invokes this remote function by passing in
+ *  the RcmClient_Message.dataSize field and the address of the
+ *  RcmClient_Message.data array.
+ *
+ *  RcmServer_MsgFxn fxn = ...;
+ *  RcmClient_Message *msg = ...;
+ *  msg->result = (*fxn)(msg->dataSize, msg->data);
+ */
+typedef Int32 (*RcmServer_MsgFxn)(UInt32, UInt32 *);
+
 
 /* =============================================================================
  *  Forward declarations
@@ -209,7 +215,7 @@ typedef Int32 (*RcmServer_RemoteFuncPtr)(UInt32, UInt32 *);
  */
 
 /*!
- *  @brief  Handle for the RcmServer.
+ *   Handle for the RcmServer.
  */
 typedef struct RcmServer_Object_tag *RcmServer_Handle;
 
@@ -218,37 +224,33 @@ typedef struct RcmServer_Object_tag *RcmServer_Handle;
  * =============================================================================
  */
 
-/* Function to get default configuration for the RcmServer module */
-Int RcmServer_getConfig (RcmServer_Config * cfgParams);
+/* Function to setup RCM server */
+Void RcmServer_init (Void);
 
-/* Function will create/ start the RCM Server module */
-Int RcmServer_setup (const RcmServer_Config * config);
-
-/* Function will destroy the RCM Server module */
-Int RcmServer_destroy(void);
+/* Function to clean up RCM server */
+Void RcmServer_exit (Void);
 
 /* Function will create a RCM Server instance */
 Int RcmServer_create (String                     name,
-                      const RcmServer_Params *   params,
+                      RcmServer_Params *         params,
                       RcmServer_Handle *         rcmserverHandle);
 
 /* Function will delete a RCM Server instance */
 Int RcmServer_delete(RcmServer_Handle * handlePtr);
 
 /* Initialize this config-params structure with supplier-specified defaults */
-Int RcmServer_Params_init (RcmServer_Handle      handle,
-                           RcmServer_Params *    params);
+Int RcmServer_Params_init (RcmServer_Params *    params);
 
 /* Function adds symbol to server, return the function index */
 Int RcmServer_addSymbol (RcmServer_Handle        handle,
                          String                  funcName,
-                         RcmServer_RemoteFuncPtr address,
+                         RcmServer_MsgFxn        address,
                          UInt32 *                fxnIdx);
 
 /* Function removes symbol from server */
 Int RcmServer_removeSymbol (RcmServer_Handle handle, String funcName);
 
 /* Function starts RCM server thread by posting sync */
-Int RcmServer_start (RcmServer_Handle handle);
+Void RcmServer_start (RcmServer_Handle handle);
 
 #endif /* RCMSERVER_H_ */
