@@ -155,7 +155,10 @@ AC_CONFIG_FILES([syslink.pc
 		samples/rcm/Makefile
 		samples/rcm/multi_test/Makefile
 		samples/rcm/single_test/Makefile
-		samples/tiler/Makefile])
+		samples/tiler/Makefile
+		samples/pwrmgmt/Makefile
+		samples/pwrmgmt/pmtransport/Makefile
+		samples/pwrmgmt/pmresources/Makefile])
 
 AC_OUTPUT
 echo "

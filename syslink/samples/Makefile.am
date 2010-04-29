@@ -27,7 +27,8 @@ SUBDIRS  = \
 	notify \
 	procmgr \
 	rcm \
-	tiler
+	tiler \
+	pwrmgmt
 
 if KRNLSRC
 SUBDIRS += proc_sample/krnl
