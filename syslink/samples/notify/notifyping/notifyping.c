@@ -4,7 +4,7 @@
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
  *  You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  *  Unless required by applicable law or agreed to in writing, software
@@ -79,13 +79,8 @@ extern "C" {
 
 #define RESET_VECTOR_ENTRY_ID   0
 
-#if defined (SYSLINK_USE_SYSMGR)
-#define NOTIFY_SYSM3_IMAGE_PATH "/binaries/Notify_MPUSYS_reroute_SYSMGR_Core0.xem3"
-#define NOTIFY_APPM3_IMAGE_PATH "/binaries/Notify_MPUAPP_reroute_SYSMGR_Core1.xem3"
-#else
-#define NOTIFY_SYSM3_IMAGE_PATH "/binaries/Notify_MPUSYS_reroute_NONSYSMGR_Core0.xem3"
-#define NOTIFY_APPM3_IMAGE_PATH "/binaries/Notify_MPUAPP_reroute_NONSYSMGR_Core1.xem3"
-#endif
+#define NOTIFY_SYSM3_IMAGE_PATH "./Notify_MPUSYS_Test_Core0.xem3"
+#define NOTIFY_APPM3_IMAGE_PATH "./Notify_MPUAPP_Test_Core1.xem3"
 
 /** ============================================================================
  *  @macro  numIterations
