@@ -4,7 +4,7 @@
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
  *  You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  *  Unless required by applicable law or agreed to in writing, software
@@ -91,12 +91,7 @@ extern "C" {
 #define GATEPETERSONMEMOFFSET    (GATEPETERSONMEM - SHAREDMEM)
 #define HEAPBUFMEMOFFSET_1       (HEAPMBMEM_CTRL - SHAREDMEM)
 #define HEAPBUFMEMOFFSET_2       (HEAPMBMEM1_CTRL - SHAREDMEM)
-#if defined(SYSLINK_USE_SYSMGR)
-#define HEAPBUF_SYSM3_IMAGE_PATH "/binaries/HeapBufTestApp_SYSM3_MPU_SYSMGR.xem3"
-#define HEAPBUF_APPM3_IMAGE_PATH ""
-#else
-#define HEAPBUF_SYSM3_IMAGE_PATH "/binaries/HeapBufTestApp_SYSM3_MPU_NONSYSMGR.xem3"
-#endif
+#define HEAPBUF_SYSM3_IMAGE_PATH "./HeapBufTestApp_SYSM3_MPU.xem3"
 
 ProcMgr_Handle       HeapBufApp_Prochandle   = NULL;
 UInt32               curAddr   = 0;
@@ -386,7 +381,7 @@ HeapBufApp_shutdown (Void)
 
     status = ListMPSharedMemory_destroy ();
     Osal_printf ("ListMPSharedMemory_destroy status: [0x%x]\n", status);
-    
+
     status = GatePeterson_destroy ();
     Osal_printf ("GatePeterson_destroy status: [0x%x]\n", status);
 
