@@ -1,5 +1,5 @@
 #
-#  Copyright 2001-2008 Texas Instruments - http://www.ti.com/
+#  Copyright 2001-2009 Texas Instruments - http://www.ti.com/
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
@@ -13,15 +13,8 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 #
-#  ----------------------------------------------------------------------------
-#  Revision History
-#
-#
-#  SEP xx,2002    REF=ORG			Swamy MC
-#      Original version.
-#  ----------------------------------------------------------------------------
 
-PROJROOT = .
+PROJROOT = ..
 
 include $(PROJROOT)/make/start.mk
 
@@ -52,20 +45,14 @@ TARGETNAME  =
 TARGETTYPE  =
 
 # For shared object library, soname is filename.so.maj_ver
-SH_SONAME = 
+SH_SONAME =
 
 # Folders in which gmake will run before building current target
 
 SUBMODULES  = \
-notify/notifyping \
-procmgr/ducati_load \
-procmgr/procmgrapp \
-ipc \
-rcm/single_test \
-rcm/multi_test \
-tiler \
-pwrmgmt \
-proc_sample/krnl
+pmtransport \
+pmresources
+
 
 # Filename must not begin with '.', '/' or '\'
 
