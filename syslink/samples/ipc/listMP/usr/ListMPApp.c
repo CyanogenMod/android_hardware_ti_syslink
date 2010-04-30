@@ -4,7 +4,7 @@
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
  *  You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
  *
  *  Unless required by applicable law or agreed to in writing, software
@@ -133,13 +133,7 @@ extern "C" {
 #define LISTMP1_OFFSET          (List1 - SHAREDMEM)
 #define GATEPETERSON_OFFSET     (GATEPETERSONMEM - SHAREDMEM)
 
-#if defined(SYSLINK_USE_SYSMGR)
-#define LISTMP_SYSM3_IMAGE_PATH "/binaries/ListMPTestApps_SYSM3_MPU_SYSMGR.xem3"
-#else
-#define LISTMP_SYSM3_IMAGE_PATH "/binaries/ListMPTestApps_SYSM3_MPU_NONSYSMGR.xem3"
-#endif
-//#define LISTMP_SYSM3_IMAGE_PATH "/binaries/Notify_MPUSYS_reroute_Test_Core0.xem3"
-#define LISTMP_APPM3_IMAGE_PATH ""
+#define LISTMP_SYSM3_IMAGE_PATH "./ListMPTestApps_SYSM3_MPU.xem3"
 
 /*
  * POSSIBLE TEST CASES
@@ -309,7 +303,7 @@ ListMPApp_execute (UInt32 sharedAddr)
     UInt32                      gateAddr;
 
     sharedAddr = ListMPApp_shAddrBase;
-    
+
     Osal_printf ("\nEntered ListMPApp_execute\n");
 
     // Compute locations in user memory
@@ -354,7 +348,7 @@ ListMPApp_execute (UInt32 sharedAddr)
         listMPParams1.sharedAddrSize = ListMP_sharedMemReq(&listMPParams1);
 
         Osal_printf("Creating ListMP at 0x%08x\n", list1Addr);
-        
+
         listHandle1 = ListMP_create(&listMPParams1);
 
         // Get next unused shared memory
