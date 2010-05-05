@@ -85,14 +85,22 @@ void DLDBG_add_host_record(const char *module_name)
    DL_Host_Module_Debug *host_dbg = 
                   (DL_Host_Module_Debug *)malloc(sizeof(DL_Host_Module_Debug));
 
+   if(!host_dbg) {
+#if LOADER_DEBUG
+      if(debugging_on)
+         DLIF_error(DLET_MISC,"malloc failed at %d\n", __LINE__);
+#endif
+      exit(1);
+   }
    /*------------------------------------------------------------------------*/
    /* Set up initial values.  Make a copy of the module name; everything     */
    /* else is NULL.                                                          */
    /*------------------------------------------------------------------------*/
    host_dbg->module_name  = (char *)malloc(strlen(module_name) + 1);
-   strncpy(host_dbg->module_name, module_name, strlen(module_name));
-   host_dbg->module_name[strlen(module_name)] = '\0';
-
+   if(host_dbg->module_name) {
+      strncpy(host_dbg->module_name, module_name, strlen(module_name));
+      host_dbg->module_name[strlen(module_name)] = '\0';
+   }
    host_dbg->num_segments = 0;
    host_dbg->segment_list_head =
    host_dbg->segment_list_tail = NULL;
@@ -325,6 +333,14 @@ void DLDBG_add_segment_record(struct DLOAD_MEMORY_SEGMENT *obj_desc)
    /* Allocate host memory for a new segment debug record.                   */
    /*------------------------------------------------------------------------*/
    DL_Host_Segment *host_seg = (DL_Host_Segment *)malloc(sizeof(DL_Host_Segment));
+
+   if(!host_seg) {
+#if LOADER_DEBUG
+      if(debugging_on)
+         DLIF_error(DLET_MISC,"malloc failed at %d\n", __LINE__);
+#endif
+      exit(1);
+   }
 
    /*------------------------------------------------------------------------*/
    /* Fill load and run address fields of new segment debug record.          */

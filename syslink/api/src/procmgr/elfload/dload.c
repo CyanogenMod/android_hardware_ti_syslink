@@ -463,6 +463,13 @@ static void initialize_loaded_module(DLIMP_Dynamic_Module *dyn1_module)
    /*------------------------------------------------------------------------*/
    DLIMP_Loaded_Module *loaded_module = dyn_module->loaded_module = malloc(sizeof(DLIMP_Loaded_Module));
 
+   if(loaded_module == NULL) {
+#if LOADER_DEBUG || LOADER_PROFILE
+      if(debugging_on)
+         DLIF_error(DLET_MISC, "Error allocating memory %d...\n",__LINE__);
+#endif
+      exit(1);
+   }
 #if LOADER_DEBUG || LOADER_PROFILE
    /*------------------------------------------------------------------------*/
    /* Start clock on initialization of loaded module object.                 */
@@ -530,12 +537,14 @@ static void initialize_loaded_module(DLIMP_Dynamic_Module *dyn1_module)
          seg.obj_desc = malloc(sizeof(struct DLOAD_MEMORY_SEGMENT));
          seg.phdr.p_vaddr = dyn_module->phdr[i].p_vaddr;
          seg.phdr.p_offset = dyn_module->phdr[i].p_offset;
-         seg.obj_desc->target_page = 0; /*not used*/
          seg.modified = 0;
-         seg.phdr.p_filesz = seg.obj_desc->objsz_in_bytes
+         if(seg.obj_desc) {
+            seg.obj_desc->target_page = 0; /*not used*/
+            seg.phdr.p_filesz = seg.obj_desc->objsz_in_bytes
                            = dyn_module->phdr[i].p_filesz;
-         seg.phdr.p_memsz = seg.obj_desc->memsz_in_bytes
+            seg.phdr.p_memsz = seg.obj_desc->memsz_in_bytes
                            = dyn_module->phdr[i].p_memsz;
+         }
          seg.phdr.p_align = dyn_module->phdr[i].p_align;
          seg.phdr.p_flags = dyn_module->phdr[i].p_flags;
          seg.input_vaddr = (Elf32_Addr) NULL;
@@ -1498,18 +1507,20 @@ static void dload_program_header_table(LOADER_FILE_DESC *fd,
    dyn_module->phdr = (struct Elf32_Phdr*)
                               (malloc(fhdr->e_phnum * fhdr->e_phentsize));
    DLIF_fseek(fd, fhdr->e_phoff, LOADER_SEEK_SET);
-   DLIF_fread(dyn_module->phdr, fhdr->e_phentsize, fhdr->e_phnum,fd);
-   dyn_module->phnum = fhdr->e_phnum;
+   if(dyn_module->phdr) {
+      DLIF_fread(dyn_module->phdr, fhdr->e_phentsize, fhdr->e_phnum,fd);
+      dyn_module->phnum = fhdr->e_phnum;
 
-   /*------------------------------------------------------------------------*/
-   /* Byte swap the program header tables if the target endian-ness is not   */
-   /* the same as the host endian-ness.                                      */
-   /*------------------------------------------------------------------------*/
-   if (dyn_module->wrong_endian)
-   {
-      int i;
-      for (i = 0; i < dyn_module->phnum; i++)
-         DLIMP_change_phdr_endian(dyn_module->phdr + i);
+      /*------------------------------------------------------------------------*/
+      /* Byte swap the program header tables if the target endian-ness is not   */
+      /* the same as the host endian-ness.                                      */
+      /*------------------------------------------------------------------------*/
+      if (dyn_module->wrong_endian)
+      {
+         int i;
+         for (i = 0; i < dyn_module->phnum; i++)
+            DLIMP_change_phdr_endian(dyn_module->phdr + i);
+      }
    }
 }
 
@@ -1622,16 +1633,18 @@ static void copy_dynamic_table(LOADER_FILE_DESC *fd,
    dyn_module->dyntab = malloc(dyn_module->phdr[dyn_seg_idx].p_filesz);
    num_elem = dyn_module->phdr[dyn_seg_idx].p_filesz / sizeof(struct Elf32_Dyn);
    DLIF_fseek(fd, dyn_module->phdr[dyn_seg_idx].p_offset, LOADER_SEEK_SET);
-   DLIF_fread(dyn_module->dyntab, sizeof(struct Elf32_Dyn), num_elem, fd);
+   if(dyn_module->dyntab) {
+      DLIF_fread(dyn_module->dyntab, sizeof(struct Elf32_Dyn), num_elem, fd);
 
-   /*------------------------------------------------------------------------*/
-   /* If necessary, byte swap each entry in the dynamic table.               */
-   /*------------------------------------------------------------------------*/
-   if (dyn_module->wrong_endian)
-   {
-      int i;
-      for (i = 0; i < num_elem; i++)
-         DLIMP_change_dynent_endian(&dyn_module->dyntab[i]);
+      /*------------------------------------------------------------------------*/
+      /* If necessary, byte swap each entry in the dynamic table.               */
+      /*------------------------------------------------------------------------*/
+      if (dyn_module->wrong_endian)
+      {
+         int i;
+         for (i = 0; i < num_elem; i++)
+            DLIMP_change_dynent_endian(&dyn_module->dyntab[i]);
+      }
    }
 }
 
@@ -1824,7 +1837,10 @@ static BOOL process_dynamic_table(LOADER_FILE_DESC *fd,
    {
       DLIF_fseek(fd, strtab_offset, LOADER_SEEK_SET);
       dyn_module->strtab = malloc(dyn_module->strsz);
-      DLIF_fread(dyn_module->strtab, sizeof(uint8_t), dyn_module->strsz, fd);
+      if(dyn_module->strtab)
+         DLIF_fread(dyn_module->strtab, sizeof(uint8_t), dyn_module->strsz, fd);
+      else
+         return FALSE;
    }
    else
    {
@@ -1928,20 +1944,25 @@ static BOOL process_dynamic_table(LOADER_FILE_DESC *fd,
    {
       DLIF_warning(DLWT_MISC, "Dynamic tag DT_SONAME is not found!\n");
       dyn_module->name = malloc(sizeof(char));
-      *dyn_module->name = '\0';
+      if(dyn_module->name)
+          *dyn_module->name = '\0';
+      else
+          return FALSE;
    }
    else
    {
       dyn_module->name =
                     malloc(strlen(dyn_module->strtab + soname_offset) + 1);
-      strcpy(dyn_module->name, dyn_module->strtab + soname_offset);
-
+      if(dyn_module->name) {
+          strcpy(dyn_module->name, dyn_module->strtab + soname_offset);
 #if LOADER_DEBUG
-      if (debugging_on)
-         printf("Name of dynamic object: %s\n", dyn_module->name);
+          if (debugging_on)
+             DLIF_error(DLET_MISC, "Error allocating memory %d...\n",__LINE__);
 #endif
+      }
+      else
+         return FALSE;
    }
-
    return TRUE;
 }
 
@@ -2307,20 +2328,22 @@ static void execute_module_pre_initialization(DLIMP_Dynamic_Module *dyn1_module)
       TARGET_ADDRESS *preinit_array_buf = (TARGET_ADDRESS *)
                                       malloc(dyn_module->preinit_arraysz);
 
-      DLIF_read(preinit_array_buf, 1, dyn_module->preinit_arraysz,
-                                            (TARGET_ADDRESS)preinit_array_loc);
+      if(preinit_array_buf) {
+         DLIF_read(preinit_array_buf, 1, dyn_module->preinit_arraysz,
+               (TARGET_ADDRESS)preinit_array_loc);
 
-      /*---------------------------------------------------------------------*/
-      /* Call each function whose address occupies an entry in the array in  */
-      /* the order that it appears in the array. The sizeof the array is     */
-      /* provided by the preinit_arraysz field in the dynamic module (copied */
-      /* earlier when the dynamic table was read in). We need to divide the  */
-      /* sizeof value down to get the number of actual entries in the array. */
-      /*---------------------------------------------------------------------*/
-      for (i = 0; i < num_preinit_fcns; i++)
-         DLIF_execute((TARGET_ADDRESS)(preinit_array_buf[i]));
+         /*---------------------------------------------------------------------*/
+         /* Call each function whose address occupies an entry in the array in  */
+         /* the order that it appears in the array. The sizeof the array is     */
+         /* provided by the preinit_arraysz field in the dynamic module (copied */
+         /* earlier when the dynamic table was read in). We need to divide the  */
+         /* sizeof value down to get the number of actual entries in the array. */
+         /*---------------------------------------------------------------------*/
+         for (i = 0; i < num_preinit_fcns; i++)
+            DLIF_execute((TARGET_ADDRESS)(preinit_array_buf[i]));
 
-      DLIF_free(preinit_array_buf);
+         DLIF_free(preinit_array_buf);
+      }
    }
 }
 
@@ -2376,20 +2399,21 @@ static void execute_module_initialization(DLIMP_Dynamic_Module *dyn1_module)
       int32_t num_init_fcns = dyn_module->init_arraysz/sizeof(TARGET_ADDRESS);
       TARGET_ADDRESS *init_array_buf = (TARGET_ADDRESS *)
                                          malloc(dyn_module->init_arraysz);
+      if(init_array_buf) {
+         DLIF_read(init_array_buf, 1, dyn_module->init_arraysz,
+               (TARGET_ADDRESS)init_array_loc);
 
-      DLIF_read(init_array_buf, 1, dyn_module->init_arraysz,
-                                               (TARGET_ADDRESS)init_array_loc);
+         /*---------------------------------------------------------------------*/
+         /* Call each function whose address occupies an entry in the array in  */
+         /* the order that they appear in the array. The size of the array is   */
+         /* provided by the init_arraysz field in the dynamic module (copied    */
+         /* earlier when the dynamic table was read in).                        */
+         /*---------------------------------------------------------------------*/
+         for (i = 0; i < num_init_fcns; i++)
+            DLIF_execute((TARGET_ADDRESS)(init_array_buf[i]));
 
-      /*---------------------------------------------------------------------*/
-      /* Call each function whose address occupies an entry in the array in  */
-      /* the order that they appear in the array. The size of the array is   */
-      /* provided by the init_arraysz field in the dynamic module (copied    */
-      /* earlier when the dynamic table was read in).                        */
-      /*---------------------------------------------------------------------*/
-      for (i = 0; i < num_init_fcns; i++)
-         DLIF_execute((TARGET_ADDRESS)(init_array_buf[i]));
-
-      DLIF_free(init_array_buf);
+         DLIF_free(init_array_buf);
+      }
    }
 }
 
@@ -2557,7 +2581,10 @@ int32_t DLOAD_load(LOADER_FILE_DESC *fd, int argc, char** argv)
    dyn_module->argc = argc;
    dyn_module->argv = argv;
    dyn_module->name = malloc(100);
-   memset(dyn_module->name, 0, 100);
+   if(dyn_module->name)
+       memset(dyn_module->name, 0, 100);
+   else
+       return 0;
 
    /*------------------------------------------------------------------------*/
    /* Perform sanity checking on the read-in ELF file.                       */
@@ -2710,14 +2737,19 @@ BOOL DLOAD_get_entry_names(uint32_t file_handle,
          symtab = (struct Elf32_Sym*)module->gsymtab;
          *entry_pt_cnt = module->gsymnum;
          *entry_pt_names = malloc(*entry_pt_cnt * sizeof(char*));
-         for (i = 0; i < module->gsymnum; i++)
-         {
-            const char *sym_name = (const char *)symtab[i].st_name;
-            **entry_pt_names = malloc(strlen(sym_name) + 1);
-            strcpy(**entry_pt_names,sym_name);
-         }
+         if(*entry_pt_names) {
+            for (i = 0; i < module->gsymnum; i++)
+            {
+               const char *sym_name = (const char *)symtab[i].st_name;
+               **entry_pt_names = malloc(strlen(sym_name) + 1);
+               if(**entry_pt_names)
+                  strcpy(**entry_pt_names,sym_name);
+            }
 
-         return TRUE;
+            return TRUE;
+         }
+         else
+            return FALSE;
       }
    }
 
@@ -2844,18 +2876,19 @@ static void execute_module_termination(DLIMP_Loaded_Module *loaded_module)
       int32_t num_fini_fcns = loaded_module->fini_arraysz/sizeof(TARGET_ADDRESS);
       TARGET_ADDRESS *fini_array_buf = (TARGET_ADDRESS *)
                                       malloc(loaded_module->fini_arraysz);
+      if(fini_array_buf) {
+         DLIF_read(fini_array_buf, 1, loaded_module->fini_arraysz,
+               (TARGET_ADDRESS)loaded_module->fini_array);
 
-      DLIF_read(fini_array_buf, 1, loaded_module->fini_arraysz,
-                                    (TARGET_ADDRESS)loaded_module->fini_array);
+         /*---------------------------------------------------------------------*/
+         /* Now spin through the array in reverse order, executing each         */
+         /* termination function whose address occupies an entry in the array.  */
+         /*---------------------------------------------------------------------*/
+         for (i = num_fini_fcns - 1; i >= 0; i--)
+            DLIF_execute((TARGET_ADDRESS)(fini_array_buf[i]));
 
-      /*---------------------------------------------------------------------*/
-      /* Now spin through the array in reverse order, executing each         */
-      /* termination function whose address occupies an entry in the array.  */
-      /*---------------------------------------------------------------------*/
-      for (i = num_fini_fcns - 1; i >= 0; i--)
-         DLIF_execute((TARGET_ADDRESS)(fini_array_buf[i]));
-
-      DLIF_free(fini_array_buf);
+         DLIF_free(fini_array_buf);
+      }
    }
 
    /*------------------------------------------------------------------------*/

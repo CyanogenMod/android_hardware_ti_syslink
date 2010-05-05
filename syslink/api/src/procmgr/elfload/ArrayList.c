@@ -75,10 +75,12 @@ void AL_append(Array_List* obj, void* to_append)
        void* old_buffer = obj->buf;
        obj->buffer_size *= 2;
        obj->buf = malloc(obj->buffer_size*obj->type_size);
-       memcpy(obj->buf,old_buffer,obj->size*obj->type_size);
+       if(obj->buf) {
+           memcpy(obj->buf,old_buffer,obj->size*obj->type_size);
+           memcpy(((uint8_t*)obj->buf) + obj->type_size *((obj->size)++), to_append,
+                   obj->type_size);
+       }
        free(old_buffer);
-       memcpy(((uint8_t*)obj->buf) + obj->type_size *((obj->size)++), to_append,
-               obj->type_size);
    }
 }
 

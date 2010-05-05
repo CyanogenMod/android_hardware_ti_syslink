@@ -99,12 +99,13 @@ static BOOL	trg_malloc(uint32_t *req_addr, size_t size, int alignment);
 static void trg_minit(void)
 {
    trg_mem_head = (TRG_PACKET *)malloc(sizeof(TRG_PACKET));
-
-   trg_mem_head->packet_addr = trg_mem_pool_addr;
-   trg_mem_head->packet_size = trg_mem_pool_sz;
-   trg_mem_head->prev_packet = NULL;
-   trg_mem_head->next_packet = NULL;
-   trg_mem_head->used_packet = FALSE;
+   if(trg_mem_head) {
+      trg_mem_head->packet_addr = trg_mem_pool_addr;
+      trg_mem_head->packet_size = trg_mem_pool_sz;
+      trg_mem_head->prev_packet = NULL;
+      trg_mem_head->next_packet = NULL;
+      trg_mem_head->used_packet = FALSE;
+   }
 }
 
 /*****************************************************************************/
@@ -180,6 +181,9 @@ static uint32_t trg_alloc_pkt(TRG_PACKET *ptr, size_t size, int alignment,
    if (req_addr > used_pkt->packet_addr)
    {
       free_pkt = (TRG_PACKET *)malloc(sizeof(TRG_PACKET));
+      if(!free_pkt) {
+         return NULL;
+      }
       free_pkt->next_packet = used_pkt;
       free_pkt->prev_packet = used_pkt->prev_packet;
       used_pkt->prev_packet = free_pkt;
@@ -214,6 +218,9 @@ static uint32_t trg_alloc_pkt(TRG_PACKET *ptr, size_t size, int alignment,
       if (!free_pkt)
       {
          free_pkt = (TRG_PACKET *)malloc(sizeof(TRG_PACKET));
+         if(!free_pkt) {
+            return NULL;
+         }
          free_pkt->next_packet = used_pkt;
          free_pkt->prev_packet = used_pkt->prev_packet;
          used_pkt->prev_packet = free_pkt;
@@ -244,6 +251,9 @@ static uint32_t trg_alloc_pkt(TRG_PACKET *ptr, size_t size, int alignment,
    if (orig_sz > size)
    {
       free_pkt = (TRG_PACKET *)malloc(sizeof(TRG_PACKET));
+      if(!free_pkt) {
+         return NULL;
+      }
       free_pkt->next_packet = used_pkt->next_packet;
       free_pkt->prev_packet = used_pkt;
       used_pkt->next_packet = free_pkt;
