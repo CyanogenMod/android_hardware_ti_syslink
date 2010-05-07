@@ -29,14 +29,13 @@ API_LIBS = \
 	$(LDPATH)/ipc/libipc.la \
 	$(LDPATH)/procmgr/libprocmgr.la \
 	$(LDPATH)/sysmgr/libsysmgr.la \
-	$(LDPATH)/notify/libsyslinknotify.la\
-	$(LDPATH)/sysmemmgr/libsysmemmgr.la
+	$(LDPATH)/notify/libsyslinknotify.la
 
 
 bin_PROGRAMS = gateMPApp.out
 
 gateMPApp_out_SOURCES = GateMPApp.c
 
-gateMPApp_out_CPPFLAGS = $(AM_CLFAGS)
+gateMPApp_out_CPPFLAGS = $(AM_CFLAGS)
 
 gateMPApp_out_LDADD = $(API_LIBS)

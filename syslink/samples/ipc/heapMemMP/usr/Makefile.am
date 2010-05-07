@@ -21,7 +21,6 @@ INCLUDE = \
 
 AM_CFLAGS = -Wall -g -O2 $(INCLUDE) -finline-functions -D$(PROCFAMILY)
 AM_CFLAGS += -DSYSLINK_TRACE_ENABLE
-#AM_CFLAGS += -DSYSLINK_USE_SYSMGR
 LDPATH=../../../../api/src
 
 API_LIBS = \
@@ -29,20 +28,12 @@ API_LIBS = \
 	$(LDPATH)/ipc/libipc.la \
 	$(LDPATH)/notify/libsyslinknotify.la \
 	$(LDPATH)/procmgr/libprocmgr.la \
-	$(LDPATH)/sysmgr/libsysmgr.la \
-	$(LDPATH)/sysmemmgr/libsysmemmgr.la
+	$(LDPATH)/sysmgr/libsysmgr.la
 
 bin_PROGRAMS = heapMemMPApp.out
-#heapMemMPApp_NonSysMgr.out
 
 heapMemMPApp_out_SOURCES = HeapMemMPAppOS.c HeapMemMPApp.c
 
-heapMemMPApp_out_CPPFLAGS = $(AM_CLFAGS) -DSYSLINK_USE_SYSMGR
+heapMemMPApp_out_CPPFLAGS = $(AM_CFLAGS)
 
 heapMemMPApp_out_LDADD = $(API_LIBS)
-
-#heapMemMPApp_NonSysMgr_out_SOURCES = HeapMemMPAppOS.c HeapMemMPApp.c
-
-#heapMemMPApp_NonSysMgr_out_CPPFLAGS = $(AM_CLFAGS)
-
-#heapMemMPApp_NonSysMgr_out_LDADD = $(API_LIBS_NONSYS)

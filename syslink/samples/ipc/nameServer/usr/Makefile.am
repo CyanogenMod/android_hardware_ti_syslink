@@ -37,14 +37,13 @@ API_LIBS = \
 	$(LDPATH)/ipc/libipc.la \
 	$(LDPATH)/procmgr/libprocmgr.la \
 	$(LDPATH)/sysmgr/libsysmgr.la \
-	$(LDPATH)/notify/libsyslinknotify.la \
-	$(LDPATH)/sysmemmgr/libsysmemmgr.la
+	$(LDPATH)/notify/libsyslinknotify.la
 
 
 bin_PROGRAMS = nameServerApp.out
 
 nameServerApp_out_SOURCES = NameServerApp.c
 
-nameServerApp_out_CPPFLAGS = $(AM_CLFAGS)
+nameServerApp_out_CPPFLAGS = $(AM_CFLAGS)
 
 nameServerApp_out_LDADD = $(API_LIBS)

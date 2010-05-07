@@ -28,7 +28,7 @@ INCLUDE = \
 
 
 AM_CFLAGS = -Wall -g -O2 $(INCLUDE) -finline-functions -D$(PROCFAMILY)
-AM_CFLAGS += -DSYSLINK_TRACE_ENABLE -DSYSLINK_USE_SYSMGR
+AM_CFLAGS += -DSYSLINK_TRACE_ENABLE
 
 LDPATH=../../../../api/src
 
@@ -37,13 +37,12 @@ API_LIBS = \
 	$(LDPATH)/ipc/libipc.la \
 	$(LDPATH)/procmgr/libprocmgr.la \
 	$(LDPATH)/sysmgr/libsysmgr.la \
-	$(LDPATH)/notify/libsyslinknotify.la \
-	$(LDPATH)/sysmemmgr/libsysmemmgr.la
+	$(LDPATH)/notify/libsyslinknotify.la
 
 bin_PROGRAMS = sharedRegionApp.out
 
 sharedRegionApp_out_SOURCES = SharedRegionAppOS.c SharedRegionApp.c
 
-sharedRegionApp_out_CPPFLAGS = $(AM_CLFAGS)
+sharedRegionApp_out_CPPFLAGS = $(AM_CFLAGS)
 
 sharedRegionApp_out_LDADD = $(API_LIBS)

@@ -22,9 +22,9 @@ LDPATH=$(TARGETDIR)/lib $(TARGETDIR)/usr/lib
 LDFLAGS = $(addprefix -L, $(LDPATH))
 
 CFLAGS=-Wall -g -O2 $(INCLUDE) -finline-functions -D$(PROCFAMILY) $(LDFLAGS)
-CFLAGS += -DSYSLINK_TRACE_ENABLE -DSYSLINK_USE_SYSMGR
+CFLAGS += -DSYSLINK_TRACE_ENABLE
 
-LIBS = -lipcutils -lipc -lprocmgr -lsysmgr -lsyslinknotify -lsysmemmgr
+LIBS = -lipcutils -lipc -lprocmgr -lsysmgr -lsyslinknotify
 
 all: sharedRegionApp.out
 

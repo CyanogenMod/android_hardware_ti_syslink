@@ -22,9 +22,8 @@ LDPATH=$(TARGETDIR)/lib $(TARGETDIR)/usr/lib
 LDFLAGS = $(addprefix -L, $(LDPATH))
 CFLAGS=-Wall -g -O2 $(INCLUDE) -finline-functions -D$(PROCFAMILY) $(LDFLAGS)
 CFLAGS += -DSYSLINK_TRACE_ENABLE
-CFLAGS += -DSYSLINK_USE_SYSMGR
 
-LIBS = -lipcutils -lipc -lprocmgr -lsysmgr -lsyslinknotify -lsysmemmgr
+LIBS = -lipcutils -lipc -lprocmgr -lsysmgr -lsyslinknotify
 
 all: listMPApp.out
 

@@ -28,18 +28,12 @@ API_LIBS = \
 	$(LDPATH)/ipc/libipc.la \
 	$(LDPATH)/notify/libsyslinknotify.la \
 	$(LDPATH)/procmgr/libprocmgr.la \
-	$(LDPATH)/sysmgr/libsysmgr.la \
-	$(LDPATH)/sysmemmgr/libsysmemmgr.la
+	$(LDPATH)/sysmgr/libsysmgr.la
 
 bin_PROGRAMS = listMPApp.out
-#listMPApp_NonSysMgr.out
 
 listMPApp_out_SOURCES = ListMPAppOS.c ListMPApp.c
-listMPApp_out_CPPFLAGS = $(AM_CLFAGS) -DSYSLINK_USE_SYSMGR
+
+listMPApp_out_CPPFLAGS = $(AM_CFLAGS)
+
 listMPApp_out_LDADD = $(API_LIBS)
-
-#listMPApp_NonSysMgr_out_SOURCES = ListMPAppOS.c ListMPApp.c
-
-#listMPApp_NonSysMgr_out_CPPFLAGS = $(AM_CLFAGS)
-
-#listMPApp_NonSysMgr_out_LDADD = $(API_LIBS_NONSYS)

@@ -24,7 +24,7 @@ LDFLAGS = $(addprefix -L, $(LDPATH))
 CFLAGS=-Wall -g -O2 $(INCLUDE) -finline-functions -D$(PROCFAMILY) $(LDFLAGS)
 CFLAGS += -DSYSLINK_TRACE_ENABLE
 
-LIBS =  -lipcutils -lipc -lprocmgr -lsysmgr -lsyslinknotify -lsysmemmgr
+LIBS =  -lipcutils -lipc -lprocmgr -lsysmgr -lsyslinknotify
 
 all: nameServerApp.out
 

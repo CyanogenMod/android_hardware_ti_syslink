@@ -39,8 +39,7 @@ API_LIBS = \
 	$(LDPATH)/notify/libsyslinknotify.la \
 	$(LDPATH)/ipc/libipc.la \
 	$(LDPATH)/procmgr/libprocmgr.la \
-	$(LDPATH)/sysmgr/libsysmgr.la \
-	$(LDPATH)/sysmemmgr/libsysmemmgr.la
+	$(LDPATH)/sysmgr/libsysmgr.la
 
 
 bin_PROGRAMS = messageQApp.out messageQApp1.out
