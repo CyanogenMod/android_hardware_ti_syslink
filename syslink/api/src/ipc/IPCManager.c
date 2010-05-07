@@ -25,8 +25,6 @@
 #include <Std.h>
 #include <Trace.h>
 
-#include <MultiProc.h>
-#include <MultiProcDrvDefs.h>
 #include <NameServer.h>
 #include <NameServerDrvDefs.h>
 #include <SharedRegion.h>
@@ -66,7 +64,6 @@ enum IPC_MODULES_ID {
     MESSAGEQTRANSPORTSHM,
     LISTMPSHAREDMEMORY,
     NAMESERVERREMOTENOTIFY,
-    MULTIPROC,
     SYSMGR,
     SYSMEMMGR,
     GATEHWSPINLOCK,
@@ -87,7 +84,6 @@ struct name_id_table name_id_table[MAX_IPC_MODULES] = {
     { "/dev/syslinkipc/MessageQTransportShm", MESSAGEQTRANSPORTSHM, 0},
     { "/dev/syslinkipc/ListMPSharedMemory", LISTMPSHAREDMEMORY, 0},
     { "/dev/syslinkipc/NameServerRemoteNotify", NAMESERVERREMOTENOTIFY, 0},
-    { "/dev/syslinkipc/MultiProc", MULTIPROC, 0},
     { "/dev/syslinkipc/SysMgr", SYSMGR, 0},
     { "/dev/syslinkipc/SysMemMgr", SYSMEMMGR, 0},
     { "/dev/syslinkipc/GateHWSpinLock", GATEHWSPINLOCK, 0}
@@ -515,42 +511,6 @@ Int getListMPSharedMemoryStatus(Int apiStatus)
 }
 
 
-Int getMultiProcStatus(Int apiStatus)
-{
-    Int status = MULTIPROC_E_OSFAILURE;
-
-    GT_1trace (curTrace, GT_2CLASS,
-        "IPCMGR-getMultiProcStatus: apiStatus=0x%x\n", apiStatus);
-
-    switch(apiStatus) {
-    case 0:
-        status = MULTIPROC_SUCCESS;
-        break;
-
-    case -ENOMEM:
-        status = MULTIPROC_E_MEMORY;
-        break;
-
-    case -EEXIST:
-    case 1:
-        status = MULTIPROC_S_ALREADYSETUP;
-        break;
-
-    case -ENODEV:
-        status = MULTIPROC_E_INVALIDSTATE;
-        break;
-
-    default:
-        status = MULTIPROC_E_FAIL;
-        break;
-    }
-
-    GT_1trace (curTrace, GT_2CLASS,
-        "IPCMGR-getMultiProcStatus: status=0x%x\n", status);
-    return status;
-}
-
-
 Int getSysMgrStatus(Int apiStatus)
 {
     Int status = SYSMGR_E_OSFAILURE;
@@ -636,16 +596,10 @@ void IPCManager_getModuleStatus(Int module_id, Ptr args)
     MessageQDrv_CmdArgs *mq_cmdargs = NULL;
     MessageQTransportShmDrv_CmdArgs *mqt_cmdargs = NULL;
     ListMPSharedMemoryDrv_CmdArgs *lstmp_cmdargs = NULL;
-    MultiProcDrv_CmdArgs *multiproc_cmdargs = NULL;
     SysMgrDrv_CmdArgs *sysmgr_cmdargs = NULL;
     SysMemMgrDrv_CmdArgs *sysmemmgr_cmdargs = NULL;
 
     switch(module_id) {
-    case MULTIPROC:
-        multiproc_cmdargs = (MultiProcDrv_CmdArgs *)args;
-        multiproc_cmdargs->apiStatus = getMultiProcStatus(multiproc_cmdargs->apiStatus);
-        break;
-
     case NAMESERVER:
         ns_cmdargs = (NameServerDrv_CmdArgs *)args;
         ns_cmdargs->apiStatus = getNameServerStatus(ns_cmdargs->apiStatus);
@@ -726,10 +680,6 @@ Int createIpcModuleHandle(const char *name)
 
     if (module_found) {
         switch (name_id_table[i].module_id) {
-        case MULTIPROC:
-            module_handle = (name_id_table[i].module_id << 16) | ipc_handle;
-            break;
-
         case SHAREDREGION:
             module_handle = (name_id_table[i].module_id << 16) | ipc_handle;
             break;
@@ -791,10 +741,6 @@ Int createIpcModuleHandle(const char *name)
 void trackIoctlCommandFlow(Int fd)
 {
     switch (fd >> 16) {
-    case MULTIPROC:
-        name_id_table[MULTIPROC].ioctl_count += 1;
-        break;
-
     case SHAREDREGION:
         name_id_table[SHAREDREGION].ioctl_count += 1;
         break;
@@ -848,11 +794,6 @@ void trackIoctlCommandFlow(Int fd)
 Void displayIoctlInfo(Int fd, UInt32 cmd, Ptr args)
 {
     switch (fd >> 16) {
-    case MULTIPROC:
-        GT_0trace (curTrace, GT_2CLASS,
-            "IPCMGR: IOCTL command from MULTIPROC module\n");
-        break;
-
     case SHAREDREGION:
         GT_0trace (curTrace, GT_2CLASS,
             "IPCMGR: IOCTL command from SHAREDREGION module\n");

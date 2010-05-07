@@ -39,7 +39,6 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <errno.h>
-#include <IPCManager.h>
 
 #if defined (__cplusplus)
 extern "C" {
@@ -53,7 +52,7 @@ extern "C" {
 /*!
  *  @brief  Driver name for MultiProc.
  */
-#define MULTIPROC_DRIVER_NAME     "/dev/syslinkipc/MultiProc"
+#define MULTIPROC_DRIVER_NAME     "/dev/syslink_platform"
 
 
 /** ============================================================================
