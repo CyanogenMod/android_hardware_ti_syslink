@@ -10,15 +10,34 @@ rmmod syslink_ipc
 echo "uninstalling notify_ducatidriver.ko"
 rmmod notify_ducatidriver
 
+#uninstall syslink proc4430 driver
+echo "uninstalling syslink_proc4430.ko"
+rmmod syslink_proc4430
+
+#uninstall syslink platform driver
+echo "uninstalling syslink_platform.ko"
+rmmod syslink_platform
+
+#uninstall syslink proc driver
+echo "uninstalling syslink_proc.ko"
+rmmod syslink_proc
 
 #uninstall omap_notify driver
 echo "uninstalling omap_notify.ko"
 rmmod omap_notify
 
-#uninstall syslink proc4430 driver
-echo "uninstalling syslink_proc4430.ko"
-rmmod syslink_proc4430
+#uninstall omap-iommu driver
+echo "uninstalling omap-iommu.ko"
+rmmod omap-iommu
 
-#uninstall syslink proc driver
-echo "uninstalling syslink_proc.ko"
-rmmod syslink_proc
+#uninstall iovmm driver
+echo "uninstalling iovmm.ko"
+rmmod iovmm
+
+#uninstall iommu2 driver
+echo "uninstalling iommu2.ko"
+rmmod iommu2
+
+#uninstall iommu driver
+echo "uninstalling iommu.ko"
+rmmod iommu

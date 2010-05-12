@@ -4,27 +4,45 @@
 
 echo " "
 echo " "
+#install iommu driver
+echo "installing iommu.ko"
+insmod iommu.ko
+
+#install iommu2 driver
+echo "installing iommu2.ko"
+insmod iommu2.ko
+
+#install iovmm driver
+echo "installing iovmm.ko"
+insmod iovmm.ko
+
+#install omap-iommu driver
+echo "installing omap-iommu.ko"
+insmod omap-iommu.ko
+
 #install omap_notify driver
-echo "installing /binaries/omap_notify.ko"
-insmod /binaries/omap_notify.ko
+echo "installing omap_notify.ko"
+insmod omap_notify.ko
 
 #install notify syslink proc driver
 echo "installing syslink_proc.ko"
-insmod /binaries/syslink_proc.ko
+insmod syslink_proc.ko
+
+#install syslink_platform driver
+echo "installing syslink_platform.ko"
+insmod syslink_platform.ko
 
 #install notify syslink proc4430 driver
 echo "installing syslink_proc4430.ko"
 insmod syslink_proc4430.ko
 
-#install syslink ipc driver
-echo "installing syslink_ipc.ko"
-insmod syslink_ipc.ko
-
 #install notify tesla driver
 echo "installing notify_ducatidriver.ko"
 insmod notify_ducatidriver.ko
 
-
+#install syslink ipc driver
+echo "installing syslink_ipc.ko"
+insmod syslink_ipc.ko
 
 
 
@@ -62,6 +80,22 @@ fi
 echo "calling mknod... syslink-procmgr"
 mknod /dev/syslink-procmgr c $MAJ 0
 
+#syslink_platform
+MAJ=`cat /proc/devices | sed -ne "/syslink_platform/s/syslink_platform.*$//p"`
+if [ -z "$MAJ" ]
+then
+    echo "Can't find Syslink Platform driver, can't continue"
+        exit 1
+fi
+CNT=`echo "$MAJ" | wc -l`
+if [ $CNT != 1 ]
+then
+    echo "Found multiple instances of Syslink Platform driver, can't continue"
+    exit 1
+fi
+
+echo "calling mknod... syslink_platform"
+mknod /dev/syslink_platform c $MAJ 0
 
 #syslink-procmgr4430
 MAJ=`cat /proc/devices | sed -ne "/syslink-proc4430/s/syslink-proc4430.*$//p"`
