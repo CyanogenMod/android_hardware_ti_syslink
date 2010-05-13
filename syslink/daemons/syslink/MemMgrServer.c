@@ -39,7 +39,7 @@
 #include <Trace.h>
 
 /* IPC headers */
-#include <SysMgr.h>
+#include <IpcUsr.h>
 #include <ProcMgr.h>
 
 /* RCM headers */
@@ -336,7 +336,7 @@ Int32 fxnTilerMem_ConvertPageModeToTilerSpace(UInt32 dataSize, UInt32 *data)
 }
 
 struct MemMgr_func_info {
-    RcmServer_RemoteFuncPtr func_ptr;
+    RcmServer_MsgFxn func_ptr;
     String name;
 };
 
@@ -358,36 +358,19 @@ sem_t                           semDaemonWait;
 */
 Void MemMgrThreadFxn()
 {
-    RcmServer_Config                cfgParams;
     RcmServer_Params                rcmServer_Params;
     Char *                          rcmServerName = RCMSERVER_NAME;
     UInt                            fxnIdx;
     Int                             num_of_funcs;
     Int                             i;
 
-    /* Get default config for rcm client module */
-    Osal_printf ("Get default config for RCM server module.\n");
-    status = RcmServer_getConfig (&cfgParams);
-    if (status < 0) {
-        Osal_printf ("Error in RCM Server module get config \n");
-            goto exit;
-    } else {
-        Osal_printf ("RCM Client module get config passed \n");
-    }
-
-    /* rcm client module setup*/
-    Osal_printf ("RCM Server module setup.\n");
-    status = RcmServer_setup (&cfgParams);
-    if (status < 0) {
-        Osal_printf ("Error in RCM Server module setup \n");
-        goto exit;
-    } else {
-        Osal_printf ("RCM Server module setup passed \n");
-    }
+    /* RCM Server module init */
+    Osal_printf ("RCM Server module init.\n");
+    RcmServer_init ();
 
     /* rcm client module params init*/
-    Osal_printf ("rcm client module params init.\n");
-    status = RcmServer_Params_init (NULL, &rcmServer_Params);
+    Osal_printf ("RCM Server module params init.\n");
+    status = RcmServer_Params_init (&rcmServer_Params);
     if (status < 0) {
         Osal_printf ("Error in RCM Server instance params init \n");
         goto exit_rcmserver_destroy;
@@ -419,13 +402,9 @@ Void MemMgrThreadFxn()
 
     Osal_printf ("Start RCM server thread \n");
 
-    status = RcmServer_start(rcmServerHandle);
-    if (status < 0) {
-        Osal_printf ("Error in RCM Server start.\n");
-        goto exit_rcmserver_delete;
-    } else {
-        Osal_printf ("RCM Server start passed \n");
-    }
+    RcmServer_start(rcmServerHandle);
+    Osal_printf ("RCM Server start passed \n");
+
     status = TilerMgr_Open();
     if (status < 0) {
         Osal_printf ("Error in TilerMgr_Open: status = 0x%x\n", status);
@@ -455,7 +434,6 @@ exit_rcmserver_remove_symbol:
         }
     }
 
-exit_rcmserver_delete:
     status = RcmServer_delete(&rcmServerHandle);
     if (status < 0) {
         Osal_printf ("Error in RcmServer_delete: status = 0x%x\n", status);
@@ -463,12 +441,7 @@ exit_rcmserver_delete:
     }
 
 exit_rcmserver_destroy:
-    status = RcmServer_destroy();
-    if (status < 0) {
-        Osal_printf ("Error in RcmServer_destroy: status = 0x%x\n", status);
-        goto exit;
-    }
-
+    RcmServer_exit ();
 
 exit:
     Osal_printf ("Leaving RCM server test thread function \n");

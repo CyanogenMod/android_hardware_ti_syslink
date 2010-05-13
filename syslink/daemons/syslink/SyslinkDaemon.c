@@ -12,7 +12,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * Lesser General Public License for more details.
  */
-/*============================================================================
+/*==============================================================================
  *  @file   SyslinkDaemon.c
  *
  *  @brief  Daemon for Syslink functions
@@ -35,8 +35,10 @@
 #include <OsalPrint.h>
 
 /* IPC headers */
-#include <SysMgr.h>
+#include <IpcUsr.h>
 #include <ProcMgr.h>
+#include <ti/ipc/MultiProc.h>
+#include <ti/ipc/SharedRegion.h>
 
 /* Sample headers */
 #include <MemMgrServer_config.h>
@@ -47,8 +49,9 @@
  */
 Void MemMgrThreadFxn();
 
-ProcMgr_Handle                  procMgrHandle_server;
-Bool                            appM3Client = FALSE;
+ProcMgr_Handle                  procMgrHandleSysM3;
+ProcMgr_Handle                  procMgrHandleAppM3;
+Bool                            appM3Client          = FALSE;
 UInt16                          remoteIdSysM3;
 UInt16                          remoteIdAppM3;
 extern sem_t                    semDaemonWait;
@@ -71,18 +74,14 @@ static Void signal_handler(Int sig)
 /*
  *  ======== ipc_cleanup ========
  */
-
-Void daemon_ipc_cleanup()
+Void ipcCleanup()
 {
     ProcMgr_StopParams stopParams;
     Int                status = 0;
 
-    SharedRegion_remove (0);
-    SharedRegion_remove (1);
-
     if(appM3Client) {
         stopParams.proc_id = remoteIdAppM3;
-        status = ProcMgr_stop (procMgrHandle_server, &stopParams);
+        status = ProcMgr_stop (procMgrHandleAppM3, &stopParams);
         if (status < 0) {
             Osal_printf ("Error in ProcMgr_stop(%d): status = 0x%x\n",
                             stopParams.proc_id, status);
@@ -90,20 +89,35 @@ Void daemon_ipc_cleanup()
     }
 
     stopParams.proc_id = remoteIdSysM3;
-    status = ProcMgr_stop (procMgrHandle_server, &stopParams);
+    status = ProcMgr_stop (procMgrHandleSysM3, &stopParams);
     if (status < 0) {
         Osal_printf ("Error in ProcMgr_stop(%d): status = 0x%x\n",
                         stopParams.proc_id, status);
     }
 
-    status = ProcMgr_close (&procMgrHandle_server);
+    status = ProcMgr_detach (procMgrHandleAppM3);
     if (status < 0) {
-        Osal_printf ("Error in ProcMgr_close: status = 0x%x\n", status);
+        Osal_printf ("Error in ProcMgr_detach(AppM3): status = 0x%x\n", status);
     }
 
-    status = SysMgr_destroy ();
+    status = ProcMgr_close (&procMgrHandleAppM3);
     if (status < 0) {
-        Osal_printf ("Error in SysMgr_destroy: status = 0x%x\n", status);
+        Osal_printf ("Error in ProcMgr_close(AppM3): status = 0x%x\n", status);
+    }
+
+    status = ProcMgr_detach (procMgrHandleSysM3);
+    if (status < 0) {
+        Osal_printf ("Error in ProcMgr_detach(SysM3): status = 0x%x\n", status);
+    }
+
+    status = ProcMgr_close (&procMgrHandleSysM3);
+    if (status < 0) {
+        Osal_printf ("Error in ProcMgr_close(SysM3): status = 0x%x\n", status);
+    }
+
+    status = Ipc_destroy ();
+    if (status < 0) {
+        Osal_printf ("Error in Ipc_destroy: status = 0x%x\n", status);
     }
 
     Osal_printf ("Done cleaning up ipc!\n");
@@ -111,32 +125,35 @@ Void daemon_ipc_cleanup()
 
 
 /*
- *  ======== ipc_setup ========
+ *  ======== ipcSetup ========
  */
-Int ipc_setup(Char * sysM3ImageName, Char * appM3ImageName)
+Int ipcSetup (Char * sysM3ImageName, Char * appM3ImageName)
 {
-    SysMgr_Config                   config;
+    Ipc_Config                      config;
     ProcMgr_StopParams              stopParams;
-    ProcMgr_StartParams             start_params;
-    UInt32                          entry_point = 0;
+    ProcMgr_StartParams             startParams;
+    UInt32                          entryPoint = 0;
+#if 0
     UInt32                          shAddrBase;
     UInt32                          shAddrBase1;
+#endif
     UInt16                          procId;
 #if defined (SYSLINK_USE_LOADER)
     UInt32                          fileId;
 #endif
-
     Int                             status = 0;
+    ProcMgr_AttachParams            attachParams;
+    ProcMgr_State                   state;
 
     if(appM3ImageName != NULL)
         appM3Client = TRUE;
     else
         appM3Client = FALSE;
 
-    SysMgr_getConfig (&config);
-    status = SysMgr_setup (&config);
+    Ipc_getConfig (&config);
+    status = Ipc_setup (&config);
     if (status < 0) {
-        Osal_printf ("Error in SysMgr_setup [0x%x]\n", status);
+        Osal_printf ("Error in Ipc_setup [0x%x]\n", status);
         goto exit;
     }
 
@@ -150,145 +167,119 @@ Int ipc_setup(Char * sysM3ImageName, Char * appM3ImageName)
 
     printf("RCM procId= %d\n", procId);
     /* Open a handle to the ProcMgr instance. */
-    status = ProcMgr_open (&procMgrHandle_server,
-                           procId);
+    status = ProcMgr_open (&procMgrHandleSysM3, procId);
     if (status < 0) {
         Osal_printf ("Error in ProcMgr_open [0x%x]\n", status);
-        goto exit_sysmgr_destroy;
+        goto exit_ipc_destroy;
     }
     else {
-        Osal_printf ("ProcMgr_open status [0x%x]\n", status);
-        /* Get the address of the shared region in kernel space. */
-        status = ProcMgr_translateAddr (procMgrHandle_server,
-                                        (Ptr) &shAddrBase,
-                                        ProcMgr_AddrType_MasterUsrVirt,
-                                        (Ptr) SHAREDMEM,
-                                        ProcMgr_AddrType_SlaveVirt);
+        Osal_printf ("ProcMgr_open Status [0x%x]\n", status);
+        ProcMgr_getAttachParams (NULL, &attachParams);
+        /* Default params will be used if NULL is passed. */
+        status = ProcMgr_attach (procMgrHandleSysM3, &attachParams);
         if (status < 0) {
-            Osal_printf ("Error in ProcMgr_translateAddr [0x%x]\n",
-                         status);
-            goto exit_procmgr_close;
+            Osal_printf ("ProcMgr_attach failed [0x%x]\n", status);
         }
         else {
-            Osal_printf ("Virt address of shared address base #1:"
-                         " [0x%x]\n", shAddrBase);
+            Osal_printf ("ProcMgr_attach status: [0x%x]\n", status);
+            state = ProcMgr_getState (procMgrHandleSysM3);
+            Osal_printf ("After attach: ProcMgr_getState\n"
+                         "    state [0x%x]\n", status);
         }
+    }
 
-        if (status >= 0) {
-            /* Get the address of the shared region in kernel space. */
-            status = ProcMgr_translateAddr (procMgrHandle_server,
-                                            (Ptr) &shAddrBase1,
-                                            ProcMgr_AddrType_MasterUsrVirt,
-                                            (Ptr) SHAREDMEM1,
-                                            ProcMgr_AddrType_SlaveVirt);
+    if (status >= 0 && appM3Client) {
+        procId = remoteIdAppM3;
+        Osal_printf ("MultiProc_getId procId: [0x%x]\n", procId);
+
+        /* Open a handle to the ProcMgr instance. */
+        status = ProcMgr_open (&procMgrHandleAppM3, procId);
+        if (status < 0) {
+            Osal_printf ("Error in ProcMgr_open [0x%x]\n", status);
+            goto exit_ipc_destroy;
+        }
+        else {
+            Osal_printf ("ProcMgr_open Status [0x%x]\n", status);
+            ProcMgr_getAttachParams (NULL, &attachParams);
+            /* Default params will be used if NULL is passed. */
+            status = ProcMgr_attach (procMgrHandleAppM3, &attachParams);
             if (status < 0) {
-                Osal_printf ("Error in ProcMgr_translateAddr [0x%x]\n",
-                             status);
-                goto exit_procmgr_close;
+                Osal_printf ("ProcMgr_attach failed [0x%x]\n", status);
             }
             else {
-                Osal_printf ("Virt address of shared address base #2:"
-                             " [0x%x]\n", shAddrBase1);
+                Osal_printf ("ProcMgr_attach status: [0x%x]\n", status);
+                state = ProcMgr_getState (procMgrHandleAppM3);
+                Osal_printf ("After attach: ProcMgr_getState\n"
+                             "    state [0x%x]\n", status);
             }
         }
     }
-    if (status >= 0) {
-        /* Add the region to SharedRegion module. */
-        status = SharedRegion_add (SHAREDMEMNUMBER,
-                                   (Ptr) shAddrBase,
-                                   SHAREDMEMSIZE);
-        if (status < 0) {
-            Osal_printf ("Error in SharedRegion_add [0x%x]\n", status);
-            goto exit_procmgr_close;
-        }
-    }
-
-    if (status >= 0) {
-        /* Add the region to SharedRegion module. */
-        status = SharedRegion_add (SHAREDMEMNUMBER1,
-                                   (Ptr) shAddrBase1,
-                                   SHAREDMEMSIZE1);
-        if (status < 0) {
-            Osal_printf ("Error in SharedRegion_add1 [0x%x]\n", status);
-            goto exit_procmgr_close;
-        }
-    }
-
 
 #if defined(SYSLINK_USE_LOADER)
     Osal_printf ("SYSM3 Load: loading the SYSM3 image %s\n",
                 sysM3ImageName);
 
-    status = ProcMgr_load (procMgrHandle_server, sysM3ImageName, 2,
-                            &sysM3ImageName, &entry_point, &fileId,
+    status = ProcMgr_load (procMgrHandleSysM3, sysM3ImageName, 2,
+                            &sysM3ImageName, &entryPoint, &fileId,
                             remoteIdSysM3);
     if(status < 0) {
         Osal_printf ("Error in ProcMgr_load, status [0x%x]\n", status);
-        goto exit_procmgr_close;
+        goto exit_procmgr_close_sysm3;
     }
-
 #endif
-    start_params.proc_id = remoteIdSysM3;
-    Osal_printf("Starting ProcMgr for procID = %d\n", start_params.proc_id);
-    status  = ProcMgr_start(procMgrHandle_server, entry_point, &start_params);
+    startParams.proc_id = remoteIdSysM3;
+    Osal_printf ("Starting ProcMgr for procID = %d\n", startParams.proc_id);
+    status  = ProcMgr_start(procMgrHandleSysM3, entryPoint, &startParams);
     if(status < 0) {
         Osal_printf ("Error in ProcMgr_start, status [0x%x]\n", status);
-        goto exit_procmgr_close;
+        goto exit_procmgr_close_sysm3;
     }
 
     if(appM3Client) {
 #if defined(SYSLINK_USE_LOADER)
         Osal_printf ("APPM3 Load: loading the APPM3 image %s\n",
                     appM3ImageName);
-        status = ProcMgr_load (procMgrHandle_server, appM3ImageName, 2,
-                              &appM3ImageName, &entry_point, &fileId,
+        status = ProcMgr_load (procMgrHandleAppM3, appM3ImageName, 2,
+                              &appM3ImageName, &entryPoint, &fileId,
                               remoteIdAppM3);
         if(status < 0) {
             Osal_printf ("Error in ProcMgr_load, status [0x%x]\n", status);
             goto exit_procmgr_stop_sysm3;
         }
 #endif
-        start_params.proc_id = remoteIdAppM3;
-        Osal_printf("Starting ProcMgr for procID = %d\n", start_params.proc_id);
-        status  = ProcMgr_start(procMgrHandle_server, entry_point,
-                                &start_params);
+        startParams.proc_id = remoteIdAppM3;
+        Osal_printf ("Starting ProcMgr for procID = %d\n", startParams.proc_id);
+        status  = ProcMgr_start(procMgrHandleAppM3, entryPoint,
+                                &startParams);
         if(status < 0) {
             Osal_printf ("Error in ProcMgr_start, status [0x%x]\n", status);
             goto exit_procmgr_stop_sysm3;
         }
     }
 
-    Osal_printf("IPC setup completed successfully!\n");
+    Osal_printf ("=== SysLink-IPC setup completed successfully!===\n");
     return 0;
-
-    if(appM3Client) {
-        stopParams.proc_id = remoteIdAppM3;
-        status = ProcMgr_stop(procMgrHandle_server, &stopParams);
-        if (status < 0) {
-            Osal_printf ("Error in ProcMgr_stop(%d): status = 0x%x\n",
-                stopParams.proc_id, status);
-        }
-    }
 
 exit_procmgr_stop_sysm3:
     stopParams.proc_id = remoteIdSysM3;
-    status = ProcMgr_stop(procMgrHandle_server, &stopParams);
+    status = ProcMgr_stop (procMgrHandleSysM3, &stopParams);
     if (status < 0) {
         Osal_printf ("Error in ProcMgr_stop(%d): status = 0x%x\n",
             stopParams.proc_id, status);
     }
 
-exit_procmgr_close:
-    status = ProcMgr_close(&procMgrHandle_server);
+exit_procmgr_close_sysm3:
+    status = ProcMgr_close (&procMgrHandleSysM3);
     if (status < 0) {
         Osal_printf ("Error in ProcMgr_close: status = 0x%x\n", status);
     }
 
-exit_sysmgr_destroy:
-    status = SysMgr_destroy();
+exit_ipc_destroy:
+    status = Ipc_destroy ();
     if (status < 0) {
-        Osal_printf ("Error in SysMgr_destroy: status = 0x%x\n", status);
+        Osal_printf ("Error in Ipc_destroy: status = 0x%x\n", status);
     }
+
 exit:
     return (-1);
 }
@@ -296,17 +287,18 @@ exit:
 
 Int main (Int argc, Char * argv [])
 {
-    pid_t child_pid, child_sid;
-    Int status;
-    FILE *fp;
-    Bool calledIpcSetup = false;
+    pid_t   child_pid;
+    pid_t   child_sid;
+    Int     status;
+    FILE  * fp;
+    Bool    calledIpcSetup = false;
 
-    Osal_printf("Spawning TILER server daemon...\n");
+    Osal_printf ("Spawning TILER server daemon...\n");
 
     /* Fork off the parent process */
     child_pid = fork();
     if (child_pid < 0) {
-        Osal_printf("Spawn daemon failed!\n");
+        Osal_printf ("Spawn daemon failed!\n");
         exit(EXIT_FAILURE);     /* Failure */
     }
     /* If we got a good PID, then we can exit the parent process. */
@@ -337,10 +329,13 @@ Int main (Int argc, Char * argv [])
     case 0:
     case 1:
         status = -1;
-        Osal_printf("Invalid arguments to Daemon.  Usage:\n");
-        Osal_printf("\tRunning SysM3 only:\n\t\t./syslink_daemon.out <SysM3 image file>\n");
-        Osal_printf("\tRunning SysM3 and AppM4:\n\t\t./syslink_daemon.out <SysM3 image file> <AppM3 image file>\n");
-        Osal_printf("\t(full paths must be provided for image files)\n");
+        Osal_printf ("Invalid arguments to Daemon.  Usage:\n");
+        Osal_printf ("\tRunning SysM3 only:\n"
+                     "\t\t./syslink_daemon.out <SysM3 image file>\n");
+        Osal_printf ("\tRunning SysM3 and AppM3:\n"
+                     "\t\t./syslink_daemon.out <SysM3 image file> "
+                     "<AppM3 image file>\n");
+        Osal_printf ("\t(full paths must be provided for image files)\n");
         break;
     case 2:     // load SysM3 only
         // Test for file's presence
@@ -351,7 +346,7 @@ Int main (Int argc, Char * argv [])
         fp = fopen(argv[1], "rb");
         if (fp != NULL) {
             fclose(fp);
-            status = ipc_setup (argv[1], NULL);
+            status = ipcSetup (argv[1], NULL);
             calledIpcSetup = true;
         }
         else
@@ -370,22 +365,22 @@ Int main (Int argc, Char * argv [])
             fp = fopen(argv[2], "rb");
             if(fp != NULL) {
                 fclose(fp);
-                status = ipc_setup(argv[1], argv[2]);
+                status = ipcSetup(argv[1], argv[2]);
                 calledIpcSetup = true;
             }
             else
-                Osal_printf("File %s could not be opened.\n", argv[2]);
+                Osal_printf ("File %s could not be opened.\n", argv[2]);
         }
         else
-            Osal_printf("File %s could not be opened.\n", argv[1]);
+            Osal_printf ("File %s could not be opened.\n", argv[1]);
         break;
     }
     if(calledIpcSetup) {
         if(status < 0) {
-            Osal_printf("ipc_setup failed!\n");
+            Osal_printf ("ipcSetup failed!\n");
             return (-1);        // Quit if there was a setup error
         } else {
-            Osal_printf("ipc_setup succeeded!\n");
+            Osal_printf ("ipcSetup succeeded!\n");
 
             /* Setup the signal handlers*/
             signal (SIGINT, signal_handler);
@@ -394,8 +389,8 @@ Int main (Int argc, Char * argv [])
 
             MemMgrThreadFxn();
 
-            /*IPC_Cleanup function*/
-            daemon_ipc_cleanup();
+            /* IPC_Cleanup function*/
+            ipcCleanup();
         }
     }
 
