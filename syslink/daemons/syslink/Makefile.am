@@ -23,9 +23,8 @@
 #  ----------------------------------------------------------------------------
 
 PROJROOT = $(top_srcdir)/daemons
-AM_CFLAGS = -DSYSLINK_USE_SYSMGR
+AM_CFLAGS = -DSYSLINK_USE_LOADER
 #AM_CFLAGS += -DSYSLINK_TRACE_ENABLE
-AM_CFLAGS += -DSYSLINK_USE_LOADER
 
 bin_PROGRAMS = syslink_daemon.out
 
@@ -48,6 +47,4 @@ syslink_daemon_out_LDADD = \
 	$(API_SRCDIR)/rcm/librcm.la \
 	$(API_SRCDIR)/notify/libsyslinknotify.la \
 	$(MEMMGR_LIBS) \
-	$(API_SRCDIR)/sysmgr/libsysmgr.la \
-	$(API_SRCDIR)/sysmemmgr/libsysmemmgr.la
-
+	$(API_SRCDIR)/sysmgr/libsysmgr.la

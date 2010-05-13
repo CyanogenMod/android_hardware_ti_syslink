@@ -23,9 +23,8 @@
 #  ----------------------------------------------------------------------------
 
 PROJROOT = $(top_srcdir)/daemons
-AM_CFLAGS = -DSYSLINK_USE_SYSMGR
+AM_CFLAGS = -DSYSLINK_USE_LOADER
 #AM_CFLAGS += -DSYSLINK_TRACE_ENABLE
-AM_CFLAGS += -DSYSLINK_USE_LOADER
 
 bin_PROGRAMS = syslink_trace_daemon.out
 

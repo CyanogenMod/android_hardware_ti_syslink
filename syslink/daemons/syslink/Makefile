@@ -38,7 +38,6 @@ endif
 CFLAGS =
 #Uncomment below line to use sys manager
 #CFLAGS += -DSYSLINK_TRACE_ENABLE
-CFLAGS += -DSYSLINK_USE_SYSMGR
 CFLAGS += -DSYSLINK_USE_LOADER
 
 EXEC_ARGS      =
@@ -86,9 +85,7 @@ INCLUDES    = \
 # Libraries needed for linking.
 
 ST_LIBS        = gcc
-#SH_LIBS        = pthread rt utils procmgr ipc rcm notify memmgr
-#Comment above line and uncomment below line to use sys manager
-SH_LIBS        = pthread rt ipcutils procmgr ipc rcm syslinknotify memmgr sysmgr sysmemmgr
+SH_LIBS        = pthread rt ipcutils procmgr ipc rcm syslinknotify memmgr sysmgr
 
 # Search path for library (and linker command) files.
 # Current folder and target folder are included by default.
@@ -98,4 +95,3 @@ LIBINCLUDES += $(TILER_INC_PATH)/../ $(TILER_INC_PATH)
 # Do not change below "include" line(s)
 
 include $(PROJROOT)/make/build.mk
-
