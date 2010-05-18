@@ -22,24 +22,17 @@ LDPATH=$(TARGETDIR)/lib $(TARGETDIR)/usr/lib
 LDFLAGS = $(addprefix -L, $(LDPATH))
 CFLAGS=-Wall -g -O2 $(INCLUDE) -finline-functions -D$(PROCFAMILY) $(LDFLAGS)
 
-LIBS = -lsyslinknotify -lipcutils -lipc -lprocmgr -lsysmgr -lsysmemmgr
-SYSMGRLIBS = -lprocmgr -lsysmgr -lsysmemmgr
-NONSYSMGRLIBS = -lprocmgr_nonsysmgr
+LIBS = -lsyslinknotify -lipcutils -lipc -lprocmgr
+SYSMGRLIBS = -lprocmgr -lsysmgr
 
 all: notifyping.out
-#notifyping_nonsysmgr.out
 
 notifyping.out: notifyping.c
-	$(CC) $(CFLAGS)  -DSYSLINK_USE_SYSMGR -o notifyping.out notifyping.c $(LIBS) $(SYSMGRLIBS)
+	$(CC) $(CFLAGS) -o notifyping.out notifyping.c $(LIBS) $(SYSMGRLIBS)
 
-#notifyping_nonsysmgr.out: notifyping.c
-#	$(CC) $(CFLAGS) -o notifyping_nonsysmgr.out notifyping.c $(LIBS) $(NONSYSMGRLIBS)
-
-#install: notifyping.out notifyping_nonsysmgr.out
 install: notifyping.out
 	$(INSTALL) -D $< $(TARGETDIR)/syslink/$<
 	$(STRIP) -s $(TARGETDIR)/syslink/$<
 
 clean:
 	\rm -f notifyping.out
-#	\rm -f notifyping_nonsysmgr.out

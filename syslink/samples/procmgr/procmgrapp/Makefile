@@ -23,7 +23,7 @@ LDFLAGS = $(addprefix -L, $(LDPATH))
 
 CFLAGS=-Wall -g -O2 $(INCLUDE) -finline-functions -D$(PROCFAMILY) $(LDFLAGS)
 
-LIBS = -lipcutils -lipc -lprocmgr -lomap4430proc -lsysmgr -lsyslinknotify -lsysmemmgr
+LIBS = -lipcutils -lipc -lprocmgr -lomap4430proc -lsysmgr -lsyslinknotify
 
 all: procMgrApp.out
 

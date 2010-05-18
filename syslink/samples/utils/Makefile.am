@@ -36,6 +36,6 @@ utilsApp_out_SOURCES = \
 	MemoryTest.c \
 	ListTest.c
 
-utilsApp_out_CPPFLAGS = $(AM_CLFAGS)
+utilsApp_out_CPPFLAGS = $(AM_CFLAGS)
 
 utilsApp_out_LDADD = $(API_LIBS)

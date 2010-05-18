@@ -29,15 +29,12 @@ API_LIBS = \
 	$(LDPATH)/procmgr/libprocmgr.la \
 	$(LDPATH)/procmgr/procmgr4430/libomap4430proc.la\
 	$(LDPATH)/sysmgr/libsysmgr.la \
-	$(LDPATH)/notify/libsyslinknotify.la \
-	$(LDPATH)/sysmemmgr/libsysmemmgr.la
+	$(LDPATH)/notify/libsyslinknotify.la
 
 bin_PROGRAMS = procMgrApp.out
 
 procMgrApp_out_SOURCES = ProcMgrApp.c ProcMgrAppOS.c
 
-procMgrApp_out_CPPFLAGS = $(AM_CLFAGS)
+procMgrApp_out_CPPFLAGS = $(AM_CFLAGS)
 
 procMgrApp_out_LDADD = $(API_LIBS)
-
-

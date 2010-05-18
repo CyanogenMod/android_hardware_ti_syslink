@@ -29,15 +29,12 @@ API_LIBS = \
 	$(LDPATH)/procmgr/libprocmgr.la \
 	$(LDPATH)/procmgr/procmgr4430/libomap4430proc.la\
 	$(LDPATH)/sysmgr/libsysmgr.la \
-	$(LDPATH)/notify/libsyslinknotify.la \
-	$(LDPATH)/sysmemmgr/libsysmemmgr.la
+	$(LDPATH)/notify/libsyslinknotify.la
 
 bin_PROGRAMS = ducati_load.out
 
 ducati_load_out_SOURCES = ducati_load.c getopt.c
 
-ducati_load_out_CPPFLAGS = $(AM_CLFAGS)
+ducati_load_out_CPPFLAGS = $(AM_CFLAGS)
 
 ducati_load_out_LDADD = $(API_LIBS)
-
-

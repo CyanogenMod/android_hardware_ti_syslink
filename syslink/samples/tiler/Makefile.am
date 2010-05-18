@@ -20,7 +20,6 @@ INCLUDE = \
 	$(MEMMGR_CFLAGS)
 
 AM_CFLAGS = -Wall -g -O2 $(INCLUDE)
-AM_CFLAGS += -DSYSLINK_USE_SYSMGR
 #To enable the Loader uncomment the below line.
 AM_CFLAGS += -DSYSLINK_USE_LOADER
 #TODO: Add conditional flags to enable debug here
@@ -33,7 +32,6 @@ API_LIBS = \
 	$(LDPATH)/ipc/libipc.la \
 	$(LDPATH)/procmgr/libprocmgr.la \
 	$(LDPATH)/sysmgr/libsysmgr.la \
-	$(LDPATH)/sysmemmgr/libsysmemmgr.la \
 	$(LDPATH)/rcm/librcm.la \
 	$(MEMMGR_LIBS)
 
@@ -45,8 +43,6 @@ syslink_tilertest_out_SOURCES = \
 	TilerSyslinkApp.c \
 	TilerTestApp.c
 
-syslink_tilertest_out_CPPFLAGS = $(AM_CLFAGS)
+syslink_tilertest_out_CPPFLAGS = $(AM_CFLAGS)
 
 syslink_tilertest_out_LDADD = $(API_LIBS)
-
-
