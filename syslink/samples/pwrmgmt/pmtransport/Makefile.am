@@ -13,6 +13,13 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
+#   ============================================================================
+#   @file   Makefile.am
+#
+#   @brief  Makefile for user-side MessageQ samples
+#
+#   ============================================================================
+
 PROJROOT=$(top_srcdir)/samples
 INCLUDE = \
 	-I $(PROJROOT)/../api/include \
@@ -20,23 +27,27 @@ INCLUDE = \
 
 
 AM_CFLAGS = -Wall -g -O2 $(INCLUDE) -finline-functions -D$(PROCFAMILY)
+AM_CFLAGS += -DSYSLINK_TRACE_ENABLE
+#TO disable loader comment the below flag.
+AM_CFLAGS += -DSYSLINK_USE_LOADER
 
 LDPATH=../../../api/src
-AM_CFLAGS +=
-
 
 API_LIBS = \
 	$(LDPATH)/utils/libutils.la \
-	$(LDPATH)/ipc/libipc.la \
 	$(LDPATH)/notify/libnotify.la \
+	$(LDPATH)/ipc/libipc.la \
 	$(LDPATH)/procmgr/libprocmgr.la \
 	$(LDPATH)/sysmgr/libsysmgr.la \
 	$(LDPATH)/sysmemmgr/libsysmemmgr.la
 
+
 bin_PROGRAMS = slpmtransport.out
 
-slpmtransport_out_SOURCES = slpmtransport.c
+slpmtransport_out_SOURCES = \
+	slpmtransportOS.c \
+	slpmtransportApp.c
 
-slpmtransport_out_CPPFLAGS = $(AM_CLFAGS) -DSYSLINK_USE_SYSMGR
+slpmtransport_out_CPPFLAGS = $(AM_CFLAGS)
 
 slpmtransport_out_LDADD = $(API_LIBS)
