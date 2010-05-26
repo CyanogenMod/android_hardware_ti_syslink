@@ -22,14 +22,10 @@
 #      Original version.
 #  ----------------------------------------------------------------------------
 SUBDIRS  = \
-	make\
+	make \
 	ipc \
 	notify \
 	procmgr \
 	rcm \
 	tiler \
 	pwrmgmt
-
-if KRNLSRC
-SUBDIRS += proc_sample/krnl
-endif

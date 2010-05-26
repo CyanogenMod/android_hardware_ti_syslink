@@ -58,14 +58,12 @@ SH_SONAME =
 
 SUBMODULES  = \
 notify/notifyping \
-procmgr/ducati_load \
-procmgr/procmgrapp \
+procmgr \
 ipc \
 rcm/single_test \
 rcm/multi_test \
 tiler \
-pwrmgmt \
-proc_sample/krnl
+pwrmgmt
 
 # Filename must not begin with '.', '/' or '\'
 
