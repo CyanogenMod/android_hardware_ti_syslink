@@ -33,15 +33,30 @@
 
 /* OSAL & Utils headers */
 #include <OsalPrint.h>
+#include <Memory.h>
 
 /* IPC headers */
 #include <IpcUsr.h>
 #include <ProcMgr.h>
 #include <ti/ipc/MultiProc.h>
 #include <ti/ipc/SharedRegion.h>
+#include <ti/ipc/MessageQ.h>
 
 /* Sample headers */
 #include <MemMgrServer_config.h>
+
+/* Defines for the default HeapBufMP being configured in the System */
+#define RCM_MSGQ_TILER_HEAPNAME         "Heap0"
+#define RCM_MSGQ_TILER_HEAP_BLOCKS      256
+#define RCM_MSGQ_TILER_HEAP_ALIGN       128
+#define RCM_MSGQ_TILER_MSGSIZE          256
+#define RCM_MSGQ_TILER_HEAPID           0
+#define RCM_MSGQ_DOMX_HEAPNAME          "Heap1"
+#define RCM_MSGQ_DOMX_HEAP_BLOCKS       256
+#define RCM_MSGQ_DOMX_HEAP_ALIGN        128
+#define RCM_MSGQ_DOMX_MSGSIZE           256
+#define RCM_MSGQ_DOMX_HEAPID            1
+#define RCM_MSGQ_HEAP_SR                1
 
 
 /*
@@ -51,10 +66,17 @@ Void MemMgrThreadFxn();
 
 ProcMgr_Handle                  procMgrHandleSysM3;
 ProcMgr_Handle                  procMgrHandleAppM3;
-Bool                            appM3Client          = FALSE;
+Bool                            appM3Client         = FALSE;
 UInt16                          remoteIdSysM3;
 UInt16                          remoteIdAppM3;
 extern sem_t                    semDaemonWait;
+HeapBufMP_Handle                heapHandle          = NULL;
+SizeT                           heapSize            = 0;
+Ptr                             heapBufPtr          = NULL;
+HeapBufMP_Handle                heapHandle1         = NULL;
+SizeT                           heapSize1           = 0;
+Ptr                             heapBufPtr1         = NULL;
+IHeap_Handle                    srHeap              = NULL;
 
 #if defined (__cplusplus)
 extern "C" {
@@ -79,6 +101,39 @@ Void ipcCleanup()
     ProcMgr_StopParams stopParams;
     Int                status = 0;
 
+    /* Cleanup the default HeapBufMP registered with MessageQ */
+    status = MessageQ_unregisterHeap (RCM_MSGQ_DOMX_HEAPID);
+    if (status < 0) {
+        Osal_printf ("Error in MessageQ_unregisterHeap [0x%x]\n", status);
+    }
+
+    if (heapHandle1) {
+        status = HeapBufMP_delete (&heapHandle1);
+        if (status < 0) {
+            Osal_printf ("Error in HeapBufMP_delete [0x%x]\n", status);
+        }
+    }
+
+    if (heapBufPtr1) {
+        Memory_free (srHeap, heapBufPtr1, heapSize1);
+    }
+
+    status = MessageQ_unregisterHeap (RCM_MSGQ_TILER_HEAPID);
+    if (status < 0) {
+        Osal_printf ("Error in MessageQ_unregisterHeap [0x%x]\n", status);
+    }
+
+    if (heapHandle) {
+        status = HeapBufMP_delete (&heapHandle);
+        if (status < 0) {
+            Osal_printf ("Error in HeapBufMP_delete [0x%x]\n", status);
+        }
+    }
+
+    if (heapBufPtr) {
+        Memory_free (srHeap, heapBufPtr, heapSize);
+    }
+
     if(appM3Client) {
         stopParams.proc_id = remoteIdAppM3;
         status = ProcMgr_stop (procMgrHandleAppM3, &stopParams);
@@ -95,14 +150,16 @@ Void ipcCleanup()
                         stopParams.proc_id, status);
     }
 
-    status = ProcMgr_detach (procMgrHandleAppM3);
-    if (status < 0) {
-        Osal_printf ("Error in ProcMgr_detach(AppM3): status = 0x%x\n", status);
-    }
+    if(appM3Client) {
+        status = ProcMgr_detach (procMgrHandleAppM3);
+        if (status < 0) {
+            Osal_printf ("Error in ProcMgr_detach(AppM3): status = 0x%x\n", status);
+        }
 
-    status = ProcMgr_close (&procMgrHandleAppM3);
-    if (status < 0) {
-        Osal_printf ("Error in ProcMgr_close(AppM3): status = 0x%x\n", status);
+        status = ProcMgr_close (&procMgrHandleAppM3);
+        if (status < 0) {
+            Osal_printf ("Error in ProcMgr_close(AppM3): status = 0x%x\n", status);
+        }
     }
 
     status = ProcMgr_detach (procMgrHandleSysM3);
@@ -133,10 +190,6 @@ Int ipcSetup (Char * sysM3ImageName, Char * appM3ImageName)
     ProcMgr_StopParams              stopParams;
     ProcMgr_StartParams             startParams;
     UInt32                          entryPoint = 0;
-#if 0
-    UInt32                          shAddrBase;
-    UInt32                          shAddrBase1;
-#endif
     UInt16                          procId;
 #if defined (SYSLINK_USE_LOADER)
     UInt32                          fileId;
@@ -144,6 +197,10 @@ Int ipcSetup (Char * sysM3ImageName, Char * appM3ImageName)
     Int                             status = 0;
     ProcMgr_AttachParams            attachParams;
     ProcMgr_State                   state;
+    HeapBufMP_Params                heapbufmpParams;
+    Int                             i;
+    UInt32                          srCount;
+    SharedRegion_Entry              srEntry;
 
     if(appM3ImageName != NULL)
         appM3Client = TRUE;
@@ -254,6 +311,110 @@ Int ipcSetup (Char * sysM3ImageName, Char * appM3ImageName)
         if(status < 0) {
             Osal_printf ("Error in ProcMgr_start, status [0x%x]\n", status);
             goto exit_procmgr_stop_sysm3;
+        }
+    }
+
+    srCount = SharedRegion_getNumRegions();
+    Osal_printf ("SharedRegion_getNumRegions = %d\n", srCount);
+    for (i = 0; i < srCount; i++) {
+        status = SharedRegion_getEntry (i, &srEntry);
+        Osal_printf ("SharedRegion_entry #%d: base = 0x%x len = 0x%x "
+                        "ownerProcId = %d isValid = %d cacheEnable = %d "
+                        "cacheLineSize = 0x%x createHeap = %d name = %s\n",
+                        i, srEntry.base, srEntry.len, srEntry.ownerProcId,
+                        (Int)srEntry.isValid, (Int)srEntry.cacheEnable,
+                        srEntry.cacheLineSize, (Int)srEntry.createHeap,
+                        srEntry.name);
+    }
+
+    /* Create the heap to be used by RCM and register it with MessageQ */
+    /* TODO: Do this dynamically by reading from the IPC config from the
+     *       baseimage using Ipc_readConfig() */
+    if (status >= 0) {
+        HeapBufMP_Params_init (&heapbufmpParams);
+        heapbufmpParams.sharedAddr = NULL;
+        heapbufmpParams.align      = RCM_MSGQ_TILER_HEAP_ALIGN;
+        heapbufmpParams.numBlocks  = RCM_MSGQ_TILER_HEAP_BLOCKS;
+        heapbufmpParams.blockSize  = RCM_MSGQ_TILER_MSGSIZE;
+        heapSize = HeapBufMP_sharedMemReq (&heapbufmpParams);
+        Osal_printf ("heapSize = 0x%x\n", heapSize);
+
+        srHeap = SharedRegion_getHeap (RCM_MSGQ_HEAP_SR);
+        if (srHeap == NULL) {
+            status = MEMORYOS_E_FAIL;
+            Osal_printf ("SharedRegion_getHeap failed for srHeap:"
+                         " [0x%x]\n", srHeap);
+            goto exit_procmgr_stop_sysm3;
+        }
+        else {
+            Osal_printf ("Before Memory_alloc = 0x%x\n", srHeap);
+            heapBufPtr = Memory_alloc (srHeap, heapSize, 0);
+            if (heapBufPtr == NULL) {
+                status = MEMORYOS_E_MEMORY;
+                Osal_printf ("Memory_alloc failed for ptr: [0x%x]\n",
+                             heapBufPtr);
+                goto exit_procmgr_stop_sysm3;
+            }
+            else {
+                heapbufmpParams.name           = RCM_MSGQ_TILER_HEAPNAME;
+                heapbufmpParams.sharedAddr     = heapBufPtr;
+                Osal_printf ("Before HeapBufMP_Create: [0x%x]\n", heapBufPtr);
+                heapHandle = HeapBufMP_create (&heapbufmpParams);
+                if (heapHandle == NULL) {
+                    status = HeapBufMP_E_FAIL;
+                    Osal_printf ("HeapBufMP_create failed for Handle:"
+                                 "[0x%x]\n", heapHandle);
+                    goto exit_procmgr_stop_sysm3;
+                }
+                else {
+                    /* Register this heap with MessageQ */
+                    status = MessageQ_registerHeap (heapHandle,
+                                                    RCM_MSGQ_TILER_HEAPID);
+                    if (status < 0) {
+                        Osal_printf ("MessageQ_registerHeap failed!\n");
+                        goto exit_procmgr_stop_sysm3;
+                    }
+                }
+            }
+        }
+    }
+
+    if (status >= 0) {
+        HeapBufMP_Params_init (&heapbufmpParams);
+        heapbufmpParams.sharedAddr = NULL;
+        heapbufmpParams.align      = RCM_MSGQ_DOMX_HEAP_ALIGN;
+        heapbufmpParams.numBlocks  = RCM_MSGQ_DOMX_HEAP_BLOCKS;
+        heapbufmpParams.blockSize  = RCM_MSGQ_DOMX_MSGSIZE;
+        heapSize1 = HeapBufMP_sharedMemReq (&heapbufmpParams);
+        Osal_printf ("heapSize1 = 0x%x\n", heapSize1);
+
+        heapBufPtr1 = Memory_alloc (srHeap, heapSize1, 0);
+        if (heapBufPtr1 == NULL) {
+            status = MEMORYOS_E_MEMORY;
+            Osal_printf ("Memory_alloc failed for ptr: [0x%x]\n",
+                         heapBufPtr1);
+            goto exit_procmgr_stop_sysm3;
+        }
+        else {
+            heapbufmpParams.name           = RCM_MSGQ_DOMX_HEAPNAME;
+            heapbufmpParams.sharedAddr     = heapBufPtr1;
+            Osal_printf ("Before HeapBufMP_Create: [0x%x]\n", heapBufPtr1);
+            heapHandle1 = HeapBufMP_create (&heapbufmpParams);
+            if (heapHandle1 == NULL) {
+                status = HeapBufMP_E_FAIL;
+                Osal_printf ("HeapBufMP_create failed for Handle:"
+                             "[0x%x]\n", heapHandle1);
+                goto exit_procmgr_stop_sysm3;
+            }
+            else {
+                /* Register this heap with MessageQ */
+                status = MessageQ_registerHeap (heapHandle1,
+                                                RCM_MSGQ_DOMX_HEAPID);
+                if (status < 0) {
+                    Osal_printf ("MessageQ_registerHeap failed!\n");
+                    goto exit_procmgr_stop_sysm3;
+                }
+            }
         }
     }
 
