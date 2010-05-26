@@ -16,7 +16,7 @@
 /*==============================================================================
  *  @file   MessageQApp.c
  *
- *  @brief  Sample application for MessageQ module between MPU & SysM3
+ *  @brief  Sample application for MessageQ module between MPU & Ducati M3 cores
  *
  *  ============================================================================
  */
@@ -62,9 +62,26 @@ extern "C" {
  *  ============================================================================
  */
 /*!
+ *  @brief  Name of the SysM3 baseImage to be used for sample execution with
+ *          SysM3
+ */
+#define MESSAGEQAPP_SYSM3ONLY_IMAGE "./MessageQ_MPUSYS_Test_Core0.xem3"
+
+/*!
+ *  @brief  Name of the SysM3 baseImage to be used for sample execution with
+ *          AppM3
+ */
+#define MESSAGEQAPP_SYSM3_IMAGE     "./Notify_MPUSYS_reroute_Test_Core0.xem3"
+
+/*!
+ *  @brief  Name of the AppM3 baseImage to be used for sample execution with
+ *          AppM3
+ */
+#define MESSAGEQAPP_APPM3_IMAGE     "./MessageQ_MPUAPP_Test_Core1.xem3"
+
+/*!
  *  @brief  Number of transfers to be tested.
  */
-//#define  MESSAGEQAPP_NUM_TRANSFERS  1000
 #define  MESSAGEQAPP_NUM_TRANSFERS  10
 
 
@@ -76,8 +93,10 @@ MessageQ_Handle                MessageQApp_messageQ;
 HeapBufMP_Handle               MessageQApp_heapHandle;
 MessageQ_QueueId               MessageQApp_queueId;
 UInt16                         MessageQApp_procId;
+UInt16                         MessageQApp_procId1;
 UInt32                         MessageQApp_curShAddr;
 ProcMgr_Handle                 MessageQApp_procMgrHandle;
+ProcMgr_Handle                 MessageQApp_procMgrHandle1;
 SizeT                          MessageQApp_heapSize         = 0;
 Ptr                            MessageQApp_ptr              = NULL;
 
@@ -91,7 +110,7 @@ Ptr                            MessageQApp_ptr              = NULL;
  *  @sa
  */
 Int
-MessageQApp_startup (Void)
+MessageQApp_startup (Int testNo)
 {
     Int32                          status           = 0;
     Ipc_Config                     config;
@@ -104,7 +123,7 @@ MessageQApp_startup (Void)
     UInt32                         entryPoint       = 0;
     ProcMgr_StartParams            startParams;
 #if defined(SYSLINK_USE_LOADER)
-    Char *                         imageName;
+    Char                         * imageName;
     UInt32                         fileId;
 #endif /* if defined(SYSLINK_USE_LOADER) */
 #endif /* if !defined(SYSLINK_USE_DAEMON) */
@@ -121,43 +140,107 @@ MessageQApp_startup (Void)
 
     /* Open a handle to the SysM3 ProcMgr instance. */
     MessageQApp_procId = MultiProc_getId ("SysM3");
-    status = ProcMgr_open (&MessageQApp_procMgrHandle,
-                           MessageQApp_procId);
+    status = ProcMgr_open (&MessageQApp_procMgrHandle, MessageQApp_procId);
     if (status < 0) {
-        Osal_printf ("Error in ProcMgr_open [0x%x]\n", status);
+        Osal_printf ("Error in ProcMgr_open (SysM3) [0x%x]\n", status);
     }
     else {
-        Osal_printf ("ProcMgr_open Status [0x%x]\n", status);
+        Osal_printf ("ProcMgr_open (SysM3) Status [0x%x]\n", status);
         ProcMgr_getAttachParams (NULL, &attachParams);
         /* Default params will be used if NULL is passed. */
         status = ProcMgr_attach (MessageQApp_procMgrHandle, &attachParams);
         if (status < 0) {
-            Osal_printf ("ProcMgr_attach failed [0x%x]\n", status);
+            Osal_printf ("ProcMgr_attach (SysM3) failed [0x%x]\n", status);
         }
         else {
-            Osal_printf ("ProcMgr_attach status: [0x%x]\n", status);
+            Osal_printf ("ProcMgr_attach (SysM3) status: [0x%x]\n", status);
             state = ProcMgr_getState (MessageQApp_procMgrHandle);
-            Osal_printf ("After attach: ProcMgr_getState\n"
+            Osal_printf ("After attach: ProcMgr_getState (SysM3)\n"
                          "    state [0x%x]\n", status);
         }
     }
 
+    /* Open a handle to the AppM3 ProcMgr instance. */
+    if ((status >= 0) && (testNo == 2)) {
+        MessageQApp_procId1 = MultiProc_getId ("AppM3");
+        status = ProcMgr_open (&MessageQApp_procMgrHandle1, MessageQApp_procId1);
+        if (status < 0) {
+            Osal_printf ("Error in ProcMgr_open (AppM3) [0x%x]\n", status);
+        }
+        else {
+            Osal_printf ("ProcMgr_open (AppM3) Status [0x%x]\n", status);
+            ProcMgr_getAttachParams (NULL, &attachParams);
+            /* Default params will be used if NULL is passed. */
+            status = ProcMgr_attach (MessageQApp_procMgrHandle1, &attachParams);
+            if (status < 0) {
+                Osal_printf ("ProcMgr_attach (AppM3) failed [0x%x]\n", status);
+            }
+            else {
+                Osal_printf ("ProcMgr_attach(AppM3) status: [0x%x]\n", status);
+                state = ProcMgr_getState (MessageQApp_procMgrHandle1);
+                Osal_printf ("After attach: ProcMgr_getState (AppM3)\n"
+                             "    state [0x%x]\n", state);
+            }
+        }
+    }
 
-#if !defined (SYSLINK_USE_DAEMON)
-    startParams.proc_id = MessageQApp_procId;
+#if !defined(SYSLINK_USE_DAEMON) /* Daemon sets this up */
 #ifdef SYSLINK_USE_LOADER
-    imageName = "./MessageQ_MPUSYS_Test_Core0.xem3";
-    Osal_printf ("Loading image (%s) onto Ducati with ProcId %d\n", imageName,
-                startParams.proc_id);
-    status = ProcMgr_load (MessageQApp_procMgrHandle, imageName, 2,
-                            (String *) &imageName, &entryPoint, &fileId,
-                            startParams.proc_id);
-    Osal_printf ("ProcMgr_load SysM3 Status [0x%x]\n", status);
-#endif /* SYSLINK_USE_LOADER */
-    status = ProcMgr_start (MessageQApp_procMgrHandle, entryPoint,
-                            &startParams);
-    Osal_printf ("ProcMgr_start SysM3 Status [0x%x]\n", status);
-#endif /* !SYSLINK_USE_DAEMON */
+    if (status >= 0) {
+        if (testNo == 1)
+            imageName = MESSAGEQAPP_SYSM3ONLY_IMAGE;
+        else if (testNo == 2)
+            imageName = MESSAGEQAPP_SYSM3_IMAGE;
+
+        Osal_printf ("Loading image (%s) onto Ducati with ProcId %d\n",
+                        imageName, startParams.proc_id);
+        status = ProcMgr_load (MessageQApp_procMgrHandle, imageName, 2,
+                                (String *) &imageName, &entryPoint, &fileId,
+                                MessageQApp_procId);
+        if (status < 0) {
+            Osal_printf ("Error in ProcMgr_load (SysM3) image: [0x%x]\n", status);
+        }
+        else {
+            Osal_printf ("ProcMgr_load (SysM3) Status [0x%x]\n", status);
+        }
+    }
+#endif /* defined(SYSLINK_USE_LOADER) */
+    if (status >= 0) {
+        startParams.proc_id = MessageQApp_procId;
+        status = ProcMgr_start (MessageQApp_procMgrHandle, entryPoint,
+                                &startParams);
+        if (status < 0) {
+            Osal_printf ("Error in ProcMgr_start (SysM3) [0x%x]\n", status);
+        }
+        else {
+           Osal_printf ("ProcMgr_start (SysM3) Status [0x%x]\n", status);
+        }
+    }
+
+    if ((status >= 0) && (testNo == 2)) {
+#if defined(SYSLINK_USE_LOADER)
+        imageName = MESSAGEQAPP_APPM3_IMAGE;
+        status = ProcMgr_load (MessageQApp_procMgrHandle1, imageName, 2,
+                                &imageName, &entryPoint, &fileId,
+                                MessageQApp_procId1);
+        if (status < 0) {
+            Osal_printf ("Error in ProcMgr_load (AppM3) image: 0x%x]\n", status);
+        }
+        else {
+            Osal_printf ("ProcMgr_load (AppM3) Status [0x%x]\n", status);
+        }
+#endif /* defined(SYSLINK_USE_LOADER) */
+        startParams.proc_id = MessageQApp_procId1;
+        status = ProcMgr_start (MessageQApp_procMgrHandle1, entryPoint,
+                                    &startParams);
+        if (status < 0) {
+            Osal_printf ("Error in ProcMgr_start (AppM3) [0x%x]\n", status);
+        }
+        else {
+            Osal_printf ("ProcMgr_start (AppM3) Status [0x%x]\n", status);
+        }
+    }
+#endif /* !defined(SYSLINK_USE_DAEMON) */
 
     srCount = SharedRegion_getNumRegions();
     Osal_printf ("SharedRegion_getNumRegions = %d\n", srCount);
@@ -172,6 +255,7 @@ MessageQApp_startup (Void)
                         srEntry.name);
     }
 
+#if !defined(SYSLINK_USE_DAEMON) /* Daemon sets this up */
     /* Create Heap and register it with MessageQ */
     if (status >= 0) {
         HeapBufMP_Params_init (&heapbufmpParams);
@@ -196,7 +280,7 @@ MessageQApp_startup (Void)
                                 MessageQApp_heapSize,
                                 0);
             if (MessageQApp_ptr == NULL) {
-                status = MessageQ_E_FAIL;
+                status = MEMORYOS_E_MEMORY;
                 Osal_printf ("Memory_alloc failed for %d processor."
                              " ptr: [0x%x]\n",
                              MessageQApp_procId,
@@ -209,7 +293,7 @@ MessageQApp_startup (Void)
                                 MessageQApp_ptr);
                 MessageQApp_heapHandle = HeapBufMP_create (&heapbufmpParams);
                 if (MessageQApp_heapHandle == NULL) {
-                    status = MessageQ_E_FAIL;
+                    status = HeapBufMP_E_FAIL;
                     Osal_printf ("HeapBufMP_create failed for %d processor."
                                  " Handle: [0x%x]\n",
                                  MessageQApp_procId,
@@ -226,6 +310,7 @@ MessageQApp_startup (Void)
             }
         }
     }
+#endif /* !defined(SYSLINK_USE_DAEMON) */
 
     Osal_printf ("Leaving MessageQApp_startup: status = 0x%x\n", status);
 
@@ -239,12 +324,13 @@ MessageQApp_startup (Void)
  *  @sa
  */
 Int
-MessageQApp_execute (Void)
+MessageQApp_execute (Int testNo)
 {
     Int32                    status     = 0;
     MessageQ_Msg             msg        = NULL;
     MessageQ_Params          msgParams;
     UInt16                   i;
+    Char                   * msgQName;
 
     Osal_printf ("Entered MessageQApp_execute\n");
 
@@ -259,11 +345,21 @@ MessageQApp_execute (Void)
                      MessageQApp_messageQ);
     }
 
-    sleep (1); /* Adding a small delay to resolve infinite nameserver issue */
+    /* Assign the MessageQ Name being opened */
+    switch (testNo) {
+        case 2:
+            msgQName = DUCATI_CORE1_MESSAGEQNAME;
+            break;
+
+        case 1:
+        default:
+            msgQName = DUCATI_CORE0_MESSAGEQNAME;
+            break;
+    }
+
     if (status >=0) {
         do {
-            status = MessageQ_open (DUCATI_CORE0_MESSAGEQNAME,
-                                    &MessageQApp_queueId);
+            status = MessageQ_open (msgQName, &MessageQApp_queueId);
         } while (status == MessageQ_E_NOTFOUND);
         if (status < 0) {
             Osal_printf ("Error in MessageQ_open [0x%x]\n", status);
@@ -416,12 +512,12 @@ MessageQApp_execute (Void)
  *  @sa
  */
 Int
-MessageQApp_shutdown (Void)
+MessageQApp_shutdown (Int testNo)
 {
     Int32               status = 0;
 #if !defined (SYSLINK_USE_DAEMON)
     ProcMgr_StopParams  stopParams;
-#endif /* !SYSLINK_USE_DAEMON */
+#endif /* !defined(SYSLINK_USE_DAEMON) */
     IHeap_Handle        srHeap = NULL;
 
     Osal_printf ("Entered MessageQApp_shutdown()\n");
@@ -440,10 +536,24 @@ MessageQApp_shutdown (Void)
     }
 
 #if !defined (SYSLINK_USE_DAEMON)
+    if (testNo == 2) {
+        stopParams.proc_id = MessageQApp_procId1;
+        status = ProcMgr_stop (MessageQApp_procMgrHandle1, &stopParams);
+        Osal_printf ("ProcMgr_stop status: [0x%x]\n", status);
+    }
+
     stopParams.proc_id = MessageQApp_procId;
     status = ProcMgr_stop (MessageQApp_procMgrHandle, &stopParams);
     Osal_printf ("ProcMgr_stop status: [0x%x]\n", status);
-#endif /* !SYSLINK_USE_DAEMON */
+#endif /* !defined(SYSLINK_USE_DAEMON) */
+
+    if (testNo == 2) {
+        status =  ProcMgr_detach (MessageQApp_procMgrHandle1);
+        Osal_printf ("ProcMgr_detach status [0x%x]\n", status);
+
+        status = ProcMgr_close (&MessageQApp_procMgrHandle1);
+        Osal_printf ("ProcMgr_close status: [0x%x]\n", status);
+    }
 
     status =  ProcMgr_detach (MessageQApp_procMgrHandle);
     Osal_printf ("ProcMgr_detach status [0x%x]\n", status);

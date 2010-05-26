@@ -41,10 +41,7 @@
 #include <OsalPrint.h>
 
 /* Module headers */
-#if defined (SYSLINK_USE_SYSMGR)
-//#include <ti/ipc/Ipc.h>
 #include <IpcUsr.h>
-#endif /* if defined (SYSLINK_USE_SYSMGR) */
 #include <ti/ipc/MultiProc.h>
 //#include <ProcMgr.h>
 #include <UsrUtilsDrv.h>
@@ -71,17 +68,17 @@ extern "C" {
 /*!
  *  @brief  Function to execute the startup for MessageQApp sample application
  */
-extern Int MessageQApp_startup (Void);
+extern Int MessageQApp_startup (Int testNo);
 
 /*!
  *  @brief  Function to execute the startup for MessageQApp sample application
  */
-extern Int MessageQApp_execute (Void);
+extern Int MessageQApp_execute (Int testNo);
 
 /*!
  *  @brief  Function to execute the shutdown for MessageQApp sample application
  */
-extern Int MessageQApp_shutdown (Void);
+extern Int MessageQApp_shutdown (Int testNo);
 
 
 /** ============================================================================
@@ -98,6 +95,18 @@ extern Int MessageQApp_shutdown (Void);
  *  Functions
  *  ============================================================================
  */
+Void printUsage (Void)
+{
+    Osal_printf ("Usage: ./messageQApp.out [<TestNo>]\n");
+    Osal_printf ("\tValid Values:\n\t\tTestNo: 1 or 2 (default = 1)\n");
+    Osal_printf ("\tExamples:\n");
+    Osal_printf ("\t\t./messageQApp.out 1: MessageQ sample with SysM3\n");
+    Osal_printf ("\t\t./messageQApp.out 2: MessageQ sample with AppM3\n");
+
+    return;
+}
+
+
 int
 main (int argc, char ** argv)
 {
@@ -110,8 +119,10 @@ main (int argc, char ** argv)
     Bool    MessageQApp_enableTraceFailure  = FALSE;
     Char *  traceClass                      = NULL;
     UInt32  MessageQApp_traceClass          = 0;
+    Int     MessageQApp_testNo              = 0;
+    Bool    validTest                       = TRUE;
 
-    Osal_printf ("MessageQApp MPU - SysM3 sample application\n");
+    Osal_printf ("MessageQApp MPU - Ducati sample application\n");
 
     trace = getenv ("TRACE");
     /* Enable/disable levels of tracing. */
@@ -172,13 +183,42 @@ main (int argc, char ** argv)
         }
     }
 
-    status = MessageQApp_startup ();
+    switch (argc) {
+        case 2:
+            MessageQApp_testNo = atoi (argv[1]);
+            if (MessageQApp_testNo != 1 && MessageQApp_testNo != 2) {
+                validTest = FALSE;
+            }
+            break;
 
-    if (status >= 0) {
-        MessageQApp_execute ();
+        case 1:
+            MessageQApp_testNo = 1;
+            break;
+
+        default:
+            validTest = FALSE;
+            break;
     }
 
-    MessageQApp_shutdown ();
+    if (validTest == FALSE) {
+        status = -1;
+        printUsage ();
+    }
+    else {
+        status = MessageQApp_startup (MessageQApp_testNo);
+
+        if (status >= 0) {
+            MessageQApp_execute (MessageQApp_testNo);
+        }
+
+        MessageQApp_shutdown (MessageQApp_testNo);
+    }
+
+    /* Trace for TITAN support */
+    if(status < 0)
+        Osal_printf ("test_case_status=%d\n", status);
+    else
+        Osal_printf ("test_case_status=0\n");
 
     return 0;
 }
