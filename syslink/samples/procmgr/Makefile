@@ -50,7 +50,8 @@ SH_SONAME =
 # Folders in which gmake will run before building current target
 
 SUBMODULES  = \
-procmgrapp \
+ducati_load \
+procmgrapp
 
 
 
