@@ -1,3 +1,4 @@
+#
 #  Copyright 2001-2009 Texas Instruments - http://www.ti.com/
 #
 #  Licensed under the Apache License, Version 2.0 (the "License");
@@ -11,14 +12,31 @@
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
-#
 
-SUBDIRS  = \
-	gateMP \
-	heapBufMP \
-	heapMemMP \
-	listMP \
-	messageQ \
-	nameServer \
-	sharedRegion
+PROJROOT=$(top_srcdir)/samples
+INCLUDE = \
+	-I $(PROJROOT)/../api/include \
+	-I $(PROJROOT)/inc
 
+
+AM_CFLAGS = -Wall -g -O2 $(INCLUDE) -finline-functions -D$(PROCFAMILY)
+AM_CFLAGS += -DSYSLINK_TRACE_ENABLE
+
+LDPATH=../../../../api/src
+
+API_LIBS = \
+	$(LDPATH)/utils/libipcutils.la \
+	$(LDPATH)/ipc/libipc.la \
+	$(LDPATH)/procmgr/libprocmgr.la \
+	$(LDPATH)/sysmgr/libsysmgr.la \
+	$(LDPATH)/notify/libsyslinknotify.la\
+	$(LDPATH)/sysmemmgr/libsysmemmgr.la
+
+
+bin_PROGRAMS = gateMPApp.out
+
+gateMPApp_out_SOURCES = GateMPApp.c
+
+gateMPApp_out_CPPFLAGS = $(AM_CLFAGS)
+
+gateMPApp_out_LDADD = $(API_LIBS)

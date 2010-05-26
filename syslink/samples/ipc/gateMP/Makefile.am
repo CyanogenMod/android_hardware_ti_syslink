@@ -13,12 +13,4 @@
 #  limitations under the License.
 #
 
-SUBDIRS  = \
-	gateMP \
-	heapBufMP \
-	heapMemMP \
-	listMP \
-	messageQ \
-	nameServer \
-	sharedRegion
-
+SUBDIRS = usr

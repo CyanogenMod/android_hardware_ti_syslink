@@ -53,9 +53,10 @@ SUBMODULES  = \
 messageQ/usr \
 listMP/usr \
 sharedRegion/usr \
-gatePeterson/usr \
+gateMP/usr \
 nameServer/usr \
-heapBuf/usr
+heapBufMP/usr \
+heapMemMP/usr
 
 
 # Filename must not begin with '.', '/' or '\'

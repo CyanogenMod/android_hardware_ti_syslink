@@ -23,13 +23,6 @@ AM_CFLAGS += -DSYSLINK_TRACE_ENABLE
 
 LDPATH=../../../../api/src
 
-API_LIBS_NONSYS = \
-	$(LDPATH)/utils/libipcutils.la \
-	$(LDPATH)/ipc/libipc.la \
-	$(LDPATH)/notify/libsyslinknotify.la\
-	$(LDPATH)/procmgr/procmgr4430/libomap4430proc.la \
-	$(LDPATH)/procmgr/libprocmgr_nonsysmgr.la
-
 API_LIBS = \
 	$(LDPATH)/utils/libipcutils.la \
 	$(LDPATH)/ipc/libipc.la \

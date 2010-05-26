@@ -1,4 +1,3 @@
-
 #
 #  Copyright 2001-2009 Texas Instruments - http://www.ti.com/
 #
@@ -14,13 +13,6 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-#   ============================================================================
-#   @file   Makefile.am
-#
-#   @brief  Makefile for user-side sharedregion  samples
-#
-#   ============================================================================
-
 PROJROOT=$(top_srcdir)/samples
 INCLUDE = \
 	-I $(PROJROOT)/../api/include \
@@ -28,22 +20,29 @@ INCLUDE = \
 
 
 AM_CFLAGS = -Wall -g -O2 $(INCLUDE) -finline-functions -D$(PROCFAMILY)
-AM_CFLAGS += -DSYSLINK_TRACE_ENABLE -DSYSLINK_USE_SYSMGR
-
+AM_CFLAGS += -DSYSLINK_TRACE_ENABLE
+#AM_CFLAGS += -DSYSLINK_USE_SYSMGR
 LDPATH=../../../../api/src
 
 API_LIBS = \
 	$(LDPATH)/utils/libipcutils.la \
 	$(LDPATH)/ipc/libipc.la \
+	$(LDPATH)/notify/libsyslinknotify.la \
 	$(LDPATH)/procmgr/libprocmgr.la \
 	$(LDPATH)/sysmgr/libsysmgr.la \
-	$(LDPATH)/notify/libsyslinknotify.la \
 	$(LDPATH)/sysmemmgr/libsysmemmgr.la
 
-bin_PROGRAMS = sharedRegionApp.out
+bin_PROGRAMS = heapBufMPApp.out
+#heapBufMPApp_NonSysMgr.out
 
-sharedRegionApp_out_SOURCES = SharedRegionAppOS.c SharedRegionApp.c
+heapBufMPApp_out_SOURCES = HeapBufMPAppOS.c HeapBufMPApp.c
 
-sharedRegionApp_out_CPPFLAGS = $(AM_CLFAGS)
+heapBufMPApp_out_CPPFLAGS = $(AM_CLFAGS) -DSYSLINK_USE_SYSMGR
 
-sharedRegionApp_out_LDADD = $(API_LIBS)
+heapBufMPApp_out_LDADD = $(API_LIBS)
+
+#heapBufMPApp_NonSysMgr_out_SOURCES = HeapBufMPAppOS.c HeapBufMPApp.c
+
+#heapBufMPApp_NonSysMgr_out_CPPFLAGS = $(AM_CLFAGS)
+
+#heapBufMPApp_NonSysMgr_out_LDADD = $(API_LIBS_NONSYS)

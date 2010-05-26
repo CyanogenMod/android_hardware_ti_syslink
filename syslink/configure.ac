@@ -135,10 +135,12 @@ AC_CONFIG_FILES([syslink.pc
 		samples/Makefile
 		samples/make/Makefile
 		samples/ipc/Makefile
-		samples/ipc/gatePeterson/Makefile
-		samples/ipc/gatePeterson/usr/Makefile
-		samples/ipc/heapBuf/Makefile
-		samples/ipc/heapBuf/usr/Makefile
+		samples/ipc/gateMP/Makefile
+		samples/ipc/gateMP/usr/Makefile
+		samples/ipc/heapBufMP/Makefile
+		samples/ipc/heapBufMP/usr/Makefile
+		samples/ipc/heapMemMP/Makefile
+		samples/ipc/heapMemMP/usr/Makefile
 		samples/ipc/listMP/Makefile
 		samples/ipc/listMP/usr/Makefile
 		samples/ipc/messageQ/Makefile
