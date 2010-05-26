@@ -125,7 +125,6 @@ AC_CONFIG_FILES([syslink.pc
 		api/src/procmgr/Makefile
 		api/src/procmgr/procmgr4430/Makefile
 		api/src/rcm/Makefile
-		api/src/sysmemmgr/Makefile
 		api/src/sysmgr/Makefile
 		api/src/utils/Makefile
 		daemons/Makefile
