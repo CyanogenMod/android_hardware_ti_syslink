@@ -39,7 +39,8 @@
 #include <OsalPrint.h>
 
 /* Module level headers */
-#include <MultiProc.h>
+#include <_MultiProc.h>
+#include <ti/ipc/MultiProc.h>
 #include <ProcMgr.h>
 #include <omap4430proc.h>
 #include <ProcDefs.h>

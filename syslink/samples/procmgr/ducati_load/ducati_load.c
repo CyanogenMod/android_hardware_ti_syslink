@@ -16,7 +16,7 @@
 
 /*
  *  ======== ducati_load.c========
- *  "cexec" is a Linux console-based utility that allows developers to load 
+ *  "cexec" is a Linux console-based utility that allows developers to load
  *  and start a new DSP/BIOS Bridge based DSP program. If "cexec" encounters
  *  an error, it will display a DSP/BIOS Bridge GPP API error code.
  *
@@ -24,33 +24,39 @@
  *      ducati_load.out [optional args] -p <proc_id> <ducati_program>
  *
  *  Options:
- *      -?: displays "cexec" usage. If this option is set, cexec does not 
+ *      -?: displays "cexec" usage. If this option is set, cexec does not
  *          load the DSP program.
  *      -w: waits for the user to hit the enter key on the keyboard, which
- *          stops DSP program execution by placing the DSP into reset. This 
+ *          stops DSP program execution by placing the DSP into reset. This
  *          will also display on the WinCE console window the contents of
- *          DSP/BIOS Bridge trace buffer, which is used internally by the 
+ *          DSP/BIOS Bridge trace buffer, which is used internally by the
  *          DSP/BIOS Bridge runtime. If this option is not specified, "cexec"
- *          loads and starts the DSP program, then returns immeidately, 
+ *          loads and starts the DSP program, then returns immeidately,
  *          leaving the DSP program running.
  *      -v: verbose mode.
- *      -p [processor]: defines the processor id. 2 for SysM3 and 3 for 
+ *      -p [processor]: defines the processor id. 2 for SysM3 and 1 for
  *        AppM3.
  *      -T: Set scriptable mode. If set, cexec will run to completion after
- *          loading and running a DSP target. User will not be able to stop 
+ *          loading and running a DSP target. User will not be able to stop
  *          the loaded DSP target.
  *  
  */ 
 
+/* Linux headers */
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdarg.h>
-#include <ProcMgr.h>
+
+/* OSAL & Utils headers */
 #include <Std.h>
 #include <OsalPrint.h>
 #include <String.h>
-#include <MultiProc.h>
+
+/* Module level headers */
+#include <_MultiProc.h>
+#include <ti/ipc/MultiProc.h>
+#include <ProcMgr.h>
 #include <omap4430proc.h>
 #include <ProcDefs.h>
 #include <_ProcMgrDefs.h>
@@ -74,51 +80,39 @@ Bool g_fVerbose = FALSE;
 /* 
  *  ======== main ========
  */ 
-int main(int argc, char * argv[]) 
+Int main(Int argc, char * argv[])
 {
-    int                     opt;
-    unsigned int            uProcId = PROC_SYSM3;    /* default proc ID is 0. */
-    Bool                    fError = FALSE;
-    int                     status = PROCMGR_SUCCESS;
-    int                     cArgc = 0;        /* local argc count. */
-    Bool                    fScriptable = FALSE;
-    extern char *           optarg;
-    ProcMgr_AttachParams *  ducati_params;
-    ProcMgr_StartParams *   start_params;
-    ProcMgr_StopParams      stop_params;
+    Int                     opt;
+    UInt                    uProcId         = PROC_SYSM3;
+    Bool                    fError          = FALSE;
+    Int                     status          = PROCMGR_SUCCESS;
+    Int                     cArgc           = 0;
+    Bool                    fScriptable     = FALSE;
+    extern Char *           optarg;
+    ProcMgr_AttachParams  * ducatiParams;
+    ProcMgr_StartParams   * startParams;
+    ProcMgr_StopParams      stopParams;
     UInt32                  fileId;
-    Char *                  image_path = NULL;
-    UInt32                  entry_point;
-    ProcMgr_Config *        cfg;
+    Char                  * imagePath       = NULL;
+    UInt32                  entryPoint;
+    ProcMgr_Config        * cfg;
     OMAP4430PROC_Config     procConfig;
     OMAP4430PROC_Params     procParams;
     Handle                  procHandle;
     ProcMgr_Params          params;
     UInt16                  procId;
     UInt32                  optind;
-    MultiProc_Config        multiProcConfig;
 
     Osal_printf ("Entered Ducati load main\n");
 
-#if !defined(SYSLINK_USE_SYSMGR)
-    //MultiProc_setLocalId(MultiProc_getId("MPU"));
-    multiProcConfig.maxProcessors = 4;
-    multiProcConfig.id = 0;
-    String_cpy (multiProcConfig.nameList[0], "MPU");
-    String_cpy (multiProcConfig.nameList[1], "Tesla");
-    String_cpy (multiProcConfig.nameList[2], "SysM3");
-    String_cpy (multiProcConfig.nameList[3], "AppM3");
-    MultiProc_setLocalId(MultiProc_getId("MPU"));
-    MultiProc_setup (&multiProcConfig);
-#endif
     optind = 0;
 
-    while ((opt = getopt_test (argc, (char * const)argv, "+lx:p:ZPR:")) != EOF) {
+    while ((opt = getopt_test (argc, (char * const)argv, "+lx:p:ZPR:")) != EOF){
         switch (opt) {
         case 'x':
             /* use given executable */
-            image_path = (char *) optarg;
-            Osal_printf ("image_path is %s\n",image_path);
+            imagePath = (char *) optarg;
+            Osal_printf ("imagePath is %s\n",imagePath);
             break;
 
         case 'p':
@@ -133,7 +127,7 @@ int main(int argc, char * argv[])
         }
     }
 
-    if (image_path == NULL) {
+    if (imagePath == NULL) {
         fError = TRUE;
     }
 
@@ -143,7 +137,7 @@ int main(int argc, char * argv[])
         DisplayUsage ();
     } else {
         cfg = malloc(sizeof(ProcMgr_Config));
-        ducati_params = malloc(sizeof(ProcMgr_AttachParams));
+        ducatiParams = malloc(sizeof(ProcMgr_AttachParams));
         ProcMgr_getConfig (cfg);
         status = ProcMgr_setup (cfg);
         
@@ -180,57 +174,54 @@ int main(int argc, char * argv[])
         ProcMgr_Params_init (NULL, &params);
         params.procHandle = procHandle;
         ProcMgrApp_handle = ProcMgr_create (procId, &params);
-
         if (ProcMgrApp_handle == NULL) {
             fprintf (stdout,"Error in ProcMgr_create \n");
             status = PROCMGR_E_FAIL;
         }
 
-        status = ProcMgr_attach (ProcMgrApp_handle,ducati_params);
-
+        status = ProcMgr_attach (ProcMgrApp_handle,ducatiParams);
         if (status != PROCMGR_SUCCESS) {
             fprintf(stdout,"ProcMgr_attach failed status = 0x%x\n",status);
             exit(1);
         }
 
-        stop_params.proc_id = uProcId;
-        status = ProcMgr_stop (ProcMgrApp_handle, &stop_params);
+        stopParams.proc_id = uProcId;
+        status = ProcMgr_stop (ProcMgrApp_handle, &stopParams);
         if (status != PROCMGR_SUCCESS) {
             fprintf(stdout, "ProcMgr_stop failed for status = 0x%x\n", status);
             exit(1);
         }
 
-        Osal_printf("Loading Image %s ..... \n", image_path);
-        status  = ProcMgr_load (ProcMgrApp_handle, image_path, argc, &image_path,
-                                &entry_point, &fileId, uProcId);
-
-
+        Osal_printf("Loading Image %s ..... \n", imagePath);
+        status  = ProcMgr_load (ProcMgrApp_handle, imagePath, argc, &imagePath,
+                                &entryPoint, &fileId, uProcId);
         if (status != PROCMGR_SUCCESS) {
             fprintf(stdout,"ProcMgr_load failed for image %s and "
-                        "status = 0x%x\n",image_path, status);
+                        "status = 0x%x\n",imagePath, status);
             exit(1);
         }
+        Osal_printf ("Completed Loading Image ..... %s\n",imagePath);
+        fprintf(stdout, "entryPoint is 0x%x\n",entryPoint);
 
-        Osal_printf ("Completed Loading Image ..... %s\n",image_path);
-        fprintf(stdout, "entry_point is 0x%x\n",entry_point);
-
-        start_params = malloc(sizeof(ProcMgr_StartParams));
-        if (start_params == NULL) {
+        startParams = malloc(sizeof(ProcMgr_StartParams));
+        if (startParams == NULL) {
             fprintf(stdout,"ProcMgr_load memory allocation failed for "
-                        "start_params.\n");
+                        "startParams.\n");
             exit(1);
         }
 
-        start_params->proc_id = uProcId;
-        status = ProcMgr_start (ProcMgrApp_handle, entry_point, start_params);
+        startParams->proc_id = uProcId;
+        status = ProcMgr_start (ProcMgrApp_handle, entryPoint, startParams);
         if (status != PROCMGR_SUCCESS) {
             fprintf(stdout, "ProcMgr_start failed for image %s and "
-                    "status = 0x%x\n", image_path, status);
+                    "status = 0x%x\n", imagePath, status);
             exit(1);
         }
+
         status = ProcMgr_detach (ProcMgrApp_handle);
         if (status != PROCMGR_SUCCESS) {
-            fprintf(stdout, "ProcMgr_detach failed and status = 0x%x\n", status);
+            fprintf(stdout, "ProcMgr_detach failed and status = 0x%x\n",
+                    status);
             exit(1);
         }
         
@@ -246,7 +237,7 @@ int main(int argc, char * argv[])
 }
 
 
-void DisplayUsage() 
+Void DisplayUsage ()
 {
     fprintf(stdout, "Usage: cexec -p <ProcId> <Image path>\n");
     fprintf(stdout, "\t[optional arguments]:\n");
@@ -264,7 +255,7 @@ void DisplayUsage()
 /*
  * ======== PrintVerbose ========
  */ 
-void  PrintVerbose(char *pstrFmt,...) 
+Void  PrintVerbose (char *pstrFmt,...)
 {
     va_list args;
     if (g_fVerbose) {
