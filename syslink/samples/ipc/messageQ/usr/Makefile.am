@@ -28,7 +28,6 @@ INCLUDE = \
 
 AM_CFLAGS = -Wall -g -O2 $(INCLUDE)-finline-functions -D$(PROCFAMILY)
 AM_CFLAGS += -DSYSLINK_TRACE_ENABLE
-AM_CFLAGS += -DSYSLINK_USE_SYSMGR
 #TO disable loader comment the below flag.
 AM_CFLAGS += -DSYSLINK_USE_LOADER
 
@@ -42,20 +41,12 @@ API_LIBS = \
 	$(LDPATH)/sysmgr/libsysmgr.la
 
 
-bin_PROGRAMS = messageQApp.out messageQApp1.out
+bin_PROGRAMS = messageQApp.out
 
 messageQApp_out_SOURCES = \
 	MessageQAppOS.c \
 	MessageQApp.c
 
-messageQApp1_out_SOURCES = \
-	MessageQAppOS1.c \
-	MessageQApp1.c
-
-messageQApp_out_CPPFLAGS = $(AM_CLFAGS)
-messageQApp1_out_CPPFLAGS = $(AM_CLFAGS)
+messageQApp_out_CPPFLAGS = $(AM_CFLAGS)
 
 messageQApp_out_LDADD = $(API_LIBS)
-
-messageQApp1_out_LDADD = $(API_LIBS)
-

@@ -30,31 +30,22 @@ LDFLAGS = $(addprefix -L, $(LDPATH))
 
 CFLAGS=-Wall -g -O2 $(INCLUDE) -finline-functions -D$(PROCFAMILY) $(LDFLAGS)
 CFLAGS += -DSYSLINK_TRACE_ENABLE
-CFLAGS += -DSYSLINK_USE_SYSMGR
 CFLAGS += -DSYSLINK_USE_LOADER
 
 
 LIBS = -lipcutils -lsyslinknotify -lipc -lprocmgr
 LIBS += -lsysmgr
 
-all: messageQApp.out messageQApp1.out
+all: messageQApp.out
 
 messageQApp.out:
 	$(CC) $(CFLAGS) -o messageQApp.out MessageQAppOS.c MessageQApp.c $(LIBS)
-
-messageQApp1.out:
-	$(CC) $(CFLAGS) -o messageQApp1.out MessageQAppOS1.c MessageQApp1.c $(LIBS)
 
 messageQinstall1: messageQApp.out
 	$(INSTALL) -D $< $(TARGETDIR)/syslink/$<
 	$(STRIP) -s $(TARGETDIR)/syslink/$<
 
-messageQinstall2: messageQApp1.out
-	$(INSTALL) -D $< $(TARGETDIR)/syslink/$<
-	$(STRIP) -s $(TARGETDIR)/syslink/$<
-
-install: messageQinstall1 messageQinstall2
+install: messageQinstall1
 
 clean:
 	\rm -f messageQApp.out
-	\rm -f messageQApp1.out
