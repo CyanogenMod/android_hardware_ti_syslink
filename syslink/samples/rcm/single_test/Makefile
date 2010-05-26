@@ -30,7 +30,6 @@ CFLAGS         =
 CDEFS          = 
 #Uncomment the below line to use sys manager
 CDEFS          += SYSLINK_USE_LOADER
-CDEFS          += SYSLINK_USE_SYSMGR
 ifeq ($(BUILD),udeb)
 CDEFS          += DEBUG 
 endif
@@ -82,7 +81,7 @@ INCLUDES    = \
 ST_LIBS        = 
 SH_LIBS        = pthread rt ipcutils procmgr ipc rcm syslinknotify
 #Uncomment the below line to use sys manager
-SH_LIBS        += sysmgr sysmemmgr
+SH_LIBS        += sysmgr
 
 # Search path for library (and linker command) files.
 # Current folder and target folder are included by default.

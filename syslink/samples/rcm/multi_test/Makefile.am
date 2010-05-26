@@ -21,7 +21,6 @@ INCLUDE = \
 
 
 AM_CFLAGS = -Wall -g -O2 $(INCLUDE)
-AM_CFLAGS += -DSYSLINK_USE_SYSMGR
 AM_CFLAGS += -DSYSLINK_USE_LOADER
 #TODO: Add conditional flags to enable debug here
 
@@ -33,7 +32,6 @@ API_LIBS = \
 	$(LDPATH)/ipc/libipc.la \
 	$(LDPATH)/procmgr/libprocmgr.la \
 	$(LDPATH)/sysmgr/libsysmgr.la \
-	$(LDPATH)/sysmemmgr/libsysmemmgr.la \
 	$(LDPATH)/rcm/librcm.la
 
 
@@ -43,9 +41,9 @@ rcm_multitest_out_SOURCES = RcmClientServerTest.c
 rcm_multithreadtest_out_SOURCES = RcmMultiThreadTest.c
 rcm_multiclienttest_out_SOURCES = RcmMultiClientTest.c
 
-rcm_multitest_out_CPPFLAGS = $(AM_CLFAGS)
-rcm_multithreadtest_out_CPPFLAGS = $(AM_CLFAGS)
-rcm_multiclienttest_out_CPPFLAGS = $(AM_CLFAGS)
+rcm_multitest_out_CPPFLAGS = $(AM_CFLAGS)
+rcm_multithreadtest_out_CPPFLAGS = $(AM_CFLAGS)
+rcm_multiclienttest_out_CPPFLAGS = $(AM_CFLAGS)
 
 rcm_multitest_out_LDADD = $(API_LIBS)
 rcm_multithreadtest_out_LDADD = $(API_LIBS)

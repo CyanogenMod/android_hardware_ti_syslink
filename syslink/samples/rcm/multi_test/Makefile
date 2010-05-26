@@ -29,12 +29,11 @@ LDPATH=$(TARGETDIR)/lib $(TARGETDIR)/usr/lib
 LDFLAGS = $(addprefix -L, $(LDPATH))
 
 CFLAGS=-Wall -g -O2 $(INCLUDE) -finline-functions -D$(PROCFAMILY) $(LDFLAGS)
-CFLAGS += -DSYSLINK_USE_SYSMGR
 CFLAGS += -DSYSLINK_USE_LOADER
 
 
 LIBS = -lipcutils -lsyslinknotify -lipc -lprocmgr -lrcm -lpthread -lrt
-LIBS += -lsysmgr -lsysmemmgr
+LIBS += -lsysmgr
 
 all: rcm_multitest.out rcm_multithreadtest.out rcm_multiclienttest.out rcm_daemontest.out
 
