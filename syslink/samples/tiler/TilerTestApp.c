@@ -110,7 +110,7 @@ Int main (Int argc, Char * argv [])
                 procId = 2;   // SysM3
             }
             else if(subTestNo == 2) {
-                procId = 3;   // AppM3
+                procId = 1;   // AppM3
             }
             else {
                 validArgs = FALSE;

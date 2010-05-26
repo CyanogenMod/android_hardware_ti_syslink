@@ -14,7 +14,7 @@
  *  limitations under the License.
  */
 
-/*============================================================================
+/*==============================================================================
  *  @file   TilerSyslinkApp.c
  *
  *  @brief  The Syslink Test sample to validate Syslink Mem utils functinalit
@@ -28,7 +28,6 @@
 #include <unistd.h>
 #include <sys/mman.h>
 #include <sys/ioctl.h>
-#include <string.h>
 #include <fcntl.h>
 #include <errno.h>
 #include <stdint.h>
@@ -39,6 +38,7 @@
 
 /* OSAL & Utils headers */
 #include <OsalPrint.h>
+#include <Memory.h>
 #include <String.h>
 #include <Trace.h>
 
@@ -46,7 +46,7 @@
 #include <tilermgr.h>
 
 /* IPC headers */
-#include <SysMgr.h>
+#include <IpcUsr.h>
 #include <ProcMgr.h>
 #include <SysLinkMemUtils.h>
 
@@ -55,7 +55,6 @@
 #include <RcmClient.h>
 
 /* Sample headers */
-#include <Client.h>
 #include <MemAllocTest_Config.h>
 #include "TilerSyslinkApp.h"
 
@@ -67,7 +66,36 @@ extern "C" {
  *  Macros and types
  *  ============================================================================
  */
+/*!
+ *  @brief  Name of the SysM3 baseImage to be used for sample execution with
+ *          SysM3
+ */
+#define TILERAPP_SYSM3ONLY_IMAGE  "./MemAllocServer_MPUSYS_Test_Core0.xem3"
 
+/*!
+ *  @brief  Name of the SysM3 baseImage to be used for sample execution with
+ *          AppM3
+ */
+#define TILERAPP_SYSM3_IMAGE      "./Notify_MPUSYS_reroute_Test_Core0.xem3"
+
+/*!
+ *  @brief  Name of the AppM3 baseImage to be used for sample execution with
+ *          AppM3
+ */
+#define TILERAPP_APPM3_IMAGE      "./MemAllocServer_MPUAPP_Test_Core1.xem3"
+
+/* Defines for the default HeapBufMP being configured in the System */
+#define RCM_MSGQ_TILER_HEAPNAME         "Heap0"
+#define RCM_MSGQ_TILER_HEAP_BLOCKS      256
+#define RCM_MSGQ_TILER_HEAP_ALIGN       128
+#define RCM_MSGQ_TILER_MSGSIZE          256
+#define RCM_MSGQ_TILER_HEAPID           0
+#define RCM_MSGQ_DOMX_HEAPNAME          "Heap1"
+#define RCM_MSGQ_DOMX_HEAP_BLOCKS       256
+#define RCM_MSGQ_DOMX_HEAP_ALIGN        128
+#define RCM_MSGQ_DOMX_MSGSIZE           256
+#define RCM_MSGQ_DOMX_HEAPID            1
+#define RCM_MSGQ_HEAP_SR                1
 
 /* =============================================================================
  * Structs & Enums
@@ -101,148 +129,257 @@ Int SyslinkUseBufferTest (Int procId, Bool useTiler, UInt numTrials)
 {
     Int                             fd;
     void *                          mapBase;
-    SyslinkMemUtils_MpuAddrToMap    MpuAddr_list[1];
-    UInt32                          mapSize = 4096;
+    SyslinkMemUtils_MpuAddrToMap    mpuAddrList[1];
+    UInt32                          mapSize             = 4096;
     UInt32                          mappedAddr;
-    SysMgr_Config                   config;
-    Int                             status = 0;
-    Int                             procIdSysM3 = PROC_SYSM3;
-    Int                             procIdAppM3 = PROC_APPM3;
+    Ipc_Config                      config;
+    Int                             status              = 0;
+    Int                             procIdSysM3         = PROC_SYSM3;
+    Int                             procIdAppM3         = PROC_APPM3;
 #if defined (SYSLINK_USE_LOADER)
-    Char *                          imageNameSysM3;
-    Char *                          imageNameAppM3;
+    Char *                          imageNameSysM3      = NULL;
+    Char *                          imageNameAppM3      = NULL;
     UInt32                          fileIdSysM3;
     UInt32                          fileIdAppM3;
 #endif
-    ProcMgr_StartParams             start_params;
-    ProcMgr_StopParams              stop_params;
-    ProcMgr_Handle                  procMgrHandle_client;
-    RcmClient_Handle                rcmClientHandle = NULL;
-    RcmClient_Config                cfgParams;
-    RcmClient_Params                rcmClient_Params;
+    ProcMgr_StartParams             startParams;
+    ProcMgr_StopParams              stopParams;
+    ProcMgr_Handle                  procMgrHandleSysM3;
+    ProcMgr_Handle                  procMgrHandleAppM3;
+    ProcMgr_AttachParams            attachParams;
+    ProcMgr_State                   state;
+    RcmClient_Handle                rcmClientHandle     = NULL;
+    RcmClient_Params                rcmClientParams;
     Char *                          remoteServerName;
 
     UInt                            fxnBufferTestIdx;
     UInt                            fxnExitIdx;
 
-    RcmClient_Message *             rcmMsg = NULL;
+    RcmClient_Message             * rcmMsg              = NULL;
+    RcmClient_Message             * returnMsg           = NULL;
     UInt                            rcmMsgSize;
-    RCM_Remote_FxnArgs *            fxnArgs;
-    Int                             count = 0;
-    Int                             maxCount = 3;
-    UInt32                          entry_point = 0;
+    RCM_Remote_FxnArgs            * fxnArgs;
+    Int                             count               = 0;
+    Int                             maxCount            = 3;
+    UInt32                          entryPoint          = 0;
     UInt                            i;
-    Ptr                             bufPtr = NULL;
-    UInt                            usrSharedAddr;
+    Ptr                             bufPtr              = NULL;
     ProcMgr_MapType                 mapType;
     UInt                            k;
-    UInt *                          uintBuf;
+    UInt                          * uintBuf;
+    HeapBufMP_Params                heapbufmpParams;
+    UInt32                          srCount;
+    SharedRegion_Entry              srEntry;
+    HeapBufMP_Handle                heapHandle          = NULL;
+    SizeT                           heapSize            = 0;
+    Ptr                             heapBufPtr          = NULL;
+    HeapBufMP_Handle                heapHandle1         = NULL;
+    SizeT                           heapSize1           = 0;
+    Ptr                             heapBufPtr1         = NULL;
+    IHeap_Handle                    srHeap              = NULL;
 
-    SysMgr_getConfig (&config);
-    status = SysMgr_setup (&config);
+    Ipc_getConfig (&config);
+    status = Ipc_setup (&config);
     if (status < 0) {
-        Osal_printf ("Error in SysMgr_setup [0x%x]\n", status);
+        Osal_printf ("Error in Ipc_setup [0x%x]\n", status);
     }
 
     printf("RCM procId= %d\n", procId);
 
     /* Open a handle to the ProcMgr instance. */
-    status = ProcMgr_open (&procMgrHandle_client,
+    status = ProcMgr_open (&procMgrHandleSysM3,
                            procIdSysM3);
     if (status < 0) {
         Osal_printf ("Error in ProcMgr_open [0x%x]\n", status);
     }
     else {
         Osal_printf ("ProcMgr_open Status [0x%x]\n", status);
-
-        status = ProcMgr_translateAddr (procMgrHandle_client,
-                                        (Ptr) &usrSharedAddr,
-                                        ProcMgr_AddrType_MasterUsrVirt,
-                                        (Ptr) SHAREDMEM,
-                                        ProcMgr_AddrType_SlaveVirt);
-
-        status = SharedRegion_add (0,
-                           (Ptr) usrSharedAddr,
-                           SHAREDMEMSIZE);
+        ProcMgr_getAttachParams (NULL, &attachParams);
+        /* Default params will be used if NULL is passed. */
+        status = ProcMgr_attach (procMgrHandleSysM3, &attachParams);
         if (status < 0) {
-            Osal_printf ("Error in SharedRegion_add [0x%x]\n", status);
+            Osal_printf ("ProcMgr_attach failed [0x%x]\n", status);
         }
         else {
-            Osal_printf ("SharedRegion_add [0x%x]\n", status);
+            Osal_printf ("ProcMgr_attach status: [0x%x]\n", status);
+            state = ProcMgr_getState (procMgrHandleSysM3);
+            Osal_printf ("After attach: ProcMgr_getState\n"
+                         "    state [0x%x]\n", status);
         }
+    }
 
-        status = ProcMgr_translateAddr (procMgrHandle_client,
-                                        (Ptr) &usrSharedAddr,
-                                        ProcMgr_AddrType_MasterUsrVirt,
-                                        (Ptr) SHAREDMEM1,
-                                        ProcMgr_AddrType_SlaveVirt);
-
-        status = SharedRegion_add (1,
-                           (Ptr) usrSharedAddr,
-                           SHAREDMEMSIZE);
+    if (status >= 0 && procId == procIdAppM3) {
+        /* Open a handle to the ProcMgr instance. */
+        status = ProcMgr_open (&procMgrHandleAppM3, procIdAppM3);
         if (status < 0) {
-            Osal_printf ("Error in SharedRegion_add [0x%x]\n", status);
+            Osal_printf ("Error in ProcMgr_open [0x%x]\n", status);
         }
         else {
-            Osal_printf ("SharedRegion_add [0x%x]\n", status);
+            Osal_printf ("ProcMgr_open Status [0x%x]\n", status);
+            ProcMgr_getAttachParams (NULL, &attachParams);
+            /* Default params will be used if NULL is passed. */
+            status = ProcMgr_attach (procMgrHandleAppM3, &attachParams);
+            if (status < 0) {
+                Osal_printf ("ProcMgr_attach failed [0x%x]\n", status);
+            }
+            else {
+                Osal_printf ("ProcMgr_attach status: [0x%x]\n", status);
+                state = ProcMgr_getState (procMgrHandleAppM3);
+                Osal_printf ("After attach: ProcMgr_getState\n"
+                             "    state [0x%x]\n", status);
+            }
         }
+    }
 
+    if (status >= 0) {
 #if defined (SYSLINK_USE_LOADER)
-        imageNameSysM3 = "./MemAllocServer_MPUSYS_Test_Core0.xem3";
-        Osal_printf ("loading the image %s\n", imageNameSysM3);
-        Osal_printf ("procId = %d\n", procIdSysM3);
+        if (procId == procIdSysM3)
+            imageNameSysM3 = TILERAPP_SYSM3ONLY_IMAGE;
+        else if (procId == procIdAppM3)
+            imageNameSysM3 = TILERAPP_SYSM3_IMAGE;
 
-        status = ProcMgr_load (procMgrHandle_client, imageNameSysM3, 2,
-                                &imageNameSysM3, &entry_point, &fileIdSysM3, procIdSysM3);
+        Osal_printf ("ProcMgr_load: Loading the SysM3 image %s\n",
+                     imageNameSysM3);
+        status = ProcMgr_load (procMgrHandleSysM3, imageNameSysM3, 2,
+                               &imageNameSysM3, &entryPoint, &fileIdSysM3,
+                               procIdSysM3);
+        Osal_printf ("ProcMgr_load SysM3 image Status [0x%x]\n", status);
 #endif
-        start_params.proc_id = procIdSysM3;
-        Osal_printf("Starting ProcMgr for procID = %d\n", start_params.proc_id);
-        status  = ProcMgr_start(procMgrHandle_client, entry_point, &start_params);
-        Osal_printf ("ProcMgr_start Status [0x%x]\n", status);
-
-        if(procId == procIdAppM3) {
-#if defined (SYSLINK_USE_LOADER)
-            imageNameAppM3 = "./MemAllocServer_MPUAPP_Test_Core1.xem3";
-            Osal_printf ("loading the image %s\n", imageNameAppM3);
-            Osal_printf ("procId = %d\n", procIdAppM3);
-
-            status = ProcMgr_load (procMgrHandle_client, imageNameAppM3, 2,
-                                    &imageNameAppM3, &entry_point, &fileIdAppM3, procIdAppM3);
-#endif
-            start_params.proc_id = procIdAppM3;
-            Osal_printf("Starting ProcMgr for procID = %d\n", start_params.proc_id);
-            status  = ProcMgr_start(procMgrHandle_client, entry_point, &start_params);
-            Osal_printf ("ProcMgr_start Status [0x%x]\n", status);
+        if (status >= 0) {
+            startParams.proc_id = procIdSysM3;
+            status = ProcMgr_start (procMgrHandleSysM3, entryPoint,
+                                     &startParams);
+            Osal_printf ("ProcMgr_start SysM3 Status [0x%x]\n", status);
         }
+    }
+
+    if (status >= 0 && procId == procIdAppM3) {
+#if defined (SYSLINK_USE_LOADER)
+        imageNameAppM3 = TILERAPP_APPM3_IMAGE;
+        Osal_printf ("ProcMgr_load: Loading the AppM3 image %s\n",
+                     imageNameAppM3);
+        status = ProcMgr_load (procMgrHandleAppM3, imageNameAppM3, 2,
+                                &imageNameAppM3, &entryPoint, &fileIdAppM3,
+                                procIdAppM3);
+        Osal_printf ("ProcMgr_load AppM3 image Status [0x%x]\n", status);
+#endif
+        if (status >= 0) {
+            startParams.proc_id = procIdAppM3;
+            status  = ProcMgr_start (procMgrHandleAppM3, entryPoint,
+                                     &startParams);
+            Osal_printf ("ProcMgr_start AppM3 Status [0x%x]\n", status);
+        }
+    }
+
+    srCount = SharedRegion_getNumRegions();
+    Osal_printf ("SharedRegion_getNumRegions = %d\n", srCount);
+    for (i = 0; i < srCount; i++) {
+        status = SharedRegion_getEntry (i, &srEntry);
+        Osal_printf ("SharedRegion_entry #%d: base = 0x%x len = 0x%x "
+                        "ownerProcId = %d isValid = %d cacheEnable = %d "
+                        "cacheLineSize = 0x%x createHeap = %d name = %s\n",
+                        i, srEntry.base, srEntry.len, srEntry.ownerProcId,
+                        (Int)srEntry.isValid, (Int)srEntry.cacheEnable,
+                        srEntry.cacheLineSize, (Int)srEntry.createHeap,
+                        srEntry.name);
+    }
+
+    /* Create the heap to be used by RCM and register it with MessageQ */
+    /* TODO: Do this dynamically by reading from the IPC config from the
+     *       baseimage using Ipc_readConfig() */
+    if (status >= 0) {
+        HeapBufMP_Params_init (&heapbufmpParams);
+        heapbufmpParams.sharedAddr = NULL;
+        heapbufmpParams.align      = RCM_MSGQ_TILER_HEAP_ALIGN;
+        heapbufmpParams.numBlocks  = RCM_MSGQ_TILER_HEAP_BLOCKS;
+        heapbufmpParams.blockSize  = RCM_MSGQ_TILER_MSGSIZE;
+        heapSize = HeapBufMP_sharedMemReq (&heapbufmpParams);
+        Osal_printf ("heapSize = 0x%x\n", heapSize);
+
+        srHeap = SharedRegion_getHeap (RCM_MSGQ_HEAP_SR);
+        if (srHeap == NULL) {
+            status = MEMORYOS_E_FAIL;
+            Osal_printf ("SharedRegion_getHeap failed for srHeap:"
+                         " [0x%x]\n", srHeap);
+        }
+        else {
+            Osal_printf ("Before Memory_alloc = 0x%x\n", srHeap);
+            heapBufPtr = Memory_alloc (srHeap, heapSize, 0);
+            if (heapBufPtr == NULL) {
+                status = MEMORYOS_E_MEMORY;
+                Osal_printf ("Memory_alloc failed for ptr: [0x%x]\n",
+                             heapBufPtr);
+            }
+            else {
+                heapbufmpParams.name           = RCM_MSGQ_TILER_HEAPNAME;
+                heapbufmpParams.sharedAddr     = heapBufPtr;
+                Osal_printf ("Before HeapBufMP_Create: [0x%x]\n", heapBufPtr);
+                heapHandle = HeapBufMP_create (&heapbufmpParams);
+                if (heapHandle == NULL) {
+                    status = HeapBufMP_E_FAIL;
+                    Osal_printf ("HeapBufMP_create failed for Handle:"
+                                 "[0x%x]\n", heapHandle);
+                }
+                else {
+                    /* Register this heap with MessageQ */
+                    status = MessageQ_registerHeap (heapHandle,
+                                                    RCM_MSGQ_TILER_HEAPID);
+                    if (status < 0) {
+                        Osal_printf ("MessageQ_registerHeap failed!\n");
+                    }
+                }
+            }
+        }
+    }
+
+    if (status >= 0) {
+        HeapBufMP_Params_init (&heapbufmpParams);
+        heapbufmpParams.sharedAddr = NULL;
+        heapbufmpParams.align      = RCM_MSGQ_DOMX_HEAP_ALIGN;
+        heapbufmpParams.numBlocks  = RCM_MSGQ_DOMX_HEAP_BLOCKS;
+        heapbufmpParams.blockSize  = RCM_MSGQ_DOMX_MSGSIZE;
+        heapSize1 = HeapBufMP_sharedMemReq (&heapbufmpParams);
+        Osal_printf ("heapSize1 = 0x%x\n", heapSize1);
+
+        heapBufPtr1 = Memory_alloc (srHeap, heapSize1, 0);
+        if (heapBufPtr1 == NULL) {
+            status = MEMORYOS_E_MEMORY;
+            Osal_printf ("Memory_alloc failed for ptr: [0x%x]\n",
+                         heapBufPtr1);
+        }
+        else {
+            heapbufmpParams.name           = RCM_MSGQ_DOMX_HEAPNAME;
+            heapbufmpParams.sharedAddr     = heapBufPtr1;
+            Osal_printf ("Before HeapBufMP_Create: [0x%x]\n", heapBufPtr1);
+            heapHandle1 = HeapBufMP_create (&heapbufmpParams);
+            if (heapHandle1 == NULL) {
+                status = HeapBufMP_E_FAIL;
+                Osal_printf ("HeapBufMP_create failed for Handle:"
+                             "[0x%x]\n", heapHandle1);
+            }
+            else {
+                /* Register this heap with MessageQ */
+                status = MessageQ_registerHeap (heapHandle1,
+                                                RCM_MSGQ_DOMX_HEAPID);
+                if (status < 0) {
+                    Osal_printf ("MessageQ_registerHeap failed!\n");
+                }
+            }
+        }
+    }
+    if (status < 0) {
+        goto exit;
     }
 
     ///////////////////////// Set up RCM /////////////////////////
 
-    /* Get default config for rcm client module */
-    Osal_printf ("Get default config for rcm client module.\n");
-    status = RcmClient_getConfig(&cfgParams);
-    if (status < 0) {
-        Osal_printf ("Error in RCM Client module get config \n");
-        goto exit;
-    } else {
-        Osal_printf ("RCM Client module get config passed \n");
-    }
+    /* Rcm client module init*/
+    Osal_printf ("RCM Client module init.\n");
+    RcmClient_init ();
 
-    cfgParams.defaultHeapBlockSize = MSGSIZE;
-
-    /* rcm client module setup*/
-    Osal_printf ("RCM Client module setup.\n");
-    status = RcmClient_setup (&cfgParams);
-    if (status < 0) {
-        Osal_printf ("Error in RCM Client module setup \n");
-        goto exit;
-    } else {
-        Osal_printf ("RCM Client module setup passed \n");
-    }
-
-    /* rcm client module params init*/
+    /* Rcm client module params init*/
     Osal_printf ("RCM Client module params init.\n");
-    status = RcmClient_Params_init(NULL, &rcmClient_Params);
+    status = RcmClient_Params_init (&rcmClientParams);
     if (status < 0) {
         Osal_printf ("Error in RCM Client instance params init \n");
         goto exit;
@@ -250,23 +387,23 @@ Int SyslinkUseBufferTest (Int procId, Bool useTiler, UInt numTrials)
         Osal_printf ("RCM Client instance params init passed \n");
     }
 
-    if(procId == procIdSysM3) {
+    if (procId == procIdSysM3) {
         remoteServerName = RCM_SERVER_NAME_SYSM3;
-        rcmClient_Params.heapId = HEAPID_SYSM3;
     }
     else {
         remoteServerName = RCM_SERVER_NAME_APPM3;
-        rcmClient_Params.heapId = HEAPID_APPM3;
     }
+    rcmClientParams.heapId = RCM_MSGQ_TILER_HEAPID;
+
     /* create an rcm client instance */
     Osal_printf ("Creating RcmClient instance %s.\n", remoteServerName);
-    rcmClient_Params.callbackNotification = 0; /* disable asynchronous exec */
+    rcmClientParams.callbackNotification = 0; /* disable asynchronous exec */
 
     while ((rcmClientHandle == NULL) && (count++ < MAX_CREATE_ATTEMPTS)) {
-        status = RcmClient_create (remoteServerName, &rcmClient_Params,
+        status = RcmClient_create (remoteServerName, &rcmClientParams,
                                     &rcmClientHandle);
         if (status < 0) {
-            if (status == RCMCLIENT_ESERVER) {
+            if (status == RcmClient_E_SERVERNOTFOUND) {
                 Osal_printf ("Unable to open remote server %d time\n", count);
             }
             else {
@@ -302,51 +439,51 @@ Int SyslinkUseBufferTest (Int procId, Bool useTiler, UInt numTrials)
 
     for(k = 0; k < numTrials; k++)
     {
-        /////////////////////////// Allocate & map buffer ////////////////////////
-        if(useTiler) {
+        /////////////////////////// Allocate & map buffer //////////////////////
+        if (useTiler) {
             TilerMgr_Open();
-            Osal_printf("Calling tilerAlloc.\n");
+            Osal_printf ("Calling tilerAlloc.\n");
             bufPtr = (Ptr)TilerMgr_Alloc(PIXEL_FMT_8BIT, mapSize, 1);
-            if(bufPtr == NULL) {
-                Osal_printf("Error: tilerAlloc returned null.\n");
+            if (bufPtr == NULL) {
+                Osal_printf ("Error: tilerAlloc returned null.\n");
                 status = -1;
 
                 return status;
             }
             else {
-                Osal_printf("tilerAlloc returned 0x%x.\n", (UInt)bufPtr);
+                Osal_printf ("tilerAlloc returned 0x%x.\n", (UInt)bufPtr);
             }
 
             mapType = ProcMgr_MapType_Tiler;
         }
         else {
-            Osal_printf("Calling malloc.\n");
+            Osal_printf ("Calling malloc.\n");
             bufPtr = (Ptr)malloc(mapSize);
 
-            if(bufPtr == NULL) {
-                Osal_printf("Error: malloc returned null.\n");
+            if (bufPtr == NULL) {
+                Osal_printf ("Error: malloc returned null.\n");
                 return -1;
             }
             else {
-                Osal_printf("malloc returned 0x%x.\n", (UInt)bufPtr);
+                Osal_printf ("malloc returned 0x%x.\n", (UInt)bufPtr);
             }
             mapType = ProcMgr_MapType_Virt;
         }
 
-        if(useTiler) {
-            Osal_printf("Opening /dev/mem.\n");
+        if (useTiler) {
+            Osal_printf ("Opening /dev/mem.\n");
             fd = open ("/dev/mem", O_RDWR|O_SYNC);
             if (fd) {
-                mapBase = mmap(0,  mapSize, PROT_READ | PROT_WRITE, MAP_SHARED, fd,
-                                                           (UInt)bufPtr);
-                if(mapBase == (void *) -1) {
-                    Osal_printf("Failed to do memory mapping \n");
+                mapBase = mmap(0, mapSize, PROT_READ | PROT_WRITE, MAP_SHARED,
+                                fd, (UInt)bufPtr);
+                if (mapBase == (void *) -1) {
+                    Osal_printf ("Failed to do memory mapping \n");
                     close (fd);
                     return -1;
                 }
             }
             else {
-                Osal_printf("Failed opening /dev/mem file\n");
+                Osal_printf ("Failed opening /dev/mem file\n");
                 return -2;
             }
         }
@@ -354,12 +491,12 @@ Int SyslinkUseBufferTest (Int procId, Bool useTiler, UInt numTrials)
             mapBase = bufPtr;
 
         printf("map_base = 0x%x \n", (UInt32)mapBase);
-        MpuAddr_list[0].mpuAddr = (UInt32)mapBase;
-        MpuAddr_list[0].size = mapSize;
-        status = SysLinkMemUtils_map (MpuAddr_list, 1, &mappedAddr,
+        mpuAddrList[0].mpuAddr = (UInt32)mapBase;
+        mpuAddrList[0].size = mapSize;
+        status = SysLinkMemUtils_map (mpuAddrList, 1, &mappedAddr,
                                 mapType, PROC_SYSM3);
-        Osal_printf("MPU Address = 0x%x     Mapped Address = 0x%x\n",
-                                MpuAddr_list[0].mpuAddr, mappedAddr);
+        Osal_printf ("MPU Address = 0x%x     Mapped Address = 0x%x\n",
+                                mpuAddrList[0].mpuAddr, mappedAddr);
 
         //////////////// Do actual test here ////////////////
 
@@ -368,18 +505,19 @@ Int SyslinkUseBufferTest (Int procId, Bool useTiler, UInt numTrials)
             uintBuf[i] = 0;
             uintBuf[i] = (0xbeef0000 | i);
 
-            if(uintBuf[i] != (0xbeef0000 | i)) {
-                Osal_printf("Readback failed at address 0x%x\n", &uintBuf[i]);
-                Osal_printf("\tExpected: [0x%x]\tActual: [0x%x]\n", (0xbeef0000 | i), uintBuf[i]);
+            if (uintBuf[i] != (0xbeef0000 | i)) {
+                Osal_printf ("Readback failed at address 0x%x\n", &uintBuf[i]);
+                Osal_printf ("\tExpected: [0x%x]\tActual: [0x%x]\n",
+                                (0xbeef0000 | i), uintBuf[i]);
             }
         }
 
         // allocate a remote command message
-        Osal_printf("Allocating RCM message\n");
+        Osal_printf ("Allocating RCM message\n");
         rcmMsgSize = sizeof(RCM_Remote_FxnArgs);
-        rcmMsg = RcmClient_alloc (rcmClientHandle, rcmMsgSize);
-        if (rcmMsg == NULL) {
-            Osal_printf("Error allocating RCM message\n");
+        status = RcmClient_alloc (rcmClientHandle, rcmMsgSize, &rcmMsg);
+        if (status < 0) {
+            Osal_printf ("Error allocating RCM message\n");
             goto exit;
         }
 
@@ -389,8 +527,7 @@ Int SyslinkUseBufferTest (Int procId, Bool useTiler, UInt numTrials)
         fxnArgs->numBytes = mapSize;
         fxnArgs->bufPtr   = (Ptr)mappedAddr;
 
-        status = RcmClient_exec (rcmClientHandle, rcmMsg);
-
+        status = RcmClient_exec (rcmClientHandle, rcmMsg, &returnMsg);
         if (status < 0) {
             Osal_printf (" RcmClient_exec error. \n");
         }
@@ -399,15 +536,17 @@ Int SyslinkUseBufferTest (Int procId, Bool useTiler, UInt numTrials)
             Osal_printf ("Testing data\n");
             count = 0;
             for(i = 0; i < mapSize / sizeof(UInt) && count < maxCount; i++) {
-                if(uintBuf[i] != ~(0xbeef0000 | i)) {
-                    Osal_printf("ERROR: Data mismatch at offset 0x%x\n", i * sizeof(UInt));
-                    Osal_printf("\tExpected: [0x%x]\tActual: [0x%x]\n", ~(0xbeef0000 | i), uintBuf[i]);
+                if (uintBuf[i] != ~(0xbeef0000 | i)) {
+                    Osal_printf ("ERROR: Data mismatch at offset 0x%x\n",
+                                    i * sizeof(UInt));
+                    Osal_printf ("\tExpected: [0x%x]\tActual: [0x%x]\n",
+                                    ~(0xbeef0000 | i), uintBuf[i]);
                     count ++;
                 }
             }
 
-            if(count == 0)
-                Osal_printf("Test passed!\n");
+            if (count == 0)
+                Osal_printf ("Test passed!\n");
         }
 
         // Set the memory to some other value to avoid a
@@ -418,18 +557,18 @@ Int SyslinkUseBufferTest (Int procId, Bool useTiler, UInt numTrials)
 
         // return message to the heap
         Osal_printf ("Calling RcmClient_free\n");
-        RcmClient_free (rcmClientHandle, rcmMsg);
+        RcmClient_free (rcmClientHandle, returnMsg);
 
         ///////////////////// Cleanup //////////////////////
 
-        if(useTiler) {
-            Osal_printf("Freeing TILER buffer\n");
+        if (useTiler) {
+            Osal_printf ("Freeing TILER buffer\n");
             TilerMgr_Free((Int)bufPtr);
 
             if (munmap(mapBase,mapSize) == -1)
-                    Osal_printf("Memory Unmap failed.\n");
+                    Osal_printf ("Memory Unmap failed.\n");
             else
-                Osal_printf("Memory Unmap successful.\n");
+                Osal_printf ("Memory Unmap successful.\n");
             close(fd);
 
             TilerMgr_Close();
@@ -444,8 +583,8 @@ Int SyslinkUseBufferTest (Int procId, Bool useTiler, UInt numTrials)
 
     // allocate a remote command message
     rcmMsgSize = sizeof(RCM_Remote_FxnArgs);
-    rcmMsg = RcmClient_alloc (rcmClientHandle, rcmMsgSize);
-    if (rcmMsg == NULL) {
+    status = RcmClient_alloc (rcmClientHandle, rcmMsgSize, &rcmMsg);
+    if (status < 0) {
         Osal_printf ("Error allocating RCM message\n");
         goto exit;
     }
@@ -456,7 +595,7 @@ Int SyslinkUseBufferTest (Int procId, Bool useTiler, UInt numTrials)
 
     // execute the remote command message
     Osal_printf ("calling RcmClient_execDpc \n");
-    status = RcmClient_execDpc (rcmClientHandle, rcmMsg);
+    status = RcmClient_execDpc (rcmClientHandle, rcmMsg, &returnMsg);
     if (status < 0) {
         Osal_printf ("RcmClient_execDpc error. \n");
         goto exit;
@@ -464,7 +603,7 @@ Int SyslinkUseBufferTest (Int procId, Bool useTiler, UInt numTrials)
 
     // return message to the heap
     Osal_printf ("calling RcmClient_free \n");
-    RcmClient_free (rcmClientHandle, rcmMsg);
+    RcmClient_free (rcmClientHandle, returnMsg);
 
     /* delete the rcm client */
     Osal_printf ("Delete RCM client instance \n");
@@ -475,38 +614,84 @@ Int SyslinkUseBufferTest (Int procId, Bool useTiler, UInt numTrials)
 
     /* rcm client module destroy*/
     Osal_printf ("Destroy RCM client module \n");
-    status = RcmClient_destroy ();
+    RcmClient_exit ();
+
+    /* Cleanup the default HeapBufMP registered with MessageQ */
+    status = MessageQ_unregisterHeap (RCM_MSGQ_DOMX_HEAPID);
     if (status < 0) {
-        Osal_printf ("Error in RCM Client module destroy \n");
+        Osal_printf ("Error in MessageQ_unregisterHeap [0x%x]\n", status);
     }
 
-    /* Finalize modules */
-    SharedRegion_remove (0);
-    SharedRegion_remove (1);
-
-    if(procId == procIdAppM3) {
-        stop_params.proc_id = procIdAppM3;
-        status = ProcMgr_stop(procMgrHandle_client, &stop_params);
-        Osal_printf("ProcMgr_stop status: [0x%x]\n", status);
+    if (heapHandle1) {
+        status = HeapBufMP_delete (&heapHandle1);
+        if (status < 0) {
+            Osal_printf ("Error in HeapBufMP_delete [0x%x]\n", status);
+        }
     }
 
-    stop_params.proc_id = procIdSysM3;
-    status = ProcMgr_stop(procMgrHandle_client, &stop_params);
-    Osal_printf("ProcMgr_stop status: [0x%x]\n", status);
+    if (heapBufPtr1) {
+        Memory_free (srHeap, heapBufPtr1, heapSize1);
+    }
 
+    status = MessageQ_unregisterHeap (RCM_MSGQ_TILER_HEAPID);
+    if (status < 0) {
+        Osal_printf ("Error in MessageQ_unregisterHeap [0x%x]\n", status);
+    }
 
-    status = ProcMgr_close (&procMgrHandle_client);
-    Osal_printf ("ProcMgr_close status: [0x%x]\n", status);
+    if (heapHandle) {
+        status = HeapBufMP_delete (&heapHandle);
+        if (status < 0) {
+            Osal_printf ("Error in HeapBufMP_delete [0x%x]\n", status);
+        }
+    }
 
-    status = SysMgr_destroy();
-    Osal_printf("SysMgr_destroy status: [0x%x]\n", status);
+    if (heapBufPtr) {
+        Memory_free (srHeap, heapBufPtr, heapSize);
+    }
+
+    if (procId == procIdAppM3) {
+        stopParams.proc_id = procIdAppM3;
+        status = ProcMgr_stop (procMgrHandleAppM3, &stopParams);
+        Osal_printf ("ProcMgr_stop status: [0x%x]\n", status);
+    }
+
+    stopParams.proc_id = procIdSysM3;
+    status = ProcMgr_stop (procMgrHandleSysM3, &stopParams);
+    Osal_printf ("ProcMgr_stop status: [0x%x]\n", status);
+
+    if (procId == procIdAppM3) {
+        status = ProcMgr_detach (procMgrHandleAppM3);
+        if (status < 0) {
+            Osal_printf ("Error in ProcMgr_detach(AppM3): status = 0x%x\n",
+                            status);
+        }
+
+        status = ProcMgr_close (&procMgrHandleAppM3);
+        if (status < 0) {
+            Osal_printf ("Error in ProcMgr_close(AppM3): status = 0x%x\n",
+                            status);
+        }
+    }
+
+    status = ProcMgr_detach (procMgrHandleSysM3);
+    if (status < 0) {
+        Osal_printf ("Error in ProcMgr_detach(SysM3): status = 0x%x\n", status);
+    }
+
+    status = ProcMgr_close (&procMgrHandleSysM3);
+    if (status < 0) {
+        Osal_printf ("Error in ProcMgr_close(SysM3): status = 0x%x\n", status);
+    }
+
+    status = Ipc_destroy();
+    Osal_printf ("Ipc_destroy status: [0x%x]\n", status);
 
     Osal_printf ("SyslinkUseBufferTest done!\n");
 
 exit:
     return status;
-
 }
+
 
 /*!
  *  @brief       Function to test the retrieval of Pages for
@@ -518,60 +703,65 @@ exit:
  */
 Int SyslinkVirtToPhysPagesTest(void)
 {
-    Int status = 0;
-    UInt32 remoteAddr;
-    Int numOfIterations = 1;
-    UInt32 physEntries[10];
-    UInt32 NumOfPages = 10;
-    UInt32 temp;
-    SysMgr_Config                   config;
-/*
-    int *p;
-    UInt32 mappedAddr;
-    SyslinkMemUtils_MpuAddrToMap MpuAddr_list[1];
-    UInt32 sizeOfBuffer = 0x1000;
-*/
+    Int                             status          = 0;
+    UInt32                          remoteAddr;
+    Int                             numOfIterations = 1;
+    UInt32                          physEntries[10];
+    UInt32                          numOfPages      = 10;
+    UInt32                          temp;
+    Ipc_Config                      config;
+#if 0
+    Int                           * p;
+    UInt32                          mappedAddr;
+    SyslinkMemUtils_MpuAddrToMap    mpuAddrList[1];
+    UInt32                          sizeOfBuffer = 0x1000;
+#endif
 
-    SysMgr_getConfig (&config);
-    status = SysMgr_setup (&config);
+    Ipc_getConfig (&config);
+    status = Ipc_setup (&config);
+    if (status < 0) {
+        Osal_printf ("Error in Ipc_setup [0x%x]\n", status);
+    }
+
     Osal_printf ("Testing SyslinkVirtToPhysTest\n");
     remoteAddr = 0x60000000;
     do {
-        status = SysLinkMemUtils_virtToPhysPages (remoteAddr, NumOfPages, physEntries,
-                                            PROC_SYSM3);
-        if (status < 0)
-        {
-            Osal_printf("SysLinkMemUtils_virtToPhysPages failure,status"
+        status = SysLinkMemUtils_virtToPhysPages (remoteAddr, numOfPages,
+                                                    physEntries, PROC_SYSM3);
+        if (status < 0) {
+            Osal_printf ("SysLinkMemUtils_virtToPhysPages failure,status"
                         " = 0x%x\n",(UInt32)status);
             return status;
         }
-        for (temp = 0; temp < NumOfPages; temp++)
-        {
-            Osal_printf("remoteAddr = [0x%x]  physAddr = [0x%x]\n", remoteAddr,
+
+        for (temp = 0; temp < numOfPages; temp++) {
+            Osal_printf ("remoteAddr = [0x%x]  physAddr = [0x%x]\n", remoteAddr,
                                                             physEntries[temp]);
             remoteAddr += 4096;
         }
         numOfIterations--;
-    }while (numOfIterations > 0);
-/*
+    } while (numOfIterations > 0);
+
+#if 0
     p = (int *)malloc(sizeOfBuffer);
-    MpuAddr_list[0].mpuAddr = (UInt32)p;
-    MpuAddr_list[0].size = sizeOfBuffer + 0x1000;
-    status = SysLinkMemUtils_map (MpuAddr_list, 1, &mappedAddr,
+    mpuAddrList[0].mpuAddr = (UInt32)p;
+    mpuAddrList[0].size = sizeOfBuffer + 0x1000;
+    status = SysLinkMemUtils_map (mpuAddrList, 1, &mappedAddr,
                             ProcMgr_MapType_Virt, PROC_SYSM3);
     mappedAddr = (UInt32)p;
-    NumOfPages = 3;
-    status = SysLinkMemUtils_virtToPhysPages (mappedAddr, NumOfPages, physEntries,
-                                            PROC_SYSM3);
-    for (temp = 0; temp < NumOfPages; temp++)
-    {
-        Osal_printf("remoteAddr = [0x%x]  physAddr = [0x%x]\n",
+    numOfPages = 3;
+    status = SysLinkMemUtils_virtToPhysPages (mappedAddr, numOfPages,
+                                               physEntries, PROC_SYSM3);
+    for (temp = 0; temp < numOfPages; temp++) {
+        Osal_printf ("remoteAddr = [0x%x]  physAddr = [0x%x]\n",
                     (mappedAddr + (temp*4096)), physEntries[temp]);
     }
     SysLinkMemUtils_unmap(mappedAddr, PROC_SYSM3);
     free(p);
-*/
-    SysMgr_destroy();
+#endif
+
+    Ipc_destroy ();
+
     return status;
 }
 
@@ -584,23 +774,25 @@ Int SyslinkVirtToPhysPagesTest(void)
  *
  *  @sa
  */
-Int SyslinkVirtToPhysTest(void)
+Int SyslinkVirtToPhysTest (Void)
 {
-    UInt32 remoteAddr;
-    UInt32 physAddr;
-    Int numOfIterations = 10;
+    UInt32  remoteAddr;
+    UInt32  physAddr;
+    Int     numOfIterations = 10;
 
     Osal_printf ("Testing SyslinkVirtToPhysTest\n");
     remoteAddr = 0x60000000;
     do {
         SysLinkMemUtils_virtToPhys (remoteAddr, &physAddr, PROC_SYSM3);
-        Osal_printf("remoteAddr = [0x%x]  physAddr = [0x%x]\n", remoteAddr,
+        Osal_printf ("remoteAddr = [0x%x]  physAddr = [0x%x]\n", remoteAddr,
                                                             physAddr);
         remoteAddr += 4096;
         numOfIterations--;
-    }while (numOfIterations > 0);
+    } while (numOfIterations > 0);
+
     return 0;
 }
+
 
 /*!
  *  @brief       Function to test multiple calls to map/unmap
@@ -609,100 +801,67 @@ Int SyslinkVirtToPhysTest(void)
  *
  *  @sa
  */
-Int SyslinkMapUnMapTest(UInt numTrials)
+Int SyslinkMapUnMapTest (UInt numTrials)
 {
+    Int                             status              = 0;
     Ptr                             bufPtr;
     UInt                            bufSize;
     UInt                            i;
-    SyslinkMemUtils_MpuAddrToMap    MpuAddr_list[1];
+    SyslinkMemUtils_MpuAddrToMap    mpuAddrList[1];
     UInt32                          mappedAddr;
-    Int                             status = 0;
-    SysMgr_Config                   config;
-    ProcMgr_Handle                  procMgrHandle_client;
-    UInt                            usrSharedAddr;
+    Ipc_Config                      config;
+    ProcMgr_Handle                  procMgrHandleClient;
 
     // Randomize
     srand(time(NULL));
 
-    SysMgr_getConfig (&config);
-    status = SysMgr_setup (&config);
+    Ipc_getConfig (&config);
+    status = Ipc_setup (&config);
     if (status < 0) {
-        Osal_printf ("Error in SysMgr_setup [0x%x]\n", status);
+        Osal_printf ("Error in Ipc_setup [0x%x]\n", status);
     }
 
     /* Open a handle to the ProcMgr instance. */
-    status = ProcMgr_open (&procMgrHandle_client,
-                           PROC_SYSM3);
+    status = ProcMgr_open (&procMgrHandleClient, PROC_SYSM3);
     if (status < 0) {
         Osal_printf ("Error in ProcMgr_open [0x%x]\n", status);
     }
     else {
         Osal_printf ("ProcMgr_open Status [0x%x]\n", status);
 
-        status = ProcMgr_translateAddr (procMgrHandle_client,
-                                        (Ptr) &usrSharedAddr,
-                                        ProcMgr_AddrType_MasterUsrVirt,
-                                        (Ptr) SHAREDMEM,
-                                        ProcMgr_AddrType_SlaveVirt);
-
-        status = SharedRegion_add (0,
-                           (Ptr) usrSharedAddr,
-                           SHAREDMEMSIZE);
-        if (status < 0) {
-            Osal_printf ("Error in SharedRegion_add [0x%x]\n", status);
-        }
-        else {
-            Osal_printf ("SharedRegion_add [0x%x]\n", status);
-        }
-
-        status = ProcMgr_translateAddr (procMgrHandle_client,
-                                        (Ptr) &usrSharedAddr,
-                                        ProcMgr_AddrType_MasterUsrVirt,
-                                        (Ptr) SHAREDMEM1,
-                                        ProcMgr_AddrType_SlaveVirt);
-
-        status = SharedRegion_add (1,
-                           (Ptr) usrSharedAddr,
-                           SHAREDMEMSIZE);
-        if (status < 0) {
-            Osal_printf ("Error in SharedRegion_add [0x%x]\n", status);
-        }
-        else {
-            Osal_printf ("SharedRegion_add [0x%x]\n", status);
-        }
-
         for(i = 0; i < numTrials; i++) {
-
             // Generate random size to allocate (up to 64K)
             bufSize = (rand() & 0xFFFF);
-            if(bufSize == 0)
+            if (bufSize == 0)
                 bufSize = 1;
 
-            Osal_printf("Calling malloc with size %d.\n", bufSize);
-            bufPtr = (Ptr)malloc(bufSize);
+            Osal_printf ("Calling malloc with size %d.\n", bufSize);
+            bufPtr = (Ptr) malloc(bufSize);
 
-            if(bufPtr == NULL) {
-                Osal_printf("Error: malloc returned null.\n");
+            if (bufPtr == NULL) {
+                Osal_printf ("Error: malloc returned null.\n");
                 return -1;
             }
             else {
-                Osal_printf("malloc returned 0x%x.\n", (UInt)bufPtr);
+                Osal_printf ("malloc returned 0x%x.\n", (UInt)bufPtr);
             }
 
-            MpuAddr_list[0].mpuAddr = (UInt32)bufPtr;
-            MpuAddr_list[0].size = bufSize;
-            status = SysLinkMemUtils_map (MpuAddr_list, 1, &mappedAddr,
-                                    ProcMgr_MapType_Virt, PROC_SYSM3);
-            if(status < 0) {
-                Osal_printf("SysLinkMemUtils_map failed with status [0x%x].\n", status);
+            mpuAddrList[0].mpuAddr = (UInt32)bufPtr;
+            mpuAddrList[0].size = bufSize;
+            status = SysLinkMemUtils_map (mpuAddrList, 1, &mappedAddr,
+                                            ProcMgr_MapType_Virt, PROC_SYSM3);
+            if (status < 0) {
+                Osal_printf ("SysLinkMemUtils_map failed with status [0x%x].\n",
+                                status);
                 return -2;
             }
-            Osal_printf("MPU Address = 0x%x     Mapped Address = 0x%x\n",
-                                    MpuAddr_list[0].mpuAddr, mappedAddr);
+            Osal_printf ("MPU Address = 0x%x     Mapped Address = 0x%x\n",
+                                    mpuAddrList[0].mpuAddr, mappedAddr);
 
-            status = SysLinkMemUtils_unmap(mappedAddr, PROC_SYSM3);
-            if(status < 0) {
-                Osal_printf("SysLinkMemUtils_unmap failed with status [0x%x].\n", status);
+            status = SysLinkMemUtils_unmap (mappedAddr, PROC_SYSM3);
+            if (status < 0) {
+                Osal_printf ("SysLinkMemUtils_unmap failed with status "
+                             "[0x%x].\n", status);
                 return -3;
             }
 
@@ -710,17 +869,13 @@ Int SyslinkMapUnMapTest(UInt numTrials)
         }
     }
 
-    /* Finalize modules */
-    SharedRegion_remove (0);
-    SharedRegion_remove (1);
-
-    status = ProcMgr_close (&procMgrHandle_client);
+    status = ProcMgr_close (&procMgrHandleClient);
     Osal_printf ("ProcMgr_close status: [0x%x]\n", status);
 
-    status = SysMgr_destroy();
-    Osal_printf("SysMgr_destroy status: [0x%x]\n", status);
+    status = Ipc_destroy ();
+    Osal_printf ("Ipc_destroy status: [0x%x]\n", status);
 
-    Osal_printf("Map/UnMap test passed!\n");
+    Osal_printf ("Map/UnMap test passed!\n");
     return 0;
 }
 
