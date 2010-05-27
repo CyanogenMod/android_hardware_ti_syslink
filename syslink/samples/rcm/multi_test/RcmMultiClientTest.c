@@ -609,7 +609,7 @@ Int ipcSetup (Int testCase)
         HeapBufMP_Params_init (&heapbufmpParams);
         heapbufmpParams.sharedAddr = NULL;
         heapbufmpParams.align      = 128;
-        heapbufmpParams.numBlocks  = 4;
+        heapbufmpParams.numBlocks  = 40;
         heapbufmpParams.blockSize  = MSGSIZE;
         heapSize = HeapBufMP_sharedMemReq (&heapbufmpParams);
         Osal_printf ("ipcSetup: heapSize = 0x%x\n", heapSize);
