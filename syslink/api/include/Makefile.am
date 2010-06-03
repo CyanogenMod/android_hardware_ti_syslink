@@ -169,7 +169,8 @@ _HeapMemMP.h \
 MultiProcDrvDefs.h \
 ProcMgrDrvDefs.h \
 TraceDrv.h \
-TraceDrvDefs.h
+TraceDrvDefs.h \
+ProcMMU.h
 
 library_includedir=$(includedir)/syslink
 

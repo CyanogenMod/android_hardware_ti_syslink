@@ -46,6 +46,7 @@ lib_LTLIBRARIES  = libprocmgr.la
 SRC_FILES =\
 ProcMgr.c \
 ProcMgrDrvUsr.c \
+ProcMMU.c \
 SysLinkMemUtils.c \
 elfload/arm_dynamic.c \
 elfload/arm_reloc.c \
