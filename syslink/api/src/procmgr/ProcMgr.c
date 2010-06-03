@@ -121,8 +121,8 @@
 #include <ArrayList.h>
 #include <dload_api.h>
 #include <load.h>
-
 #include <_Ipc.h>
+#include <ProcMMU.h>
 
 #if defined (__cplusplus)
 extern "C" {
@@ -1357,6 +1357,22 @@ ProcMgr_load (ProcMgr_Handle handle,
                (   ((argc == 0) && (argv == NULL))
                 || ((argc != 0) && (argv != NULL))));
 
+    /*FIXME: (KW) Remove field ID if not used. */
+    //cmdArgs.fileId = 0;
+
+    if (procID == MultiProc_getId ("SysM3")) {
+        status = ProcMMU_open ();
+        if (status < 0) {
+            Osal_printf ("Error in ProcMMU_open [0x%x]\n", status);
+            goto error_exit;
+        }
+        status = ProcMMU_init (DUCATI_BASEIMAGE_PHYSICAL_ADDRESS);
+        if (status < 0) {
+            Osal_printf ("Error in ProcMMU_init [0x%x]\n", status);
+            goto error_exit;
+        }
+    }
+
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
     if (handle == NULL) {
         /*! @retval  PROCMGR_E_HANDLE Invalid NULL handle specified */
@@ -1434,6 +1450,7 @@ ProcMgr_load (ProcMgr_Handle handle,
     }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
 
+error_exit:
     GT_1trace (curTrace, GT_LEAVE, "ProcMgr_load", status);
 
     /*! @retval PROCMGR_SUCCESS Operation successful */
@@ -1717,6 +1734,13 @@ ProcMgr_stop (ProcMgr_Handle handle, ProcMgr_StopParams * params)
     }
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+
+        if (params->proc_id == MultiProc_getId("SysM3")) {
+            status = ProcMMU_close();
+            if (status < 0) {
+                Osal_printf ("Error in ProcMMU_close [0x%x]\n", status);
+            }
+        }
 
 #ifdef SYSLINK_USE_SYSMGR
         status = Ipc_control (params->proc_id, Ipc_CONTROLCMD_STOPCALLBACK,

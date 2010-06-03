@@ -41,6 +41,7 @@
 #include <ti/ipc/MultiProc.h>
 #include <ti/ipc/SharedRegion.h>
 #include <ti/ipc/MessageQ.h>
+#include "ProcMMU.h"
 
 /* Sample headers */
 #include <MemMgrServer_config.h>

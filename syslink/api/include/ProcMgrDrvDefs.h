@@ -50,6 +50,7 @@
 /* Module headers */
 #include <ProcMgr.h>
 
+#include <linux/ioctl.h>
 
 #if defined (__cplusplus)
 extern "C" {
@@ -212,6 +213,14 @@ typedef struct ProcMgr_CmdArgs_tag {
  * @brief   Command for ProcMgr_getVirtToPhysPages
  */
 #define CMD_PROCMGR_GETVIRTTOPHYS       (PROCMGR_BASE_CMD + 28u)
+
+
+#define RPROC_IOC_MAGIC		'P'
+
+#define RPROC_IOCMONITOR	_IO(RPROC_IOC_MAGIC, 0)
+#define RPROC_IOCSTART		_IO(RPROC_IOC_MAGIC, 1)
+#define RPROC_IOCSTOP		_IO(RPROC_IOC_MAGIC, 2)
+#define RPROC_IOCGETSTATE	_IOR(RPROC_IOC_MAGIC, 3, int)
 
 
 
