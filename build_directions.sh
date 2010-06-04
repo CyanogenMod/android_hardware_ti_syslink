@@ -201,38 +201,10 @@ function build_syslink()
 	cd ${PREFIX}
 }
 
-function build_bridge()
-{
-	# Building tesla bridge
-	echo "							  "
-	echo "****************************************************"
-	echo "	    Building Bridge APIs and Samples		  "
-	echo "****************************************************"
-	echo "							  "
-	cd ${PREFIX}/bridge
-	./bootstrap.sh
-	./configure --prefix ${PREFIX}/target --bindir ${PREFIX}/target/dspbridge \
-	--host ${HOST} ${ENABLE_DEBUG}  --build i686-pc-linux-gnu
-	if [[ "$arg" == "--clean" ]]; then
-		make clean > /dev/null 2>&1
-	fi
-	make
-	if [[ $? -ne 0 ]] ; then
-	    exit 0
-	fi
-	make install
-	if [[ $? -ne 0 ]] ; then
-	    exit 0
-	fi
-	cd ${PREFIX}
-}
-
 echo "	"
 echo "Following Build options are available:"
 echo "--------------------------------------"
 echo "1--------------> Build Syslink Only"
-echo "2--------------> Build Bridge Only"
-echo "3--------------> Build Syslink & Bridge"
 echo "Any other Option to exit Build system"
 echo "	"
 echo "Enter your option:"
@@ -240,11 +212,6 @@ read VALUE
 case $VALUE in
         1)
 		build_syslink ;; # End of case 1
-	2)
-		build_bridge ;; # End of case 2
-	3)
-		build_syslink
-		build_bridge ;; # End of case 3
 
 	*)	echo " Exiting from the build system... "
 		exit 0
