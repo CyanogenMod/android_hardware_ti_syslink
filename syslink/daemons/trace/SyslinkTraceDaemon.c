@@ -55,12 +55,12 @@ sem_t semPrint;    /* Semaphore to allow only one thread to print at once */
 /* pull char from queue */
 Void printSysM3Traces (Void *arg)
 {
-    Int             status              = 0;
-    Memory_MapInfo  traceinfo;
-    UInt32          numOfBytesInBuffer  = 0;
-    UInt32        * readPointer;
-    UInt32        * writePointer;
-    Char          * traceBuffer;
+    Int               status              = 0;
+    Memory_MapInfo    traceinfo;
+    UInt32            numOfBytesInBuffer  = 0;
+    volatile UInt32 * readPointer;
+    volatile UInt32 * writePointer;
+    Char            * traceBuffer;
 
     Osal_printf ("\nSpawning SysM3 trace thread\n ");
 
@@ -68,8 +68,8 @@ Void printSysM3Traces (Void *arg)
     traceinfo.src  = SYSM3_TRACE_BUFFER_PHYS_ADDR;
     traceinfo.size = TRACE_BUFFER_SIZE;
     status = Memory_map (&traceinfo);
-    readPointer = (UInt32 *)traceinfo.dst;
-    writePointer = (UInt32 *)(traceinfo.dst + 0x4);
+    readPointer = (volatile UInt32 *)traceinfo.dst;
+    writePointer = (volatile UInt32 *)(traceinfo.dst + 0x4);
     traceBuffer = (Char *)(traceinfo.dst + 0x8);
 
     /* Initialze read indexes to zero */
@@ -112,12 +112,12 @@ Void printSysM3Traces (Void *arg)
 /* pull char from queue */
 Void printAppM3Traces (Void *arg)
 {
-    Int             status              = 0;
-    Memory_MapInfo  traceinfo;
-    UInt32          numOfBytesInBuffer  = 0;
-    UInt32        * readPointer;
-    UInt32        * writePointer;
-    Char          * traceBuffer;
+    Int               status              = 0;
+    Memory_MapInfo    traceinfo;
+    UInt32            numOfBytesInBuffer  = 0;
+    volatile UInt32 * readPointer;
+    volatile UInt32 * writePointer;
+    Char            * traceBuffer;
 
     Osal_printf ("\nSpawning AppM3 trace thread\n ");
 
@@ -125,8 +125,8 @@ Void printAppM3Traces (Void *arg)
     traceinfo.src  = APPM3_TRACE_BUFFER_PHYS_ADDR;
     traceinfo.size = TRACE_BUFFER_SIZE;
     status = Memory_map (&traceinfo);
-    readPointer = (UInt32 *)traceinfo.dst;
-    writePointer = (UInt32 *)(traceinfo.dst + 0x4);
+    readPointer = (volatile UInt32 *)traceinfo.dst;
+    writePointer = (volatile UInt32 *)(traceinfo.dst + 0x4);
     traceBuffer = (Char *)(traceinfo.dst + 0x8);
 
     /* Initialze read and write indexes to zero */
