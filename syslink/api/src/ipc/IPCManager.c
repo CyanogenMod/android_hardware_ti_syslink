@@ -60,6 +60,8 @@
 #include <MessageQDrvDefs.h>
 #include <ti/ipc/ListMP.h>
 #include <ListMPDrvDefs.h>
+#include <ti/ipc/Notify.h>
+#include <NotifyDrvDefs.h>
 #include <ti/ipc/Ipc.h>
 #include <IpcUsr.h>
 #include <IpcDrvDefs.h>
@@ -87,6 +89,7 @@ enum IPC_MODULES_ID {
     MULTIPROC,
     IPC,
     SYSMEMMGR,
+    NOTIFY,
     MAX_IPC_MODULES
 };
 struct name_id_table {
@@ -106,6 +109,7 @@ struct name_id_table name_id_table[MAX_IPC_MODULES] = {
     { "/dev/syslinkipc/MultiProc", MULTIPROC, 0},
     { "/dev/syslinkipc/Ipc", IPC, 0},
     { "/dev/syslinkipc/SysMemMgr", SYSMEMMGR, 0},
+    { "/dev/syslinkipc/Notify", NOTIFY, 0},
 };
 
 /*  ----------------------------------- Globals */
@@ -527,6 +531,25 @@ Int getIpcStatus(Int apiStatus)
     return status;
 }
 
+
+Int getNotifyStatus(Int apiStatus)
+{
+    Int status = Notify_E_OSFAILURE;
+
+    GT_1trace (curTrace, GT_2CLASS,
+        "IPCMGR-getNotifyStatus: apiStatus=0x%x\n", apiStatus);
+
+    switch(apiStatus) {
+    default:
+        status = apiStatus;
+        break;
+    }
+
+    GT_1trace (curTrace, GT_2CLASS,
+        "IPCMGR-getIpcStatus: status=0x%x\n", status);
+    return status;
+}
+
 #if 0 /* TBD:Temporarily comment. */
 Int getSysMemMgrStatus(Int apiStatus)
 {
@@ -581,6 +604,7 @@ void IPCManager_getModuleStatus(Int module_id, Ptr args)
 #if 0 /* TBD:Temporarily comment. */
     SysMemMgrDrv_CmdArgs *sysmemmgr_cmdargs = NULL;
 #endif /* TBD:Temporarily comment. */
+    Notify_CmdArgs *notify_cmdargs = NULL;
 
     switch(module_id) {
     case MULTIPROC:
@@ -636,6 +660,11 @@ void IPCManager_getModuleStatus(Int module_id, Ptr args)
                 getSysMemMgrStatus(sysmemmgr_cmdargs->apiStatus);
         break;
 #endif /* TBD:Temporarily comment. */
+
+    case NOTIFY:
+        notify_cmdargs = (Notify_CmdArgs *)args;
+        notify_cmdargs->apiStatus = getNotifyStatus(notify_cmdargs->apiStatus);
+        break;
 
     default:
         GT_0trace (curTrace, GT_2CLASS, "IPCMGR-Unknown module\n");
@@ -700,6 +729,10 @@ Int createIpcModuleHandle(const char *name)
             module_handle = (name_id_table[i].module_id << 16) | ipc_handle;
             break;
 
+        case NOTIFY:
+            module_handle = (name_id_table[i].module_id << 16) | ipc_handle;
+            break;
+
         default:
             break;
         }
@@ -759,6 +792,10 @@ void trackIoctlCommandFlow(Int fd)
         break;
 #endif /* TBD: Temporarily comment. */
 
+    case NOTIFY:
+        name_id_table[NOTIFY].ioctl_count += 1;
+        break;
+
     default:
         break;
     }
@@ -816,6 +853,11 @@ Void displayIoctlInfo(Int fd, UInt32 cmd, Ptr args)
     case SYSMEMMGR:
         GT_0trace (curTrace, GT_2CLASS,
             "IPCMGR: IOCTL command from SYSMEMMGR module\n");
+        break;
+
+    case NOTIFY:
+        GT_0trace (curTrace, GT_2CLASS,
+            "IPCMGR: IOCTL command from NOTIFY module\n");
         break;
 
     default:
@@ -929,6 +971,21 @@ Int IPCManager_ioctl(Int fd, UInt32 cmd, Ptr args)
     trackIoctlCommandFlow(fd);
 
     GT_1trace (curTrace, GT_LEAVE, "IPCManager_ioctl", status);
+    return status;
+}
+
+
+/*
+ * ======== IPCTRAP_Read ========
+ */
+Int IPCManager_read(Int fd, Ptr packet, UInt32 size)
+{
+    Int status = -1;
+
+    if (ipc_handle >= 0)
+        status = read(ipc_handle, packet, size);
+
+    GT_1trace (curTrace, GT_LEAVE, "IPCManager_read", status);
     return status;
 }
 

@@ -46,6 +46,7 @@
 
 /* OSAL and utils headers*/
 #include <List.h>
+#include <IpcCmdBase.h>
 
 /* Module headers*/
 #include <ti/ipc/Notify.h>
@@ -66,139 +67,154 @@ extern "C" {
  *  ----------------------------------------------------------------------------
  */
 /*!
- *  @brief  Base command ID for Notify
+ *  @brief  IOC MAGIC for Notify
  */
-#define NOTIFYCMDBASE                           (0xE0)
+#define NOTIFY_IOC_MAGIC                        (IPC_IOC_MAGIC)
 
-
-/*!
- *  @brief  Base command ID for Notify
- */
-#define NOTIFY_BASE_CMD                         (0x170)
+enum CMD_NOTIFY {
+    NOTIFY_GETCONFIG = NOTIFY_BASE_CMD,
+    NOTIFY_SETUP,
+    NOTIFY_DESTROY,
+    NOTIFY_REGISTEREVENT,
+    NOTIFY_UNREGISTEREVENT,
+    NOTIFY_SENDEVENT,
+    NOTIFY_DISABLE,
+    NOTIFY_RESTORE,
+    NOTIFY_DISABLEEVENT,
+    NOTIFY_ENABLEEVENT,
+    NOTIFY_ATTACH,
+    NOTIFY_DETACH,
+    NOTIFY_THREADATTACH,
+    NOTIFY_THREADDETACH,
+    NOTIFY_ISREGISTERED,
+    NOTIFY_SHAREDMEMREQ,
+    NOTIFY_REGISTEREVENTSINGLE,
+    NOTIFY_UNREGISTEREVENTSINGLE
+};
 
 /*!
  *  @brief  Command for Notify_getConfig
  */
-#define CMD_NOTIFY_GETCONFIG                     _IOWR(NOTIFYCMDBASE,\
-                                                 NOTIFY_BASE_CMD + 1u,\
+#define CMD_NOTIFY_GETCONFIG                     _IOWR(NOTIFY_IOC_MAGIC,\
+                                                 NOTIFY_GETCONFIG,\
                                                  Notify_CmdArgsGetConfig)
 
 /*!
  *  @brief  Command for Notify_setup
  */
-#define CMD_NOTIFY_SETUP                         _IOWR(NOTIFYCMDBASE,\
-                                                 NOTIFY_BASE_CMD + 2u,\
+#define CMD_NOTIFY_SETUP                         _IOWR(NOTIFY_IOC_MAGIC,\
+                                                 NOTIFY_SETUP,\
                                                  Notify_CmdArgsSetup)
 
 /*!
  *  @brief  Command for Notify_destroy
  */
-#define CMD_NOTIFY_DESTROY                       _IOWR(NOTIFYCMDBASE,\
-                                                 NOTIFY_BASE_CMD + 3u,\
+#define CMD_NOTIFY_DESTROY                       _IOWR(NOTIFY_IOC_MAGIC,\
+                                                 NOTIFY_DESTROY,\
                                                  Notify_CmdArgsDestroy)
 
 /*!
  *  @brief  Command for Notify_registerEvent
  */
-#define CMD_NOTIFY_REGISTEREVENT                 _IOWR(NOTIFYCMDBASE,\
-                                                 NOTIFY_BASE_CMD + 4u,\
+#define CMD_NOTIFY_REGISTEREVENT                 _IOWR(NOTIFY_IOC_MAGIC,\
+                                                 NOTIFY_REGISTEREVENT,\
                                                  Notify_CmdArgsRegisterEvent)
 
 /*!
  *  @brief  Command for Notify_unregisterEvent
  */
-#define CMD_NOTIFY_UNREGISTEREVENT               _IOWR(NOTIFYCMDBASE,\
-                                                 NOTIFY_BASE_CMD + 5u,\
+#define CMD_NOTIFY_UNREGISTEREVENT               _IOWR(NOTIFY_IOC_MAGIC,\
+                                                 NOTIFY_UNREGISTEREVENT,\
                                                  Notify_CmdArgsUnregisterEvent)
 
 /*!
  *  @brief  Command for Notify_sendEvent
  */
-#define CMD_NOTIFY_SENDEVENT                     _IOWR(NOTIFYCMDBASE,\
-                                                 NOTIFY_BASE_CMD + 6u,\
+#define CMD_NOTIFY_SENDEVENT                     _IOWR(NOTIFY_IOC_MAGIC,\
+                                                 NOTIFY_SENDEVENT,\
                                                  Notify_CmdArgsSendEvent)
 
 /*!
  *  @brief  Command for Notify_disable
  */
-#define CMD_NOTIFY_DISABLE                       _IOWR(NOTIFYCMDBASE,\
-                                                 NOTIFY_BASE_CMD + 7u,\
+#define CMD_NOTIFY_DISABLE                       _IOWR(NOTIFY_IOC_MAGIC,\
+                                                 NOTIFY_DISABLE,\
                                                  Notify_CmdArgsDisable)
 
 /*!
  *  @brief  Command for Notify_restore
  */
-#define CMD_NOTIFY_RESTORE                       _IOWR(NOTIFYCMDBASE,\
-                                                 NOTIFY_BASE_CMD + 8u,\
+#define CMD_NOTIFY_RESTORE                       _IOWR(NOTIFY_IOC_MAGIC,\
+                                                 NOTIFY_RESTORE,\
                                                  Notify_CmdArgsRestore)
 
 /*!
  *  @brief  Command for Notify_disableEvent
  */
-#define CMD_NOTIFY_DISABLEEVENT                  _IOWR(NOTIFYCMDBASE,\
-                                                 NOTIFY_BASE_CMD + 9u,\
+#define CMD_NOTIFY_DISABLEEVENT                  _IOWR(NOTIFY_IOC_MAGIC,\
+                                                 NOTIFY_DISABLEEVENT,\
                                                  Notify_CmdArgsDisableEvent)
 
 /*!
  *  @brief  Command for Notify_enableEvent
  */
-#define CMD_NOTIFY_ENABLEEVENT                   _IOWR(NOTIFYCMDBASE,\
-                                                 NOTIFY_BASE_CMD + 10u,\
+#define CMD_NOTIFY_ENABLEEVENT                   _IOWR(NOTIFY_IOC_MAGIC,\
+                                                 NOTIFY_ENABLEEVENT,\
                                                  Notify_CmdArgsEnableEvent)
 
 /*!
  *  @brief  Command for Notify_attach
  */
-#define CMD_NOTIFY_ATTACH                        _IOWR(NOTIFYCMDBASE,\
-                                                 NOTIFY_BASE_CMD + 11u,\
+#define CMD_NOTIFY_ATTACH                        _IOWR(NOTIFY_IOC_MAGIC,\
+                                                 NOTIFY_ATTACH,\
                                                  Notify_CmdArgsAttach)
 
 /*!
  *  @brief  Command for Notify_detach
  */
-#define CMD_NOTIFY_DETACH                        _IOWR(NOTIFYCMDBASE,\
-                                                 NOTIFY_BASE_CMD + 12u,\
+#define CMD_NOTIFY_DETACH                        _IOWR(NOTIFY_IOC_MAGIC,\
+                                                 NOTIFY_DETACH,\
                                                  Notify_CmdArgsDetach)
 
 /*!
  *  @brief  Command for Notify_attach
  */
-#define CMD_NOTIFY_THREADATTACH                  _IOWR(NOTIFYCMDBASE,\
-                                                 NOTIFY_BASE_CMD + 13u,\
+#define CMD_NOTIFY_THREADATTACH                  _IOWR(NOTIFY_IOC_MAGIC,\
+                                                 NOTIFY_THREADATTACH,\
                                                  Notify_CmdArgs)
 
 /*!
  *  @brief  Command for Notify_detach
  */
-#define CMD_NOTIFY_THREADDETACH                  _IOWR(NOTIFYCMDBASE,\
-                                                 NOTIFY_BASE_CMD + 14u,\
+#define CMD_NOTIFY_THREADDETACH                  _IOWR(NOTIFY_IOC_MAGIC,\
+                                                 NOTIFY_THREADDETACH,\
                                                  Notify_CmdArgs)
 
 /*!
  *  @brief  Command for Notify_attach
  */
-#define CMD_NOTIFY_ISREGISTERED                  _IOWR(NOTIFYCMDBASE,\
-                                                 NOTIFY_BASE_CMD + 15u,\
+#define CMD_NOTIFY_ISREGISTERED                  _IOWR(NOTIFY_IOC_MAGIC,\
+                                                 NOTIFY_ISREGISTERED,\
                                                  Notify_CmdArgsIsRegistered)
 
 /*!
  *  @brief  Command for Notify_detach
  */
-#define CMD_NOTIFY_SHAREDMEMREQ                  _IOWR(NOTIFYCMDBASE,\
-                                                 NOTIFY_BASE_CMD + 16u,\
+#define CMD_NOTIFY_SHAREDMEMREQ                  _IOWR(NOTIFY_IOC_MAGIC,\
+                                                 NOTIFY_SHAREDMEMREQ,\
                                                  Notify_CmdArgsSharedMemReq)
 /*!
  *  @brief  Command for Notify_detach
  */
-#define CMD_NOTIFY_REGISTEREVENTSINGLE           _IOWR(NOTIFYCMDBASE,\
-                                                 NOTIFY_BASE_CMD + 17u,\
+#define CMD_NOTIFY_REGISTEREVENTSINGLE           _IOWR(NOTIFY_IOC_MAGIC,\
+                                                 NOTIFY_REGISTEREVENTSINGLE,\
                                                  Notify_CmdArgsRegisterEvent)
 
 /*!
  *  @brief  Command for Notify_detach
  */
-#define CMD_NOTIFY_UNREGISTEREVENTSINGLE         _IOWR(NOTIFYCMDBASE,\
-                                                 NOTIFY_BASE_CMD + 18u,\
+#define CMD_NOTIFY_UNREGISTEREVENTSINGLE         _IOWR(NOTIFY_IOC_MAGIC,\
+                                                 NOTIFY_UNREGISTEREVENTSINGLE,\
                                                  Notify_CmdArgsUnregisterEvent)
 
 /*!

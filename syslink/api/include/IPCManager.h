@@ -53,6 +53,9 @@
 #undef ioctl
 #define ioctl IPCManager_ioctl
 
+#undef read
+#define read IPCManager_read
+
 #undef fcntl
 #define fcntl IPCManager_fcntl
 
@@ -73,6 +76,11 @@ Int IPCManager_close(int fd);
  * ======== IPCManager_ioctl ========
  */
 Int IPCManager_ioctl(int fd, UInt32 cmd, Ptr args);
+
+/*
+ * ======== IPCManager_read ========
+ */
+Int IPCManager_read(Int fd, Ptr packet, UInt32 size);
 
 /*
  * ======== IPCManager_fcntl========

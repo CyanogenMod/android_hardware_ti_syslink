@@ -59,7 +59,8 @@ enum ipc_command_count {
     MESSAGEQ_CMD_NOS = 18,
     IPC_CMD_NOS = 5,
     SYSMEMMGR_CMD_NOS = 6,
-    HEAPMEMMP_CMD_NOS = 15
+    HEAPMEMMP_CMD_NOS = 15,
+    NOTIFY_CMD_NOS = 18
 };
 
 enum ipc_command_ranges {
@@ -101,7 +102,11 @@ enum ipc_command_ranges {
 
     HEAPMEMMP_BASE_CMD              = 150,
     HEAPMEMMP_END_CMD               = (HEAPMEMMP_BASE_CMD + \
-                                      HEAPMEMMP_CMD_NOS - 1)
+                                      HEAPMEMMP_CMD_NOS - 1),
+
+    NOTIFY_BASE_CMD                 = 170,
+    NOTIFY_END_CMD                  = (NOTIFY_BASE_CMD + \
+                                      NOTIFY_CMD_NOS - 1)
 };
 
 #endif /* _IPCCMDBASE_H */

@@ -60,7 +60,7 @@
 
 /* Module headers */
 #include <NotifyDrvDefs.h>
-
+#include <IPCManager.h>
 
 #if defined (__cplusplus)
 extern "C" {
@@ -74,7 +74,7 @@ extern "C" {
 /*!
  *  @brief  Driver name for Notify.
  */
-#define NOTIFY_DRIVER_NAME         "/dev/ipcnotify"
+#define NOTIFY_DRIVER_NAME         "/dev/syslinkipc/Notify"
 
 
 /** ============================================================================
