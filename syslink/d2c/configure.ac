@@ -62,12 +62,18 @@ esac],[tests=false])
 
 AM_CONDITIONAL(UNIT_TESTS, test x$tests = xtrue)
 
-if test "$target" != "arm-none-linux-gnueabi"
-then
-  echo "Stubbing tiler and syslink on none-arm system."
-  stub_syslink=true
-  AC_DEFINE([STUB_TILER],[1],[Use tiler stub])
-  AC_DEFINE([STUB_SYSLINK],[1],[Use syslink stub])
+AC_ARG_ENABLE(stub,
+[  --enable-stub    Stubbing tiler and syslink on none-arm system],
+[case "${enableval}" in
+  yes) stub_syslink=true ;;
+  no)  stub_syslink=false ;;
+  *) AC_MSG_ERROR(bad value ${enableval} for --enable-stub) ;;
+esac],[stub_tiler=false])
+
+if test x$stub_syslink = xtrue; then
+echo "Stubbing tiler and syslink on none-arm system."
+AC_DEFINE([STUB_TILER],[1],[Use tiler stub])
+AC_DEFINE([STUB_SYSLINK],[1],[Use syslink stub])
 fi
 
 AM_CONDITIONAL(STUB_SYSLINK, test x$stub_syslink = xtrue)
