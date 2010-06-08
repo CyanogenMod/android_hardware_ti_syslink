@@ -299,18 +299,18 @@ static void dump_block(struct tiler_block_info *blk, char *prefix, char *suffix)
     switch (blk->fmt)
     {
     case PIXEL_FMT_PAGE:
-        P("%s [p=%p(0x%lx),l=0x%lx,s=%ld]%s", prefix, blk->ptr, blk->ssptr,
+        P("%s [p=%p(0x%x),l=0x%x,s=%d]%s", prefix, blk->ptr, blk->ssptr,
           blk->dim.len, blk->stride, suffix);
         break;
     case PIXEL_FMT_8BIT:
     case PIXEL_FMT_16BIT:
     case PIXEL_FMT_32BIT:
-        P("%s [p=%p(0x%lx),%d*%d*%d,s=%ld]%s", prefix, blk->ptr, blk->ssptr,
+        P("%s [p=%p(0x%x),%d*%d*%d,s=%d]%s", prefix, blk->ptr, blk->ssptr,
           blk->dim.area.width, blk->dim.area.height, def_bpp(blk->fmt) * 8,
           blk->stride, suffix);
         break;
     default:
-        P("%s*[p=%p(0x%lx),l=0x%lx,s=%ld,fmt=0x%x]%s", prefix, blk->ptr,
+        P("%s*[p=%p(0x%x),l=0x%x,s=%d,fmt=0x%x]%s", prefix, blk->ptr,
           blk->ssptr, blk->dim.len, blk->stride, blk->fmt, suffix);
     }
 }
@@ -422,7 +422,7 @@ int test_d2c(pixels_t width, pixels_t height, int N)
     {
         printf("Press enter to continue...");
         char line[80];
-        fgets(line,80,stdin);
+        if(fgets(line,80,stdin)) ;
     }
 
     void *bufPtr = tiler_assisted_phase1_D2CReMap(N, dsptrs, sizes);
