@@ -2732,12 +2732,17 @@ static Int32 dma_inv_range(Void *start, UInt32 size)
 {
     register unsigned long s asm("r0") = (unsigned long)start;
     register unsigned long e asm("r1") = s + size;
+    register unsigned long nsyscall asm("r7");
     register int ret asm("r0");
-    asm("swi 0x9f07fd"
+
+    asm volatile("push {r6-r7}");
+    nsyscall = 0x9f07fd;
+    asm volatile("swi 0x0"
         : "=r" (ret)
         : "0" (s), "r" (e));
     if (ret < 0)
         ret = set_errno(ret);
+    asm("pop {r6-r7}");
 
     return ret;
 }
@@ -2783,12 +2788,17 @@ static Int32 dma_flush_range(Void *start, UInt32 size)
 {
     register unsigned long s asm("r0") = (unsigned long)start;
     register unsigned long e asm("r1") = s + size;
+    register unsigned long nsyscall asm("r7");
     register int ret asm("r0");
-    asm("swi 0x9f07ff"
+
+    asm volatile("push {r6-r7}");
+    nsyscall = 0x9f07ff;
+    asm volatile("swi 0x0"
         : "=r" (ret)
         : "0" (s), "r" (e));
     if (ret < 0)
         ret = set_errno(ret);
+    asm("pop {r6-r7}");
 
     return ret;
 }
