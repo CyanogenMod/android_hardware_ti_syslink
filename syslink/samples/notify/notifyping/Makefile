@@ -22,7 +22,7 @@ LDPATH=$(TARGETDIR)/lib $(TARGETDIR)/usr/lib
 LDFLAGS = $(addprefix -L, $(LDPATH))
 CFLAGS=-Wall -g -O2 $(INCLUDE) -finline-functions -D$(PROCFAMILY) $(LDFLAGS)
 
-LIBS = -lnotify -lutils -lipc -lprocmgr -lsysmgr -lsysmemmgr
+LIBS = -lsyslinknotify -lipcutils -lipc -lprocmgr -lsysmgr -lsysmemmgr
 SYSMGRLIBS = -lprocmgr -lsysmgr -lsysmemmgr
 NONSYSMGRLIBS = -lprocmgr_nonsysmgr
 

@@ -88,7 +88,7 @@ INCLUDES    = \
 ST_LIBS        = gcc
 #SH_LIBS        = pthread rt utils procmgr ipc rcm notify memmgr
 #Comment above line and uncomment below line to use sys manager
-SH_LIBS        = pthread rt utils procmgr ipc rcm notify memmgr sysmgr sysmemmgr
+SH_LIBS        = pthread rt ipcutils procmgr ipc rcm syslinknotify memmgr sysmgr sysmemmgr
 
 # Search path for library (and linker command) files.
 # Current folder and target folder are included by default.

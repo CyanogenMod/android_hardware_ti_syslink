@@ -42,11 +42,11 @@ syslink_daemon_out_CPPFLAGS    = \
 API_SRCDIR = ../../api/src
 
 syslink_daemon_out_LDADD = \
-	$(API_SRCDIR)/utils/libutils.la \
+	$(API_SRCDIR)/utils/libipcutils.la \
 	$(API_SRCDIR)/procmgr/libprocmgr.la \
 	$(API_SRCDIR)/ipc/libipc.la \
 	$(API_SRCDIR)/rcm/librcm.la \
-	$(API_SRCDIR)/notify/libnotify.la \
+	$(API_SRCDIR)/notify/libsyslinknotify.la \
 	$(MEMMGR_LIBS) \
 	$(API_SRCDIR)/sysmgr/libsysmgr.la \
 	$(API_SRCDIR)/sysmemmgr/libsysmemmgr.la

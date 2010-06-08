@@ -25,8 +25,8 @@ ACLOCAL_AMFLAGS=-I m4
 
 PROJROOT = $(top_srcdir)
 
-lib_LTLIBRARIES = libutils.la
-libutils_la_SOURCES = \
+lib_LTLIBRARIES = libipcutils.la
+libipcutils_la_SOURCES = \
 List.c \
 Memory.c \
 Trace.c \
@@ -41,9 +41,9 @@ GateMutex.c \
 OsalSemaphore.c \
 UsrUtilsDrv.c
 
-libutils_la_CFLAGS = \
+libipcutils_la_CFLAGS = \
 	-I$(PROJROOT)/api/include \
 	-I$(PROJROOT)/api/include/linux
 
-libutils_la_LIBTOOLFLAGS = --tag=disable-static
-libutils_la_LDFLAGS = -version-info 0:0:0
+libipcutils_la_LIBTOOLFLAGS = --tag=disable-static
+libipcutils_la_LDFLAGS = -version-info 0:0:0

@@ -59,7 +59,7 @@ libprocmgr_la_CPPFLAGS    = \
 libprocmgr_la_LIBTOOLFLAGS = --tag=disable-static
 libprocmgr_la_LDFLAGS = -version-info 0:0:0
 libprocmgr_la_LIBADD = \
-../utils/libutils.la \
+../utils/libipcutils.la \
 ../sysmgr/libsysmgr.la
 
 
@@ -75,4 +75,4 @@ libprocmgr_nonsysmgr_la_CPPFLAGS    = \
 libprocmgr_nonsysmgr_la_LIBTOOLFLAGS = --tag=disable-static
 libprocmgr_nonsysmgr_la_LDFLAGS = -version-info 0:0:0
 libprocmgr_nonsysmgr_la_LIBADD = \
-../utils/libutils.la
+../utils/libipcutils.la

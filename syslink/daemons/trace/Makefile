@@ -76,7 +76,7 @@ INCLUDES    = \
 
 #ST_LIBS        = gcc
 #SH_LIBS        = pthread rt utils procmgr ipc rcm notify memmgr
-SH_LIBS        = utils
+SH_LIBS        = ipcutils
 
 # Search path for library (and linker command) files.
 # Current folder and target folder are included by default.

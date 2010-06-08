@@ -35,7 +35,7 @@ CFLAGS += -DSYSLINK_TRACE_ENABLE
 CFLAGS += -DSYSLINK_USE_LOADER
 
 
-LIBS = -lutils -lnotify -lipc -lprocmgr
+LIBS = -lipcutils -lsyslinknotify -lipc -lprocmgr
 LIBS += -lsysmgr -lsysmemmgr
 
 all: slpmtransport.out

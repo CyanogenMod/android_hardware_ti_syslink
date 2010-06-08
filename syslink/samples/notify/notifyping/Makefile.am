@@ -26,16 +26,16 @@ AM_CFLAGS +=
 
 
 API_LIBS_NONSYS = \
-	$(LDPATH)/utils/libutils.la \
+	$(LDPATH)/utils/libipcutils.la \
 	$(LDPATH)/ipc/libipc.la \
-	$(LDPATH)/notify/libnotify.la\
+	$(LDPATH)/notify/libsyslinknotify.la\
 	$(LDPATH)/procmgr/procmgr4430/libomap4430proc.la \
 	$(LDPATH)/procmgr/libprocmgr_nonsysmgr.la
 
 API_LIBS = \
-	$(LDPATH)/utils/libutils.la \
+	$(LDPATH)/utils/libipcutils.la \
 	$(LDPATH)/ipc/libipc.la \
-	$(LDPATH)/notify/libnotify.la \
+	$(LDPATH)/notify/libsyslinknotify.la \
 	$(LDPATH)/procmgr/libprocmgr.la \
 	$(LDPATH)/sysmgr/libsysmgr.la \
 	$(LDPATH)/sysmemmgr/libsysmemmgr.la

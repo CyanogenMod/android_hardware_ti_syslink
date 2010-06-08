@@ -33,7 +33,7 @@ CFLAGS += -DSYSLINK_USE_SYSMGR
 CFLAGS += -DSYSLINK_USE_LOADER
 
 
-LIBS = -lutils -lnotify -lipc -lprocmgr -lrcm -lpthread -lrt
+LIBS = -lipcutils -lsyslinknotify -lipc -lprocmgr -lrcm -lpthread -lrt
 LIBS += -lsysmgr -lsysmemmgr
 
 all: rcm_multitest.out rcm_multithreadtest.out rcm_multiclienttest.out rcm_daemontest.out

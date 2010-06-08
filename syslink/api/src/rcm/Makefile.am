@@ -37,5 +37,5 @@ librcm_la_CFLAGS = \
 librcm_la_LIBTOOLFLAGS = --tag=disable-static
 librcm_la_LDFLAGS = -version-info 0:0:0
 librcm_la_LIBADD = \
-../../../api/src/utils/libutils.la \
+../../../api/src/utils/libipcutils.la \
 ../../../api/src/ipc/libipc.la

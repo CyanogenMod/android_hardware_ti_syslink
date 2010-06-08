@@ -28,8 +28,8 @@ AM_CFLAGS += -DSYSLINK_USE_LOADER
 LDPATH=../../api/src
 
 API_LIBS = \
-	$(LDPATH)/utils/libutils.la \
-	$(LDPATH)/notify/libnotify.la \
+	$(LDPATH)/utils/libipcutils.la \
+	$(LDPATH)/notify/libsyslinknotify.la \
 	$(LDPATH)/ipc/libipc.la \
 	$(LDPATH)/procmgr/libprocmgr.la \
 	$(LDPATH)/sysmgr/libsysmgr.la \

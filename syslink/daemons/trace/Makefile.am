@@ -39,4 +39,4 @@ syslink_trace_daemon_out_CPPFLAGS    = \
 API_SRCDIR = ../../api/src
 
 syslink_trace_daemon_out_LDADD = \
-	$(API_SRCDIR)/utils/libutils.la
+	$(API_SRCDIR)/utils/libipcutils.la

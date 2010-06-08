@@ -80,7 +80,7 @@ INCLUDES    = \
 # Libraries needed for linking.
 
 ST_LIBS        = 
-SH_LIBS        = pthread rt utils procmgr ipc rcm notify
+SH_LIBS        = pthread rt ipcutils procmgr ipc rcm syslinknotify
 #Uncomment the below line to use sys manager
 SH_LIBS        += sysmgr sysmemmgr
 

@@ -34,7 +34,7 @@ CFLAGS += -DSYSLINK_USE_SYSMGR
 CFLAGS += -DSYSLINK_USE_LOADER
 
 
-LIBS = -lutils -lnotify -lipc -lprocmgr
+LIBS = -lipcutils -lsyslinknotify -lipc -lprocmgr
 LIBS += -lsysmgr -lsysmemmgr
 
 all: messageQApp.out messageQApp1.out

@@ -33,11 +33,11 @@ AM_CFLAGS += -DSYSLINK_TRACE_ENABLE
 LDPATH=../../../../api/src
 
 API_LIBS = \
-	$(LDPATH)/utils/libutils.la \
+	$(LDPATH)/utils/libipcutils.la \
 	$(LDPATH)/ipc/libipc.la \
 	$(LDPATH)/procmgr/libprocmgr.la \
 	$(LDPATH)/sysmgr/libsysmgr.la \
-	$(LDPATH)/notify/libnotify.la \
+	$(LDPATH)/notify/libsyslinknotify.la \
 	$(LDPATH)/sysmemmgr/libsysmemmgr.la
 
 bin_PROGRAMS = sharedRegionApp.out

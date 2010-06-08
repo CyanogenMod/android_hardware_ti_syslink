@@ -7,7 +7,7 @@ Name: syslink
 Description: syslink
 Version: @VERSION@
 Requires:
-Libs: -L${libdir} -lsysmgr -ipc -lrcm -lnotify -lprocmgr -lsysmemmgr
+Libs: -L${libdir} -lsysmgr -ipc -lrcm -lsyslinknotify -lprocmgr -lsysmemmgr
 Cflags: -I${includedir}/syslink
 
 

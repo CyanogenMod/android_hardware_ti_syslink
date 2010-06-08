@@ -99,7 +99,7 @@ INCLUDES    = \
 # Libraries needed for linking.
 
 #SH_LIBS        = pthread utils
-SH_LIBS        = utils sysmgr
+SH_LIBS        = ipcutils sysmgr
 #SH_LIBS        = utils
 ST_LIBS        = gcc
 

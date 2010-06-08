@@ -24,12 +24,12 @@ AM_CFLAGS = -Wall -g -O2 $(INCLUDE) -finline-functions -D$(PROCFAMILY)
 LDPATH=../../../api/src
 
 API_LIBS = \
-	$(LDPATH)/utils/libutils.la \
+	$(LDPATH)/utils/libipcutils.la \
 	$(LDPATH)/ipc/libipc.la \
 	$(LDPATH)/procmgr/libprocmgr.la \
 	$(LDPATH)/procmgr/procmgr4430/libomap4430proc.la\
 	$(LDPATH)/sysmgr/libsysmgr.la \
-	$(LDPATH)/notify/libnotify.la \
+	$(LDPATH)/notify/libsyslinknotify.la \
 	$(LDPATH)/sysmemmgr/libsysmemmgr.la
 
 bin_PROGRAMS = ducati_load.out

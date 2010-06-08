@@ -27,17 +27,17 @@ ACLOCAL_AMFLAGS=-I m4
 
 PROJROOT = $(top_srcdir)
 
-lib_LTLIBRARIES = libnotify.la
-libnotify_la_SOURCES = \
+lib_LTLIBRARIES = libsyslinknotify.la
+libsyslinknotify_la_SOURCES = \
 Notify.c \
 NotifyDriverShmDrvUsr.c \
 NotifyDriverShm.c \
 NotifyDrvUsr.c
 
-libnotify_la_CFLAGS = \
+libsyslinknotify_la_CFLAGS = \
 	-I$(PROJROOT)/api/include \
 	-I$(PROJROOT)/api/include/linux
 
-libnotify_la_LIBTOOLFLAGS = --tag=disable-static
-libnotify_la_LDFLAGS = -version-info 0:0:0
-libnotify_la_LIBADD = ../../src/utils/libutils.la
+libsyslinknotify_la_LIBTOOLFLAGS = --tag=disable-static
+libsyslinknotify_la_LDFLAGS = -version-info 0:0:0
+libsyslinknotify_la_LIBADD = ../../src/utils/libipcutils.la

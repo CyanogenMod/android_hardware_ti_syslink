@@ -49,7 +49,7 @@ SH_LIB_ARGS    =
 # shared library soname (SH_LIB): filename.so.maj_ver.min_ver
 # executable            (EXEC)  : filename.out
 
-TARGETNAME  = libnotify
+TARGETNAME  = libsyslinknotify
 
 
 # TARGETTYPE must be EXEC, ST_LIB or SH_LIB in upper case.
@@ -64,7 +64,7 @@ ROOTFSRELEASE = lib
 
 # For shared object library, soname is filename.so.maj_ver
 
-SH_SONAME = libnotify.so.0
+SH_SONAME = libsyslinknotify.so.0
 
 # Folders in which gmake will run before building current target
 
