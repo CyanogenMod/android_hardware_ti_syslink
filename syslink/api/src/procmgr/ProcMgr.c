@@ -79,7 +79,7 @@
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
+#include <asm/unistd.h>
 #include <errno.h>
 #include <sys/mman.h>
 #include <errno.h>
@@ -117,6 +117,9 @@ extern "C" {
  */
 #define IS_RANGE_VALID(x,min,max) (((x) < (max)) && ((x) >= (min)))
 
+#define __PROCMGR_INV_MEMORY    (__ARM_NR_BASE+0x0007fd)
+#define __PROCMGR_CLEAN_MEMORY  (__ARM_NR_BASE+0x0007fe)
+#define __PROCMGR_FLUSH_MEMORY  (__ARM_NR_BASE+0x0007ff)
 
 /*!
  *  @brief  ProcMgr Module state object
@@ -2736,7 +2739,7 @@ static Int32 dma_inv_range(Void *start, UInt32 size)
     register int ret asm("r0");
 
     asm volatile("push {r6-r7}");
-    nsyscall = 0x9f07fd;
+    nsyscall = __PROCMGR_INV_MEMORY;
     asm volatile("swi 0x0"
         : "=r" (ret)
         : "0" (s), "r" (e));
@@ -2765,12 +2768,17 @@ static Int32 dma_clean_range(Void *start, UInt32 size)
 {
     register unsigned long s asm("r0") = (unsigned long)start;
     register unsigned long e asm("r1") = s + size;
+    register unsigned long nsyscall asm("r7");
     register int ret asm("r0");
-    asm("swi 0x9f07fe"
+
+    asm volatile("push {r6-r7}");
+    nsyscall = __PROCMGR_CLEAN_MEMORY;
+    asm volatile("swi 0x0"
         : "=r" (ret)
         : "0" (s), "r" (e));
     if (ret < 0)
         ret = set_errno(ret);
+    asm("pop {r6-r7}");
 
     return ret;
 }
@@ -2792,7 +2800,7 @@ static Int32 dma_flush_range(Void *start, UInt32 size)
     register int ret asm("r0");
 
     asm volatile("push {r6-r7}");
-    nsyscall = 0x9f07ff;
+    nsyscall = __PROCMGR_FLUSH_MEMORY;
     asm volatile("swi 0x0"
         : "=r" (ret)
         : "0" (s), "r" (e));
