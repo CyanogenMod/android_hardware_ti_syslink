@@ -28,7 +28,6 @@ INCLUDE = \
 
 AM_CFLAGS = -Wall -g -O2 $(INCLUDE)-finline-functions -D$(PROCFAMILY)
 AM_CFLAGS += -DSYSLINK_TRACE_ENABLE
-AM_CFLAGS += -DSYSLINK_USE_SYSMGR
 #TO disable loader comment the below flag.
 AM_CFLAGS += -DSYSLINK_USE_LOADER
 
@@ -39,8 +38,7 @@ API_LIBS = \
 	$(LDPATH)/notify/libsyslinknotify.la \
 	$(LDPATH)/ipc/libipc.la \
 	$(LDPATH)/procmgr/libprocmgr.la \
-	$(LDPATH)/sysmgr/libsysmgr.la \
-	$(LDPATH)/sysmemmgr/libsysmemmgr.la
+	$(LDPATH)/sysmgr/libsysmgr.la
 
 
 bin_PROGRAMS = slpmresources.out
@@ -49,6 +47,6 @@ slpmresources_out_SOURCES = \
 	slpmresourcesOS.c \
 	slpmresourcesApp.c
 
-slpmresources_out_CPPFLAGS = $(AM_CLFAGS)
+slpmresources_out_CPPFLAGS = $(AM_CFLAGS)
 
 slpmresources_out_LDADD = $(API_LIBS)

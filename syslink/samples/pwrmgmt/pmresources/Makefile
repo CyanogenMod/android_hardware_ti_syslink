@@ -30,22 +30,22 @@ LDFLAGS = $(addprefix -L, $(LDPATH))
 
 CFLAGS=-Wall -g -O2 $(INCLUDE) -finline-functions -D$(PROCFAMILY) $(LDFLAGS)
 CFLAGS += -DSYSLINK_TRACE_ENABLE
-CFLAGS += -DSYSLINK_USE_SYSMGR
-#TO disable loader comment the below flag.
 CFLAGS += -DSYSLINK_USE_LOADER
 
 
 LIBS = -lipcutils -lsyslinknotify -lipc -lprocmgr
-LIBS += -lsysmgr -lsysmemmgr
+LIBS += -lsysmgr
 
 all: slpmresources.out
 
 slpmresources.out:
 	$(CC) $(CFLAGS) -o slpmresources.out slpmresourcesOS.c slpmresourcesApp.c $(LIBS)
 
-install: slpmresources.out
+slpmresourcesinstall: slpmresources.out
 	$(INSTALL) -D $< $(TARGETDIR)/syslink/$<
 	$(STRIP) -s $(TARGETDIR)/syslink/$<
+
+install: slpmresourcesinstall
 
 clean:
 	\rm -f slpmresources.out

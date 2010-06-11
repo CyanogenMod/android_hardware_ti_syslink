@@ -30,22 +30,22 @@ LDFLAGS = $(addprefix -L, $(LDPATH))
 
 CFLAGS=-Wall -g -O2 $(INCLUDE) -finline-functions -D$(PROCFAMILY) $(LDFLAGS)
 CFLAGS += -DSYSLINK_TRACE_ENABLE
-
-#TO disable loader comment the below flag.
 CFLAGS += -DSYSLINK_USE_LOADER
 
 
 LIBS = -lipcutils -lsyslinknotify -lipc -lprocmgr
-LIBS += -lsysmgr -lsysmemmgr
+LIBS += -lsysmgr
 
 all: slpmtransport.out
 
 slpmtransport.out:
 	$(CC) $(CFLAGS) -o slpmtransport.out slpmtransportOS.c slpmtransportApp.c $(LIBS)
 
-install: slpmtransport.out
+slpmtransportinstall: slpmtransport.out
 	$(INSTALL) -D $< $(TARGETDIR)/syslink/$<
 	$(STRIP) -s $(TARGETDIR)/syslink/$<
+
+install: slpmtransportinstall
 
 clean:
 	\rm -f slpmtransport.out
