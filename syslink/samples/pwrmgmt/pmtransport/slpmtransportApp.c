@@ -14,7 +14,7 @@
  *  limitations under the License.
  */
 /*============================================================================
- *  @file   SlpmTransportApp.c
+ *  @file   slpmtransportApp.c
  *
  *  @brief  Sample application for SlpmTransport module between MPU & AppM3
  *  using messageQ
@@ -40,7 +40,14 @@
 #include <String.h>
 
 /* Module level headers */
-#include <SysMgr.h>
+#include <IpcUsr.h>
+#include <ti/ipc/MessageQ.h>
+#include <ti/ipc/MultiProc.h>
+#include <ti/ipc/HeapBufMP.h>
+#include <ti/ipc/NameServer.h>
+#include <ti/ipc/SharedRegion.h>
+#include <ti/ipc/ListMP.h>
+#include <ti/ipc/Notify.h>
 
 /* Application header */
 #include "slpmtransportApp_config.h"
@@ -56,24 +63,43 @@ extern "C" {
  *  ============================================================================
  */
 /*!
+ *  @brief  Name of the SysM3 baseImage to be used for sample execution with
+ *          SysM3
+ */
+#define SLPMTRANSPORT_SYSM3ONLY_IMAGE "./Transport_MPUSYS_Test_PM_Core0.xem3"
+
+/*!
+ *  @brief  Name of the SysM3 baseImage to be used for sample execution with
+ *          AppM3
+ */
+#define SLPMTRANSPORT_SYSM3_IMAGE     "./Notify_MPUSYS_reroute_Test_Core0.xem3"
+
+/*!
+ *  @brief  Name of the AppM3 baseImage to be used for sample execution with
+ *          AppM3
+ */
+#define SLPMTRANSPORT_APPM3_IMAGE     "./Transport_MPUAPP_Test_PM_Core1.xem3"
+
+/*!
  *  @brief  Number of transfers to be tested.
  */
-//#define  MESSAGEQAPP_NUM_TRANSFERS  1000
-#define  MESSAGEQAPP_NUM_TRANSFERS  3
-#define  PM_SUSPEND                 0
-#define  PM_RESUME                  1
+#define  SLPMTRANSPORT_NUM_TRANSFERS  4
 
 
 /** ============================================================================
  *  Globals
  *  ============================================================================
  */
-MessageQ_Handle                MessageQApp_messageQ;
-MessageQ_QueueId               MessageQApp_queueId;
-UInt16                         MessageQApp_procId;
-UInt32                         MessageQApp_shAddrBase;
-UInt32                         MessageQApp_curShAddr;
-ProcMgr_Handle                 MessageQApp_procMgrHandle;
+MessageQ_Handle                slpmTransport_messageQ;
+HeapBufMP_Handle               slpmTransport_heapHandle;
+MessageQ_QueueId               slpmTransport_queueId;
+UInt16                         slpmTransport_procId;
+UInt16                         slpmTransport_procId1;
+UInt32                         slpmTransport_curShAddr;
+ProcMgr_Handle                 slpmTransport_procMgrHandle;
+ProcMgr_Handle                 slpmTransport_procMgrHandle1;
+SizeT                          slpmTransport_heapSize         = 0;
+Ptr                            slpmTransport_ptr              = NULL;
 
 /** ============================================================================
  *  Functions
@@ -85,134 +111,220 @@ ProcMgr_Handle                 MessageQApp_procMgrHandle;
  *  @sa
  */
 Int
-SlpmTransport_startup (UInt32 notifyAddr, UInt32 sharedAddr)
+SlpmTransport_startup (Int testNo)
 {
-    Int32                          status  = 0;
-    SysMgr_Config                  config;
+    Int32                          status           = 0;
+    Ipc_Config                     config;
+    HeapBufMP_Params               heapbufmpParams;
+    UInt32                         srCount;
+    SharedRegion_Entry             srEntry;
+    Int                            i;
+    IHeap_Handle                   srHeap           = NULL;
 #if !defined (SYSLINK_USE_DAEMON)
-    UInt32                         entry_point = 0;
-    ProcMgr_StartParams            start_params;
+    UInt32                         entryPoint       = 0;
+    ProcMgr_StartParams            startParams;
 #if defined(SYSLINK_USE_LOADER)
-    Char *                         image_name;
+    Char                         * imageName;
     UInt32                         fileId;
 #endif /* if defined(SYSLINK_USE_LOADER) */
 #endif /* if !defined(SYSLINK_USE_DAEMON) */
+    ProcMgr_AttachParams           attachParams;
+    ProcMgr_State                  state;
 
+    Osal_printf ("[A9]:Entered slpmTransport_startup\n");
 
-    SysMgr_getConfig (&config);
-    status = SysMgr_setup (&config);
+    Ipc_getConfig (&config);
+    status = Ipc_setup (&config);
     if (status < 0) {
-        Osal_printf ("Error in SysMgr_setup [0x%x]\n", status);
+        Osal_printf ("[A9]:Error in Ipc_setup [0x%x]\n", status);
     }
 
-    MessageQApp_procId = MultiProc_getId ("SysM3");
-    /* Open a handle to the ProcMgr instance. */
-    status = ProcMgr_open (&MessageQApp_procMgrHandle,
-                           MessageQApp_procId);
+    /* Open a handle to the SysM3 ProcMgr instance. */
+    slpmTransport_procId = MultiProc_getId ("SysM3");
+    status = ProcMgr_open (&slpmTransport_procMgrHandle, slpmTransport_procId);
     if (status < 0) {
-        Osal_printf ("Error in ProcMgr_open [0x%x]\n", status);
+        Osal_printf ("[A9]:Error in ProcMgr_open (SysM3) [0x%x]\n", status);
     }
     else {
-        Osal_printf ("ProcMgr_open Status [0x%x]\n", status);
-        /* Get the address of the shared region in kernel space. */
-        status = ProcMgr_translateAddr (MessageQApp_procMgrHandle,
-                                        (Ptr) &notifyAddr,
-                                        ProcMgr_AddrType_MasterUsrVirt,
-                                        (Ptr) SHAREDMEM0,
-                                        ProcMgr_AddrType_SlaveVirt);
-
+        Osal_printf ("[A9]:ProcMgr_open (SysM3) Status [0x%x]\n", status);
+        ProcMgr_getAttachParams (NULL, &attachParams);
+        /* Default params will be used if NULL is passed. */
+        status = ProcMgr_attach (slpmTransport_procMgrHandle, &attachParams);
         if (status < 0) {
-            Osal_printf ("Error in ProcMgr_translateAddr [0x%x]\n", status);
+            Osal_printf ("[A9]:ProcMgr_attach (SysM3) failed [0x%x]\n", status);
         }
         else {
-            Osal_printf ("Virt address of shared address base:"
-                         " [0x%x]\n", notifyAddr);
+            Osal_printf ("[A9]:ProcMgr_attach (SysM3) status:[0x%x]\n", status);
+            state = ProcMgr_getState (slpmTransport_procMgrHandle);
+            Osal_printf ("[A9]:After attach: ProcMgr_getState (SysM3)\n"
+                         "    state [0x%x]\n", status);
         }
     }
 
-    if (status >= 0) {
-        /* Get the address of the shared region in kernel space. */
-        status = ProcMgr_translateAddr (MessageQApp_procMgrHandle,
-                                        (Ptr) &sharedAddr,
-                                        ProcMgr_AddrType_MasterUsrVirt,
-                                        (Ptr) SHAREDMEM,
-                                        ProcMgr_AddrType_SlaveVirt);
-
+    /* Open a handle to the AppM3 ProcMgr instance. */
+    if ((status >= 0) && (testNo == 2)) {
+        slpmTransport_procId1 = MultiProc_getId ("AppM3");
+        status = ProcMgr_open (&slpmTransport_procMgrHandle1,
+                                slpmTransport_procId1);
         if (status < 0) {
-            Osal_printf ("Error in ProcMgr_translateAddr [0x%x]\n", status);
+            Osal_printf ("[A9]:Error in ProcMgr_open (AppM3) [0x%x]\n", status);
         }
         else {
-            MessageQApp_shAddrBase = sharedAddr;
-            Osal_printf ("Virt address of shared address base: [0x%x]\n",
-                            sharedAddr);
+            Osal_printf ("[A9]:ProcMgr_open (AppM3) Status [0x%x]\n", status);
+            ProcMgr_getAttachParams (NULL, &attachParams);
+            /* Default params will be used if NULL is passed. */
+            status = ProcMgr_attach (slpmTransport_procMgrHandle1,
+                                    &attachParams);
+            if (status < 0) {
+                Osal_printf ("[A9]:ProcMgr_attach (AppM3) failed [0x%x]\n",
+                                status);
+            }
+            else {
+                Osal_printf ("[A9]:ProcMgr_attach(AppM3) status: [0x%x]\n",
+                                status);
+                state = ProcMgr_getState (slpmTransport_procMgrHandle1);
+                Osal_printf ("[A9]:After attach: ProcMgr_getState (AppM3)\n"
+                             "    state [0x%x]\n", state);
+            }
         }
     }
 
-
-    MessageQApp_procId = MultiProc_getId ("AppM3");
-
-    if (status >= 0) {
-        MessageQApp_curShAddr = notifyAddr;
-        /* Add the region to SharedRegion module. */
-        status = SharedRegion_add (0,
-                                   (Ptr) MessageQApp_curShAddr,
-                                   SHAREDMEMSIZE0);
-        if (status < 0) {
-            Osal_printf ("Error in SharedRegion_add0 [0x%x]\n", status);
-        }
-        else {
-            Osal_printf ("SharedRegion_add0 [0x%x]\n", status);
-        }
-    }
-
-    if (status >= 0) {
-        MessageQApp_curShAddr = sharedAddr;
-        /* Add the region to SharedRegion module. */
-        status = SharedRegion_add (1,
-                                   (Ptr) MessageQApp_shAddrBase,
-                                   SHAREDMEMSIZE);
-        if (status < 0) {
-            Osal_printf ("Error in SharedRegion_add1 [0x%x]\n", status);
-        }
-        else {
-            Osal_printf ("SharedRegion_add1 [0x%x]\n", status);
-        }
-    }
-
-
-
-#if !defined (SYSLINK_USE_DAEMON)
-    start_params.proc_id = MultiProc_getId("SysM3");
+#if !defined(SYSLINK_USE_DAEMON) /* Daemon sets this up */
 #ifdef SYSLINK_USE_LOADER
-    image_name = "./Transport_MPUSYS_Test_PM_Core0.xem3";
-    Osal_printf ("Loading image (%s) onto Ducati with ProcId %d\n", image_name,
-                start_params.proc_id);
-    status = ProcMgr_load (MessageQApp_procMgrHandle, image_name, 2,
-                            (String *)image_name, &entry_point, &fileId,
-                            start_params.proc_id);
-    Osal_printf ("ProcMgr_load SysM3 Status [0x%x]\n", status);
-#endif /* SYSLINK_USE_LOADER */
-    status = ProcMgr_start (MessageQApp_procMgrHandle, entry_point,
-                            &start_params);
-    Osal_printf ("ProcMgr_start SysM3 Status [0x%x]\n", status);
+    if (status >= 0) {
+        if (testNo == 1)
+            imageName = SLPMTRANSPORT_SYSM3ONLY_IMAGE;
+        else if (testNo == 2)
+            imageName = SLPMTRANSPORT_SYSM3_IMAGE;
 
-    start_params.proc_id = MessageQApp_procId;
-#ifdef SYSLINK_USE_LOADER
-    image_name = "./Transport_MPUAPP_Test_PM_Core1.xem3";
-    Osal_printf ("Loading image (%s) onto Ducati with ProcId %d\n", image_name,
-            start_params.proc_id);
-    status = ProcMgr_load (MessageQApp_procMgrHandle, image_name, 2,
-                            (String *)image_name, &entry_point, &fileId,
-                            start_params.proc_id);
-    Osal_printf ("ProcMgr_load AppM3 Status [0x%x]\n", status);
-#endif /* SYSLINK_USE_LOADER */
-    status = ProcMgr_start (MessageQApp_procMgrHandle, entry_point,
-                            &start_params);
-    Osal_printf ("ProcMgr_start AppM3 Status [0x%x]\n", status);
-#endif /* !SYSLINK_USE_DAEMON */
+        Osal_printf ("[A9]:Loading image (%s) onto Ducati with ProcId %d\n",
+                        imageName, startParams.proc_id);
+        status = ProcMgr_load (slpmTransport_procMgrHandle, imageName, 2,
+                                (String *) &imageName, &entryPoint, &fileId,
+                                slpmTransport_procId);
+        if (status < 0) {
+            Osal_printf ("[A9]:Error in ProcMgr_load (SysM3) image: [0x%x]\n",
+                            status);
+        }
+        else {
+            Osal_printf ("[A9]:ProcMgr_load (SysM3) Status [0x%x]\n", status);
+        }
+    }
+#endif /* defined(SYSLINK_USE_LOADER) */
+    if (status >= 0) {
+        startParams.proc_id = slpmTransport_procId;
+        status = ProcMgr_start (slpmTransport_procMgrHandle, entryPoint,
+                                &startParams);
+        if (status < 0) {
+            Osal_printf ("[A9]:Error in ProcMgr_start (SysM3) [0x%x]\n",
+                            status);
+        }
+        else {
+           Osal_printf ("[A9]:ProcMgr_start (SysM3) Status [0x%x]\n",
+                            status);
+        }
+    }
 
+    if ((status >= 0) && (testNo == 2)) {
+#if defined(SYSLINK_USE_LOADER)
+        imageName = SLPMTRANSPORT_APPM3_IMAGE;
+        status = ProcMgr_load (slpmTransport_procMgrHandle1, imageName, 2,
+                                &imageName, &entryPoint, &fileId,
+                                slpmTransport_procId1);
+        if (status < 0) {
+            Osal_printf ("[A9]:Error in ProcMgr_load (AppM3) image: 0x%x]\n",
+                            status);
+        }
+        else {
+            Osal_printf ("[A9]:ProcMgr_load (AppM3) Status [0x%x]\n",
+                            status);
+        }
+#endif /* defined(SYSLINK_USE_LOADER) */
+        startParams.proc_id = slpmTransport_procId1;
+        status = ProcMgr_start (slpmTransport_procMgrHandle1, entryPoint,
+                                    &startParams);
+        if (status < 0) {
+            Osal_printf ("[A9]:Error in ProcMgr_start (AppM3) [0x%x]\n",
+                            status);
+        }
+        else {
+            Osal_printf ("[A9]:ProcMgr_start (AppM3) Status [0x%x]\n",
+                            status);
+        }
+    }
+#endif /* !defined(SYSLINK_USE_DAEMON) */
 
-    Osal_printf ("Leaving SlpmTransport_startup\n");
+    srCount = SharedRegion_getNumRegions();
+    Osal_printf ("[A9]:SharedRegion_getNumRegions = %d\n", srCount);
+    for (i = 0; i < srCount; i++) {
+        status = SharedRegion_getEntry (i, &srEntry);
+        Osal_printf ("[A9]:SharedRegion_entry #%d: base = 0x%x len = 0x%x "
+                        "ownerProcId = %d isValid = %d \n cacheEnable = %d "
+                        "cacheLineSize = 0x%x createHeap = %d name = %s\n",
+                        i, srEntry.base, srEntry.len, srEntry.ownerProcId,
+                        (Int)srEntry.isValid, (Int)srEntry.cacheEnable,
+                        srEntry.cacheLineSize, (Int)srEntry.createHeap,
+                        srEntry.name);
+    }
+
+#if !defined(SYSLINK_USE_DAEMON) /* Daemon sets this up */
+    /* Create Heap and register it with MessageQ */
+    if (status >= 0) {
+        HeapBufMP_Params_init (&heapbufmpParams);
+        heapbufmpParams.sharedAddr = NULL;
+        heapbufmpParams.align      = 128;
+        heapbufmpParams.numBlocks  = 4;
+        heapbufmpParams.blockSize  = MSGSIZE;
+        slpmTransport_heapSize = HeapBufMP_sharedMemReq (&heapbufmpParams);
+        Osal_printf ("[A9]:heapSize = 0x%x\n", slpmTransport_heapSize);
+
+        srHeap = SharedRegion_getHeap (0);
+        if (srHeap == NULL) {
+            status = MessageQ_E_FAIL;
+            Osal_printf ("[A9]:SharedRegion_getHeap failed for %d processor."
+                         " srHeap: [0x%x]\n",
+                         slpmTransport_procId,
+                         srHeap);
+        }
+        else {
+            Osal_printf ("[A9]:Before Memory_alloc = 0x%x\n", srHeap);
+            slpmTransport_ptr = Memory_alloc (srHeap,
+                                slpmTransport_heapSize,
+                                0);
+            if (slpmTransport_ptr == NULL) {
+                status = MEMORYOS_E_MEMORY;
+                Osal_printf ("[A9]:Memory_alloc failed for %d processor."
+                             " ptr: [0x%x]\n",
+                             slpmTransport_procId,
+                             slpmTransport_ptr);
+            }
+            else {
+                heapbufmpParams.name           = "Heap0";
+                heapbufmpParams.sharedAddr     = slpmTransport_ptr;
+                Osal_printf ("[A9]:Before HeapBufMP_Create: [0x%x]\n",
+                                slpmTransport_ptr);
+                slpmTransport_heapHandle = HeapBufMP_create (&heapbufmpParams);
+                if (slpmTransport_heapHandle == NULL) {
+                    status = HeapBufMP_E_FAIL;
+                    Osal_printf ("[A9]:HeapBufMP_create failed for %d "
+                                 " processor. Handle: [0x%x]\n",
+                                 slpmTransport_procId,
+                                 slpmTransport_heapHandle);
+                }
+                else {
+                    /* Register this heap with MessageQ */
+                    status = MessageQ_registerHeap (slpmTransport_heapHandle,
+                                                    HEAPID);
+                    if (status < 0) {
+                        Osal_printf ("[A9]:MessageQ_registerHeap failed!\n");
+                    }
+                }
+            }
+        }
+    }
+#endif /* !defined(SYSLINK_USE_DAEMON) */
+
+    Osal_printf ("[A9]:Leaving SlpmTransport_startup: status = 0x%x\n", status);
 
     return (status);
 }
@@ -224,78 +336,91 @@ SlpmTransport_startup (UInt32 notifyAddr, UInt32 sharedAddr)
  *  @sa
  */
 Int
-SlpmTransport_execute (Void)
+SlpmTransport_execute (Int testNo)
 {
     Int32                    status = 0;
     MessageQ_Msg             msg    = NULL;
     MessageQ_Params          msgParams;
     UInt16                   i;
+    Char                   * msgQName;
 
-    Osal_printf ("Entered SlpmTransport_execute\n");
+    Osal_printf ("[A9]:Entered SlpmTransport_execute\n");
 
     /* Create the Message Queue. */
-    MessageQ_Params_init (NULL, &msgParams);
-    MessageQApp_messageQ = MessageQ_create (ARM_MESSAGEQNAME, &msgParams);
-    if (MessageQApp_messageQ == NULL) {
-        Osal_printf ("Error in MessageQ_create\n");
+    MessageQ_Params_init (&msgParams);
+    slpmTransport_messageQ = MessageQ_create (ARM_MESSAGEQNAME, &msgParams);
+    if (slpmTransport_messageQ == NULL) {
+        Osal_printf ("[A9]:Error in MessageQ_create\n");
     }
     else {
-        Osal_printf ("MessageQ_create handle [0x%x]\n",
-                     MessageQApp_messageQ);
+        Osal_printf ("[A9]:MessageQ_create handle [0x%x]\n",
+                     slpmTransport_messageQ);
     }
 
+    /* Assign the MessageQ Name being opened */
+    switch (testNo) {
+        case 2:
+            msgQName = DUCATI_CORE1_MESSAGEQNAME;
+            break;
+
+        case 1:
+        default:
+            msgQName = DUCATI_CORE0_MESSAGEQNAME;
+            break;
+    }
+
+    sleep (1); /* Adding a small delay to resolve infinite nameserver issue */
     if (status >=0) {
         do {
-            status = MessageQ_open (DUCATI_CORE1_MESSAGEQNAME,
-                                    &MessageQApp_queueId);
-        } while (status == MESSAGEQ_E_NOTFOUND);
+            status = MessageQ_open (msgQName, &slpmTransport_queueId);
+        } while (status == MessageQ_E_NOTFOUND);
         if (status < 0) {
-            Osal_printf ("Error in MessageQ_open [0x%x]\n", status);
+            Osal_printf ("[A9]:Error in MessageQ_open [0x%x]\n", status);
         }
         else {
-            Osal_printf ("MessageQ_open Status [0x%x]\n", status);
-            Osal_printf ("MessageQApp_queueId  [0x%x]\n", MessageQApp_queueId);
+            Osal_printf ("[A9]:MessageQ_open Status [0x%x]\n", status);
+            Osal_printf ("[A9]:slpmTransport_queueId  [0x%x]\n",
+                            slpmTransport_queueId);
         }
     }
 
-    if (status > 0) {
-        Osal_printf ("\nExchanging messages with remote processor\n");
-        for (i = 0 ; i < MESSAGEQAPP_NUM_TRANSFERS ; i++) {
+    if (status >= 0) {
+        Osal_printf ("[A9]:\nExchanging messages with remote processor\n");
+        for (i = 0 ; i < SLPMTRANSPORT_NUM_TRANSFERS ; i++) {
             /* Allocate message. */
             msg = MessageQ_alloc (HEAPID, MSGSIZE);
             if (msg == NULL) {
-                Osal_printf ("Error in MessageQ_alloc\n");
+                Osal_printf ("[A9]:Error in MessageQ_alloc\n");
                 break;
             }
             else {
-                Osal_printf ("MessageQ_alloc msg [0x%x]\n", msg);
+                Osal_printf ("[A9]:MessageQ_alloc msg [0x%x]\n", msg);
             }
 
             MessageQ_setMsgId (msg, (i % 16));
 
             /* Have the DSP reply to this message queue */
-            MessageQ_setReplyQueue (MessageQApp_messageQ, msg);
+            MessageQ_setReplyQueue (slpmTransport_messageQ, msg);
 
-            status = MessageQ_put (MessageQApp_queueId, msg);
+            status = MessageQ_put (slpmTransport_queueId, msg);
             if (status < 0) {
-                Osal_printf ("Error in MessageQ_put [0x%x]\n",
+                Osal_printf ("[A9]:Error in MessageQ_put [0x%x]\n",
                              status);
                 break;
             }
-            else {
-                Osal_printf ("MessageQ_put #%d Status [0x%x]\n", i, status);
-            }
 
-            status = MessageQ_get(MessageQApp_messageQ, &msg, MESSAGEQ_FOREVER);
+            status = MessageQ_get(slpmTransport_messageQ, &msg,
+                                    MessageQ_FOREVER);
             if (status < 0) {
-                Osal_printf ("Error in MessageQ_get\n");
+                Osal_printf ("[A9]:Error in MessageQ_get\n");
                 break;
             }
             else {
+
                 /* Validate the returned message. */
                 if (msg != NULL) {
-                    if (MessageQ_getMsgId (msg) != ((i % 16) + 1)) {
-                        Osal_printf ("Data integrity failure!\n"
+                    if (MessageQ_getMsgId (msg) != ((i % 16) + 1) ) {
+                        Osal_printf ("[A9]:Data integrity failure!\n"
                                      "    Expected %d\n"
                                      "    Received %d\n",
                                      ((i % 16) + 1),
@@ -305,12 +430,12 @@ SlpmTransport_execute (Void)
                 }
 
                 status = MessageQ_free (msg);
-                Osal_printf ("MessageQ_free status [0x%x]\n", status);
+                Osal_printf ("[A9]:MessageQ_free status [0x%x]\n", status);
             }
 
             if ((i % 2) == 0) {
-                Osal_printf ("Exchanged %d messages with remote processor\n",
-                             i);
+                Osal_printf ("[A9]:Exchanged %d messages with"
+                            "remote processor\n", i);
             }
         }
     }
@@ -329,10 +454,10 @@ SlpmTransport_execute (Void)
         MessageQ_setMsgId(msg, DIEMESSAGE);
 
         /* Have the DSP reply to this message queue */
-        MessageQ_setReplyQueue (MessageQApp_messageQ, msg);
+        MessageQ_setReplyQueue (slpmTransport_messageQ, msg);
 
         /* Send the message off */
-        status = MessageQ_put (MessageQApp_queueId, msg);
+        status = MessageQ_put (slpmTransport_queueId, msg);
         if (status < 0) {
             Osal_printf ("Error in MessageQ_put (die message) [0x%x]\n",
                          status);
@@ -342,7 +467,7 @@ SlpmTransport_execute (Void)
         }
 
         /* Wait for the final message. */
-        status = MessageQ_get(MessageQApp_messageQ, &msg, MESSAGEQ_FOREVER);
+        status = MessageQ_get(slpmTransport_messageQ, &msg, MessageQ_FOREVER);
         if (status < 0) {
             Osal_printf ("\nError in MessageQ_get (die message)!\n");
         }
@@ -350,9 +475,9 @@ SlpmTransport_execute (Void)
             /* Validate the returned message. */
             if (msg != NULL) {
                 if (MessageQ_getMsgId (msg) == DIEMESSAGE) {
-                    Osal_printf ("\nSuccessfully received die response from the"
-                                 " remote processor\n");
-                    Osal_printf ("Sample application successfully completed\n");
+                    Osal_printf ("\nSuccessfully received die response from the "
+                                 "remote processor\n");
+                    Osal_printf ("Sample application successfully completed!\n");
                 }
                 else {
                     Osal_printf("\nUnsuccessful run of the sample "
@@ -360,8 +485,8 @@ SlpmTransport_execute (Void)
                 }
             }
             else {
-                Osal_printf ("\nUnsuccessful run of the sample application "
-                                "msg == NULL!\n");
+                Osal_printf("\nUnsuccessful run of the sample application msg "
+                          "is NULL!\n");
             }
         }
         MessageQ_free(msg);
@@ -371,8 +496,8 @@ SlpmTransport_execute (Void)
 #endif /* !SYSLINK_USE_DAEMON */
 
     /* Clean-up */
-    if (MessageQApp_messageQ != NULL) {
-        status = MessageQ_delete (&MessageQApp_messageQ);
+    if (slpmTransport_messageQ != NULL) {
+        status = MessageQ_delete (&slpmTransport_messageQ);
         if (status < 0) {
             Osal_printf ("Error in MessageQ_delete [0x%x]\n",
                          status);
@@ -382,8 +507,8 @@ SlpmTransport_execute (Void)
         }
     }
 
-    if (MessageQApp_messageQ != NULL) {
-        MessageQ_close (&MessageQApp_queueId);
+    if (slpmTransport_messageQ != NULL) {
+        MessageQ_close (&slpmTransport_queueId);
     }
 
     Osal_printf ("Leaving SlpmTransport_execute\n");
@@ -399,39 +524,59 @@ SlpmTransport_execute (Void)
  */
 
 Int
-SlpmTransport_shutdown (Void)
+SlpmTransport_shutdown (Int testNo)
 {
     Int32               status = 0;
 #if !defined (SYSLINK_USE_DAEMON)
-    ProcMgr_StopParams  stop_params;
-#endif /* !SYSLINK_USE_DAEMON */
+    ProcMgr_StopParams  stopParams;
+#endif /* !defined(SYSLINK_USE_DAEMON) */
+    IHeap_Handle        srHeap = NULL;
 
-    Osal_printf ("Entered SlpmTransport_shutdown()\n");
+    Osal_printf ("[A9]:Entered SlpmTransport_shutdown()\n");
 
-    SharedRegion_remove (0);
-    SharedRegion_remove (1);
+    status = MessageQ_unregisterHeap (HEAPID);
+    Osal_printf ("[A9]:MessageQ_unregisterHeap status: [0x%x]\n", status);
+
+    if (slpmTransport_heapHandle) {
+        status = HeapBufMP_delete (&slpmTransport_heapHandle);
+        Osal_printf ("[A9]:HeapBufMP_delete status: [0x%x]\n", status);
+    }
+
+    if (slpmTransport_ptr) {
+        srHeap = SharedRegion_getHeap (0);
+        Memory_free (srHeap, slpmTransport_ptr, slpmTransport_heapSize);
+    }
 
 #if !defined (SYSLINK_USE_DAEMON)
-    stop_params.proc_id = MessageQApp_procId;
-    status = ProcMgr_stop (MessageQApp_procMgrHandle, &stop_params);
-    Osal_printf ("ProcMgr_stop status for proc_id %d : [0x%x]\n",
-    stop_params.proc_id, status);
-    MessageQApp_procId = MultiProc_getId ("SysM3");
+    if (testNo == 2) {
+        stopParams.proc_id = slpmTransport_procId1;
+        status = ProcMgr_stop (slpmTransport_procMgrHandle1, &stopParams);
+        Osal_printf ("[A9]:ProcMgr_stop status: [0x%x]\n", status);
+    }
 
-    stop_params.proc_id = MessageQApp_procId;
-    status = ProcMgr_stop (MessageQApp_procMgrHandle, &stop_params);
-    Osal_printf ("ProcMgr_stop status for proc_id %d : [0x%x]\n",
-    stop_params.proc_id, status);
-#endif /* !SYSLINK_USE_DAEMON */
+    stopParams.proc_id = slpmTransport_procId;
+    status = ProcMgr_stop (slpmTransport_procMgrHandle, &stopParams);
+    Osal_printf ("[A9]:ProcMgr_stop status: [0x%x]\n", status);
+#endif /* !defined(SYSLINK_USE_DAEMON) */
 
-    status = ProcMgr_close (&MessageQApp_procMgrHandle);
-    Osal_printf ("ProcMgr_close status: [0x%x]\n", status);
+    if (testNo == 2) {
+        status =  ProcMgr_detach (slpmTransport_procMgrHandle1);
+        Osal_printf ("[A9]:ProcMgr_detach status [0x%x]\n", status);
 
-    status = SysMgr_destroy ();
-    Osal_printf ("SysMgr_destroy status: [0x%x]\n", status);
+        status = ProcMgr_close (&slpmTransport_procMgrHandle1);
+        Osal_printf ("[A9]:ProcMgr_close status: [0x%x]\n", status);
+    }
 
+    status =  ProcMgr_detach (slpmTransport_procMgrHandle);
+    Osal_printf ("[A9]:ProcMgr_detach status [0x%x]\n", status);
 
-    Osal_printf ("Leave SlpmTransport_shutdown()\n");
+    status = ProcMgr_close (&slpmTransport_procMgrHandle);
+    Osal_printf ("[A9]:ProcMgr_close status: [0x%x]\n", status);
+
+    status = Ipc_destroy ();
+    Osal_printf ("[A9]:Ipc_destroy status: [0x%x]\n", status);
+
+    Osal_printf ("[A9]:Leave SlpmTransport_shutdown()\n");
 
     return (status);
 }
