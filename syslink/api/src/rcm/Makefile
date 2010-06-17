@@ -84,7 +84,7 @@ INCLUDES    = \
 # Libraries needed for linking.
 
 ST_LIBS        =
-SH_LIBS        = pthread utils ipc
+SH_LIBS        = pthread ipcutils ipc
 
 # Search path for library (and linker command) files.
 # Current folder and target folder are included by default.

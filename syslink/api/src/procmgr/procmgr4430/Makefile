@@ -84,7 +84,7 @@ INCLUDES    = \
 
 #SH_LIBS        = pthread utils
 #SH_LIBS        = pthread utils
-SH_LIBS        = utils
+SH_LIBS        = ipcutils
 
 # Search path for library (and linker command) files.
 # Current folder and target folder are included by default.

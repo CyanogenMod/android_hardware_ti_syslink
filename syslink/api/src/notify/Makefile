@@ -88,7 +88,7 @@ INCLUDES    = \
 # Libraries needed for linking.
 
 #ST_LIBS        = gcc
-SH_LIBS        = pthread utils
+SH_LIBS        = pthread ipcutils
 ST_LIBS        =
 
 # Search path for library (and linker command) files.
