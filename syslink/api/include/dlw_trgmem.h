@@ -32,34 +32,52 @@
  *  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*****************************************************************************/
-/* relocate.h                                                                */
+/* dlw_trgmem.h                                                              */
 /*                                                                           */
-/* Declare names and IDs of all C6x relocation types supported in the        */
-/* dynamic loader.  Note that this list must be kept in synch with the       */
-/* C6x relocation engine files in the other object development tools.        */
+/* Define internal data structures used by RIDL client side for target       */
+/* memory management.                                                        */
 /*****************************************************************************/
-#ifndef RELOCATE_H
-#define RELOCATE_H
+#ifndef DLW_TRGMEM_H
+#define DLW_TRGMEM_H
 
-#include <inttypes.h>
-#include "elf32.h"
-#include "dload.h"
 #include "dload_api.h"
 
 /*---------------------------------------------------------------------------*/
-/* Declare some globals that are used for internal debugging and profiling.  */
+/* MIN_BLOCK is the minimum size of a packet.                                */
 /*---------------------------------------------------------------------------*/
-#if LOADER_DEBUG || LOADER_PROFILE
-#include <time.h>
-extern int DLREL_relocations;
-extern time_t DLREL_total_reloc_time;
-#endif
-
+#define MIN_BLOCK       4
 
 /*---------------------------------------------------------------------------*/
-/* Landing point for core loader's relocation processor.                     */
+/* TRG_PACKET is the template for a data packet.  Packet size contains the   */
+/* number of bytes allocated for the user.  Packets are always allocated     */
+/* memory in MIN_BLOCK byte chunks.  The list is ordered by packet address   */
+/* which refers to the target address associated with the first byte of the  */
+/* packet.  The list itself is allocated out of host memory and is a doubly  */
+/* linked list to help with easy splitting and merging of elements.          */
 /*---------------------------------------------------------------------------*/
-void DLREL_relocate(DLOAD_HANDLE handle, LOADER_FILE_DESC *fd,
-                    DLIMP_Dynamic_Module *dyn_module);
+typedef struct _trg_packet
+{
+   /* Need to change this to TARGET_ADDRESS  packet_addr */
+   uint32_t             packet_addr;   /* target address of packet          */
+   uint32_t             packet_size;   /* number of bytes in this packet    */
+   struct _trg_packet  *prev_packet;   /* prev packet in trg mem list       */
+   struct _trg_packet  *next_packet;   /* next packet in trg mem list       */
+   BOOL                 used_packet;   /* has packet been allocated?        */
+} TRG_PACKET;
 
-#endif
+/*---------------------------------------------------------------------------*/
+/* Interface into client's target memory manager.                            */
+/*---------------------------------------------------------------------------*/
+extern BOOL DLTMM_init(void* client_handle, uint32_t dynMemAddr, uint32_t size);
+extern BOOL DLTMM_deinit(void* client_handle);
+extern BOOL DLTMM_malloc(void* client_handle,
+                         struct DLOAD_MEMORY_REQUEST *targ_req,
+                         struct DLOAD_MEMORY_SEGMENT *obj_desc);
+extern void DLTMM_free(void* client_handle, TARGET_ADDRESS ptr);
+
+extern void DLTMM_fwrite_trg_mem(FILE *fp);
+extern void DLTMM_fread_trg_mem(FILE *fp);
+extern void DLTMM_dump_trg_mem(uint32_t offset, uint32_t nbytes,
+                               FILE* fp);
+
+#endif /* DLW_TRGMEM_H */

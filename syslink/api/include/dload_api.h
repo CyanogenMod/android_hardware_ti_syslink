@@ -1,16 +1,35 @@
 /*
- * Syslink-IPC for TI OMAP Processors
+ *  Syslink-IPC for TI OMAP Processors
  *
- * Copyright (C) 2009 Texas Instruments, Inc.
+ *  Copyright (c) 2008-2010, Texas Instruments Incorporated
+ *  All rights reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Lesser General Public License as published
- * by the Free Software Foundation version 2.1 of the License.
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted provided that the following conditions
+ *  are met:
  *
- * This program is distributed .as is. WITHOUT ANY WARRANTY of any kind,
- * whether express or implied; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
+ *  *  Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
+ *
+ *  *  Redistributions in binary form must reproduce the above copyright
+ *     notice, this list of conditions and the following disclaimer in the
+ *     documentation and/or other materials provided with the distribution.
+ *
+ *  *  Neither the name of Texas Instruments Incorporated nor the names of
+ *     its contributors may be used to endorse or promote products derived
+ *     from this software without specific prior written permission.
+ *
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ *  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ *  THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ *  PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ *  CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ *  EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ *  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+ *  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ *  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ *  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ *  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*****************************************************************************/
 /* dload_api.h                                                               */
@@ -30,6 +49,9 @@
 #include <stdio.h>
 #include "util.h"
 
+
+
+
 /*****************************************************************************/
 /* Specification of Loader File Descriptor.  If client side of the loader    */
 /* supports virtual memory, this may need to be updated to facilitate the    */
@@ -47,8 +69,30 @@ static const int LOADER_SEEK_END = SEEK_END;
 typedef void* TARGET_ADDRESS;
 
 /*****************************************************************************/
+/* DLOAD_HANDLE - defines the DLoad object handle.                           */
+/*****************************************************************************/
+typedef void * DLOAD_HANDLE;
+
+/*****************************************************************************/
 /* Core Loader Provided API Functions (Core Loader Entry Points)             */
 /*****************************************************************************/
+
+/*---------------------------------------------------------------------------*/
+/* DLOAD_create()                                                            */
+/*                                                                           */
+/*    Create an instance of the dynamic loader, passing a handle to the      */
+/*    client-specific handle for this instance.                              */
+/*                                                                           */
+/*---------------------------------------------------------------------------*/
+DLOAD_HANDLE  DLOAD_create(void * client_handle);
+
+/*---------------------------------------------------------------------------*/
+/* DLOAD_destroy()                                                           */
+/*                                                                           */
+/*    Destroy the specified dynamic loader instance.                         */
+/*                                                                           */
+/*---------------------------------------------------------------------------*/
+void     DLOAD_destroy(DLOAD_HANDLE handle);
 
 /*---------------------------------------------------------------------------*/
 /* DLOAD_initialize()                                                        */
@@ -57,7 +101,16 @@ typedef void* TARGET_ADDRESS;
 /*    loader core.                                                           */
 /*                                                                           */
 /*---------------------------------------------------------------------------*/
-void     DLOAD_initialize(void);
+void     DLOAD_initialize(DLOAD_HANDLE handle);
+
+/*---------------------------------------------------------------------------*/
+/* DLOAD_finalize()                                                          */
+/*                                                                           */
+/*    Destroy and finalize data structures internal to the dynamic           */
+/*    loader core.                                                           */
+/*                                                                           */
+/*---------------------------------------------------------------------------*/
+void     DLOAD_finalize(DLOAD_HANDLE handle);
 
 /*---------------------------------------------------------------------------*/
 /* DLOAD_load_symbols()                                                      */
@@ -67,7 +120,7 @@ void     DLOAD_initialize(void);
 /*    External symbols will be made available for global symbol linkage.     */
 /*                                                                           */
 /*---------------------------------------------------------------------------*/
-BOOL     DLOAD_load_symbols(LOADER_FILE_DESC* fp);
+BOOL     DLOAD_load_symbols(DLOAD_HANDLE handle, LOADER_FILE_DESC* fp);
 
 /*---------------------------------------------------------------------------*/
 /* DLOAD_load()                                                              */
@@ -79,7 +132,8 @@ BOOL     DLOAD_load_symbols(LOADER_FILE_DESC* fp);
 /*    The core loader must have read access to the file pointed by fp.       */
 /*                                                                           */
 /*---------------------------------------------------------------------------*/
-int      DLOAD_load(LOADER_FILE_DESC* fp, int argc, char** argv);
+int      DLOAD_load(DLOAD_HANDLE handle, LOADER_FILE_DESC* fp, int argc,
+                    char** argv);
 
 /*---------------------------------------------------------------------------*/
 /* DLOAD_unload()                                                            */
@@ -89,7 +143,19 @@ int      DLOAD_load(LOADER_FILE_DESC* fp, int argc, char** argv);
 /*    use.                                                                   */
 /*                                                                           */
 /*---------------------------------------------------------------------------*/
-BOOL     DLOAD_unload(uint32_t pseudopid);
+BOOL     DLOAD_unload(DLOAD_HANDLE handle, uint32_t pseudopid);
+
+/*---------------------------------------------------------------------------*/
+/* DLOAD_get_entry_names_info()                                              */
+/*                                                                           */
+/*    Given a file handle, get the information needed to create an array of  */
+/*    sufficient size to call DLOAD_get_entry_names.                         */
+/*                                                                           */
+/*---------------------------------------------------------------------------*/
+BOOL     DLOAD_get_entry_names_info(DLOAD_HANDLE handle,
+                                    uint32_t file_handle,
+                                    int32_t *entry_pt_cnt,
+                                    int32_t *entry_pt_max_name_len);
 
 /*---------------------------------------------------------------------------*/
 /* DLOAD_get_entry_names()                                                   */
@@ -99,8 +165,8 @@ BOOL     DLOAD_unload(uint32_t pseudopid);
 /*    the list of global functions available in a shared library.            */
 /*                                                                           */
 /*---------------------------------------------------------------------------*/
-BOOL     DLOAD_get_entry_names(uint32_t file_handle, int32_t* entry_pt_cnt,
-                               char*** entry_pt_names);
+BOOL     DLOAD_get_entry_names(DLOAD_HANDLE handle, uint32_t file_handle,
+                               int32_t* entry_pt_cnt, char*** entry_pt_names);
 
 /*---------------------------------------------------------------------------*/
 /* DLOAD_query_symbol()                                                      */
@@ -110,8 +176,8 @@ BOOL     DLOAD_get_entry_names(uint32_t file_handle, int32_t* entry_pt_cnt,
 /*    the symbol is not found.                                               */
 /*                                                                           */
 /*---------------------------------------------------------------------------*/
-BOOL     DLOAD_query_symbol(uint32_t file_handle, const char *sym_name,
-                            TARGET_ADDRESS *sym_val);
+BOOL     DLOAD_query_symbol(DLOAD_HANDLE handle, uint32_t file_handle,
+                            const char *sym_name, TARGET_ADDRESS *sym_val);
 
 /*---------------------------------------------------------------------------*/
 /* DLOAD_get_entry_point()                                                   */
@@ -122,7 +188,8 @@ BOOL     DLOAD_query_symbol(uint32_t file_handle, const char *sym_name,
 /*    file with the specified handle was found or not.                       */
 /*                                                                           */
 /*---------------------------------------------------------------------------*/
-BOOL     DLOAD_get_entry_point(uint32_t file_handle, TARGET_ADDRESS *sym_val);
+BOOL     DLOAD_get_entry_point(DLOAD_HANDLE handle, uint32_t file_handle,
+                               TARGET_ADDRESS *sym_val);
 
 /*****************************************************************************/
 /* Client Provided API Functions                                             */
@@ -239,10 +306,11 @@ static const int DLOAD_SF_relocatable = 0x2; /* Segment must be relocatable  */
 /*---------------------------------------------------------------------------*/
 struct DLOAD_MEMORY_SEGMENT
 {
-   uint32_t       target_page;          /* requested/returned memory page    */
-   TARGET_ADDRESS target_address;       /* requested/returned address        */
-   uint32_t       objsz_in_bytes;       /* size of init'd part of segment    */
-   uint32_t       memsz_in_bytes;       /* size of memory block for segment  */
+   uint32_t            target_page;     /* requested/returned memory page    */
+   TARGET_ADDRESS      target_address;  /* requested/returned address        */
+   uint32_t            objsz_in_bytes;  /* size of init'd part of segment    */
+   uint32_t            memsz_in_bytes;  /* size of memory block for segment  */
+   DLOAD_SEGMENT_FLAGS flags;           /* allocation request flags    */
 };
 
 /*---------------------------------------------------------------------------*/
@@ -265,6 +333,42 @@ struct DLOAD_MEMORY_REQUEST
 };
 
 /*---------------------------------------------------------------------------*/
+/* DLIF_mapTable()                                                           */
+/*                                                                           */
+/*    Map the memory regions for the specified client handle.  This should   */
+/*    be called before loading or unloading a file.                          */
+/*                                                                           */
+/*---------------------------------------------------------------------------*/
+void     DLIF_mapTable(void* client_handle);
+
+/*---------------------------------------------------------------------------*/
+/* DLIF_unMapTable()                                                         */
+/*                                                                           */
+/*    Un-Map the memory regions for the specified client handle.             */
+/*                                                                           */
+/*---------------------------------------------------------------------------*/
+void     DLIF_unMapTable(void* client_handle);
+
+/*---------------------------------------------------------------------------*/
+/* DLIF_initMem()                                                            */
+/*                                                                           */
+/*    Initialize the dynamic loader memory segment for this client handle.   */
+/*    The parameter dynMemAddr should contain the address of the start of    */
+/*    the dynamic loader region and size should contain its size.            */
+/*                                                                           */
+/*---------------------------------------------------------------------------*/
+BOOL     DLIF_initMem(void* client_handle, uint32_t dynMemAddr, uint32_t size);
+
+/*---------------------------------------------------------------------------*/
+/* DLIF_deinitMem()                                                          */
+/*                                                                           */
+/*    De-initialize the dynamic loader memory segment for this client        */
+/*    handle.                                                                */
+/*                                                                           */
+/*---------------------------------------------------------------------------*/
+BOOL     DLIF_deinitMem(void* client_handle);
+
+/*---------------------------------------------------------------------------*/
 /* DLIF_allocate()                                                           */
 /*                                                                           */
 /*    Given a DLOAD_MEMORY_REQUEST created by the core loader, allocate      */
@@ -277,7 +381,7 @@ struct DLOAD_MEMORY_REQUEST
 /*    successful or not.                                                     */
 /*                                                                           */
 /*---------------------------------------------------------------------------*/
-BOOL     DLIF_allocate(struct DLOAD_MEMORY_REQUEST *req);
+BOOL     DLIF_allocate(void * client_handle, struct DLOAD_MEMORY_REQUEST *req);
 
 /*---------------------------------------------------------------------------*/
 /* DLIF_release()                                                            */
@@ -287,7 +391,7 @@ BOOL     DLIF_allocate(struct DLOAD_MEMORY_REQUEST *req);
 /*    infrastructure on the client side of the dynamic loader.               */
 /*                                                                           */
 /*---------------------------------------------------------------------------*/
-BOOL     DLIF_release(struct DLOAD_MEMORY_SEGMENT* ptr);
+BOOL     DLIF_release(void* client_handle, struct DLOAD_MEMORY_SEGMENT* ptr);
 
 /*---------------------------------------------------------------------------*/
 /* Target Memory Access / Write Services                                     */
@@ -316,7 +420,7 @@ BOOL     DLIF_release(struct DLOAD_MEMORY_SEGMENT* ptr);
 /*    that it can relocated or otherwise manipulated by the core loader.     */
 /*                                                                           */
 /*---------------------------------------------------------------------------*/
-BOOL     DLIF_copy(struct DLOAD_MEMORY_REQUEST* req);
+BOOL     DLIF_copy(void* client_handle, struct DLOAD_MEMORY_REQUEST* req);
 
 /*---------------------------------------------------------------------------*/
 /* DLIF_write()                                                              */
@@ -331,7 +435,7 @@ BOOL     DLIF_copy(struct DLOAD_MEMORY_REQUEST* req);
 /*    with the segment can be releases when the segment is unloaded.         */
 /*                                                                           */
 /*---------------------------------------------------------------------------*/
-BOOL     DLIF_write(struct DLOAD_MEMORY_REQUEST* req);
+BOOL     DLIF_write(void* client_handle, struct DLOAD_MEMORY_REQUEST* req);
 
 /*---------------------------------------------------------------------------*/
 /* DLIF_read()                                                               */
@@ -339,7 +443,8 @@ BOOL     DLIF_write(struct DLOAD_MEMORY_REQUEST* req);
 /*    Given a host accessible buffer, read content of indicated target       */
 /*    memory address into the buffer.                                        */
 /*---------------------------------------------------------------------------*/
-BOOL     DLIF_read(void *ptr, size_t size, size_t nmemb, TARGET_ADDRESS src);
+BOOL     DLIF_read(void* client_handle, void *ptr, size_t size, size_t nmemb,
+                   TARGET_ADDRESS src);
 
 /*---------------------------------------------------------------------------*/
 /* DLIF_execute()                                                            */
@@ -349,7 +454,7 @@ BOOL     DLIF_read(void *ptr, size_t size, size_t nmemb, TARGET_ADDRESS src);
 /*    be effected as a simple function call.                                 */
 /*                                                                           */
 /*---------------------------------------------------------------------------*/
-int32_t  DLIF_execute(TARGET_ADDRESS exec_addr);
+int32_t  DLIF_execute(void* client_handle, TARGET_ADDRESS exec_addr);
 
 /*---------------------------------------------------------------------------*/
 /* Loading and Unloading of Dependent Files                                  */
@@ -374,7 +479,7 @@ int32_t  DLIF_execute(TARGET_ADDRESS exec_addr);
 /*    associate with the newly loaded file.                                  */
 /*                                                                           */
 /*---------------------------------------------------------------------------*/
-int      DLIF_load_dependent(const char* so_name);
+int      DLIF_load_dependent(void* client_handle, const char* so_name);
 
 /*---------------------------------------------------------------------------*/
 /* DLIF_unload_dependent()                                                   */
@@ -384,7 +489,7 @@ int      DLIF_load_dependent(const char* so_name);
 /*    the target memory that was occupied by the object file.                */
 /*                                                                           */
 /*---------------------------------------------------------------------------*/
-void     DLIF_unload_dependent(uint32_t handle);
+void     DLIF_unload_dependent(void* client_handle, uint32_t file_handle);
 
 /*---------------------------------------------------------------------------*/
 /* Error/Warning Registration Functions                                      */
@@ -435,6 +540,13 @@ typedef enum {
 /*---------------------------------------------------------------------------*/
 void     DLIF_error(LOADER_ERROR_TYPE etype, const char *fmt, ...);
 
+/*---------------------------------------------------------------------------*/
+/* DLIF_trace()                                                              */
+/*                                                                           */
+/*    Log a message with the client's trace handling infrastructure.         */
+/*                                                                           */
+/*---------------------------------------------------------------------------*/
+void     DLIF_trace(const char *fmt, ...);
 
 /*---------------------------------------------------------------------------*/
 /* Dynamic Static Base Table (DSBT) Support Functions                        */
@@ -456,7 +568,7 @@ void     DLIF_error(LOADER_ERROR_TYPE etype, const char *fmt, ...);
 /*    big enough, an error will be emitted and the load will fail.           */
 /*                                                                           */
 /*---------------------------------------------------------------------------*/
-uint32_t  DLOAD_get_dsbt_size(int32_t file_handle);
+uint32_t  DLOAD_get_dsbt_size(DLOAD_HANDLE handle, int32_t file_handle);
 
 /*---------------------------------------------------------------------------*/
 /* DLOAD_get_dsbt_base()                                                     */
@@ -467,7 +579,8 @@ uint32_t  DLOAD_get_dsbt_size(int32_t file_handle);
 /*    address if the module's DSBT size is big enough.                       */
 /*                                                                           */
 /*---------------------------------------------------------------------------*/
-BOOL     DLOAD_get_dsbt_base(int32_t file_handle, TARGET_ADDRESS *dsbt_base);
+BOOL     DLOAD_get_dsbt_base(DLOAD_HANDLE handle, int32_t file_handle,
+                             TARGET_ADDRESS *dsbt_base);
 
 /*---------------------------------------------------------------------------*/
 /* DLOAD_get_static_base()                                                   */
@@ -478,7 +591,8 @@ BOOL     DLOAD_get_dsbt_base(int32_t file_handle, TARGET_ADDRESS *dsbt_base);
 /*    in the master DSBT that is associated with this module.                */
 /*                                                                           */
 /*---------------------------------------------------------------------------*/
-BOOL     DLOAD_get_static_base(int32_t file_handle, TARGET_ADDRESS *static_base);
+BOOL     DLOAD_get_static_base(DLOAD_HANDLE handle, int32_t file_handle,
+                               TARGET_ADDRESS *static_base);
 
 
 /*****************************************************************************/
@@ -496,9 +610,10 @@ BOOL     DLOAD_get_static_base(int32_t file_handle, TARGET_ADDRESS *static_base)
 /*    request.                                                               */
 /*                                                                           */
 /*---------------------------------------------------------------------------*/
-BOOL     DLIF_register_dsbt_index_request(const char *requestor_name,
-                                          int32_t     requestor_file_handle,
-				          int32_t     requested_dsbt_index);
+BOOL     DLIF_register_dsbt_index_request(DLOAD_HANDLE handle,
+                                          const char * requestor_name,
+                                          int32_t      requestor_file_handle,
+                                          int32_t      requested_dsbt_index);
 
 /*---------------------------------------------------------------------------*/
 /* DLIF_assign_dsbt_indices()                                                */

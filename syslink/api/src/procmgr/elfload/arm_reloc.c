@@ -1,21 +1,40 @@
 /*
- * Syslink-IPC for TI OMAP Processors
+ *  Syslink-IPC for TI OMAP Processors
  *
- * Copyright (C) 2009 Texas Instruments, Inc.
+ *  Copyright (c) 2008-2010, Texas Instruments Incorporated
+ *  All rights reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Lesser General Public License as published
- * by the Free Software Foundation version 2.1 of the License.
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted provided that the following conditions
+ *  are met:
  *
- * This program is distributed .as is. WITHOUT ANY WARRANTY of any kind,
- * whether express or implied; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
+ *  *  Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
+ *
+ *  *  Redistributions in binary form must reproduce the above copyright
+ *     notice, this list of conditions and the following disclaimer in the
+ *     documentation and/or other materials provided with the distribution.
+ *
+ *  *  Neither the name of Texas Instruments Incorporated nor the names of
+ *     its contributors may be used to endorse or promote products derived
+ *     from this software without specific prior written permission.
+ *
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ *  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ *  THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ *  PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ *  CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ *  EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ *  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+ *  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ *  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ *  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ *  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /******************************************************************************/
 /* arm_reloc.c                                                                */
 /*                                                                            */
-/* Process target-specific dynamic relocations for core dynamic loader.       */
+/* Process ARM-specific dynamic relocations for core dynamic loader.          */
 /******************************************************************************/
 
 #include <limits.h>
@@ -28,10 +47,10 @@
 #include "arm_elf32.h"
 
 #define EXTRACT(field, lsb_offset, field_size) \
-   ( ((field) >> (lsb_offset)) & ((1U << (field_size)) - 1) )
+   ( (field >> lsb_offset) & ((1U << field_size) - 1) )
 #define OPND_S(symval) (symval & ~0x1)
 #define OPND_T(symval) (symval & 0x1)
-#define IS_BLX(field) ((EXTRACT((field), 24, 8) & ~0x1) == 0xFA)
+#define IS_BLX(field) ((EXTRACT(field, 24, 8) & ~0x1) == 0xFA)
 #define SIGN_EXTEND(field, field_size) (field |= -(field & (1<<(field_size-1))))
 
 /*****************************************************************************/
@@ -83,31 +102,31 @@ static BOOL is_data_relocation(ARM_RELOC_TYPE r_type)
 /*                     relocation field.  Due to BE-8 encoding, we cannot    */
 /*                     simply rely on the wrong_endian member of elf_addrs.  */
 /*****************************************************************************/
-static BOOL rel_swap_endian(DLIMP_Dynamic_Module* dyn_module, 
+static BOOL rel_swap_endian(DLIMP_Dynamic_Module* dyn_module,
                             ARM_RELOC_TYPE r_type)
 {
-    /*---------------------------------------------------------------*/
-    /* LE -> BE8 - swap data relocations only                        */
-    /*---------------------------------------------------------------*/
+    /*-----------------------------------------------------------------------*/
+    /* LE -> BE8 - swap data relocations only                                */
+    /*-----------------------------------------------------------------------*/
     if (dyn_module->wrong_endian && obj_is_be8(&dyn_module->fhdr) &&
         is_data_relocation(r_type))
         return TRUE;
-    /*---------------------------------------------------------------*/
-    /* BE -> BE8 - swap instruction relocations                      */
-    /*---------------------------------------------------------------*/
-    else if (!dyn_module->wrong_endian && 
-             obj_is_be8(&dyn_module->fhdr) && 
+    /*-----------------------------------------------------------------------*/
+    /* BE -> BE8 - swap instruction relocations                              */
+    /*-----------------------------------------------------------------------*/
+    else if (!dyn_module->wrong_endian &&
+             obj_is_be8(&dyn_module->fhdr) &&
              !is_data_relocation(r_type))
         return TRUE;
-    /*---------------------------------------------------------------*/
-    /* LE -> BE32, BE8-> LE, BE32 -> LE - swap all relocations       */
-    /*---------------------------------------------------------------*/
+    /*-----------------------------------------------------------------------*/
+    /* LE -> BE32, BE8-> LE, BE32 -> LE - swap all relocations               */
+    /*-----------------------------------------------------------------------*/
     else if (dyn_module->wrong_endian)
         return TRUE;
 
-    /*---------------------------------------------------------------*/
-    /* BE32 -> BE32, LE -> LE, BE8 -> BE32 - swap nothing            */
-    /*---------------------------------------------------------------*/
+    /*-----------------------------------------------------------------------*/
+    /* BE32 -> BE32, LE -> LE, BE8 -> BE32 - swap nothing                    */
+    /*-----------------------------------------------------------------------*/
     return FALSE;
 }
 
@@ -213,7 +232,7 @@ static void rel_mask_for_group(ARM_RELOC_TYPE r_type, int32_t* reloc_val)
     }
 
     if (rel_concludes_group(r_type)) *reloc_val = curr_residual;
-   
+
 }
 
 /*****************************************************************************/
@@ -228,7 +247,7 @@ static ARM_RELOC_SIZE get_reloc_size(ARM_RELOC_TYPE r_type)
         case R_ARM_THM_JUMP6:
         case R_ARM_THM_JUMP11:
         case R_ARM_THM_JUMP8:
-           return THUMB16_RELOC;
+            return THUMB16_RELOC;
 
         case R_ARM_THM_CALL:
         case R_ARM_THM_JUMP24:
@@ -242,13 +261,13 @@ static ARM_RELOC_SIZE get_reloc_size(ARM_RELOC_TYPE r_type)
         case R_ARM_THM_MOVW_BREL_NC:
         case R_ARM_THM_MOVT_BREL:
         case R_ARM_THM_MOVW_BREL:
-           return THUMB32_RELOC;
+            return THUMB32_RELOC;
 
         case R_ARM_ABS8:
-           return ARM8_RELOC;
+            return ARM8_RELOC;
 
         default:
-           return ARM_RELOC;
+            return ARM_RELOC;
     }
 }
 
@@ -294,253 +313,253 @@ static void rel_change_endian(ARM_RELOC_TYPE r_type, uint8_t* address)
 /*                   and masked.                                             */
 /*****************************************************************************/
 static void write_reloc_r(uint8_t* rel_field_ptr,
-                          ARM_RELOC_TYPE r_type, int32_t reloc_val, 
+                          ARM_RELOC_TYPE r_type, int32_t reloc_val,
                           uint32_t symval)
 {
 #if LOADER_DEBUG
-   /*------------------------------------------------------------------------*/
-   /* Print some details about the relocation we are about to process.       */
-   /*------------------------------------------------------------------------*/
-   if(debugging_on)
-   {
-          printf("RWRT: rel_field_ptr: 0x%x\n", (uint32_t)rel_field_ptr);
-          printf("RWRT: result: 0x%x\n", reloc_val);
-   }
+    /*-----------------------------------------------------------------------*/
+    /* Print some details about the relocation we are about to process.      */
+    /*-----------------------------------------------------------------------*/
+    if(debugging_on)
+    {
+        DLIF_trace("RWRT: rel_field_ptr: 0x%x\n", (uint32_t)rel_field_ptr);
+        DLIF_trace("RWRT: result: 0x%x\n", reloc_val);
+    }
 #endif
 
 
-   /*------------------------------------------------------------------------*/
-   /* Given the relocation type, carry out relocation into a 4 byte packet   */
-   /* within the buffered segment.                                           */
-   /*------------------------------------------------------------------------*/
-   switch(r_type)
-   {
-       case R_ARM_ABS32:
-       case R_ARM_REL32:
-       case R_ARM_REL32_NOI:
-       case R_ARM_ABS32_NOI:
-       {
-          *((uint32_t*)rel_field_ptr) = reloc_val;
-          break;
-       }
-       
-       case R_ARM_PREL31:
-       {
-           *((uint32_t*)rel_field_ptr) |= reloc_val;
-           break;
-       }
+    /*-----------------------------------------------------------------------*/
+    /* Given the relocation type, carry out relocation into a 4 byte packet  */
+    /* within the buffered segment.                                          */
+    /*-----------------------------------------------------------------------*/
+    switch(r_type)
+    {
+        case R_ARM_ABS32:
+        case R_ARM_REL32:
+        case R_ARM_REL32_NOI:
+        case R_ARM_ABS32_NOI:
+        {
+            *((uint32_t*)rel_field_ptr) = reloc_val;
+            break;
+        }
 
-       case R_ARM_PC24:
-       case R_ARM_CALL:
-       case R_ARM_PLT32:
-       {
-           /*----------------------------------------------------------------*/
-           /* ARM BL/BLX                                                     */
-           /* reloc_val has already been packed down to 25 bits. If the      */
-           /* callee is a thumb function, we convert to a BLX. After         */
-           /* conversion, the field is packed down to 24 bits.               */
-           /*----------------------------------------------------------------*/
-           uint32_t rel_field = *((uint32_t*)rel_field_ptr);
+        case R_ARM_PREL31:
+        {
+            *((uint32_t*)rel_field_ptr) |= reloc_val;
+            break;
+        }
 
-           /*----------------------------------------------------------------*/
-           /* Check to see if callee is a thumb function.  If so convert to  */
-           /* BLX                                                            */
-           /*----------------------------------------------------------------*/
-           if (OPND_T(symval))
-               rel_field |= 0xF0000000;
+        case R_ARM_PC24:
+        case R_ARM_CALL:
+        case R_ARM_PLT32:
+        {
+            /*---------------------------------------------------------------*/
+            /* ARM BL/BLX                                                    */
+            /* reloc_val has already been packed down to 25 bits. If the     */
+            /* callee is a thumb function, we convert to a BLX. After        */
+            /* conversion, the field is packed down to 24 bits.              */
+            /*---------------------------------------------------------------*/
+            uint32_t rel_field = *((uint32_t*)rel_field_ptr);
 
-           /*----------------------------------------------------------------*/
-           /* Clear imm24 bits.  This must be done for both BL and BLX       */
-           /*----------------------------------------------------------------*/
-           rel_field &= ~0xFFFFFF;
+            /*---------------------------------------------------------------*/
+            /* Check to see if callee is a thumb function.  If so convert to */
+            /* BLX                                                           */
+            /*---------------------------------------------------------------*/
+            if (OPND_T(symval))
+                rel_field |= 0xF0000000;
 
-           if (IS_BLX(rel_field))
-           {
-               uint8_t Hval = reloc_val & 0x1;
-               /*------------------------------------------------------------*/
-               /* For BLX clear bit 24 (the H bit)                           */
-               /*------------------------------------------------------------*/
-               rel_field &= ~0x01000000;
-               rel_field |= Hval << 24;
-           }
+            /*---------------------------------------------------------------*/
+            /* Clear imm24 bits.  This must be done for both BL and BLX      */
+            /*---------------------------------------------------------------*/
+            rel_field &= ~0xFFFFFF;
 
-           /*----------------------------------------------------------------*/
-           /* Pack reloc_val down to 24 bits.                                */
-           /*----------------------------------------------------------------*/
-           rel_field |= (reloc_val >> 1);
-           *((uint32_t*)rel_field_ptr) = rel_field;
-           break;
-       }
+            if (IS_BLX(rel_field))
+            {
+                uint8_t Hval = reloc_val & 0x1;
+                /*-----------------------------------------------------------*/
+                /* For BLX clear bit 24 (the H bit)                          */
+                /*-----------------------------------------------------------*/
+                rel_field &= ~0x01000000;
+                rel_field |= Hval << 24;
+            }
 
-       case R_ARM_JUMP24:
-       {
-           *((uint32_t*)rel_field_ptr) &= ~0xFFFFFF;
-           *((uint32_t*)rel_field_ptr) |= reloc_val;
-           break;
-       }
+            /*---------------------------------------------------------------*/
+            /* Pack reloc_val down to 24 bits.                               */
+            /*---------------------------------------------------------------*/
+            rel_field |= (reloc_val >> 1);
+            *((uint32_t*)rel_field_ptr) = rel_field;
+            break;
+        }
 
-       case R_ARM_THM_CALL:
-       case R_ARM_THM_JUMP24:
-       {
-           /*----------------------------------------------------------------*/
-           /* THUMB B.W/BL/BLX                                               */
-           /*----------------------------------------------------------------*/
-           uint16_t* rel_field_16_ptr = (uint16_t*) rel_field_ptr;
+        case R_ARM_JUMP24:
+        {
+            *((uint32_t*)rel_field_ptr) &= ~0xFFFFFF;
+            *((uint32_t*)rel_field_ptr) |= reloc_val;
+            break;
+        }
 
-           uint8_t Sval;
-           uint8_t J1;
-           uint8_t J2;
-           uint16_t imm10;
-           uint16_t imm11;
+        case R_ARM_THM_CALL:
+        case R_ARM_THM_JUMP24:
+        {
+            /*---------------------------------------------------------------*/
+            /* THUMB B.W/BL/BLX                                              */
+            /*---------------------------------------------------------------*/
+            uint16_t* rel_field_16_ptr = (uint16_t*) rel_field_ptr;
 
-           /*----------------------------------------------------------------*/
-           /* If callee is a thumb function, convert BL to BLX               */
-           /*----------------------------------------------------------------*/
-           if (!OPND_T(symval) && r_type == R_ARM_THM_CALL)
-           {
-               if (reloc_val & 0x1) reloc_val++;
-               *(rel_field_16_ptr + 1) &= 0xEFFF;
-           }
+            uint8_t Sval;
+            uint8_t J1;
+            uint8_t J2;
+            uint16_t imm10;
+            uint16_t imm11;
 
-           /*----------------------------------------------------------------*/
-           /* reloc_val = S:I1:I2:imm10:imm11                                */
-           /*----------------------------------------------------------------*/
-           Sval  = (reloc_val >> 23)    & 0x1;
-           J1    = ((reloc_val >> 22) ^ (!Sval)) & 0x1;
-           J2    = ((reloc_val >> 21) ^ (!Sval)) & 0x1;
-           imm10 = (reloc_val >> 11)  & 0x3FF;
-           imm11 = reloc_val & 0x7FF;
+            /*---------------------------------------------------------------*/
+            /* If callee is a thumb function, convert BL to BLX              */
+            /*---------------------------------------------------------------*/
+            if (!OPND_T(symval) && r_type == R_ARM_THM_CALL)
+            {
+                if (reloc_val & 0x1) reloc_val++;
+                *(rel_field_16_ptr + 1) &= 0xEFFF;
+            }
 
-           *rel_field_16_ptr &= 0xF800;
-           *rel_field_16_ptr |= (Sval << 10);
-           *rel_field_16_ptr |= imm10;
+            /*---------------------------------------------------------------*/
+            /* reloc_val = S:I1:I2:imm10:imm11                               */
+            /*---------------------------------------------------------------*/
+            Sval  = (reloc_val >> 23)    & 0x1;
+            J1    = ((reloc_val >> 22) ^ (!Sval)) & 0x1;
+            J2    = ((reloc_val >> 21) ^ (!Sval)) & 0x1;
+            imm10 = (reloc_val >> 11)  & 0x3FF;
+            imm11 = reloc_val & 0x7FF;
 
-           rel_field_16_ptr++;
-           *rel_field_16_ptr &= 0xD000;
+            *rel_field_16_ptr &= 0xF800;
+            *rel_field_16_ptr |= (Sval << 10);
+            *rel_field_16_ptr |= imm10;
 
-           *rel_field_16_ptr |= (J1 << 13);
-           *rel_field_16_ptr |= (J2 << 11);
-           *rel_field_16_ptr |= imm11;
+            rel_field_16_ptr++;
+            *rel_field_16_ptr &= 0xD000;
 
-           break;
-       }
-       case R_ARM_THM_JUMP19:
-       {
-           /*----------------------------------------------------------------*/
-           /* THUMB B<c>.W                                                   */
-           /* reloc_val = S:J2:J1:imm6:imm11:'0'                             */
-           /*----------------------------------------------------------------*/
-           uint16_t* rel_field_16_ptr = (uint16_t*) rel_field_ptr;
-           uint8_t S;
-           uint8_t J2;
-           uint8_t J1;
-           uint8_t imm6;
-           uint16_t imm11;
+            *rel_field_16_ptr |= (J1 << 13);
+            *rel_field_16_ptr |= (J2 << 11);
+            *rel_field_16_ptr |= imm11;
 
-           S =     (reloc_val >> 19) & 0x1;
-           J2 =    (reloc_val >> 18) & 0x1;
-           J1 =    (reloc_val >> 17) & 0x1;
-           imm6 =  (reloc_val >> 11) & 0x3F;
-           imm11 = (reloc_val      ) & 0x7FF;
+            break;
+        }
+        case R_ARM_THM_JUMP19:
+        {
+            /*---------------------------------------------------------------*/
+            /* THUMB B<c>.W                                                  */
+            /* reloc_val = S:J2:J1:imm6:imm11:'0'                            */
+            /*---------------------------------------------------------------*/
+            uint16_t* rel_field_16_ptr = (uint16_t*) rel_field_ptr;
+            uint8_t S;
+            uint8_t J2;
+            uint8_t J1;
+            uint8_t imm6;
+            uint16_t imm11;
 
-           /*----------------------------------------------------------------*/
-           /* Clear S and imm6 fields in first part of instruction           */
-           /*----------------------------------------------------------------*/
-           *rel_field_16_ptr &= 0xFBC0;
-           *rel_field_16_ptr |= (S << 10);
-           *rel_field_16_ptr |= imm6;
+            S =     (reloc_val >> 19) & 0x1;
+            J2 =    (reloc_val >> 18) & 0x1;
+            J1 =    (reloc_val >> 17) & 0x1;
+            imm6 =  (reloc_val >> 11) & 0x3F;
+            imm11 = (reloc_val      ) & 0x7FF;
 
-           rel_field_16_ptr++;
+            /*---------------------------------------------------------------*/
+            /* Clear S and imm6 fields in first part of instruction          */
+            /*---------------------------------------------------------------*/
+            *rel_field_16_ptr &= 0xFBC0;
+            *rel_field_16_ptr |= (S << 10);
+            *rel_field_16_ptr |= imm6;
 
-           *rel_field_16_ptr &= 0xD800;
-           *rel_field_16_ptr |= (J2 << 13);
-           *rel_field_16_ptr |= (J1 << 11);
-           *rel_field_16_ptr |= imm11;
-           break;
-       }
-       case R_ARM_THM_JUMP11:
-       {
-           /*----------------------------------------------------------------*/
-           /* THUMB B (unconditional)                                        */
-           /*----------------------------------------------------------------*/
-           *((uint16_t*)rel_field_ptr) &= ~0x7FF;
-           *((uint16_t*)rel_field_ptr) |= reloc_val;
-           break;
-       }
+            rel_field_16_ptr++;
 
-       case R_ARM_THM_JUMP8:
-       {
-           /*----------------------------------------------------------------*/
-           /* THUMB B<c>                                                     */
-           /*----------------------------------------------------------------*/
-           *((uint16_t*)rel_field_ptr) &= ~0xFF;
-           *((uint16_t*)rel_field_ptr) |= reloc_val;
-           break;
-       }
+            *rel_field_16_ptr &= 0xD800;
+            *rel_field_16_ptr |= (J2 << 13);
+            *rel_field_16_ptr |= (J1 << 11);
+            *rel_field_16_ptr |= imm11;
+            break;
+        }
+        case R_ARM_THM_JUMP11:
+        {
+            /*---------------------------------------------------------------*/
+            /* THUMB B (unconditional)                                       */
+            /*---------------------------------------------------------------*/
+            *((uint16_t*)rel_field_ptr) &= ~0x7FF;
+            *((uint16_t*)rel_field_ptr) |= reloc_val;
+            break;
+        }
 
-       case R_ARM_THM_ABS5:
-       {
-           /*----------------------------------------------------------------*/
-           /* THUMB LDR<c> <Rt>, [<Rn>(,#imm}]                               */
-           /*----------------------------------------------------------------*/
-           *((uint16_t*)rel_field_ptr) &= 0xF83F;
-           *((uint16_t*)rel_field_ptr) |= (reloc_val << 6);
-           break;
-       }
+        case R_ARM_THM_JUMP8:
+        {
+            /*---------------------------------------------------------------*/
+            /* THUMB B<c>                                                    */
+            /*---------------------------------------------------------------*/
+            *((uint16_t*)rel_field_ptr) &= ~0xFF;
+            *((uint16_t*)rel_field_ptr) |= reloc_val;
+            break;
+        }
 
-       case R_ARM_THM_PC8:
-       {
-           /*----------------------------------------------------------------*/
-           /* THUMB LDR<c> <Rt>,[SP{,#imm}]                                  */
-           /*----------------------------------------------------------------*/
-           *((uint16_t*)rel_field_ptr) &= 0xFF00;
-           *((uint16_t*)rel_field_ptr) |= reloc_val;
-           break;
-       }
+        case R_ARM_THM_ABS5:
+        {
+            /*---------------------------------------------------------------*/
+            /* THUMB LDR<c> <Rt>, [<Rn>(,#imm}]                              */
+            /*---------------------------------------------------------------*/
+            *((uint16_t*)rel_field_ptr) &= 0xF83F;
+            *((uint16_t*)rel_field_ptr) |= (reloc_val << 6);
+            break;
+        }
 
-       case R_ARM_THM_JUMP6:
-       {
-           /*----------------------------------------------------------------*/
-           /* THUMB CBZ,CBNZ                                                 */
-           /* reloc_field = Ival:imm5                                        */
-           /*----------------------------------------------------------------*/
-           uint8_t Ival;
-           uint8_t imm5;
+        case R_ARM_THM_PC8:
+        {
+            /*---------------------------------------------------------------*/
+            /* THUMB LDR<c> <Rt>,[SP{,#imm}]                                 */
+            /*---------------------------------------------------------------*/
+            *((uint16_t*)rel_field_ptr) &= 0xFF00;
+            *((uint16_t*)rel_field_ptr) |= reloc_val;
+            break;
+        }
 
-           Ival = (reloc_val >> 5) & 0x1;
-           imm5 = (reloc_val & 0x1F);
-           *((uint16_t*)rel_field_ptr) &= 0xFD07;
-           *((uint16_t*)rel_field_ptr) |= (Ival << 9);
-           *((uint16_t*)rel_field_ptr) |= (imm5 << 3);
-           break;
-       }
-       
-       case R_ARM_ABS16:
-       {
-           /*----------------------------------------------------------------*/
-           /* 16 bit data relocation                                         */
-           /*----------------------------------------------------------------*/
-           *((uint16_t*)rel_field_ptr) = reloc_val;
-           break;
-       }
+        case R_ARM_THM_JUMP6:
+        {
+            /*---------------------------------------------------------------*/
+            /* THUMB CBZ,CBNZ                                                */
+            /* reloc_field = Ival:imm5                                       */
+            /*---------------------------------------------------------------*/
+            uint8_t Ival;
+            uint8_t imm5;
 
-       case R_ARM_ABS8:
-       {
-           /*----------------------------------------------------------------*/
-           /* 8 bit data relocation                                          */
-           /*----------------------------------------------------------------*/
-           *((uint8_t*)rel_field_ptr) = reloc_val;
-           break;
-       }
+            Ival = (reloc_val >> 5) & 0x1;
+            imm5 = (reloc_val & 0x1F);
+            *((uint16_t*)rel_field_ptr) &= 0xFD07;
+            *((uint16_t*)rel_field_ptr) |= (Ival << 9);
+            *((uint16_t*)rel_field_ptr) |= (imm5 << 3);
+            break;
+        }
 
-       case R_ARM_MOVW_ABS_NC:
-       case R_ARM_MOVT_ABS:
-       case R_ARM_MOVW_PREL_NC:
-       case R_ARM_MOVT_PREL:
-       {
-           /*----------------------------------------------------------------*/
-           /* MOVW/MOVT                                                      */
-           /*----------------------------------------------------------------*/
+        case R_ARM_ABS16:
+        {
+            /*---------------------------------------------------------------*/
+            /* 16 bit data relocation                                        */
+            /*---------------------------------------------------------------*/
+            *((uint16_t*)rel_field_ptr) = reloc_val;
+            break;
+        }
+
+        case R_ARM_ABS8:
+        {
+            /*---------------------------------------------------------------*/
+            /* 8 bit data relocation                                         */
+            /*---------------------------------------------------------------*/
+            *((uint8_t*)rel_field_ptr) = reloc_val;
+            break;
+        }
+
+        case R_ARM_MOVW_ABS_NC:
+        case R_ARM_MOVT_ABS:
+        case R_ARM_MOVW_PREL_NC:
+        case R_ARM_MOVT_PREL:
+        {
+            /*---------------------------------------------------------------*/
+            /* MOVW/MOVT                                                     */
+            /*---------------------------------------------------------------*/
            uint8_t imm4 = reloc_val >> 12;
            uint16_t imm12 = reloc_val & 0xFFF;
            *((uint32_t*)rel_field_ptr) &= 0xFFF0F000;
@@ -573,7 +592,7 @@ static void write_reloc_r(uint8_t* rel_field_ptr,
            *rel_field_16_ptr &= 0x8F00;
            *rel_field_16_ptr |= imm3 << 12;
            *rel_field_16_ptr |= imm8;
-           
+
            break;
        }
 
@@ -625,7 +644,7 @@ static void write_reloc_r(uint8_t* rel_field_ptr,
        /* this has been called, so overflow checking has been delayed until  */
        /* now.                                                               */
        /*--------------------------------------------------------------------*/
-      
+
        case R_ARM_ALU_PC_G0_NC:
        case R_ARM_ALU_PC_G0:
        case R_ARM_ALU_PC_G1_NC:
@@ -676,14 +695,14 @@ static void write_reloc_r(uint8_t* rel_field_ptr,
            uint32_t Lval = 0;
 
            reloc_val = abs(reloc_val);
-           
+
            rel_mask_for_group(r_type, &reloc_val);
 
            if (abs(reloc_val) >= 0x1000)
                DLIF_error(DLET_RELOC, "relocation overflow!\n");
 
            Lval = reloc_val & 0xFFF;
-           
+
            *((uint32_t*) rel_field_ptr) &= 0xFF7FF000;
            *((uint32_t*) rel_field_ptr) |= Uval << 23;
            *((uint32_t*) rel_field_ptr) |= Lval;
@@ -700,19 +719,19 @@ static void write_reloc_r(uint8_t* rel_field_ptr,
            uint8_t Uval = (reloc_val < 0) ? 0 : 1;
            uint8_t Hval;
            uint8_t Lval;
-           
+
            reloc_val = abs(reloc_val);
-           
+
            rel_mask_for_group(r_type, &reloc_val);
 
            if (abs(reloc_val) >= 0x100)
                DLIF_error(DLET_RELOC, "relocation overflow!\n");
-           
+
            Hval = (reloc_val >> 4) & 0xF;
            Lval = (reloc_val     ) & 0xF;
 
            *((uint32_t*) rel_field_ptr) &= 0xFF7FF0F0;
-           *((uint32_t*) rel_field_ptr) |= (Uval << 23);               
+           *((uint32_t*) rel_field_ptr) |= (Uval << 23);
            *((uint32_t*) rel_field_ptr) |= (Hval << 8);
            *((uint32_t*) rel_field_ptr) |= Lval;
        }
@@ -727,18 +746,18 @@ static void write_reloc_r(uint8_t* rel_field_ptr,
            /*----------------------------------------------------------------*/
            uint8_t Uval = (reloc_val < 0) ? 0 : 1;
            uint8_t Lval;
-           
+
            reloc_val = abs(reloc_val);
-           
+
            rel_mask_for_group(r_type, &reloc_val);
 
            if (abs(reloc_val) >= 0x1000)
                DLIF_error(DLET_RELOC, "relocation overflow!\n");
-                      
+
            Lval = reloc_val & 0xFF;
 
            *((uint32_t*) rel_field_ptr) &= 0xFF7FFF00;
-           *((uint32_t*) rel_field_ptr) |= (Uval << 23);               
+           *((uint32_t*) rel_field_ptr) |= (Uval << 23);
            *((uint32_t*) rel_field_ptr) |= Lval;
        }
        break;
@@ -759,7 +778,7 @@ static void write_reloc_r(uint8_t* rel_field_ptr,
            /*----------------------------------------------------------------*/
            uint16_t* rel_field_16_ptr = (uint16_t*) rel_field_ptr;
            uint16_t imm12;
-           uint8_t  bits_7_0, bits_15_8, bits_23_16, bits_31_24, Ival, 
+           uint8_t  bits_7_0, bits_15_8, bits_23_16, bits_31_24, Ival,
                     imm3, imm8;
 
            /*----------------------------------------------------------------*/
@@ -838,10 +857,10 @@ static void write_reloc_r(uint8_t* rel_field_ptr,
            *rel_field_16_ptr |= imm8;
            break;
        }
-       
+
        default:
-          DLIF_error(DLET_RELOC, 
-                     "write_reloc_r called with invalid relocation type\n");
+           DLIF_error(DLET_RELOC,
+                      "write_reloc_r called with invalid relocation type\n");
    }
 
 }
@@ -882,7 +901,7 @@ static int32_t pack_result(int32_t unpacked_result, int r_type)
         case R_ARM_LDC_PC_G2:
         case R_ARM_THM_PC12:
         case R_ARM_THM_ALU_PREL_11_0:
-           return unpacked_result;
+            return unpacked_result;
 
         case R_ARM_PC24:
         case R_ARM_CALL:
@@ -893,23 +912,23 @@ static int32_t pack_result(int32_t unpacked_result, int r_type)
         case R_ARM_THM_JUMP8:
         case R_ARM_THM_JUMP6:
         case R_ARM_THM_JUMP19:
-           return unpacked_result >> 1;
+            return unpacked_result >> 1;
 
         case R_ARM_JUMP24:
         case R_ARM_THM_ABS5:
         case R_ARM_THM_PC8:
-           return unpacked_result >> 2;
+            return unpacked_result >> 2;
 
         case R_ARM_MOVT_ABS:
         case R_ARM_MOVT_PREL:
         case R_ARM_THM_MOVT_ABS:
         case R_ARM_THM_MOVT_PREL:
-           return unpacked_result >> 16;
+            return unpacked_result >> 16;
 
         default:
-           DLIF_error(DLET_RELOC, 
-                      "pack_result called with invalid relocation type!\n");
-           return 0;
+            DLIF_error(DLET_RELOC,
+                       "pack_result called with invalid relocation type!\n");
+            return 0;
     }
 
 }
@@ -925,7 +944,7 @@ static int32_t mask_result(int32_t unmasked_result, int r_type)
         case R_ARM_ABS8:
         case R_ARM_THM_JUMP8:
         case R_ARM_THM_PC8:
-           return unmasked_result & 0xFF;
+            return unmasked_result & 0xFF;
 
         case R_ARM_ABS16:
         case R_ARM_MOVW_ABS_NC:
@@ -936,7 +955,7 @@ static int32_t mask_result(int32_t unmasked_result, int r_type)
         case R_ARM_THM_MOVT_ABS:
         case R_ARM_THM_MOVW_PREL_NC:
         case R_ARM_THM_MOVT_PREL:
-           return unmasked_result & 0xFFFF;
+            return unmasked_result & 0xFFFF;
 
         case R_ARM_ABS32:
         case R_ARM_REL32:
@@ -959,37 +978,37 @@ static int32_t mask_result(int32_t unmasked_result, int r_type)
         case R_ARM_LDC_PC_G2:
         case R_ARM_THM_PC12:
         case R_ARM_THM_ALU_PREL_11_0:
-           return unmasked_result;
+            return unmasked_result;
 
         case R_ARM_PREL31:
-           return unmasked_result & 0x7FFFFFFF;
+            return unmasked_result & 0x7FFFFFFF;
 
         case R_ARM_CALL:
         case R_ARM_PC24:
         case R_ARM_THM_CALL:
         case R_ARM_THM_JUMP24:
-           return unmasked_result & 0x01FFFFFF;
+            return unmasked_result & 0x01FFFFFF;
 
         case R_ARM_JUMP24:
-           return unmasked_result & 0x00FFFFFF;
+            return unmasked_result & 0x00FFFFFF;
 
         case R_ARM_THM_JUMP11:
-           return unmasked_result & 0x7FF;
+            return unmasked_result & 0x7FF;
 
         case R_ARM_THM_ABS5:
-           return unmasked_result & 0x1F;
+            return unmasked_result & 0x1F;
 
         case R_ARM_THM_JUMP6:
-           return unmasked_result & 0x3F;
+            return unmasked_result & 0x3F;
 
         case R_ARM_THM_JUMP19:
-           return unmasked_result & 0xFFFFF;
-           
+            return unmasked_result & 0xFFFFF;
+
         default:
-           DLIF_error(DLET_RELOC, 
-                      "mask_result invalid relocation type!\n");
-           return 0;
-    }     
+            DLIF_error(DLET_RELOC,
+                       "mask_result invalid relocation type!\n");
+            return 0;
+    }
 
 }
 
@@ -1057,154 +1076,154 @@ time_t DLREL_total_reloc_time;
 /* RELOC_DO() - Process a single relocation entry.                           */
 /*****************************************************************************/
 static void reloc_do(ARM_RELOC_TYPE r_type, uint8_t* address,
-              uint32_t addend, uint32_t symval, uint32_t pc, 
+              uint32_t addend, uint32_t symval, uint32_t pc,
               uint32_t base_pointer)
 {
-    int32_t reloc_value;
+    int32_t reloc_value = 0;
 
 #if LOADER_DEBUG || LOADER_PROFILE
-   /*------------------------------------------------------------------------*/
-   /* In debug mode, keep a count of the number of relocations processed.    */
-   /* In profile mode, start the clock on a given relocation.                */
-   /*------------------------------------------------------------------------*/
-   int start_time;
-   if (debugging_on || profiling_on)
-   {
-      DLREL_relocations++;
-      if (profiling_on) start_time = clock();
-   }
+    /*-----------------------------------------------------------------------*/
+    /* In debug mode, keep a count of the number of relocations processed.   */
+    /* In profile mode, start the clock on a given relocation.               */
+    /*-----------------------------------------------------------------------*/
+    int start_time;
+    if (debugging_on || profiling_on)
+    {
+        DLREL_relocations++;
+        if (profiling_on) start_time = clock();
+    }
 #endif
 
-   /*------------------------------------------------------------------------*/
-   /* Calculate the relocation value according to the rules associated with  */
-   /* the given relocation type.                                             */
-   /*------------------------------------------------------------------------*/
-   switch(r_type)
-   {
-       case R_ARM_NONE:
-          reloc_value = addend;
-          break;
+    /*-----------------------------------------------------------------------*/
+    /* Calculate the relocation value according to the rules associated with */
+    /* the given relocation type.                                            */
+    /*-----------------------------------------------------------------------*/
+    switch(r_type)
+    {
+        case R_ARM_NONE:
+            reloc_value = addend;
+            break;
+
+        /*-------------------------------------------------------------------*/
+        /* S + A                                                             */
+        /*-------------------------------------------------------------------*/
+        case R_ARM_ABS16:
+        case R_ARM_ABS12:
+        case R_ARM_THM_ABS5:
+        case R_ARM_ABS8:
+        case R_ARM_MOVT_ABS:
+        case R_ARM_THM_MOVT_ABS:
+        case R_ARM_ABS32_NOI:
+        case R_ARM_PLT32_ABS:
+            reloc_value = OPND_S(symval) + addend;
+            break;
+
+        /*-------------------------------------------------------------------*/
+        /* (S + A) | T                                                       */
+        /*-------------------------------------------------------------------*/
+        case R_ARM_ABS32:
+        case R_ARM_MOVW_ABS_NC:
+        case R_ARM_THM_MOVW_ABS_NC:
+            reloc_value = (OPND_S(symval) + addend) | OPND_T(symval);
+            break;
+
+        /*-------------------------------------------------------------------*/
+        /* (S + A) - P                                                       */
+        /*-------------------------------------------------------------------*/
+        case R_ARM_LDR_PC_G0:
+        case R_ARM_LDR_PC_G1:
+        case R_ARM_LDR_PC_G2:
+        case R_ARM_MOVT_PREL:
+        case R_ARM_THM_MOVT_PREL:
+        case R_ARM_REL32_NOI:
+        case R_ARM_THM_JUMP6:
+        case R_ARM_THM_JUMP11:
+        case R_ARM_THM_JUMP8:
+        case R_ARM_LDRS_PC_G0:
+        case R_ARM_LDRS_PC_G1:
+        case R_ARM_LDRS_PC_G2:
+        case R_ARM_LDC_PC_G0:
+        case R_ARM_LDC_PC_G1:
+        case R_ARM_LDC_PC_G2:
+            reloc_value = (OPND_S(symval) + addend) - pc;
+            break;
+
+        /*-------------------------------------------------------------------*/
+        /* (S + A) - Pa                                                      */
+        /*-------------------------------------------------------------------*/
+        case R_ARM_THM_PC8:
+        case R_ARM_THM_PC12:
+            reloc_value = (OPND_S(symval) + addend) - (pc & 0xFFFFFFFC);
+            break;
+
+        /*-------------------------------------------------------------------*/
+        /* ((S + A) | T) - P                                                 */
+        /*-------------------------------------------------------------------*/
+        case R_ARM_REL32:
+        case R_ARM_PC24:
+        case R_ARM_THM_CALL:
+        case R_ARM_PLT32:
+        case R_ARM_CALL:
+        case R_ARM_JUMP24:
+        case R_ARM_THM_JUMP24:
+        case R_ARM_PREL31:
+        case R_ARM_MOVW_PREL_NC:
+        case R_ARM_THM_MOVW_PREL_NC:
+        case R_ARM_THM_JUMP19:
+        case R_ARM_THM_ALU_PREL_11_0:
+        case R_ARM_ALU_PC_G0_NC:
+        case R_ARM_ALU_PC_G0:
+        case R_ARM_ALU_PC_G1_NC:
+        case R_ARM_ALU_PC_G1:
+        case R_ARM_ALU_PC_G2:
+            reloc_value = ((OPND_S(symval) + addend) | OPND_T(symval)) - pc;
+            break;
 
        /*--------------------------------------------------------------------*/
-       /* S + A                                                              */
+       /* Unrecognized relocation type.                                      */
        /*--------------------------------------------------------------------*/
-       case R_ARM_ABS16:
-       case R_ARM_ABS12:
-       case R_ARM_THM_ABS5:
-       case R_ARM_ABS8:
-       case R_ARM_MOVT_ABS:
-       case R_ARM_THM_MOVT_ABS:
-       case R_ARM_ABS32_NOI:
-       case R_ARM_PLT32_ABS:
-          reloc_value = OPND_S(symval) + addend;
-          break;
+       default:
+           DLIF_error(DLET_RELOC,"invalid relocation type!\n");
+           break;
 
-       /*--------------------------------------------------------------------*/
-       /* (S + A) | T                                                        */
-       /*--------------------------------------------------------------------*/
-       case R_ARM_ABS32:
-       case R_ARM_MOVW_ABS_NC:
-       case R_ARM_THM_MOVW_ABS_NC:
-          reloc_value = (OPND_S(symval) + addend) | OPND_T(symval);
-          break;
+    }
 
-       /*--------------------------------------------------------------------*/
-       /* (S + A) - P                                                        */
-       /*--------------------------------------------------------------------*/
-       case R_ARM_LDR_PC_G0:
-       case R_ARM_LDR_PC_G1:
-       case R_ARM_LDR_PC_G2:
-       case R_ARM_MOVT_PREL:
-       case R_ARM_THM_MOVT_PREL:
-       case R_ARM_REL32_NOI:
-       case R_ARM_THM_JUMP6:
-       case R_ARM_THM_JUMP11:
-       case R_ARM_THM_JUMP8:
-       case R_ARM_LDRS_PC_G0:
-       case R_ARM_LDRS_PC_G1:
-       case R_ARM_LDRS_PC_G2:
-       case R_ARM_LDC_PC_G0:
-       case R_ARM_LDC_PC_G1:
-       case R_ARM_LDC_PC_G2:
-          reloc_value = (OPND_S(symval) + addend) - pc;
-          break;
+    if (rel_overflow(r_type, reloc_value))
+        DLIF_error(DLET_RELOC, "relocation overflow!\n");
 
-       /*--------------------------------------------------------------------*/
-       /* (S + A) - Pa                                                       */
-       /*--------------------------------------------------------------------*/
-       case R_ARM_THM_PC8:
-       case R_ARM_THM_PC12:
-          reloc_value = (OPND_S(symval) + addend) - (pc & 0xFFFFFFFC);
-          break;
+    /*-----------------------------------------------------------------------*/
+    /* Move relocation value to appropriate offset for relocation field's    */
+    /* location.                                                             */
+    /*-----------------------------------------------------------------------*/
+    reloc_value = pack_result(reloc_value, r_type);
 
-       /*--------------------------------------------------------------------*/
-       /* ((S + A) | T) - P                                                  */
-       /*--------------------------------------------------------------------*/
-       case R_ARM_REL32:
-       case R_ARM_PC24:
-       case R_ARM_THM_CALL:
-       case R_ARM_PLT32:
-       case R_ARM_CALL:
-       case R_ARM_JUMP24:
-       case R_ARM_THM_JUMP24:
-       case R_ARM_PREL31:
-       case R_ARM_MOVW_PREL_NC:
-       case R_ARM_THM_MOVW_PREL_NC:
-       case R_ARM_THM_JUMP19:
-       case R_ARM_THM_ALU_PREL_11_0:
-       case R_ARM_ALU_PC_G0_NC:
-       case R_ARM_ALU_PC_G0:
-       case R_ARM_ALU_PC_G1_NC:
-       case R_ARM_ALU_PC_G1:
-       case R_ARM_ALU_PC_G2:
-          reloc_value = ((OPND_S(symval) + addend) | OPND_T(symval)) - pc;
-          break;
+    /*-----------------------------------------------------------------------*/
+    /* Mask packed result to the size of the relocation field.               */
+    /*-----------------------------------------------------------------------*/
+    reloc_value = mask_result(reloc_value, r_type);
 
-      /*---------------------------------------------------------------------*/
-      /* Unrecognized relocation type.                                       */
-      /*---------------------------------------------------------------------*/
-      default: 
-         DLIF_error(DLET_RELOC,"invalid relocation type!\n");
-         break;
-
-   }
-
-   if (rel_overflow(r_type, reloc_value))
-       DLIF_error(DLET_RELOC, "relocation overflow!\n");
-
-   /*------------------------------------------------------------------------*/
-   /* Move relocation value to appropriate offset for relocation field's     */
-   /* location.                                                              */
-   /*------------------------------------------------------------------------*/
-   reloc_value = pack_result(reloc_value, r_type);
-
-   /*------------------------------------------------------------------------*/
-   /* Mask packed result to the size of the relocation field.                */
-   /*------------------------------------------------------------------------*/
-   reloc_value = mask_result(reloc_value, r_type);
-
-   /*------------------------------------------------------------------------*/
-   /* Write the relocated 4-byte packet back to the segment buffer.          */
-   /*------------------------------------------------------------------------*/
-   write_reloc_r(address, r_type, reloc_value, symval);
+    /*-----------------------------------------------------------------------*/
+    /* Write the relocated 4-byte packet back to the segment buffer.         */
+    /*-----------------------------------------------------------------------*/
+    write_reloc_r(address, r_type, reloc_value, symval);
 
 #if LOADER_DEBUG || LOADER_PROFILE
-   /*------------------------------------------------------------------------*/
-   /* In profile mode, add elapsed time for this relocation to total time    */
-   /* spent doing relocations.                                               */
-   /*------------------------------------------------------------------------*/
-   if (profiling_on)
-      DLREL_total_reloc_time += (clock() - start_time);
-   if (debugging_on)
-      printf("reloc_value = 0x%x\n", reloc_value);
+    /*-----------------------------------------------------------------------*/
+    /* In profile mode, add elapsed time for this relocation to total time   */
+    /* spent doing relocations.                                              */
+    /*-----------------------------------------------------------------------*/
+    if (profiling_on)
+        DLREL_total_reloc_time += (clock() - start_time);
+    if (debugging_on)
+        DLIF_trace("reloc_value = 0x%x\n", reloc_value);
 #endif
 }
 
 /*****************************************************************************/
 /* REL_UNPACK_ADDEND() - Unpacks the addend from the relocation field        */
 /*****************************************************************************/
-static void rel_unpack_addend(ARM_RELOC_TYPE r_type, 
-                              uint8_t* address, 
+static void rel_unpack_addend(ARM_RELOC_TYPE r_type,
+                              uint8_t* address,
                               uint32_t* addend)
 {
     switch (r_type)
@@ -1214,7 +1233,9 @@ static void rel_unpack_addend(ARM_RELOC_TYPE r_type,
         case R_ARM_ABS32_NOI:
         case R_ARM_REL32_NOI:
         {
+            DLIF_trace("rel_unpack_addend %d\n", __LINE__);
             *addend = *((uint32_t*)address);
+            DLIF_trace("rel_unpack_addend %d\n", __LINE__);
         }
         break;
 
@@ -1248,7 +1269,7 @@ static void rel_unpack_addend(ARM_RELOC_TYPE r_type,
             imm24 = EXTRACT(rel_field, 0, 24);
             *addend = (((imm24 << 1) + Hval) << 1);
             SIGN_EXTEND(*addend, 26);
-        }  
+        }
         break;
 
         case R_ARM_THM_JUMP11:
@@ -1266,7 +1287,7 @@ static void rel_unpack_addend(ARM_RELOC_TYPE r_type,
             SIGN_EXTEND(*addend, 9);
             break;
         }
-        
+
         case R_ARM_THM_CALL:
         case R_ARM_THM_JUMP24:
         {
@@ -1285,7 +1306,7 @@ static void rel_unpack_addend(ARM_RELOC_TYPE r_type,
             I2 = !(EXTRACT(*rel_field_ptr, 11, 1) ^ Sval);
             imm11 = EXTRACT(*rel_field_ptr, 0, 11);
 
-            *addend = (Sval << 23) | (I1 << 22) | (I2 << 21) | 
+            *addend = (Sval << 23) | (I1 << 22) | (I2 << 21) |
                 (imm10 << 11) | imm11;
             *addend = *addend << 1;
             SIGN_EXTEND(*addend, 25);
@@ -1325,7 +1346,7 @@ static void rel_unpack_addend(ARM_RELOC_TYPE r_type,
             uint16_t imm12;
 
             uint32_t* rel_field_ptr = (uint32_t*) address;
-            
+
             Uval  = EXTRACT(*rel_field_ptr, 23, 1);
             imm12 = EXTRACT(*rel_field_ptr, 0, 12);
 
@@ -1399,7 +1420,7 @@ static void rel_unpack_addend(ARM_RELOC_TYPE r_type,
                 *addend = -(*addend);
         }
         break;
-        
+
         case R_ARM_MOVW_ABS_NC:
         case R_ARM_MOVT_ABS:
         case R_ARM_MOVW_PREL_NC:
@@ -1452,7 +1473,7 @@ static void rel_unpack_addend(ARM_RELOC_TYPE r_type,
             uint8_t bits_11_10;
 
             Ival = EXTRACT(rel_field, 12, 3);
-            
+
             rel_field = *(rel_field_ptr + 1);
             Jval = EXTRACT(rel_field, 12, 3);
             Kval = EXTRACT(rel_field, 0 , 8);
@@ -1473,14 +1494,14 @@ static void rel_unpack_addend(ARM_RELOC_TYPE r_type,
 
                 switch (bits_9_8)
                 {
-                    case 0x0:  *addend = bits_7_0; 
+                    case 0x0:  *addend = bits_7_0;
                     break;
-                    case 0x1:  *addend = (bits_7_0 << 16) | (bits_7_0); 
+                    case 0x1:  *addend = (bits_7_0 << 16) | (bits_7_0);
                     break;
-                    case 0x2:  *addend = (bits_7_0 << 24) | (bits_7_0 << 8); 
+                    case 0x2:  *addend = (bits_7_0 << 24) | (bits_7_0 << 8);
                     break;
                     case 0x3:  *addend= (bits_7_0 << 24) | (bits_7_0 << 16) |
-                                   (bits_7_0 << 8)  | (bits_7_0);  
+                                   (bits_7_0 << 8)  | (bits_7_0);
                     break;
                 }
             }
@@ -1492,10 +1513,10 @@ static void rel_unpack_addend(ARM_RELOC_TYPE r_type,
                 uint8_t byte = 0x80 | bits_6_0;
                 *addend = (byte >> bits_11_7) | (byte << (32 - bits_11_7));
             }
-        
+
             rel_field = *rel_field_ptr;
 
-            if (EXTRACT(rel_field, 7, 1) == 1 && 
+            if (EXTRACT(rel_field, 7, 1) == 1 &&
                 EXTRACT(rel_field, 5, 1) == 1)
                 *addend = -(*addend);
         }
@@ -1507,7 +1528,7 @@ static void rel_unpack_addend(ARM_RELOC_TYPE r_type,
             uint8_t Jval;
 
             uint16_t rel_field = *((uint16_t*)address);
-            
+
             Ival = EXTRACT(rel_field, 9, 1);
             Jval = EXTRACT(rel_field, 3, 5);
 
@@ -1544,8 +1565,8 @@ static void rel_unpack_addend(ARM_RELOC_TYPE r_type,
         }
 
         default:
-        DLIF_error(DLET_RELOC, 
-                   "ERROR: Cannot unpack addend for relocation type %d\n", 
+        DLIF_error(DLET_RELOC,
+                   "ERROR: Cannot unpack addend for relocation type %d\n",
                    r_type);
     }
 }
@@ -1553,7 +1574,8 @@ static void rel_unpack_addend(ARM_RELOC_TYPE r_type,
 /*****************************************************************************/
 /* PROCESS_REL_TABLE() - Process REL type relocation table.                  */
 /*****************************************************************************/
-static BOOL process_rel_table(DLIMP_Loaded_Segment* seg, 
+static BOOL process_rel_table(DLOAD_HANDLE handle,
+                              DLIMP_Loaded_Segment* seg,
                               struct Elf32_Rel* rel_table,
                               uint32_t relnum,
                               int32_t *start_rid,
@@ -1589,17 +1611,17 @@ static BOOL process_rel_table(DLIMP_Loaded_Segment* seg,
             /* relocation. An error is generated by the lookup         */
             /* function.                                               */
             /*---------------------------------------------------------*/
-            if (!DLSYM_canonical_lookup(r_symid, dyn_module, &r_symval))
+            if (!DLSYM_canonical_lookup(handle, r_symid, dyn_module, &r_symval))
                 continue;
 
-            reloc_address = 
+            reloc_address =
                 (((uint8_t*)(seg->phdr.p_vaddr) + seg->reloc_offset) +
                  rel_table[rid].r_offset - seg->input_vaddr);
             pc = (uint32_t) reloc_address;
             change_endian = rel_swap_endian(dyn_module, r_type);
             if (change_endian)
                 rel_change_endian(r_type, reloc_address);
-            
+
             rel_unpack_addend(ELF32_R_TYPE(rel_table[rid].r_info),
                               reloc_address,
                               &addend);
@@ -1608,21 +1630,21 @@ static BOOL process_rel_table(DLIMP_Loaded_Segment* seg,
             if (debugging_on)
             {
                 char *r_symname = (char*) dyn_module->symtab[r_symid].st_name;
-                printf("r_type=%d, "
-                       "pc=0x%x, "
-                       "addend=0x%x, "
-                       "symnm=%s, "
-                       "symval=0x%x\n", 
-                       r_type,
-                       pc,
-                       addend,
-                       r_symname, 
-                       r_symval);
+                DLIF_trace("r_type=%d, "
+                           "pc=0x%x, "
+                           "addend=0x%x, "
+                           "symnm=%s, "
+                           "symval=0x%x\n",
+                           r_type,
+                           pc,
+                           addend,
+                           r_symname,
+                           r_symval);
             }
 #endif
             /*----------------------------------------------------------*/
             /* Perform actual relocation.  This is a really wide        */
-            /* function interface and could do with some encapsulation. */ 
+            /* function interface and could do with some encapsulation. */
             /*----------------------------------------------------------*/
             reloc_do(r_type,
                      reloc_address,
@@ -1644,7 +1666,8 @@ static BOOL process_rel_table(DLIMP_Loaded_Segment* seg,
     return found;
 }
 
-static BOOL process_rela_table(DLIMP_Loaded_Segment* seg, 
+static BOOL process_rela_table(DLOAD_HANDLE handle,
+                               DLIMP_Loaded_Segment* seg,
                                struct Elf32_Rela* rela_table,
                                uint32_t relanum,
                                int32_t* start_rid,
@@ -1680,7 +1703,7 @@ static BOOL process_rela_table(DLIMP_Loaded_Segment* seg,
             /* relocation. An error is generated by the lookup         */
             /* function.                                               */
             /*---------------------------------------------------------*/
-            if (!DLSYM_canonical_lookup(r_symid, dyn_module, &r_symval))
+            if (!DLSYM_canonical_lookup(handle, r_symid, dyn_module, &r_symval))
                 continue;
 
             reloc_address = (((uint8_t*)(seg->phdr.p_vaddr) + seg->reloc_offset) +
@@ -1696,22 +1719,22 @@ static BOOL process_rela_table(DLIMP_Loaded_Segment* seg,
             if (debugging_on)
             {
                 char *r_symname = (char*) dyn_module->symtab[r_symid].st_name;
-                printf("r_type=%d, "
-                       "pc=0x%x, "
-                       "addend=0x%x, "
-                       "symnm=%s, "
-                       "symval=0x%x\n", 
-                       r_type,
-                       pc,
-                       addend,
-                       r_symname, 
-                       r_symval);
+                DLIF_trace("r_type=%d, "
+                           "pc=0x%x, "
+                           "addend=0x%x, "
+                           "symnm=%s, "
+                           "symval=0x%x\n",
+                           r_type,
+                           pc,
+                           addend,
+                           r_symname,
+                           r_symval);
             }
 #endif
 
             /*----------------------------------------------------------*/
             /* Perform actual relocation.  This is a really wide        */
-            /* function interface and could do with some encapsulation. */ 
+            /* function interface and could do with some encapsulation. */
             /*----------------------------------------------------------*/
 
             reloc_do(ELF32_R_TYPE(rela_table[rid].r_info),
@@ -1739,20 +1762,20 @@ static BOOL process_rela_table(DLIMP_Loaded_Segment* seg,
 /*   Read in a REL type relocation table.  This function allocates host      */
 /*   memory for the table.                                                   */
 /*****************************************************************************/
-static void read_rel_table(struct Elf32_Rel** rel_table, 
+static void read_rel_table(struct Elf32_Rel** rel_table,
                            int32_t table_offset,
-                           uint32_t relnum, uint32_t relent, 
+                           uint32_t relnum, uint32_t relent,
                            LOADER_FILE_DESC* elf_file,
                            BOOL wrong_endian)
 {
-   int i;
-   *rel_table = (struct Elf32_Rel*) DLIF_malloc(relnum*relent);
-   DLIF_fseek(elf_file, table_offset, LOADER_SEEK_SET);
-   DLIF_fread(*rel_table, relnum, relent, elf_file);
-   
-   if (wrong_endian)
-      for (i=0; i<relnum; i++)
-         DLIMP_change_rel_endian(*rel_table + i);
+    int i;
+    *rel_table = (struct Elf32_Rel*) DLIF_malloc(relnum*relent);
+    DLIF_fseek(elf_file, table_offset, LOADER_SEEK_SET);
+    DLIF_fread(*rel_table, relnum, relent, elf_file);
+
+    if (wrong_endian)
+        for (i=0; i<relnum; i++)
+            DLIMP_change_rel_endian(*rel_table + i);
 }
 
 /*****************************************************************************/
@@ -1761,20 +1784,20 @@ static void read_rel_table(struct Elf32_Rel** rel_table,
 /*   Read in a RELA type relocation table.  This function allocates host     */
 /*   memory for the table.                                                   */
 /*****************************************************************************/
-static void read_rela_table(struct Elf32_Rela** rela_table, 
+static void read_rela_table(struct Elf32_Rela** rela_table,
                             int32_t table_offset,
-                            uint32_t relanum, uint32_t relaent, 
+                            uint32_t relanum, uint32_t relaent,
                             LOADER_FILE_DESC* elf_file,
                             BOOL wrong_endian)
 {
-   int i;
-   *rela_table = DLIF_malloc(relanum*relaent);
-   DLIF_fseek(elf_file, table_offset, LOADER_SEEK_SET);
-   DLIF_fread(*rela_table, relanum, relaent, elf_file);
-   
-   if (wrong_endian)
-      for (i=0; i<relanum; i++)
-         DLIMP_change_rela_endian(*rela_table + i);
+    int i;
+    *rela_table = DLIF_malloc(relanum*relaent);
+    DLIF_fseek(elf_file, table_offset, LOADER_SEEK_SET);
+    DLIF_fread(*rela_table, relanum, relaent, elf_file);
+
+    if (wrong_endian)
+        for (i=0; i<relanum; i++)
+            DLIMP_change_rela_endian(*rela_table + i);
 }
 
 /*****************************************************************************/
@@ -1783,43 +1806,44 @@ static void read_rela_table(struct Elf32_Rela** rela_table,
 /*   Process all GOT relocations. It is possible to have both REL and RELA   */
 /*   relocations in the same file, so we handle them both.                   */
 /*****************************************************************************/
-static void process_got_relocs(struct Elf32_Rel* rel_table, uint32_t relnum,
+static void process_got_relocs(DLOAD_HANDLE handle,
+                               struct Elf32_Rel* rel_table, uint32_t relnum,
                                struct Elf32_Rela* rela_table, uint32_t relanum,
                                DLIMP_Dynamic_Module* dyn_module)
 {
-   DLIMP_Loaded_Segment* seg =
+    DLIMP_Loaded_Segment* seg =
       (DLIMP_Loaded_Segment*)(dyn_module->loaded_module->loaded_segments.buf);
-   int seg_size = dyn_module->loaded_module->loaded_segments.size;
-   int32_t rel_rid = 0;
-   int32_t rela_rid = 0;
-   int s;
+    int seg_size = dyn_module->loaded_module->loaded_segments.size;
+    int32_t rel_rid = 0;
+    int32_t rela_rid = 0;
+    int s;
 
-   for (s=0; s<seg_size; s++)
-   {
-      /*---------------------------------------------------------------------*/
-      /* Relocations into the BSS should not occur.                          */
-      /*---------------------------------------------------------------------*/
-      if(!seg[s].phdr.p_filesz) continue;
+    for (s=0; s<seg_size; s++)
+    {
+        /*-------------------------------------------------------------------*/
+        /* Relocations into the BSS should not occur.                        */
+        /*-------------------------------------------------------------------*/
+        if(!seg[s].phdr.p_filesz) continue;
 
 #if LOADER_DEBUG || LOADER_PROFILE
-      /*---------------------------------------------------------------------*/
-      /* More details about the progress on this relocation entry.           */
-      /*---------------------------------------------------------------------*/
-      if (debugging_on)
-      {
-         printf("Reloc segment %d:\n", s);
-         printf("addr=0x%x, old_addr=0x%x, r_offset=0x%x\n",
+        /*-------------------------------------------------------------------*/
+        /* More details about the progress on this relocation entry.         */
+        /*-------------------------------------------------------------------*/
+        if (debugging_on)
+        {
+            DLIF_trace("Reloc segment %d:\n", s);
+            DLIF_trace("addr=0x%x, old_addr=0x%x, r_offset=0x%x\n",
                 seg[s].phdr.p_vaddr, seg[s].input_vaddr, seg[s].reloc_offset);
-      }
+        }
 #endif
 
-      if (rela_table)
-          process_rela_table((seg + s), rela_table, relanum, &rela_rid,
-                             dyn_module);
+        if (rela_table)
+            process_rela_table(handle, (seg + s), rela_table, relanum,
+                               &rela_rid, dyn_module);
 
-      if (rel_table)
-          process_rel_table((seg + s), rel_table, relnum, &rel_rid,
-                            dyn_module);
+        if (rel_table)
+            process_rel_table(handle, (seg + s), rel_table, relnum, &rel_rid,
+                              dyn_module);
     }
 }
 
@@ -1830,164 +1854,168 @@ static void process_got_relocs(struct Elf32_Rel* rel_table, uint32_t relnum,
 /*  be either REL or RELA type. All PLTGOT relocations are guaranteed to     */
 /*  belong to the same segment.                                              */
 /*****************************************************************************/
-static void process_pltgot_relocs(void* plt_reloc_table, int reltype, 
+static void process_pltgot_relocs(DLOAD_HANDLE handle,
+                                  void* plt_reloc_table, int reltype,
                                   uint32_t pltnum,
                                   DLIMP_Dynamic_Module* dyn_module)
 {
-   Elf32_Addr r_offset = (reltype == DT_REL) ? 
-      ((struct Elf32_Rel*) plt_reloc_table)->r_offset : 
-      ((struct Elf32_Rela*) plt_reloc_table)->r_offset;
-   DLIMP_Loaded_Segment* seg = 
-      (DLIMP_Loaded_Segment*)(dyn_module->loaded_module->loaded_segments.buf);
-   int seg_size = dyn_module->loaded_module->loaded_segments.size;
-   int32_t plt_rid = 0;
-   int s;
+    Elf32_Addr r_offset = (reltype == DT_REL) ?
+        ((struct Elf32_Rel*) plt_reloc_table)->r_offset :
+        ((struct Elf32_Rela*) plt_reloc_table)->r_offset;
+    DLIMP_Loaded_Segment* seg =
+       (DLIMP_Loaded_Segment*)(dyn_module->loaded_module->loaded_segments.buf);
+    int seg_size = dyn_module->loaded_module->loaded_segments.size;
+    int32_t plt_rid = 0;
+    int s;
 
-   /*------------------------------------------------------------------------*/
-   /* For each segment s, check if the relocation falls within s. If so,     */
-   /* then all other relocations are guaranteed to fall with s. Process      */
-   /* all relocations and then return.                                       */
-   /*------------------------------------------------------------------------*/
+    /*-----------------------------------------------------------------------*/
+    /* For each segment s, check if the relocation falls within s. If so,    */
+    /* then all other relocations are guaranteed to fall with s. Process     */
+    /* all relocations and then return.                                      */
+    /*-----------------------------------------------------------------------*/
 
-   for (s=0; s<seg_size; s++)
-   {
-      Elf32_Addr seg_start_addr = seg[s].input_vaddr;
-      Elf32_Addr seg_end_addr   = seg_start_addr + seg[s].phdr.p_memsz;
+    for (s=0; s<seg_size; s++)
+    {
+        Elf32_Addr seg_start_addr = seg[s].input_vaddr;
+        Elf32_Addr seg_end_addr   = seg_start_addr + seg[s].phdr.p_memsz;
 
-      /*---------------------------------------------------------------------*/
-      /* Relocations into the BSS should not occur.                          */
-      /*-------------------------------------------------------------------  */
-      if(!seg[s].phdr.p_filesz) continue;
+        /*-------------------------------------------------------------------*/
+        /* Relocations into the BSS should not occur.                        */
+        /*-------------------------------------------------------------------*/
+        if(!seg[s].phdr.p_filesz) continue;
 
-      if (r_offset >= seg_start_addr &&
-          r_offset < seg_end_addr)
-      {
-         if (reltype == DT_REL)
-            process_rel_table((seg + s),
-                              (struct Elf32_Rel*) plt_reloc_table,
-                              pltnum, &plt_rid,
-                              dyn_module);
-         else
-            process_rela_table((seg + s),
-                               (struct Elf32_Rela*) plt_reloc_table,
-                               pltnum, &plt_rid,
-                               dyn_module);
+        if (r_offset >= seg_start_addr &&
+            r_offset < seg_end_addr)
+        {
+            if (reltype == DT_REL)
+                process_rel_table(handle, (seg + s),
+                                  (struct Elf32_Rel*) plt_reloc_table,
+                                  pltnum, &plt_rid,
+                                  dyn_module);
+            else
+                process_rela_table(handle, (seg + s),
+                                   (struct Elf32_Rela*) plt_reloc_table,
+                                   pltnum, &plt_rid,
+                                   dyn_module);
 
-         break;
-      }
-   }
+            break;
+        }
+    }
 }
 
 /*****************************************************************************/
 /* RELOCATE() - Perform RELA and REL type relocations for given ELF object   */
 /*      file that we are in the process of loading and relocating.           */
 /*****************************************************************************/
-void DLREL_relocate(LOADER_FILE_DESC* elf_file,
+void DLREL_relocate(DLOAD_HANDLE handle,
+                    LOADER_FILE_DESC* elf_file,
                     DLIMP_Dynamic_Module* dyn_module)
 
 {
-   struct Elf32_Dyn* dyn_nugget = dyn_module->dyntab;
-   struct Elf32_Rela* rela_table = NULL;
-   struct Elf32_Rel*  rel_table = NULL;
-   void*              plt_table = NULL;
+    struct Elf32_Dyn* dyn_nugget = dyn_module->dyntab;
+    struct Elf32_Rela* rela_table = NULL;
+    struct Elf32_Rel*  rel_table = NULL;
+    void*              plt_table = NULL;
 
-   /*------------------------------------------------------------------------*/
-   /* Read the size of the relocation table (DT_RELASZ) and the size per     */
-   /* relocation (DT_RELAENT) from the dynamic segment.                      */
-   /*------------------------------------------------------------------------*/
-   uint32_t relasz = DLIMP_get_first_dyntag(DT_RELASZ, dyn_nugget);
-   uint32_t relaent = DLIMP_get_first_dyntag(DT_RELAENT, dyn_nugget);
-   uint32_t relanum = 0;
+    /*-----------------------------------------------------------------------*/
+    /* Read the size of the relocation table (DT_RELASZ) and the size per    */
+    /* relocation (DT_RELAENT) from the dynamic segment.                     */
+    /*-----------------------------------------------------------------------*/
+    uint32_t relasz = DLIMP_get_first_dyntag(DT_RELASZ, dyn_nugget);
+    uint32_t relaent = DLIMP_get_first_dyntag(DT_RELAENT, dyn_nugget);
+    uint32_t relanum = 0;
 
-   /*------------------------------------------------------------------------*/
-   /* Read the size of the relocation table (DT_RELSZ) and the size per      */
-   /* relocation (DT_RELENT) from the dynamic segment.                       */
-   /*------------------------------------------------------------------------*/
-   uint32_t relsz = DLIMP_get_first_dyntag(DT_RELSZ, dyn_nugget);
-   uint32_t relent = DLIMP_get_first_dyntag(DT_RELENT, dyn_nugget);
-   uint32_t relnum = 0;
+    /*-----------------------------------------------------------------------*/
+    /* Read the size of the relocation table (DT_RELSZ) and the size per     */
+    /* relocation (DT_RELENT) from the dynamic segment.                      */
+    /*-----------------------------------------------------------------------*/
+    uint32_t relsz = DLIMP_get_first_dyntag(DT_RELSZ, dyn_nugget);
+    uint32_t relent = DLIMP_get_first_dyntag(DT_RELENT, dyn_nugget);
+    uint32_t relnum = 0;
 
-   /*------------------------------------------------------------------------*/
-   /* Read the size of the relocation table (DT_PLTRELSZ) and the type of    */
-   /* of the PLTGOT relocation table (DT_PLTREL): one of DT_REL or DT_RELA   */
-   /*------------------------------------------------------------------------*/
-   uint32_t pltrelsz = DLIMP_get_first_dyntag(DT_PLTRELSZ, dyn_nugget);
-   int      pltreltype = DLIMP_get_first_dyntag(DT_PLTREL, dyn_nugget);
-   uint32_t pltnum = 0;
+    /*-----------------------------------------------------------------------*/
+    /* Read the size of the relocation table (DT_PLTRELSZ) and the type of   */
+    /* of the PLTGOT relocation table (DT_PLTREL): one of DT_REL or DT_RELA  */
+    /*-----------------------------------------------------------------------*/
+    uint32_t pltrelsz = DLIMP_get_first_dyntag(DT_PLTRELSZ, dyn_nugget);
+    int      pltreltype = DLIMP_get_first_dyntag(DT_PLTREL, dyn_nugget);
+    uint32_t pltnum = 0;
 
-   /*------------------------------------------------------------------------*/
-   /* Read the PLTGOT relocation table from the file                         */
-   /* The PLTGOT table is a subsection at the end of either the DT_REL or    */
-   /* DT_RELA table.  The size of the table it belongs to DT_REL(A)SZ        */
-   /* includes the size of the PLTGOT table.  So it must be adjusted so that */
-   /* the GOT relocation tables only contain actual GOT relocations.         */
-   /*------------------------------------------------------------------------*/
-   if (pltrelsz != INT_MAX)
-   {
-       if (pltreltype == DT_REL)
-       {
-          pltnum = pltrelsz/relent;
-          relsz -= pltrelsz;
-          read_rel_table(((struct Elf32_Rel**) &plt_table),
-                         DLIMP_get_first_dyntag(DT_JMPREL, dyn_nugget),
-                         pltnum, relent, elf_file, 
-                         dyn_module->wrong_endian);
-       }
-       else if (pltreltype == DT_RELA)
-       {
-           pltnum = pltrelsz/relaent;
-           relasz -= pltrelsz;
-           read_rela_table(((struct Elf32_Rela**) &plt_table),
+    /*-----------------------------------------------------------------------*/
+    /* Read the PLTGOT relocation table from the file                        */
+    /* The PLTGOT table is a subsection at the end of either the DT_REL or   */
+    /* DT_RELA table.  The size of the table it belongs to DT_REL(A)SZ       */
+    /* includes the size of the PLTGOT table.  So it must be adjusted so that*/
+    /* the GOT relocation tables only contain actual GOT relocations.        */
+    /*-----------------------------------------------------------------------*/
+    if (pltrelsz != INT_MAX)
+    {
+        if (pltreltype == DT_REL)
+        {
+            pltnum = pltrelsz/relent;
+            relsz -= pltrelsz;
+            read_rel_table(((struct Elf32_Rel**) &plt_table),
                            DLIMP_get_first_dyntag(DT_JMPREL, dyn_nugget),
-                           pltnum, relaent, elf_file,
+                           pltnum, relent, elf_file,
                            dyn_module->wrong_endian);
-       }
-       else
-       {
-           DLIF_error(DLET_RELOC, 
-                      "DT_PLTREL is invalid: must be either %d or %d\n", 
-                      DT_REL, DT_RELA);
-       }
-   }
+        }
+        else if (pltreltype == DT_RELA)
+        {
+            pltnum = pltrelsz/relaent;
+            relasz -= pltrelsz;
+            read_rela_table(((struct Elf32_Rela**) &plt_table),
+                            DLIMP_get_first_dyntag(DT_JMPREL, dyn_nugget),
+                            pltnum, relaent, elf_file,
+                            dyn_module->wrong_endian);
+        }
+        else
+        {
+            DLIF_error(DLET_RELOC,
+                       "DT_PLTREL is invalid: must be either %d or %d\n",
+                       DT_REL, DT_RELA);
+        }
+    }
 
-   /*------------------------------------------------------------------------*/
-   /* Read the DT_RELA GOT relocation table from the file                    */
-   /*------------------------------------------------------------------------*/
-   if (relasz != INT_MAX)
-   {
-      relanum = relasz/relaent;
-      read_rela_table(&rela_table, DLIMP_get_first_dyntag(DT_RELA, dyn_nugget),
-                      relanum, relaent, elf_file, dyn_module->wrong_endian);
-   }
+    /*-----------------------------------------------------------------------*/
+    /* Read the DT_RELA GOT relocation table from the file                   */
+    /*-----------------------------------------------------------------------*/
+    if (relasz != INT_MAX)
+    {
+        relanum = relasz/relaent;
+        read_rela_table(&rela_table,
+                        DLIMP_get_first_dyntag(DT_RELA, dyn_nugget),
+                        relanum, relaent, elf_file, dyn_module->wrong_endian);
+    }
 
-   /*------------------------------------------------------------------------*/
-   /* Read the DT_REL GOT relocation table from the file                     */
-   /*------------------------------------------------------------------------*/
-   if (relsz != INT_MAX)
-   {
-      relnum = relsz/relent;
-      read_rel_table(&rel_table, DLIMP_get_first_dyntag(DT_REL, dyn_nugget),
-                     relnum, relent, elf_file, dyn_module->wrong_endian);
-   }
+    /*-----------------------------------------------------------------------*/
+    /* Read the DT_REL GOT relocation table from the file                    */
+    /*-----------------------------------------------------------------------*/
+    if (relsz != INT_MAX)
+    {
+        relnum = relsz/relent;
+        read_rel_table(&rel_table, DLIMP_get_first_dyntag(DT_REL, dyn_nugget),
+                       relnum, relent, elf_file, dyn_module->wrong_endian);
+    }
 
    /*------------------------------------------------------------------------*/
    /* Process the PLTGOT relocations                                         */
    /*------------------------------------------------------------------------*/
    if (plt_table)
-      process_pltgot_relocs(plt_table, pltreltype, pltnum, dyn_module);
+      process_pltgot_relocs(handle, plt_table, pltreltype, pltnum, dyn_module);
 
-   /*------------------------------------------------------------------------*/
-   /* Process the GOT relocations                                            */
-   /*------------------------------------------------------------------------*/
-   if (rel_table || rela_table)
-      process_got_relocs(rel_table, relnum, rela_table, relanum, dyn_module);
+    /*-----------------------------------------------------------------------*/
+    /* Process the GOT relocations                                           */
+    /*-----------------------------------------------------------------------*/
+    if (rel_table || rela_table)
+        process_got_relocs(handle, rel_table, relnum, rela_table, relanum,
+                           dyn_module);
 
-   /*-------------------------------------------------------------------------*/
-   /* Free memory used for ELF relocation table copies.                       */
-   /*-------------------------------------------------------------------------*/
-   if (rela_table) DLIF_free(rela_table);
-   if (rel_table)  DLIF_free(rel_table);
-   if (plt_table)  DLIF_free(plt_table);
+    /*------------------------------------------------------------------------*/
+    /* Free memory used for ELF relocation table copies.                      */
+    /*------------------------------------------------------------------------*/
+    if (rela_table) DLIF_free(rela_table);
+    if (rel_table)  DLIF_free(rel_table);
+    if (plt_table)  DLIF_free(plt_table);
 }
 
 /*****************************************************************************/

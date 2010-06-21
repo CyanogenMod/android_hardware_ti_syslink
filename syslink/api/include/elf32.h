@@ -1,19 +1,40 @@
 /*
- * Syslink-IPC for TI OMAP Processors
+ *  Syslink-IPC for TI OMAP Processors
  *
- * Copyright (C) 2009 Texas Instruments, Inc.
+ *  Copyright (c) 2008-2010, Texas Instruments Incorporated
+ *  All rights reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU Lesser General Public License as published
- * by the Free Software Foundation version 2.1 of the License.
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted provided that the following conditions
+ *  are met:
  *
- * This program is distributed .as is. WITHOUT ANY WARRANTY of any kind,
- * whether express or implied; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Lesser General Public License for more details.
+ *  *  Redistributions of source code must retain the above copyright
+ *     notice, this list of conditions and the following disclaimer.
+ *
+ *  *  Redistributions in binary form must reproduce the above copyright
+ *     notice, this list of conditions and the following disclaimer in the
+ *     documentation and/or other materials provided with the distribution.
+ *
+ *  *  Neither the name of Texas Instruments Incorporated nor the names of
+ *     its contributors may be used to endorse or promote products derived
+ *     from this software without specific prior written permission.
+ *
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+ *  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ *  THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ *  PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ *  CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ *  EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ *  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+ *  OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ *  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ *  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
+ *  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*****************************************************************************/
-/* ELF32.H - BASIC DATA STRUCTURES FOR 32-BIT ELF OBJECT FILES.              */
+/* elf32.h                                                                   */
+/*                                                                           */
+/* Basic Data Structures for 32-bit ELF Object Format Files                  */
 /*                                                                           */
 /* The data structures in this file come primarily from this specification:  */
 /*                                                                           */
@@ -486,7 +507,7 @@ enum
 /*---------------------------------------------------------------------------*/
 static inline uint8_t ELF32_ST_BIND(uint8_t i)       { return (i >> 4);      }
 static inline uint8_t ELF32_ST_TYPE(uint8_t i)       { return (i & 0xf);     }
-static inline uint8_t ELF32_ST_INFO(uint8_t b, uint8_t t) 
+static inline uint8_t ELF32_ST_INFO(uint8_t b, uint8_t t)
                                             { return ((b << 4) + (t & 0xf)); }
 static inline uint8_t ELF32_ST_VISIBILITY(uint8_t o) { return (o & 0x3);     }
 
@@ -560,7 +581,7 @@ struct Elf32_Rela
 /*---------------------------------------------------------------------------*/
 static inline uint32_t ELF32_R_SYM(uint32_t i)  { return (i >> 8);            }
 static inline uint8_t  ELF32_R_TYPE(uint32_t i) { return (i & 0xFF);          }
-static inline uint32_t ELF32_R_INFO(uint32_t s, uint8_t t) 
+static inline uint32_t ELF32_R_INFO(uint32_t s, uint8_t t)
                                                 { return ((s << 8) + t);      }
 
 
@@ -620,7 +641,7 @@ enum
    DT_HIOS            = 0x6ffff000,  /* unspecified unspecified unspecified */
    DT_LOPROC          = 0x70000000,  /* unspecified unspecified unspecified */
    DT_HIPROC          = 0x7fffffff   /* unspecified unspecified unspecified */
-}; 
+};
 
 
 /*---------------------------------------------------------------------------*/
