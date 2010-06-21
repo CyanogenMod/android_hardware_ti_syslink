@@ -117,9 +117,10 @@
 #include <ProcMgrDrvDefs.h>
 #include <ProcMgrDrvUsr.h>
 #include <_ProcMgrDefs.h>
-#include <load.h>
+#include <dload4430.h>
 #include <ArrayList.h>
 #include <dload_api.h>
+#include <load.h>
 
 #include <_Ipc.h>
 
@@ -174,6 +175,7 @@ typedef struct ProcMgr_Object_tag {
     /*!< Number of valid memory entries */
     ProcMgr_AddrInfo memEntries [PROCMGR_MAX_MEMORY_REGIONS];
     /*!< Configuration of memory regions */
+    DLoad4430_Handle loaderHandle;
 } ProcMgr_Object;
 
 
@@ -193,8 +195,6 @@ ProcMgr_ModuleObject ProcMgr_state =
 {
     .setupRefCount = 0
 };
-
-extern UInt32 prog_handle;
 
 /* =============================================================================
  *  APIs
@@ -524,6 +524,8 @@ ProcMgr_create (UInt16 procId, const ProcMgr_Params * params)
     ProcMgr_Object *        handle = NULL;
     /* TBD: UInt32                  key;*/
     ProcMgr_CmdArgsCreate   cmdArgs;
+    DLoad_Config            loadCfg;
+    DLoad_Params            loadParams;
 
     GT_2trace (curTrace, GT_ENTER, "ProcMgr_create", procId, params);
 
@@ -559,7 +561,7 @@ ProcMgr_create (UInt16 procId, const ProcMgr_Params * params)
                              status,
                              "Invalid NULL procHandle specified in params");
     }
-  
+
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
         /* TBD: Enter critical section protection. */
@@ -620,9 +622,46 @@ ProcMgr_create (UInt16 procId, const ProcMgr_Params * params)
                     /* Indicate that the object was created in this process. */
                     handle->created = TRUE;
                     handle->procId = procId;
-                    /* Store the ProcMgr handle in the local array. */
-                    ProcMgr_state.procHandles [procId] = (ProcMgr_Handle)handle;
+
+                    /* Setup Loader handle for this instance. */
+                    DLoad4430_getConfig (&loadCfg);
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
+                    status =
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+                    DLoad4430_setup (&loadCfg);
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+                    if (status < 0) {
+                        status = PROCMGR_E_FAIL;
+                        GT_setFailureReason (curTrace,
+                                    GT_4CLASS,
+                                    "ProcMgr_create",
+                                    status,
+                                    "DLoad4430_setup failed");
+                    }
+                    else {
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+                        handle->loaderHandle = DLoad4430_create (procId,
+                                                                 &loadParams);
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+                        if (handle->loaderHandle == NULL) {
+                            DLoad4430_destroy ();
+                            status = PROCMGR_E_FAIL;
+                            GT_setFailureReason (curTrace,
+                                        GT_4CLASS,
+                                        "ProcMgr_create",
+                                        status,
+                                        "DLoad4430_create failed");
+                        }
+                        else {
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+                            /* Store the ProcMgr handle in the local
+                             * array.
+                             */
+                            ProcMgr_state.procHandles [procId] =
+                                                     (ProcMgr_Handle)handle;
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+                        }
+                    }
                 }
             }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
@@ -717,6 +756,9 @@ ProcMgr_delete (ProcMgr_Handle * handlePtr)
         }
 
         if (status >= 0) {
+            status = DLoad4430_delete (&handle->loaderHandle);
+            status = DLoad4430_destroy ();
+
             /* Only delete the object if it was created in this process. */
             cmdArgs.handle = handle->knlObject;
             tmpStatus = ProcMgrDrvUsr_ioctl (CMD_PROCMGR_DELETE, &cmdArgs);
@@ -773,6 +815,8 @@ ProcMgr_open (ProcMgr_Handle * handlePtr, UInt16 procId)
     ProcMgr_Object *        handle = NULL;
     /* UInt32           key; */
     ProcMgr_CmdArgsOpen     cmdArgs;
+    DLoad_Config            loadCfg;
+    DLoad_Params            loadParams;
 
     GT_2trace (curTrace, GT_ENTER, "ProcMgr_open", handlePtr, procId);
 
@@ -872,8 +916,38 @@ ProcMgr_open (ProcMgr_Handle * handlePtr, UInt16 procId)
                                      &(cmdArgs.procInfo.memEntries),
                                      sizeof (handle->memEntries));
                     }
+
+                    /* Setup Loader handle for this instance. */
+                    DLoad4430_getConfig (&loadCfg);
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-                 }
+                    status =
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+                    DLoad4430_setup (&loadCfg);
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+                    if (status < 0) {
+                        status = PROCMGR_E_FAIL;
+                        GT_setFailureReason (curTrace,
+                                    GT_4CLASS,
+                                    "ProcMgr_create",
+                                    status,
+                                    "DLoad4430_setup failed");
+                    }
+                    else {
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+                        handle->loaderHandle = DLoad4430_create (procId,
+                                                                 &loadParams);
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+                        if (handle->loaderHandle == NULL) {
+                            DLoad4430_destroy ();
+                            status = PROCMGR_E_FAIL;
+                            GT_setFailureReason (curTrace,
+                                        GT_4CLASS,
+                                        "ProcMgr_create",
+                                        status,
+                                        "DLoad4430_create failed");
+                        }
+                    }
+                }
             }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
         }
@@ -982,6 +1056,9 @@ ProcMgr_close (ProcMgr_Handle * handlePtr)
                                   "API (through IOCTL) failed on kernel-side!");
             }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+
+            status = DLoad4430_delete (&procMgrHandle->loaderHandle);
+            status = DLoad4430_destroy ();
 
             if (procMgrHandle->created == FALSE) {
                 /* Clear the ProcMgr handle in the local array. */
@@ -1266,10 +1343,7 @@ ProcMgr_load (ProcMgr_Handle handle,
               ProcMgr_ProcId procID)
 {
     Int                 status          = PROCMGR_SUCCESS;
-    ProcMgr_CmdArgsLoad cmdArgs;
-    Int                 prog_argc;
-    Array_List          prog_argv;
-    UInt32              proc_entry_point;
+    ProcMgr_Object    * procMgrHandle   = (ProcMgr_Object *) handle;
 
     GT_5trace (curTrace, GT_ENTER, "ProcMgr_load",
                handle, imagePath, argc, argv, procID);
@@ -1282,9 +1356,6 @@ ProcMgr_load (ProcMgr_Handle handle,
     GT_assert (curTrace,
                (   ((argc == 0) && (argv == NULL))
                 || ((argc != 0) && (argv != NULL))));
-
-    /*FIXME: (KW) Remove field ID if not used. */
-    cmdArgs.fileId = 0;
 
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
     if (handle == NULL) {
@@ -1320,55 +1391,46 @@ ProcMgr_load (ProcMgr_Handle handle,
         *fileId = 0; /* Initialize return parameter. */
 
         if(procID == PROC_TESLA || procID == PROC_MPU){
-            fprintf(stdout, "Invalid Processor ID procID = %d\n", procID);
-            fprintf(stdout, "Loading is only supported for processors "
-                            "PROC_SYSM3 and PRC_APP3\n" );
-            return PROCMGR_E_INVALIDARG;
-        }
-
-        status = ProcMgr_setState(ProcMgr_State_Loading);
-        if(status != PROCMGR_SUCCESS) {
-                fprintf(stdout, "Not Able to set the state 0x%x\n", status);
-                return PROCMGR_E_INVALIDSTATE;
-        }
-
-        proc_entry_point = load_executable(imagePath, prog_argc,
-                                (char**)(prog_argv.buf));
-
-        /*---------------------------------------------------------------*/
-        /* Did we get a valid program handle back from the loader?       */
-        /*---------------------------------------------------------------*/
-        if (!prog_handle)
-        {
-           fprintf(stderr,
-                   "<< D O L T >> FATAL: load_executable failed in "
-                   "script. Terminating.\n");
-           return PROCMGR_E_FAIL;
-        }
-
-        if (proc_entry_point == -1)
-        {
-           fprintf(stderr,
-                   "<< D O L T >> FATAL: load_executable failed in "
-                   "script. Entry Point is not set. Terminating.\n");
-           return PROCMGR_E_FAIL;
-        }
-
-        *entry_point = proc_entry_point;
-
-#if !defined(SYSLINK_BUILD_OPTIMIZE)
-        if (status < 0) {
+            status = PROCMGR_E_INVALIDARG;
             GT_setFailureReason (curTrace,
                                  GT_4CLASS,
                                  "ProcMgr_load",
                                  status,
-                                 "API (through IOCTL) failed on kernel-side!");
+                                 "Invalid procID specified. Loading is only"
+                                 " supported for processors PROC_SYSM3 and "
+                                 "PRC_APP3");
         }
         else {
-#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-            *fileId = cmdArgs.fileId;
-#if !defined(SYSLINK_BUILD_OPTIMIZE)
+            status = ProcMgr_setState(ProcMgr_State_Loading);
+            if(status != PROCMGR_SUCCESS) {
+                status = PROCMGR_E_INVALIDSTATE;
+                GT_setFailureReason (curTrace,
+                                     GT_4CLASS,
+                                     "ProcMgr_load",
+                                     status,
+                                     "Not Able to set the state");
+            }
         }
+
+        if (status >= 0) {
+            status = DLoad4430_load (procMgrHandle->loaderHandle, imagePath,
+                                     argc, (char**)(argv),
+                                     entry_point, fileId);
+
+            /*---------------------------------------------------------------*/
+            /* Did we get a valid program handle back from the loader?       */
+            /*---------------------------------------------------------------*/
+            if (status != DLOAD_SUCCESS || !(*fileId))
+            {
+                status = PROCMGR_E_FAIL;
+                GT_setFailureReason (curTrace,
+                                     GT_4CLASS,
+                                     "ProcMgr_load",
+                                     status,
+                                     "DLoad4430_load failed.");
+            }
+        }
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
     }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
 
@@ -1399,7 +1461,6 @@ ProcMgr_unload (ProcMgr_Handle handle, UInt32 fileId)
 {
     Int                    status           = PROCMGR_SUCCESS;
     ProcMgr_Object *       procMgrHandle    = (ProcMgr_Object *) handle;
-    ProcMgr_CmdArgsUnload  cmdArgs;
 
     GT_2trace (curTrace, GT_ENTER, "ProcMgr_unload", handle, fileId);
 
@@ -1418,16 +1479,15 @@ ProcMgr_unload (ProcMgr_Handle handle, UInt32 fileId)
     }
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-        cmdArgs.handle = procMgrHandle->knlObject;
-        cmdArgs.fileId = fileId;
-        status = ProcMgrDrvUsr_ioctl (CMD_PROCMGR_UNLOAD, &cmdArgs);
+        status = DLoad4430_unload (procMgrHandle->loaderHandle, fileId);
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
         if (status < 0) {
+            status = PROCMGR_E_FAIL;
             GT_setFailureReason (curTrace,
                                  GT_4CLASS,
                                  "ProcMgr_unload",
                                  status,
-                                 "API (through IOCTL) failed on kernel-side!");
+                                 "DLoad4430_unload failed");
         }
     }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
@@ -1526,7 +1586,6 @@ ProcMgr_start (ProcMgr_Handle        handle,
     ProcMgr_CmdArgsStart    cmdArgs;
 #ifdef SYSLINK_USE_SYSMGR
     UInt32                  start;
-    UInt32                  fileId;
 #endif
 
     GT_2trace (curTrace, GT_ENTER, "ProcMgr_start", handle, params);
@@ -1549,9 +1608,10 @@ ProcMgr_start (ProcMgr_Handle        handle,
 #ifdef SYSLINK_USE_SYSMGR
         /* read the symbol from slave binary */
         status = ProcMgr_getSymbolAddress (handle,
-                                           fileId,
-                                           RESETVECTOR_SYMBOL,
-                                           &start);
+                                          ((DLoad4430_Object *)
+                                          (procMgrHandle->loaderHandle))->fileId,
+                                          RESETVECTOR_SYMBOL,
+                                          &start);
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
         if (status < 0) {
             status = ProcMgr_E_FAIL;
@@ -1564,7 +1624,7 @@ ProcMgr_start (ProcMgr_Handle        handle,
         else {
 #endif
             status = Ipc_control (params->proc_id, Ipc_CONTROLCMD_LOADCALLBACK,
-                                  NULL);
+                                  (Ptr)start);
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
             if (status < 0) {
                  GT_setFailureReason (curTrace,
@@ -1758,7 +1818,7 @@ ProcMgr_getState (ProcMgr_Handle handle)
     return state;
 }
 
-Int ProcMgr_setState (ProcMgr_State  state) 
+Int ProcMgr_setState (ProcMgr_State  state)
 {
     return PROCMGR_SUCCESS;
 }
@@ -2208,6 +2268,171 @@ ProcMgr_translateAddr (ProcMgr_Handle   handle,
  *  @sa         ProcMgrDrvUsr_ioctl
  */
 Int
+ProcMgr_getEntryNamesInfo (ProcMgr_Handle handle,
+                           UInt32         fileId,
+                           Int32 *        entryPtCnt,
+                           Int32 *        entryPtMaxNameLen)
+{
+    Int                             status          = PROCMGR_SUCCESS;
+    ProcMgr_Object *                procMgrHandle   = (ProcMgr_Object *) handle;
+
+    GT_4trace (curTrace, GT_ENTER, "ProcMgr_getEntryNamesInfo",
+               handle, fileId, entryPtCnt, entryPtMaxNameLen);
+
+    GT_assert (curTrace, (handle       != NULL));
+    /* fileId may be 0, so no check for fileId. */
+    GT_assert (curTrace, (entryPtCnt   != NULL));
+    GT_assert (curTrace, (entryPtNames != NULL));
+
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+    if (handle == NULL) {
+        /*! @retval  PROCMGR_E_HANDLE Invalid NULL handle specified */
+        status = PROCMGR_E_HANDLE;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "ProcMgr_getEntryNamesInfo",
+                             status,
+                             "Invalid NULL handle specified");
+    }
+    else if (entryPtCnt == NULL) {
+        /*! @retval  PROCMGR_E_INVALIDARG Invalid value NULL provided for
+                     argument symbolName */
+        status = PROCMGR_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                         GT_4CLASS,
+                         "ProcMgr_getEntryNamesInfo",
+                         status,
+                         "Invalid value NULL provided for argument entryPtCnt");
+    }
+    else if (entryPtMaxNameLen == NULL) {
+        /*! @retval  PROCMGR_E_INVALIDARG Invalid value NULL provided for
+                     argument symValue */
+        status = PROCMGR_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                         GT_4CLASS,
+                         "ProcMgr_getEntryNamesInfo",
+                         status,
+                         "Invalid value NULL provided for argument "
+                         "entryPtMaxNameLen");
+    }
+    else {
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+        status = DLoad4430_getEntryNamesInfo (procMgrHandle->loaderHandle,
+                                              fileId, entryPtCnt,
+                                              entryPtMaxNameLen);
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+        if (status < 0) {
+            status = PROCMGR_E_FAIL;
+            GT_setFailureReason (curTrace,
+                                 GT_4CLASS,
+                                 "ProcMgr_getEntryNamesInfo",
+                                 status,
+                                 "DLoad4430_getEntryNamesInfo failed");
+        }
+    }
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+
+    GT_1trace (curTrace, GT_LEAVE, "ProcMgr_getEntryNamesInfo", status);
+
+    /*! @retval PROCMGR_SUCCESS Operation successful */
+    return status;
+}
+
+
+/*!
+ *  @brief      Function to retrieve the target address of a symbol from the
+ *              specified file.
+ *
+ *  @param      handle   Handle to the ProcMgr object
+ *  @param      fileId   ID of the file received from the load function
+ *  @param      symName  Name of the symbol
+ *  @param      symValue Return parameter: Symbol address
+ *
+ *  @sa         ProcMgrDrvUsr_ioctl
+ */
+Int
+ProcMgr_getEntryNames (ProcMgr_Handle handle,
+                       UInt32         fileId,
+                       Int32 *        entryPtCnt,
+                       Char ***       entryPtNames)
+{
+    Int                             status          = PROCMGR_SUCCESS;
+    ProcMgr_Object *                procMgrHandle   = (ProcMgr_Object *) handle;
+
+    GT_4trace (curTrace, GT_ENTER, "ProcMgr_getEntryNames",
+               handle, fileId, entryPtCnt, entryPtNames);
+
+    GT_assert (curTrace, (handle       != NULL));
+    /* fileId may be 0, so no check for fileId. */
+    GT_assert (curTrace, (entryPtCnt   != NULL));
+    GT_assert (curTrace, (entryPtNames != NULL));
+
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+    if (handle == NULL) {
+        /*! @retval  PROCMGR_E_HANDLE Invalid NULL handle specified */
+        status = PROCMGR_E_HANDLE;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "ProcMgr_getEntryNames",
+                             status,
+                             "Invalid NULL handle specified");
+    }
+    else if (entryPtCnt == NULL) {
+        /*! @retval  PROCMGR_E_INVALIDARG Invalid value NULL provided for
+                     argument symbolName */
+        status = PROCMGR_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                         GT_4CLASS,
+                         "ProcMgr_getEntryNames",
+                         status,
+                         "Invalid value NULL provided for argument entryPtCnt");
+    }
+    else if (entryPtNames == NULL) {
+        /*! @retval  PROCMGR_E_INVALIDARG Invalid value NULL provided for
+                     argument symValue */
+        status = PROCMGR_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                         GT_4CLASS,
+                         "ProcMgr_getEntryNames",
+                         status,
+                         "Invalid value NULL provided for argument "
+                         "entryPtNames");
+    }
+    else {
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+        status = DLoad4430_getEntryNames (procMgrHandle->loaderHandle,
+                                          fileId, entryPtCnt, entryPtNames);
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+        if (status < 0) {
+            status = PROCMGR_E_FAIL;
+            GT_setFailureReason (curTrace,
+                                 GT_4CLASS,
+                                 "ProcMgr_getEntryNames",
+                                 status,
+                                 "DLoad4430_getEntryNames failed");
+        }
+    }
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+
+    GT_1trace (curTrace, GT_LEAVE, "ProcMgr_getEntryNames", status);
+
+    /*! @retval PROCMGR_SUCCESS Operation successful */
+    return status;
+}
+
+
+/*!
+ *  @brief      Function to retrieve the target address of a symbol from the
+ *              specified file.
+ *
+ *  @param      handle   Handle to the ProcMgr object
+ *  @param      fileId   ID of the file received from the load function
+ *  @param      symName  Name of the symbol
+ *  @param      symValue Return parameter: Symbol address
+ *
+ *  @sa         ProcMgrDrvUsr_ioctl
+ */
+Int
 ProcMgr_getSymbolAddress (ProcMgr_Handle handle,
                           UInt32         fileId,
                           String         symbolName,
@@ -2215,7 +2440,6 @@ ProcMgr_getSymbolAddress (ProcMgr_Handle handle,
 {
     Int                             status          = PROCMGR_SUCCESS;
     ProcMgr_Object *                procMgrHandle   = (ProcMgr_Object *) handle;
-    ProcMgr_CmdArgsGetSymbolAddress cmdArgs;
 
     GT_4trace (curTrace, GT_ENTER, "ProcMgr_getSymbolAddress",
                handle, fileId, symbolName, symValue);
@@ -2257,29 +2481,22 @@ ProcMgr_getSymbolAddress (ProcMgr_Handle handle,
     }
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-        cmdArgs.handle = procMgrHandle->knlObject;
-        cmdArgs.fileId = fileId;
-        cmdArgs.symbolName = symbolName;
-        cmdArgs.symValue = 0u; /* Return parameter. */
-        status = ProcMgrDrvUsr_ioctl (CMD_PROCMGR_GETSYMBOLADDRESS, &cmdArgs);
+        status = DLoad4430_getSymbolAddress (procMgrHandle->loaderHandle,
+                                             fileId, symbolName, symValue);
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
         if (status < 0) {
+            status = PROCMGR_E_FAIL;
             GT_setFailureReason (curTrace,
                                  GT_4CLASS,
                                  "ProcMgr_getSymbolAddress",
                                  status,
-                                 "API (through IOCTL) failed on kernel-side!");
-        }
-        else {
-#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-            /* Return symbol address. */
-            *symValue = cmdArgs.symValue;
-#if !defined(SYSLINK_BUILD_OPTIMIZE)
+                                 "DLoad4430_getSymbolAddress failed");
         }
     }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
 
-    GT_1trace (curTrace, GT_LEAVE, "ProcMgr_getSymbolAddress", status);
+    GT_2trace (curTrace, GT_LEAVE, "ProcMgr_getSymbolAddress", status,
+                *symValue);
 
     /*! @retval PROCMGR_SUCCESS Operation successful */
     return status;
