@@ -14,12 +14,13 @@ SysMgrDrv.c \
 ../procmgr/elfload/arm_dynamic.c \
 ../procmgr/elfload/arm_reloc.c \
 ../procmgr/elfload/ArrayList.c \
+../procmgr/elfload/dload4430.c \
 ../procmgr/elfload/dload.c \
 ../procmgr/elfload/dload_endian.c \
-../procmgr/elfload/dolt_client.c \
-../procmgr/elfload/dolt_debug.c \
-../procmgr/elfload/dolt_dsbt.c \
-../procmgr/elfload/dolt_trgmem.c \
+../procmgr/elfload/dlw_client.c \
+../procmgr/elfload/dlw_debug.c \
+../procmgr/elfload/dlw_dsbt.c \
+../procmgr/elfload/dlw_trgmem.c \
 ../procmgr/elfload/elf32.c \
 ../procmgr/elfload/symtab.c
 
