@@ -360,8 +360,10 @@ ProcMMU_init (UInt32 aPhyAddr)
 Int
 ProcMMU_close (Void)
 {
-    Int status      = ProcMMU_S_SUCCESS;
-    int osStatus    = 0;
+    Int                 status      = ProcMMU_S_SUCCESS;
+    int                 osStatus    = 0;
+    Memory_MapInfo      mmuRstInfo;
+    Memory_UnmapInfo    mmuRstUnmapInfo;
 
     GT_0trace (curTrace, GT_ENTER, "ProcMMU_close");
 
@@ -383,6 +385,40 @@ ProcMMU_close (Void)
         }
     }
 
+    /* Get the user virtual address of the PRM base */
+    mmuRstInfo.src  = PROC_CORE_PRM_BASE;
+    mmuRstInfo.size = 0x1000;
+
+    status = Memory_map (&mmuRstInfo);
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+    if (status < 0) {
+        status = ProcMMU_E_OSFAILURE;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "ProcMMU_open",
+                             status,
+                             "Memory_map of PRM registers failed!");
+    }
+    else {
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+
+        Osal_printf ("Assert RST1 and RST2 and RST3\n");
+        *(UInt32 *)(mmuRstInfo.dst + RM_MPU_M3_RSTCTRL_OFFSET) = 0x7;
+
+        mmuRstUnmapInfo.addr  = mmuRstInfo.dst;
+        mmuRstUnmapInfo.size = 0x1000;
+        status = Memory_unmap (&mmuRstUnmapInfo);
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+        if (status < 0) {
+            GT_setFailureReason (curTrace,
+                                 GT_4CLASS,
+                                 "ProcMMU_open",
+                                 status,
+                                 "Memory_unmap of PRM registers failed!");
+        }
+    }
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+
     GT_1trace (curTrace, GT_LEAVE, "ProcMMU_close", status);
 
     return status;
@@ -397,11 +433,11 @@ ProcMMU_close (Void)
 Int
 ProcMMU_open (Void)
 {
-    Int32 status = 0;
-    Int32 status      = ProcMMU_S_SUCCESS;
-    Int32 osStatus    = 0;
-    Memory_MapInfo  mmuRstInfo;
-    UInt32          reg;
+    Int32               status          = ProcMMU_S_SUCCESS;
+    Int32               osStatus        = 0;
+    Memory_MapInfo      mmuRstInfo;
+    Memory_UnmapInfo    mmuRstUnmapInfo;
+    UInt32              reg;
 
     GT_0trace (curTrace, GT_ENTER, "ProcMMU_open");
 
@@ -414,7 +450,6 @@ ProcMMU_open (Void)
     status = Memory_map (&mmuRstInfo);
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
     if (status < 0) {
-        Osal_printf ("ProcMMU_open  Memory_map failed 0x%x", status);
         status = ProcMMU_E_OSFAILURE;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
@@ -431,7 +466,10 @@ ProcMMU_open (Void)
                     "0x%x\n", reg, (mmuRstInfo.dst + RM_MPU_M3_RSTCTRL_OFFSET));
         if (reg != 7) {
             Osal_printf ("ProcMMU_open: Resets in not proper state!\n");
+            Osal_printf ("ProcMMU_open: Asserting RST1, RST2, and RST3...\n");
             *(UInt32*)(mmuRstInfo.dst + RM_MPU_M3_RSTCTRL_OFFSET) = 0x7;
+            /* Wait for resets to be in proper state. */
+            while (*(UInt32 *)(mmuRstInfo.dst + RM_MPU_M3_RSTCTRL_OFFSET) != 7);
         }
 
        /* De-assert RST3, and clear the Reset status */
@@ -439,6 +477,7 @@ ProcMMU_open (Void)
         *(UInt32 *)(mmuRstInfo.dst + RM_MPU_M3_RSTCTRL_OFFSET) = 0x3;
         while (!(*(UInt32 *)(mmuRstInfo.dst + RM_MPU_M3_RSTST_OFFSET) & 0x4));
         Osal_printf ("RST3 released!");
+        *(UInt32 *)(mmuRstInfo.dst + RM_MPU_M3_RSTST_OFFSET) = 0x4;
 
         if (ProcMMU_refCount == 0) {
             Osal_printf ("%s %d\n", __func__, __LINE__);
@@ -472,7 +511,9 @@ ProcMMU_open (Void)
             ProcMMU_refCount++;
         }
 
-        status = Memory_unmap(&mmuRstInfo);
+        mmuRstUnmapInfo.addr  = mmuRstInfo.dst;
+        mmuRstUnmapInfo.size = 0x1000;
+        status = Memory_unmap (&mmuRstUnmapInfo);
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
         if (status < 0) {
             GT_setFailureReason (curTrace,

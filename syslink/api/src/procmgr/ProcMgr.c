@@ -1735,13 +1735,6 @@ ProcMgr_stop (ProcMgr_Handle handle, ProcMgr_StopParams * params)
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
 
-        if (params->proc_id == MultiProc_getId("SysM3")) {
-            status = ProcMMU_close();
-            if (status < 0) {
-                Osal_printf ("Error in ProcMMU_close [0x%x]\n", status);
-            }
-        }
-
 #ifdef SYSLINK_USE_SYSMGR
         status = Ipc_control (params->proc_id, Ipc_CONTROLCMD_STOPCALLBACK,
                               NULL);
@@ -1770,6 +1763,18 @@ ProcMgr_stop (ProcMgr_Handle handle, ProcMgr_StopParams * params)
                                      status,
                                      "API (through IOCTL) failed on kernel-side!");
             }
+            else {
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+                if (params->proc_id == MultiProc_getId ("SysM3")) {
+                     status = ProcMMU_close ();
+                     if (status < 0) {
+                            Osal_printf ("Error in ProcMMU_close [0x%x]\n",
+                                         status);
+                     }
+                }
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+            }
+
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
 #ifdef SYSLINK_USE_SYSMGR
          }
