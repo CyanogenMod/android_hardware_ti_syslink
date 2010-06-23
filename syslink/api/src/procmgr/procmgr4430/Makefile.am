@@ -48,4 +48,4 @@ libomap4430proc_la_CFLAGS = \
 
 libomap4430proc_la_LIBTOOLFLAGS = --tag=disable-static
 libomap4430proc_la_LDFLAGS = -version-info 0:0:0
-libomap4430proc_la_LIBDADD = ../../../../api/src/utils/libutils.la
+libomap4430proc_la_LIBDADD = ../../../../api/src/utils/libipcutils.la

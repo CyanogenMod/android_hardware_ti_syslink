@@ -73,18 +73,3 @@ libprocmgr_la_LDFLAGS = -version-info 0:0:0
 libprocmgr_la_LIBADD = \
 ../utils/libipcutils.la \
 ../sysmgr/libsysmgr.la
-
-
-lib_LTLIBRARIES  += libprocmgr_nonsysmgr.la
-
-libprocmgr_nonsysmgr_la_SOURCES     = $(SRC_FILES)
-
-# Search path for include files
-
-libprocmgr_nonsysmgr_la_CPPFLAGS    = \
-        -I$(PROJROOT)/api/include -DARM_TARGET $(AM_CFLAGS)
-
-libprocmgr_nonsysmgr_la_LIBTOOLFLAGS = --tag=disable-static
-libprocmgr_nonsysmgr_la_LDFLAGS = -version-info 0:0:0
-libprocmgr_nonsysmgr_la_LIBADD = \
-../utils/libipcutils.la
