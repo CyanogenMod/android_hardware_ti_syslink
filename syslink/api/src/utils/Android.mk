@@ -9,6 +9,7 @@ LOCAL_SRC_FILES := \
 	List.c \
 	Memory.c \
 	Trace.c \
+	TraceDrv.c \
 	Gate.c \
 	String.c \
 	MemoryOS.c \
@@ -24,7 +25,7 @@ LOCAL_SRC_FILES := \
 LOCAL_C_INCLUDES += \
 	$(LOCAL_PATH)/../../include \
 	$(LOCAL_PATH)/../../../ \
-
+	$(LOCAL_PATH)/../../include/ti/ipc
 
 LOCAL_CFLAGS += -pipe -fomit-frame-pointer -Wall  -Wno-trigraphs -Werror-implicit-function-declaration  -fno-strict-aliasing -mapcs -mno-sched-prolog -mabi=aapcs-linux -mno-thumb-interwork -msoft-float -Uarm -DMODULE -D__LINUX_ARM_ARCH__=7  -fno-common -DLINUX -fpic
 

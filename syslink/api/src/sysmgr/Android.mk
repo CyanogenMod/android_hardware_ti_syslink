@@ -6,8 +6,8 @@ LOCAL_PRELINK_MODULE := false
 LOCAL_ARM_MODE := arm
 
 LOCAL_SRC_FILES := \
-SysMgr.c \
-SysMgrDrv.c \
+Ipc.c \
+IpcDrv.c \
 ../procmgr/ProcMgr.c \
 ../procmgr/ProcMgrDrvUsr.c \
 ../procmgr/SysLinkMemUtils.c \
@@ -26,8 +26,7 @@ SysMgrDrv.c \
 
 LOCAL_C_INCLUDES += \
 	$(LOCAL_PATH)/../../include \
-	$(LOCAL_PATH)/../../../samples/inc
-
+	$(LOCAL_PATH)/../../include/ti/ipc
 
 
 LOCAL_SHARED_LIBRARIES += \
