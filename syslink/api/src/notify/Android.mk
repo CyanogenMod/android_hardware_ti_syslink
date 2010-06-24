@@ -17,6 +17,7 @@ LOCAL_CFLAGS += -pipe -fomit-frame-pointer -Wall  -Wno-trigraphs -Werror-implici
 
 LOCAL_MODULE    := libnotify
 LOCAL_SHARED_LIBRARIES += \
-		libipcutils
+		libipcutils \
+		libipc
 
 include $(BUILD_SHARED_LIBRARY)
