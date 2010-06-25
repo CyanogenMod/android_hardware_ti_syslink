@@ -34,9 +34,6 @@
 
 library_include_HEADERS = \
 arm_dynamic.h \
-ti/ipc/HeapBufMP.h \
-ti/ipc/HeapMemMP.h \
-ti/ipc/HeapMultiBufMP.h \
 MultiProcDrv.h \
 ProcMgrDrvUsr.h \
 dload4430.h \
@@ -44,7 +41,6 @@ arm_elf32.h \
 IHeap.h \
 Heap.h \
 _MultiProc.h \
-ti/ipc/MultiProc.h \
 ProcMgr.h \
 ArrayList.h    \
 host_os.h \
@@ -57,7 +53,6 @@ Queue.h \
 bin_loader.h  \
 ipcdefs.h \
 _NameServer.h \
-ti/ipc/NameServer.h \
 RcmClient.h \
 _bitops.h \
 _Ipc.h  \
@@ -78,7 +73,6 @@ SharedRegionDrv.h \
 dload_api.h  \
 _NotifyDefs.h \
 _SharedRegion.h \
-ti/ipc/SharedRegion.h \
 dload_endian.h  \
 notify_driverdefs.h  \
 shmdefs.h \
@@ -96,7 +90,6 @@ dlw_trgmem.h \
 _ListMP.h \
 Std.h \
 dpc.h \
-ti/ipc/ListMP.h \
 ListMPDrvDefs.h \
 ListMPDrv.h \
 std_linux.h \
@@ -112,7 +105,6 @@ sync.h \
 load.h \
 _Notify.h \
 SysLinkMemUtils.h \
-ti/ipc/Notify.h \
 _notify_shmDriver.h \
 GateMutex.h \
 notify_shmDriver.h \
@@ -127,12 +119,10 @@ IpcDrv.h \
 IGateProvider.h \
 IObject.h \
 _GateMP.h \
-ti/ipc/GateMP.h \
 Memory.h \
 OsalDrv.h \
 IpcUsr.h \
 IpcCmdBase.h \
-ti/ipc/Ipc.h \
 MemoryOS.h \
 osal.h \
 test_arm_reloc.h \
@@ -173,4 +163,3 @@ TraceDrvDefs.h \
 ProcMMU.h
 
 library_includedir=$(includedir)/syslink
-

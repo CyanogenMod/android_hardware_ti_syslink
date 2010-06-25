@@ -118,6 +118,7 @@ AC_CONFIG_FILES([syslink.pc
 		Makefile
 		api/Makefile
 		api/include/Makefile
+		api/include/ti/ipc/Makefile
 		api/make/Makefile
 		api/src/Makefile
 		api/src/ipc/Makefile

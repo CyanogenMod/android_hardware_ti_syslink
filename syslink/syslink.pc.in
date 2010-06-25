@@ -8,6 +8,6 @@ Description: syslink
 Version: @VERSION@
 Requires:
 Libs: -L${libdir} -lsysmgr -ipc -lrcm -lsyslinknotify -lprocmgr
-Cflags: -I${includedir}/syslink
+Cflags: -I${includedir}/syslink -I${includedir}/syslink/ti/ipc
 
 

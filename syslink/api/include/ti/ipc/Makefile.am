@@ -32,4 +32,17 @@
 #   EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-SUBDIRS = src include/ti/ipc include make
+library_include_HEADERS = \
+GateMP.h \
+HeapBufMP.h \
+HeapMemMP.h \
+HeapMultiBufMP.h \
+Ipc.h \
+ListMP.h \
+MessageQ.h \
+MultiProc.h \
+NameServer.h \
+SharedRegion.h \
+Notify.h
+
+library_includedir=$(includedir)/syslink/ti/ipc
