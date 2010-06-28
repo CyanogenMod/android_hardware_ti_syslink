@@ -70,6 +70,7 @@
 #include "dlw_debug.h"
 #include "dlw_dsbt.h"
 #include "dlw_trgmem.h"
+#include "ProcMgr.h"
 
 /*---------------------------------------------------------------------------*/
 /* Global flag to control debug output.                                      */
@@ -221,6 +222,10 @@ void DLIF_free(void* ptr)
 #define PHYS_MEM_IPC_HEAP1_ADDR         PHYS_MEM_IPC_HEAP0_ADDR + DUCATI_MEM_IPC_HEAP0_LEN
 #define DUCATI_MEM_IPC_HEAP1_LEN        0xAC000
 
+#define TESLA_EXT_RAM                   0x20000000
+#define PHYS_TESLA_EXT_ADDR             0x9A000000
+#define TESLA_EXT_LEN                   0x2000000
+
 struct mem_entry {
     unsigned long ducati_virt_addr;
     unsigned long mpu_phys_addr;
@@ -242,70 +247,8 @@ static struct  mem_entry memory_regions[] = {
     {DUCATI_MEM_TRACEBUF_ADDR, PHYS_MEM_TRACEBUF_ADDR, DUCATI_MEM_TRACEBUF_LEN,0,0},
     {DUCATI_MEM_IPC_HEAP0_ADDR, PHYS_MEM_IPC_HEAP0_ADDR, DUCATI_MEM_IPC_HEAP0_LEN,0,0},
     {DUCATI_MEM_IPC_HEAP1_ADDR, PHYS_MEM_IPC_HEAP1_ADDR, DUCATI_MEM_IPC_HEAP1_LEN,0,0},
+    {TESLA_EXT_RAM, PHYS_TESLA_EXT_ADDR, TESLA_EXT_LEN,0,0},
 };
-
-/*****************************************************************************/
-/* DLIF_MAPTABLE() - Map the target memory regions to host-accessible memory.*/
-/*****************************************************************************/
-void DLIF_mapTable(void * client_handle)
-{
-    int num_mem_entries;
-    int k;
-    Memory_MapInfo mapinfo;
-    int status;
-    num_mem_entries = sizeof(memory_regions) / sizeof(struct mem_entry);
-
-    UsrUtilsDrv_setup();
-    for (k = 0; k < num_mem_entries; k++){
-        mapinfo.src = memory_regions[k].mpu_phys_addr;
-        mapinfo.size =  memory_regions[k].size;
-        status = Memory_map(&mapinfo);
-        if (status < 0) {
-            DLIF_error(DLET_MEMORY,
-                       "Memory_map failed for Physical Address 0x%x Exiting\n",
-                       (UInt32)memory_regions[k].mpu_phys_addr);
-            return;
-        } else {
-            memory_regions[k].mpu_virt_addr  = mapinfo.dst;
-        }
-#if LOADER_DEBUG
-        if (debugging_on) {
-            DLIF_trace("=============================================\n");
-            DLIF_trace("memory_regions[%d].mpu_virt_addr is 0x%x\n",k,
-                       (unsigned int)memory_regions[k].mpu_virt_addr);
-            DLIF_trace("memory_regions[%d].ducati_virt_addr is 0x%x\n",k,
-                       (unsigned int)memory_regions[k].ducati_virt_addr);
-            DLIF_trace("memory_regions[%d].mpu_phys_addr is 0x%x\n",k,
-                       (unsigned int)memory_regions[k].mpu_phys_addr);
-            DLIF_trace("memory_regions[%d].size is 0x%x\n",k,
-                       (unsigned int)memory_regions[k].size);
-        }
-#endif
-        if( memory_regions[k].mpu_virt_addr == (unsigned long)(-1)) {
-            DLIF_error(DLET_MEMORY,
-                       "Failed to do memory mapping for section [%d]\n",k);
-            return;
-        }
-    }
-}
-
-/*****************************************************************************/
-/* DLIF_UNMAPTABLE() - Un-map the target memory regions.                     */
-/*****************************************************************************/
-void DLIF_unMapTable(void * client_handle)
-{
-    int j;
-    int num_mem_entries;
-    num_mem_entries = sizeof(memory_regions) / sizeof(struct mem_entry);
-
-    /* Unmap the mapped section */
-    for (j = 0; j < num_mem_entries; j++){
-        if(memory_regions[j].mpu_virt_addr)
-            munmap((void *)memory_regions[j].mpu_virt_addr,
-                   memory_regions[j].size);
-        memory_regions[j].mpu_virt_addr = 0;
-    }
-}
 
 /* Helper function used by DLIF module. */
 unsigned long translate_addr(void * client_handle, unsigned long target_addr)
@@ -328,7 +271,7 @@ unsigned long translate_addr(void * client_handle, unsigned long target_addr)
         return 0;
     else {
         seg_offset = target_addr - memory_regions[i].ducati_virt_addr;
-        return (memory_regions[i].mpu_virt_addr + seg_offset);
+        return (memory_regions[i].mpu_phys_addr + seg_offset);
     }
 }
 
@@ -362,7 +305,6 @@ BOOL DLIF_allocate(void * client_handle, struct DLOAD_MEMORY_REQUEST *targ_req)
     /* Get pointers to API segment and file descriptors.                     */
     /*-----------------------------------------------------------------------*/
     struct DLOAD_MEMORY_SEGMENT* obj_desc = targ_req->segment;
-    LOADER_FILE_DESC* f = targ_req->fp;
     DLoad4430_Object *clientObj = (DLoad4430_Object *)client_handle;
 
     obj_desc->flags = targ_req->flags;
@@ -378,21 +320,6 @@ BOOL DLIF_allocate(void * client_handle, struct DLOAD_MEMORY_REQUEST *targ_req)
          * released when the file is unloaded.
          */
         obj_desc->flags &= ~DLOAD_SF_relocatable;
-
-    //if (!(targ_req->flags & DLOAD_SF_relocatable)) {
-        targ_req->host_address = (void *)translate_addr(client_handle,
-                                     (unsigned long)(obj_desc->target_address));
-        if (targ_req->host_address == NULL) {
-            DLIF_error(DLET_MEMORY, "The target address 0x%x is out of range\n",
-                       (obj_desc->target_address));
-            return FALSE;
-        }
-
-        memset(targ_req->host_address, 0, obj_desc->memsz_in_bytes);
-
-        fseek(f,targ_req->offset,SEEK_SET);
-
-        fread(targ_req->host_address,obj_desc->objsz_in_bytes,1,f);
     }
     else {
         if (!DLTMM_init(client_handle, (uint32_t)clientObj->dynLoadMem,
@@ -411,54 +338,6 @@ BOOL DLIF_allocate(void * client_handle, struct DLOAD_MEMORY_REQUEST *targ_req)
                        "Failed to allocate target memory for segment.\n");
             return FALSE;
         }
-
-        targ_req->host_address = (void *)translate_addr(client_handle,
-                                     (unsigned long)(obj_desc->target_address));
-        if (targ_req->host_address == NULL) {
-            DLIF_error(DLET_MEMORY, "The target address is out of range\n");
-            return FALSE;
-        }
-
-        /*-------------------------------------------------------------------*/
-        /* As required by API, copy the described segment into memory from   */
-        /* file.  We're the client, not the loader, so we can use fseek() and*/
-        /* fread().                                                          */
-        /*-------------------------------------------------------------------*/
-        /* ??? I don't think we want to do this if we are allocating target  */
-        /*   memory for the run only placement of this segment.  If it is the*/
-        /*   load placement or both load and run placement, then we can do   */
-        /*   the copy.                                                       */
-        /*-------------------------------------------------------------------*/
-        memset(targ_req->host_address, 0, obj_desc->memsz_in_bytes);
-        fseek(f,targ_req->offset,SEEK_SET);
-        fread(targ_req->host_address,obj_desc->objsz_in_bytes,1,f);
-
-        /*-------------------------------------------------------------------*/
-        /* Once we have target address for this allocation, add debug        */
-        /* information about this segment to the debug record for the module */
-        /* that is currently being loaded.                                   */
-        /*-------------------------------------------------------------------*/
-        if (clientObj->DLL_debug)
-        {
-            /*---------------------------------------------------------------*/
-            /* Add information about this segment's location to the segment  */
-            /* debug information associated with the module that is          */
-            /* currently being loaded.                                       */
-            /*---------------------------------------------------------------*/
-            /* ??? We need a way to determine whether the target address in  */
-            /*     the segment applies to the load address of the segment or */
-            /*     the run address.  For the time being, we assume that it   */
-            /*     applies to both (that is, the dynamic loader does not     */
-            /*     support separate load and run placement for a given       */
-            /*     segment).                                                 */
-            /*---------------------------------------------------------------*/
-            DLDBG_add_segment_record(client_handle, obj_desc);
-        }
-
-#if LOADER_DEBUG
-        if (debugging_on)
-            DLIF_trace("DLIF_allocate: buffer 0x%x\n", targ_req->host_address);
-#endif
     }
 
     /*-----------------------------------------------------------------------*/
@@ -473,7 +352,10 @@ BOOL DLIF_allocate(void * client_handle, struct DLOAD_MEMORY_REQUEST *targ_req)
 /*****************************************************************************/
 BOOL DLIF_release(void* client_handle, struct DLOAD_MEMORY_SEGMENT* ptr)
 {
-    void *hostAddr;
+    void *physAddr;
+    Memory_MapInfo mapinfo;
+    int status;
+
 
 #if LOADER_DEBUG
     if (debugging_on)
@@ -486,9 +368,28 @@ BOOL DLIF_release(void* client_handle, struct DLOAD_MEMORY_SEGMENT* ptr)
     /* as available (will also merge with adjacent free packets).            */
     /*-----------------------------------------------------------------------*/
     if (!(ptr->flags & DLOAD_SF_relocatable)) {
-        hostAddr = (void *)translate_addr(client_handle,
+        physAddr = (void *)translate_addr(client_handle,
                                           (unsigned long)(ptr->target_address));
-        memset(hostAddr, 0, ptr->memsz_in_bytes);
+
+        if (physAddr == NULL) {
+            DLIF_error(DLET_MEMORY, "The target address is out of range\n");
+            return FALSE;
+        }
+
+        UsrUtilsDrv_setup();
+
+        mapinfo.src = (unsigned long)physAddr;
+        mapinfo.size =  ptr->memsz_in_bytes;
+        status = Memory_map(&mapinfo);
+        if (status < 0) {
+            DLIF_error(DLET_MEMORY,
+                       "Memory_map failed for Physical Address 0x%x Exiting\n",
+                       (UInt32)mapinfo.src);
+            return FALSE;
+        } else {
+            memset((void *)mapinfo.src, 0, ptr->memsz_in_bytes);
+            munmap((void *)mapinfo.src, ptr->memsz_in_bytes);
+        }
     }
     else {
         DLTMM_free(client_handle, ptr->target_address);
@@ -504,9 +405,95 @@ BOOL DLIF_release(void* client_handle, struct DLOAD_MEMORY_SEGMENT* ptr)
 /*****************************************************************************/
 BOOL DLIF_copy(void* client_handle, struct DLOAD_MEMORY_REQUEST* targ_req)
 {
-    targ_req->host_address = (void*)translate_addr(client_handle,
-                              (unsigned long)targ_req->segment->target_address);
-    return 1;
+    struct DLOAD_MEMORY_SEGMENT* obj_desc = targ_req->segment;
+    LOADER_FILE_DESC* f = targ_req->fp;
+    DLoad4430_Object *clientObj = (DLoad4430_Object *)client_handle;
+    void *dstAddr = NULL;
+    Memory_MapInfo mapinfo;
+    int status;
+
+    dstAddr = (void *)translate_addr(client_handle,
+                                     (unsigned long)(obj_desc->target_address));
+
+    if (dstAddr == NULL) {
+        DLIF_error(DLET_MEMORY, "The target address is out of range\n");
+        return FALSE;
+    }
+
+    UsrUtilsDrv_setup();
+
+    mapinfo.src = (unsigned long)dstAddr;
+    mapinfo.size =  targ_req->segment->memsz_in_bytes;
+    status = Memory_map(&mapinfo);
+    if (status < 0) {
+        DLIF_error(DLET_MEMORY,
+                   "Memory_map failed for Physical Address 0x%x Exiting\n",
+                   (UInt32)mapinfo.src);
+        return FALSE;
+    } else {
+        targ_req->host_address  = (void *)mapinfo.dst;
+    }
+#if LOADER_DEBUG
+    if (debugging_on) {
+        DLIF_trace("=============================================\n");
+        DLIF_trace("mapinfo.mpu_virt_addr is 0x%x\n",
+                   (unsigned int)mapinfo.dst);
+        DLIF_trace("mapinfo.ducati_virt_addr is 0x%x\n",
+                   (unsigned int)obj_desc->target_address);
+        DLIF_trace("mapinfo.mpu_phys_addr is 0x%x\n",
+                   (unsigned int)mapinfo.src);
+        DLIF_trace("mapinfo.size is 0x%x\n",
+                   (unsigned int)mapinfo.size);
+    }
+#endif
+    if((unsigned long)targ_req->host_address == (unsigned long)(-1)) {
+        DLIF_error(DLET_MEMORY,
+                   "Failed to do memory mapping for address [0x%x]\n",targ_req->host_address);
+        return FALSE;
+    }
+
+    /*-------------------------------------------------------------------*/
+    /* As required by API, copy the described segment into memory from   */
+    /* file.  We're the client, not the loader, so we can use fseek() and*/
+    /* fread().                                                          */
+    /*-------------------------------------------------------------------*/
+    /* ??? I don't think we want to do this if we are allocating target  */
+    /*   memory for the run only placement of this segment.  If it is the*/
+    /*   load placement or both load and run placement, then we can do   */
+    /*   the copy.                                                       */
+    /*-------------------------------------------------------------------*/
+    memset(targ_req->host_address, 0, obj_desc->memsz_in_bytes);
+    fseek(f,targ_req->offset,SEEK_SET);
+    fread(targ_req->host_address,obj_desc->objsz_in_bytes,1,f);
+
+    /*-------------------------------------------------------------------*/
+    /* Once we have target address for this allocation, add debug        */
+    /* information about this segment to the debug record for the module */
+    /* that is currently being loaded.                                   */
+    /*-------------------------------------------------------------------*/
+    if (clientObj->DLL_debug)
+    {
+        /*---------------------------------------------------------------*/
+        /* Add information about this segment's location to the segment  */
+        /* debug information associated with the module that is          */
+        /* currently being loaded.                                       */
+        /*---------------------------------------------------------------*/
+        /* ??? We need a way to determine whether the target address in  */
+        /*     the segment applies to the load address of the segment or */
+        /*     the run address.  For the time being, we assume that it   */
+        /*     applies to both (that is, the dynamic loader does not     */
+        /*     support separate load and run placement for a given       */
+        /*     segment).                                                 */
+        /*---------------------------------------------------------------*/
+        DLDBG_add_segment_record(client_handle, obj_desc);
+    }
+
+#if LOADER_DEBUG
+    if (debugging_on)
+        DLIF_trace("DLIF_allocate: buffer 0x%x\n", targ_req->host_address);
+#endif
+
+    return TRUE;
 }
 
 /*****************************************************************************/
@@ -517,9 +504,9 @@ BOOL DLIF_read(void* client_handle, void *ptr, size_t size, size_t nmemb,
                TARGET_ADDRESS src)
 {
     if (!memcpy(ptr, (const void *)src, size * nmemb))
-        return 0;
+        return FALSE;
 
-    return 1;
+    return TRUE;
 }
 
 /*****************************************************************************/
@@ -531,7 +518,9 @@ BOOL DLIF_write(void* client_handle, struct DLOAD_MEMORY_REQUEST* req)
     /*-----------------------------------------------------------------------*/
     /* Nothing to do since we are relocating directly into target memory.    */
     /*-----------------------------------------------------------------------*/
-    return 1;
+    munmap((void *)req->host_address, req->segment->memsz_in_bytes);
+
+    return TRUE;
 }
 
 /*****************************************************************************/

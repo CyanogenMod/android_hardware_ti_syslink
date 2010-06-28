@@ -34,11 +34,13 @@
 
 library_include_HEADERS = \
 arm_dynamic.h \
+c60_dynamic.h \
 MultiProcDrv.h \
 ProcMgrDrvUsr.h \
 dload4430.h \
 arm_elf32.h \
 IHeap.h \
+c60_elf32.h \
 Heap.h \
 _MultiProc.h \
 ProcMgr.h \
@@ -126,6 +128,7 @@ IpcCmdBase.h \
 MemoryOS.h \
 osal.h \
 test_arm_reloc.h \
+test_c60_reloc.h \
 gen_utils.h \
 mem_os.h \
 OsalMutex.h \

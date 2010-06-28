@@ -49,7 +49,9 @@ ProcMgrDrvUsr.c \
 ProcMMU.c \
 SysLinkMemUtils.c \
 elfload/arm_dynamic.c \
+elfload/c60_dynamic.c \
 elfload/arm_reloc.c \
+elfload/c60_reloc.c \
 elfload/ArrayList.c \
 elfload/dload4430.c \
 elfload/dload.c \
@@ -66,7 +68,7 @@ libprocmgr_la_SOURCES     = $(SRC_FILES)
 # Search path for include files
 
 libprocmgr_la_CPPFLAGS    = \
-	-I$(PROJROOT)/api/include -DARM_TARGET -DSYSLINK_USE_SYSMGR $(AM_CFLAGS)
+	-I$(PROJROOT)/api/include -DARM_TARGET -DC60_TARGET -DSYSLINK_USE_SYSMGR $(AM_CFLAGS)
 
 libprocmgr_la_LIBTOOLFLAGS = --tag=disable-static
 libprocmgr_la_LDFLAGS = -version-info 0:0:0

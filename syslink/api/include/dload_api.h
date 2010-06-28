@@ -332,6 +332,7 @@ struct DLOAD_MEMORY_REQUEST
    uint32_t                     align;        /* align of trg memory block   */
 };
 
+#if 0
 /*---------------------------------------------------------------------------*/
 /* DLIF_mapTable()                                                           */
 /*                                                                           */
@@ -348,6 +349,7 @@ void     DLIF_mapTable(void* client_handle);
 /*                                                                           */
 /*---------------------------------------------------------------------------*/
 void     DLIF_unMapTable(void* client_handle);
+#endif
 
 /*---------------------------------------------------------------------------*/
 /* DLIF_initMem()                                                            */

@@ -58,10 +58,6 @@
 #include "relocate.h"
 #include "dload_api.h"
 
-#ifndef ARM_TARGET
-#define ARM_TARGET
-#endif
-
 #ifdef ARM_TARGET
 #include "arm_dynamic.h"
 #endif
@@ -69,11 +65,6 @@
 #ifdef C60_TARGET
 #include "c60_dynamic.h"
 #endif
-
-/*---------------------------------------------------------------------------*/
-/* Identify target supported by this implementation of the core loader.      */
-/*---------------------------------------------------------------------------*/
-int DLOAD_TARGET_MACHINE = DLOAD_DEFAULT_TARGET_MACHINE;
 
 /*---------------------------------------------------------------------------*/
 /* Contains objects (type DLIMP_Loaded_Module) that the system has loaded    */
@@ -96,6 +87,11 @@ Bool debugging_on = 1;
 Bool profiling_on = 0;
 #endif
 
+#if LOADER_DEBUG || LOADER_PROFILE
+int DLREL_relocations;
+time_t DLREL_total_reloc_time;
+#endif
+
 
 /*---------------------------------------------------------------------------*/
 /* Dependency Graph Queue - FIFO queue of dynamic modules that are loaded    */
@@ -108,7 +104,7 @@ TYPE_STACK_IMPLEMENTATION(DLIMP_Dynamic_Module*, dynamic_module_ptr)
 /*---------------------------------------------------------------------------*/
 /* Support for profiling performance of dynamic loader core.                 */
 /*---------------------------------------------------------------------------*/
-#if LOADER_PROFILE
+#if LOADER_PROFILE || LOADER_DEBUG
 static clock_t cycle0 = 0;
 static clock_t cycle_end = 0;
 #define profile_start_clock() (cycle0 = clock())
@@ -148,6 +144,8 @@ DLOAD_HANDLE  DLOAD_create(void * client_handle)
         dynamic_module_ptr_initialize_stack(&pLoaderObject->DLIMP_dependency_stack);
 
         pLoaderObject->file_handle = 1;
+
+        pLoaderObject->DLOAD_TARGET_MACHINE = DLOAD_DEFAULT_TARGET_MACHINE;
 
         /* Store client token, so it can be handed back during DLIF calls */
         pLoaderObject->client_handle = client_handle;
@@ -1143,12 +1141,14 @@ static BOOL file_header_magic_number_is_valid(struct Elf32_Ehdr* header)
 /*    the machine will be initially set to EM_NONE.  Once a module has been  */
 /*    loaded, all remaining modules must have the same machine value.        */
 /*****************************************************************************/
-static BOOL file_header_machine_is_valid(Elf32_Half e_machine)
+static BOOL file_header_machine_is_valid(DLOAD_HANDLE handle, Elf32_Half e_machine)
 {
-    if (DLOAD_TARGET_MACHINE == EM_NONE)
-        DLOAD_TARGET_MACHINE = e_machine;
+    LOADER_OBJECT *pHandle = (LOADER_OBJECT *)handle;
 
-    if (e_machine != DLOAD_TARGET_MACHINE)
+    if (pHandle->DLOAD_TARGET_MACHINE == EM_NONE)
+        pHandle->DLOAD_TARGET_MACHINE = e_machine;
+
+    if (e_machine != pHandle->DLOAD_TARGET_MACHINE)
         return FALSE;
 
     return TRUE;
@@ -1261,7 +1261,7 @@ static BOOL process_eiosabi(DLIMP_Dynamic_Module* dyn_module)
 /*    DLIMP_Dynamic_Module record.  Check file header for validity.          */
 /*                                                                           */
 /*****************************************************************************/
-static BOOL dload_file_header(LOADER_FILE_DESC *fd,
+static BOOL dload_file_header(DLOAD_HANDLE handle, LOADER_FILE_DESC *fd,
                               DLIMP_Dynamic_Module *dyn_module)
 {
     /*-----------------------------------------------------------------------*/
@@ -1304,7 +1304,7 @@ static BOOL dload_file_header(LOADER_FILE_DESC *fd,
         return FALSE;
     }
 
-    if (!file_header_machine_is_valid(dyn_module->fhdr.e_machine))
+    if (!file_header_machine_is_valid(handle, dyn_module->fhdr.e_machine))
     {
         DLIF_error(DLET_FILE, "Invalid ELF file target machine.\n");
         DLIF_trace("dyn_module->fhdr.e_machine = 0x%x\n",
@@ -1389,7 +1389,7 @@ static void dload_program_header_table(LOADER_FILE_DESC *fd,
 /*    provide some assurance that the file is not corrupted.                 */
 /*                                                                           */
 /*****************************************************************************/
-static BOOL dload_headers(LOADER_FILE_DESC *fd,
+static BOOL dload_headers(DLOAD_HANDLE handle, LOADER_FILE_DESC *fd,
                           DLIMP_Dynamic_Module *dyn_module)
 {
 #if LOADER_DEBUG || LOADER_PROFILE
@@ -1407,7 +1407,7 @@ static BOOL dload_headers(LOADER_FILE_DESC *fd,
     /* Read file header information and check vs. expected ELF object file   */
     /* header content.                                                       */
     /*-----------------------------------------------------------------------*/
-    if (!dload_file_header(fd, dyn_module))
+    if (!dload_file_header(handle, fd, dyn_module))
         return FALSE;
 
     /*-----------------------------------------------------------------------*/
@@ -2158,10 +2158,18 @@ static void process_dynamic_module_relocations(DLOAD_HANDLE handle,
     /*-----------------------------------------------------------------------*/
     copy_segments(handle, fd, dyn_module);
 
-    /*-----------------------------------------------------------------------*/
-    /* Process dynamic relocations.                                          */
-    /*-----------------------------------------------------------------------*/
-    DLREL_relocate(handle, fd, dyn_module);
+   /*------------------------------------------------------------------------*/
+   /* Process dynamic relocations.                                           */
+   /*------------------------------------------------------------------------*/
+#if ARM_TARGET
+   if (is_arm_module(&dyn_module->fhdr))
+      DLREL_relocate(handle, fd, dyn_module);
+#endif
+
+#if C60_TARGET
+   if (is_c60_module(&dyn_module->fhdr))
+      DLREL_relocate_c60(handle, fd, dyn_module);
+#endif
 
     /*-----------------------------------------------------------------------*/
     /* Write segments from host memory to target memory                      */
@@ -2480,7 +2488,7 @@ int32_t DLOAD_load(DLOAD_HANDLE handle, LOADER_FILE_DESC *fd, int argc,
     /*-----------------------------------------------------------------------*/
     /* Read file headers and dynamic information into dynamic module.        */
     /*-----------------------------------------------------------------------*/
-    if (!dload_headers(fd, dyn_module)) {
+    if (!dload_headers(handle, fd, dyn_module)) {
         delete_DLIMP_Dynamic_Module(handle, &dyn_module);
         return 0;
     }
@@ -3011,7 +3019,7 @@ BOOL DLOAD_unload(DLOAD_HANDLE handle, uint32_t file_handle)
                 /*-----------------------------------------------------------*/
                 if (pHandle->DLIMP_loaded_objects.front_ptr == NULL)
                 {
-                    DLOAD_TARGET_MACHINE = DLOAD_DEFAULT_TARGET_MACHINE;
+                    pHandle->DLOAD_TARGET_MACHINE = DLOAD_DEFAULT_TARGET_MACHINE;
                 }
 
                 return TRUE;
@@ -3061,7 +3069,7 @@ int32_t DLOAD_load_symbols(DLOAD_HANDLE handle, LOADER_FILE_DESC *fd)
     /*-----------------------------------------------------------------------*/
     /* Read file headers and dynamic information into dynamic module.        */
     /*-----------------------------------------------------------------------*/
-    if (!dload_headers(fd, dyn_module)) {
+    if (!dload_headers(handle, fd, dyn_module)) {
         delete_DLIMP_Dynamic_Module(handle, &dyn_module);
         return 0;
     }

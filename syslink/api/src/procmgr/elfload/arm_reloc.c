@@ -1067,11 +1067,6 @@ static BOOL rel_overflow(ARM_RELOC_TYPE r_type, int32_t reloc_value)
     }
 }
 
-#if LOADER_DEBUG || LOADER_PROFILE
-int DLREL_relocations;
-time_t DLREL_total_reloc_time;
-#endif
-
 /*****************************************************************************/
 /* RELOC_DO() - Process a single relocation entry.                           */
 /*****************************************************************************/

@@ -59,7 +59,10 @@ extern time_t DLREL_total_reloc_time;
 /*---------------------------------------------------------------------------*/
 /* Landing point for core loader's relocation processor.                     */
 /*---------------------------------------------------------------------------*/
-void DLREL_relocate(DLOAD_HANDLE handle, LOADER_FILE_DESC *fd,
+void DLREL_relocate(DLOAD_HANDLE handle, LOADER_FILE_DESC *elf_file,
+                    DLIMP_Dynamic_Module *dyn_module);
+
+void DLREL_relocate_c60(DLOAD_HANDLE handle, LOADER_FILE_DESC *fd,
                     DLIMP_Dynamic_Module *dyn_module);
 
 #endif

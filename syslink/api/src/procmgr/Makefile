@@ -41,7 +41,7 @@ include $(PROJROOT)/api/make/start.mk
 # Arguments to tools, will move to make system once finalized.
 CFLAGS         = -DSYSLINK_USE_SYSMGR
 #CFLAGS        =
-CDEFS          = ARM_TARGET
+CDEFS          = ARM_TARGET C60_TARGET
 ifeq ($(BUILD),udeb)
 CDEFS          += DEBUG 
 endif
@@ -90,7 +90,9 @@ ProcMgrDrvUsr.c \
 ProcMMU.c \
 SysLinkMemUtils.c \
 elfload/arm_dynamic.c \
+elfload/c60_dynamic.c \
 elfload/arm_reloc.c \
+elfload/c60_reloc.c \
 elfload/ArrayList.c \
 elfload/dload4430.c \
 elfload/dload.c \

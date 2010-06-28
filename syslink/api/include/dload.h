@@ -222,6 +222,11 @@ typedef struct
     int32_t                  file_handle;
 
     /*-----------------------------------------------------------------------*/
+    /* Identify target supported by this implementation of the core loader.  */
+    /*-----------------------------------------------------------------------*/
+    int                      DLOAD_TARGET_MACHINE;
+
+    /*-----------------------------------------------------------------------*/
     /* Client token, passed in via DLOAD_create()                            */
     /*-----------------------------------------------------------------------*/
     void *                   client_handle;

@@ -606,7 +606,7 @@ DLoad4430_load (DLoad4430_Handle handle,
             if (handlePtr->DLL_debug)
                 DLDBG_add_host_record(handlePtr, imagePath);
 
-            DLIF_mapTable(handlePtr);
+            //DLIF_mapTable(handlePtr);
 
             /*----------------------------------------------------------------*/
             /* Now, we are ready to start loading the specified file onto the */
@@ -615,7 +615,7 @@ DLoad4430_load (DLoad4430_Handle handle,
             prog_handle = DLOAD_load(handlePtr->loaderHandle,
                                      fp, prog_argc, (char**)(prog_argv.buf));
 
-            DLIF_unMapTable(handlePtr);
+            //DLIF_unMapTable(handlePtr);
 
             fclose(fp);
 
@@ -767,14 +767,14 @@ DLoad4430_unload (DLoad4430_Handle handle, UInt32 fileId)
     }
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-        DLIF_mapTable(dloadHandle);
+        //DLIF_mapTable(dloadHandle);
 
         unloaded = DLOAD_unload(dloadHandle->loaderHandle, fileId);
         if (!unloaded) {
             status = DLOAD_E_FAIL;
         }
 
-        DLIF_unMapTable(dloadHandle);
+        //DLIF_unMapTable(dloadHandle);
 
         if (dloadHandle->DLL_debug)
             DLDBG_rm_target_record(dloadHandle, fileId);
