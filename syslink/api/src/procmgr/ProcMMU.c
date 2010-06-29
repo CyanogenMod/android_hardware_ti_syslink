@@ -70,6 +70,9 @@ extern "C" {
 #define RM_MPU_M3_RST1                  0x1
 #define RM_MPU_M3_RST2                  0x2
 #define RM_MPU_M3_RST3                  0x4
+#define RM_MPU_ALL_RESETS               0x7
+#define RM_MPU_M3_UNRESET_RST3          0xFFFFFFFB
+
 
 /** ============================================================================
  *  Globals
@@ -364,6 +367,7 @@ ProcMMU_close (Void)
     int                 osStatus    = 0;
     Memory_MapInfo      mmuRstInfo;
     Memory_UnmapInfo    mmuRstUnmapInfo;
+    volatile UInt32     reg;
 
     GT_0trace (curTrace, GT_ENTER, "ProcMMU_close");
 
@@ -403,7 +407,11 @@ ProcMMU_close (Void)
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
 
         Osal_printf ("Assert RST1 and RST2 and RST3\n");
-        *(UInt32 *)(mmuRstInfo.dst + RM_MPU_M3_RSTCTRL_OFFSET) = 0x7;
+        reg = *(volatile UInt32 *)(mmuRstInfo.dst + RM_MPU_M3_RSTCTRL_OFFSET);
+        *(volatile UInt32 *)(mmuRstInfo.dst + RM_MPU_M3_RSTCTRL_OFFSET) = \
+                                                (reg | RM_MPU_ALL_RESETS);
+        Osal_printf ("Reset Status RSTST = 0x%x\n", *(volatile UInt32 *)
+                                (mmuRstInfo.dst + RM_MPU_M3_RSTST_OFFSET));
 
         mmuRstUnmapInfo.addr  = mmuRstInfo.dst;
         mmuRstUnmapInfo.size = 0x1000;
@@ -437,7 +445,7 @@ ProcMMU_open (Void)
     Int32               osStatus        = 0;
     Memory_MapInfo      mmuRstInfo;
     Memory_UnmapInfo    mmuRstUnmapInfo;
-    UInt32              reg;
+    volatile UInt32     reg;
 
     GT_0trace (curTrace, GT_ENTER, "ProcMMU_open");
 
@@ -461,23 +469,28 @@ ProcMMU_open (Void)
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
 
         /* Check that releasing resets would indeed be effective */
-        reg = *(UInt32 *)(mmuRstInfo.dst + RM_MPU_M3_RSTCTRL_OFFSET);
+        reg = *(volatile UInt32 *)(mmuRstInfo.dst + RM_MPU_M3_RSTCTRL_OFFSET);
         Osal_printf ("reg = 0x%x, Mmu_rstInfo.dst + RM_MPU_M3_RSTCTRL_OFFSET = "
                     "0x%x\n", reg, (mmuRstInfo.dst + RM_MPU_M3_RSTCTRL_OFFSET));
-        if (reg != 7) {
+        if ((reg & RM_MPU_ALL_RESETS) != RM_MPU_ALL_RESETS) {
             Osal_printf ("ProcMMU_open: Resets in not proper state!\n");
             Osal_printf ("ProcMMU_open: Asserting RST1, RST2, and RST3...\n");
-            *(UInt32*)(mmuRstInfo.dst + RM_MPU_M3_RSTCTRL_OFFSET) = 0x7;
+            *(volatile UInt32*)(mmuRstInfo.dst + RM_MPU_M3_RSTCTRL_OFFSET) = \
+                                                     (reg | RM_MPU_ALL_RESETS);
             /* Wait for resets to be in proper state. */
-            while (*(UInt32 *)(mmuRstInfo.dst + RM_MPU_M3_RSTCTRL_OFFSET) != 7);
+            while (*(volatile UInt32 *)(mmuRstInfo.dst + \
+                            RM_MPU_M3_RSTCTRL_OFFSET) != RM_MPU_ALL_RESETS);
         }
 
        /* De-assert RST3, and clear the Reset status */
         Osal_printf ("De-assert RST3\n");
-        *(UInt32 *)(mmuRstInfo.dst + RM_MPU_M3_RSTCTRL_OFFSET) = 0x3;
-        while (!(*(UInt32 *)(mmuRstInfo.dst + RM_MPU_M3_RSTST_OFFSET) & 0x4));
+        *(volatile UInt32 *)(mmuRstInfo.dst + RM_MPU_M3_RSTCTRL_OFFSET) =
+                                          (reg & RM_MPU_M3_UNRESET_RST3);
+        while (!(*(volatile UInt32 *)(mmuRstInfo.dst + RM_MPU_M3_RSTST_OFFSET)
+                                                            & RM_MPU_M3_RST3));
         Osal_printf ("RST3 released!");
-        *(UInt32 *)(mmuRstInfo.dst + RM_MPU_M3_RSTST_OFFSET) = 0x4;
+        *(volatile UInt32 *)(mmuRstInfo.dst + RM_MPU_M3_RSTST_OFFSET) = \
+                                                                RM_MPU_M3_RST3;
 
         if (ProcMMU_refCount == 0) {
             Osal_printf ("%s %d\n", __func__, __LINE__);
