@@ -11,6 +11,9 @@ IpcDrv.c \
 ../procmgr/ProcMgr.c \
 ../procmgr/ProcMgrDrvUsr.c \
 ../procmgr/SysLinkMemUtils.c \
+../procmgr/ProcMMU.c \
+../procmgr/procmgr4430/omap4430proc.c \
+../procmgr/procmgr4430/omap4430procDrvUsr.c \
 ../procmgr/elfload/arm_dynamic.c \
 ../procmgr/elfload/arm_reloc.c \
 ../procmgr/elfload/ArrayList.c \
@@ -26,8 +29,8 @@ IpcDrv.c \
 
 LOCAL_C_INCLUDES += \
 	$(LOCAL_PATH)/../../include \
-	$(LOCAL_PATH)/../../include/ti/ipc
-
+	$(LOCAL_PATH)/../../include/ti/ipc \
+	$(LOCAL_PATH)/../../src/procmgr/procmgr4430
 
 LOCAL_SHARED_LIBRARIES += \
 		libc \
