@@ -74,12 +74,14 @@ extern "C" {
  */
 #define PROCMGR_DRIVER_NAME         "/dev/syslink-procmgr"
 
+#define PROCTESLA_DRIVER_NAME         "/dev/omap-rproc0"
 #define PROCSYSM3_DRIVER_NAME         "/dev/omap-rproc1"
 #define PROCAPPM3_DRIVER_NAME         "/dev/omap-rproc2"
 
 /* TEMPORARY DEFINES, REPLACE WITH THE MULTIPROC FRAMEWORK */
+#define TEMP_PROC_TESLA_ID               0
+#define TEMP_PROC_APPM3_ID               1
 #define TEMP_PROC_SYSM3_ID               2
-#define TEMP_PROC_APPM3_ID               3
 /** ============================================================================
  *  Globals
  *  ============================================================================
@@ -88,6 +90,8 @@ extern "C" {
  *  @brief  Driver handle for ProcMgr in this process.
  */
 static Int32 ProcMgrDrvUsr_handle = -1;
+
+static Int32 ProcDrvTesla_handle = -1;
 
 static Int32 ProcDrvSysM3_handle = -1;
 
@@ -132,6 +136,10 @@ ProcMgrDrvUsr_open (Void)
         if (ProcMgrDrvUsr_handle < 0)
             perror ("ProcMgr driver open: " PROCMGR_DRIVER_NAME);
 
+        ProcDrvTesla_handle = open (PROCTESLA_DRIVER_NAME, O_SYNC | O_RDWR);
+        if (ProcDrvTesla_handle < 0)
+            perror ("ProcMgr driver open: " PROCTESLA_DRIVER_NAME);
+
         ProcDrvSysM3_handle = open (PROCSYSM3_DRIVER_NAME, O_SYNC | O_RDWR);
         if (ProcDrvSysM3_handle < 0)
             perror ("ProcMgr driver open: " PROCSYSM3_DRIVER_NAME);
@@ -141,7 +149,7 @@ ProcMgrDrvUsr_open (Void)
             perror ("ProcMgr driver open: " PROCAPPM3_DRIVER_NAME);
 
         if (ProcMgrDrvUsr_handle < 0 || ProcDrvSysM3_handle < 0
-                                || ProcDrvAppM3_handle < 0) {
+                   || ProcDrvAppM3_handle < 0 || ProcDrvTesla_handle < 0) {
             /*! @retval PROCMGR_E_OSFAILURE Failed to open ProcMgr driver with
                         OS */
             status = PROCMGR_E_OSFAILURE;
@@ -208,6 +216,10 @@ ProcMgrDrvUsr_close (Void)
             perror ("ProcMgr driver close: " PROCAPPM3_DRIVER_NAME);
             errCount++;
         }
+        if (close (ProcDrvTesla_handle)) {
+            perror ("ProcMgr driver close: " PROCTESLA_DRIVER_NAME);
+            errCount++;
+        }
         if (errCount != 0) {
             /*! @retval PROCMGR_E_OSFAILURE Failed to open ProcMgr driver
                                             with OS */
@@ -222,6 +234,7 @@ ProcMgrDrvUsr_close (Void)
             ProcMgrDrvUsr_handle = 0;
             ProcDrvSysM3_handle = 0;
             ProcDrvAppM3_handle = 0;
+            ProcDrvTesla_handle = 0;
         }
     }
 
@@ -391,8 +404,10 @@ ProcMgrDrvUsr_ioctl (UInt32 cmd, Ptr args)
                                             srcArgs->params->proc_id);
             if (srcArgs->params->proc_id == TEMP_PROC_SYSM3_ID)
                 osStatus = ioctl (ProcDrvSysM3_handle, RPROC_IOCSTART, NULL);
-            else
+            else if (srcArgs->params->proc_id == TEMP_PROC_APPM3_ID)
                 osStatus = ioctl (ProcDrvAppM3_handle, RPROC_IOCSTART, NULL);
+            else
+                osStatus = ioctl (ProcDrvTesla_handle, RPROC_IOCSTART, NULL);
             if (osStatus < 0) {
                 /*! @retval PROCMGR_E_OSFAILURE Driver ioctl failed */
                 status = PROCMGR_E_OSFAILURE;
@@ -413,8 +428,10 @@ ProcMgrDrvUsr_ioctl (UInt32 cmd, Ptr args)
 
             if (srcArgs->params->proc_id == TEMP_PROC_SYSM3_ID)
                 osStatus = ioctl (ProcDrvSysM3_handle, RPROC_IOCSTOP, NULL);
-            else
+            else if (srcArgs->params->proc_id == TEMP_PROC_APPM3_ID)
                 osStatus = ioctl (ProcDrvAppM3_handle, RPROC_IOCSTOP, NULL);
+            else
+                osStatus = ioctl (ProcDrvTesla_handle, RPROC_IOCSTOP, NULL);
             if (osStatus < 0) {
                 /*! @retval PROCMGR_E_OSFAILURE Driver ioctl failed */
                 status = PROCMGR_E_OSFAILURE;

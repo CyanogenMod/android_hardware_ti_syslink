@@ -1360,7 +1360,8 @@ ProcMgr_load (ProcMgr_Handle handle,
     /*FIXME: (KW) Remove field ID if not used. */
     //cmdArgs.fileId = 0;
 
-    if (procID == MultiProc_getId ("SysM3")) {
+    if (procID == MultiProc_getId ("SysM3") || \
+            procID == MultiProc_getId("Tesla")) {
         status = ProcMMU_open ();
         if (status < 0) {
             Osal_printf ("Error in ProcMMU_open [0x%x]\n", status);
@@ -1406,7 +1407,7 @@ ProcMgr_load (ProcMgr_Handle handle,
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
         *fileId = 0; /* Initialize return parameter. */
 
-        if(procID == PROC_TESLA || procID == PROC_MPU){
+        if (procID == PROC_MPU) {
             status = PROCMGR_E_INVALIDARG;
             GT_setFailureReason (curTrace,
                                  GT_4CLASS,
@@ -1604,6 +1605,10 @@ ProcMgr_start (ProcMgr_Handle        handle,
 #ifdef SYSLINK_USE_SYSMGR
     UInt32                  start;
 #endif
+    Memory_MapInfo          sysCtrlMapInfo;
+    Memory_UnmapInfo        sysCtrlUnmapInfo;
+    UInt32                  numBytes;
+    UInt32                  entryPt;
 
     GT_2trace (curTrace, GT_ENTER, "ProcMgr_start", handle, params);
 
@@ -1629,6 +1634,50 @@ ProcMgr_start (ProcMgr_Handle        handle,
                                           (procMgrHandle->loaderHandle))->fileId,
                                           RESETVECTOR_SYMBOL,
                                           &start);
+
+        if (status >= 0 && procMgrHandle->procId == MultiProc_getId ("Tesla")) {
+            numBytes = 4;
+            status = ProcMgr_read (handle, start + 4, &numBytes, &entryPt);
+            if (status < 0) {
+                GT_setFailureReason (curTrace,
+                                     GT_4CLASS,
+                                     "ProcMgr_start",
+                                     status,
+                                     "ProcMgr_read failed");
+            }
+            else {
+                /* Get the user virtual address of the PRM base */
+                sysCtrlMapInfo.src  = 0x4A002000;
+                sysCtrlMapInfo.size = 0x1000;
+
+                status = Memory_map (&sysCtrlMapInfo);
+                if (status < 0) {
+                    status = PROCMGR_E_FAIL;
+                    GT_setFailureReason (curTrace,
+                                      GT_4CLASS,
+                                      "ProcMgr_load",
+                                      status,
+                                      "Memory_map failed");
+                }
+                else {
+                    Osal_printf ("DSP load address [0x%x]\n",
+                              start + entryPt);
+                    *(UInt32 *)(sysCtrlMapInfo.dst + 0x304) = start + entryPt;
+
+                    sysCtrlUnmapInfo.addr = sysCtrlMapInfo.dst;
+                    sysCtrlUnmapInfo.size = sysCtrlMapInfo.size;
+                    status = Memory_unmap (&sysCtrlUnmapInfo);
+                }
+            }
+        }
+        else if (status < 0) {
+            GT_setFailureReason (curTrace,
+                                 GT_4CLASS,
+                                 "ProcMgr_start",
+                                 status,
+                                 "ProcMgr_getSymbolAddress failed");
+        }
+
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
         if (status < 0) {
             status = ProcMgr_E_FAIL;
@@ -1655,7 +1704,7 @@ ProcMgr_start (ProcMgr_Handle        handle,
 #endif
                 cmdArgs.handle = procMgrHandle->knlObject;
                 cmdArgs.params = params;
-                cmdArgs.entry_point = entry_point;
+                cmdArgs.entry_point = entryPt;
                 status = ProcMgrDrvUsr_ioctl (CMD_PROCMGR_START, &cmdArgs);
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
                 if (status < 0) {
@@ -1765,7 +1814,8 @@ ProcMgr_stop (ProcMgr_Handle handle, ProcMgr_StopParams * params)
             }
             else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-                if (params->proc_id == MultiProc_getId ("SysM3")) {
+                if (params->proc_id == MultiProc_getId ("SysM3") ||
+                    params->proc_id == MultiProc_getId ("Tesla")) {
                      status = ProcMMU_close ();
                      if (status < 0) {
                             Osal_printf ("Error in ProcMMU_close [0x%x]\n",
