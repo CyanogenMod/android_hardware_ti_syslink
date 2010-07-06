@@ -129,6 +129,7 @@ extern "C" {
 #define ProcMMU_S_OPENHANDLE        PROCMMU_MAKE_SUCCESS(3)
 
 #define DUCATI_BASEIMAGE_PHYSICAL_ADDRESS    0x9CF00000
+#define TESLA_BASEIMAGE_PHYSICAL_ADDRESS     0x9A000000
 
 #define PAGE_SIZE_4KB                   0x1000
 #define PAGE_SIZE_64KB                  0x10000
@@ -183,23 +184,35 @@ extern "C" {
 /* OMAP4430 SDC definitions */
 #define L4_PERIPHERAL_L4CFG             0x4A000000
 #define DUCATI_PERIPHERAL_L4CFG         0xAA000000
+#define TESLA_PERIPHERAL_L4CFG          0x4A000000
 
 #define L4_PERIPHERAL_L4PER             0x48000000
 #define DUCATI_PERIPHERAL_L4PER         0xA8000000
+#define TESLA_PERIPHERAL_L4PER          0x48000000
+
+#define L4_PERIPHERAL_L4ABE             0x49000000
+#define DUCATI_PERIPHERAL_L4ABE         0xA9000000
+#define TESLA_PERIPHERAL_L4ABE          0x49000000
 
 #define L3_IVAHD_CONFIG                 0x5A000000
 #define DUCATI_IVAHD_CONFIG             0xBA000000
+#define TESLA_IVAHD_CONFIG              0xBA000000
 
 #define L3_IVAHD_SL2                    0x5B000000
 #define DUCATI_IVAHD_SL2                0xBB000000
+#define TELSA_IVAHD_SL2                 0xBB000000
 
 #define L3_TILER_MODE0_1_ADDR           0x60000000
 #define DUCATI_TILER_MODE0_1_ADDR       0x60000000
 #define DUCATI_TILER_MODE0_1_LEN        0x10000000
+#define TESLA_TILER_MODE0_1_ADDR        0x60000000
+#define TESLA_TILER_MODE0_1_LEN         0x10000000
 
 #define L3_TILER_MODE3_ADDR             0x78000000
 #define DUCATI_TILER_MODE3_ADDR         0x78000000
 #define DUCATI_TILER_MODE3_LEN          0x8000000
+#define TESLA_TILER_MODE3_ADDR          0x78000000
+#define TESLA_TILER_MODE3_LEN           0x8000000
 
 #define DUCATI_BOOTVECS_UNUSED_ADDR     0x1000
 #define DUCATI_BOOTVECS_UNUSED_LEN      0x3000
@@ -231,6 +244,8 @@ extern "C" {
 #define DUCATI_MEM_IPC_HEAP1_ADDR       0xA0055000
 #define DUCATI_MEM_IPC_HEAP1_LEN        0xAC000
 
+#define TESLA_MEM_EXT_RAM_ADDR          0x20000000
+#define TESLA_MEM_EXT_RAM_LEN           0x2000000
 
 /* Types of mapping attributes */
 
@@ -342,6 +357,31 @@ static const struct  Memory_entry L3MemoryRegions[] = {
     /*  MEM_CONST_SYSM3, MEM_CONST_APPM3, MEM_HEAP_SYSM3, MEM_HEAP_APPM3,
        MEM_MPU_DUCATI_SHMEM, MEM_IPC_SHMEM */
     {DUCATI_MEM_CONST_SYSM3_ADDR, (PAGE_SIZE_16MB * 2)},
+};
+
+/* OMAP4430 SDC definitions */
+static const struct Mmu_entry L4MapDsp[] = {
+    /* TILER 8-bit and 16-bit modes */
+    {L3_TILER_MODE0_1_ADDR, TESLA_TILER_MODE0_1_ADDR,
+        (PAGE_SIZE_16MB * 16)},
+    /* TILER: Pages-mode */
+    {L3_TILER_MODE3_ADDR, TESLA_TILER_MODE3_ADDR,
+        (PAGE_SIZE_16MB * 8)},
+    /*  L4_CFG: Covers all modules in L4_CFG 16MB*/
+    {L4_PERIPHERAL_L4CFG, TESLA_PERIPHERAL_L4CFG, PAGE_SIZE_16MB},
+    /*  L4_PER: Covers all modules in L4_PER 16MB*/
+    {L4_PERIPHERAL_L4PER, TESLA_PERIPHERAL_L4PER, PAGE_SIZE_16MB},
+    /*  L4_ABE: Covers all modules in L4_ABE 16MB*/
+    {L4_PERIPHERAL_L4ABE, TESLA_PERIPHERAL_L4ABE, PAGE_SIZE_16MB},
+    /* IVA_HD Config: Covers all modules in IVA_HD Config space 16MB */
+    {L3_IVAHD_CONFIG, TESLA_IVAHD_CONFIG, PAGE_SIZE_16MB},
+    /* IVA_HD SL2: Covers all memory in IVA_HD SL2 space 16MB */
+    {L3_IVAHD_SL2, TELSA_IVAHD_SL2, PAGE_SIZE_16MB},
+};
+
+static const struct  Memory_entry L3MemoryRegionsDsp[] = {
+    /*  MEM_EXT_RAM */
+    {TESLA_MEM_EXT_RAM_ADDR, (PAGE_SIZE_16MB * 2)},
 };
 
 Int32 ProcMMU_close (Void);

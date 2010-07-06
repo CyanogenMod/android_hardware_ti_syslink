@@ -62,16 +62,9 @@ extern "C" {
  *  Macros and types
  *  ============================================================================
  */
-#define PROC_MMU_DRIVER_NAME  "/dev/omap-iommu0"
+#define PROC_MMU_MPU_M3_DRIVER_NAME  "/dev/omap-iommu0"
 
-#define PROC_CORE_PRM_BASE              0x4A306000
-#define RM_MPU_M3_RSTCTRL_OFFSET        0x910
-#define RM_MPU_M3_RSTST_OFFSET          0x914
-#define RM_MPU_M3_RST1                  0x1
-#define RM_MPU_M3_RST2                  0x2
-#define RM_MPU_M3_RST3                  0x4
-#define RM_MPU_ALL_RESETS               0x7
-#define RM_MPU_M3_UNRESET_RST3          0xFFFFFFFB
+#define PROC_MMU_DSP_DRIVER_NAME     "/dev/omap-iommu1"
 
 
 /** ============================================================================
@@ -81,7 +74,12 @@ extern "C" {
 /*!
  *  @brief  Driver handle for ProcMgr in this process.
  */
-static Int32 ProcMMU_handle = -1;
+static Int32 ProcMMU_MPU_M3_handle = -1;
+
+/*!
+ *  @brief  Driver handle for ProcMgr in this process.
+ */
+static Int32 ProcMMU_DSP_handle = -1;
 
 /*!
  *  @brief  Reference count for the driver handle.
@@ -103,6 +101,7 @@ enum pageType {
 
 
 static UInt32 shmPhysAddr;
+static UInt32 shmPhysAddrDsp;
 
 
 /*
@@ -211,7 +210,7 @@ ProcMMU_getEntrySize (UInt32 pa, UInt32 size, enum pageType *sizeTlb,
  *  @sa     ProcMMU_getentrysize
  */
 static Int32
-ProcMMU_addEntry (UInt32  *physAddr, UInt32 *dspAddr, UInt32 size)
+ProcMMU_addEntry (UInt32  *physAddr, UInt32 *dspAddr, UInt32 size, UInt32 proc)
 {
     UInt32              mappedSize  = 0;
     enum pageType       sizeTlb     = SECTION;
@@ -253,7 +252,10 @@ ProcMMU_addEntry (UInt32  *physAddr, UInt32 *dspAddr, UInt32 size)
         tlbEntry.da     = *dspAddr;
         tlbEntry.pa     = *physAddr;
 
-        status = ioctl (ProcMMU_handle, IOMMU_IOCSETTLBENT, &tlbEntry);
+        if (proc == 0)
+            status = ioctl (ProcMMU_MPU_M3_handle, IOMMU_IOCSETTLBENT, &tlbEntry);
+        else if (proc == 1)
+            status = ioctl (ProcMMU_DSP_handle, IOMMU_IOCSETTLBENT, &tlbEntry);
         if (status < 0) {
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
             GT_setFailureReason (curTrace,
@@ -313,7 +315,7 @@ ProcMMU_init (UInt32 aPhyAddr)
 
         virtAddr = L3MemoryRegions[i].virtAddr;
         status = ProcMMU_addEntry(&physAddr, &virtAddr,
-                    (L3MemoryRegions[i].size));
+                    (L3MemoryRegions[i].size), 0);
         if (status < 0) {
             GT_setFailureReason (curTrace,
                                  GT_4CLASS,
@@ -333,7 +335,7 @@ ProcMMU_init (UInt32 aPhyAddr)
                     L4Map[i].size);
             virtAddr = L4Map[i].virtAddr;
             physAddr = L4Map[i].physAddr;
-            status = ProcMMU_addEntry (&physAddr, &virtAddr, (L4Map[i].size));
+            status = ProcMMU_addEntry (&physAddr, &virtAddr, (L4Map[i].size), 0);
             if (status < 0) {
                 Osal_printf ("**** Failed to map Peripheral ****");
                 Osal_printf ("Phys addr [0x%x] Virt addr [0x%x] size [0x%x]",
@@ -344,6 +346,67 @@ ProcMMU_init (UInt32 aPhyAddr)
                                      "ProcMMU_init",
                                      status,
                                      "L4Map addEntry failed!");
+                break;
+            }
+        }
+    }
+
+    if (status >= 0) {
+        numL4Entries = (sizeof(L4MapDsp) / sizeof(struct Mmu_entry));
+        numL3MemEntries = sizeof(L3MemoryRegionsDsp) /
+                          sizeof(struct Memory_entry);
+
+        Osal_printf ("\n  Programming DSP MMU using linear address \n");
+        physAddr = TESLA_BASEIMAGE_PHYSICAL_ADDRESS;
+
+        Osal_printf("  Programming DSP memory regions\n");
+        Osal_printf("=========================================\n");
+        for (i = 0; i < numL3MemEntries; i++) {
+            Osal_printf("VA = [0x%x] of size [0x%x] at PA = [0x%x]\n",
+                        L3MemoryRegionsDsp[i].virtAddr,
+                        L3MemoryRegionsDsp[i].size,
+                        physAddr);
+            /* OMAP4430 SDC code */
+            /* Adjust below logic if using cacheable shared memory */
+            if (L3MemoryRegionsDsp[i].virtAddr == TESLA_MEM_EXT_RAM_ADDR) {
+                shmPhysAddrDsp = physAddr;
+            }
+
+            virtAddr = L3MemoryRegionsDsp[i].virtAddr;
+            status = ProcMMU_addEntry(&physAddr, &virtAddr,
+                                      (L3MemoryRegionsDsp[i].size), 1);
+            if (status < 0) {
+                GT_setFailureReason (curTrace,
+                                     GT_4CLASS,
+                                     "ProcMMU_init",
+                                     status,
+                                     "L3MemoryRegionsDsp addEntry failed!");
+                break;
+            }
+        }
+    }
+
+    if (status >= 0) {
+        Osal_printf("  Programming DSP L4 peripherals\n");
+        Osal_printf("=========================================\n");
+        for (i = 0; i < numL4Entries; i++) {
+            Osal_printf("PA [0x%x] VA [0x%x] size [0x%x]\n",
+                    L4MapDsp[i].physAddr, L4MapDsp[i].virtAddr,
+                    L4MapDsp[i].size);
+            virtAddr = L4MapDsp[i].virtAddr;
+            physAddr = L4MapDsp[i].physAddr;
+            status = ProcMMU_addEntry(&physAddr,
+                &virtAddr, (L4MapDsp[i].size), 1);
+            if (status < 0) {
+                Osal_printf ("**** Failed to map Peripheral ****");
+                Osal_printf ("Phys addr [0x%x] Virt addr [0x%x] size [0x%x]",
+                               L4MapDsp[i].physAddr, L4MapDsp[i].virtAddr,
+                               L4MapDsp[i].size);
+                GT_setFailureReason (curTrace,
+                                     GT_4CLASS,
+                                     "ProcMMU_init",
+                                     status,
+                                     "L4MapDsp addEntry failed!");
                 break;
             }
         }
@@ -371,9 +434,9 @@ ProcMMU_close (Void)
     /* TBD: Protection for refCount. */
     ProcMMU_refCount--;
     if (ProcMMU_refCount == 0) {
-        osStatus = close (ProcMMU_handle);
+        osStatus = close (ProcMMU_MPU_M3_handle);
         if (osStatus != 0) {
-            perror ("ProcMMU_close: " PROC_MMU_DRIVER_NAME);
+            perror ("ProcMMU_close: " PROC_MMU_MPU_M3_DRIVER_NAME);
             status = ProcMMU_E_OSFAILURE;
             GT_setFailureReason (curTrace,
                                  GT_4CLASS,
@@ -382,7 +445,20 @@ ProcMMU_close (Void)
                                  "Failed to close ProcMgr driver with OS!");
         }
         else {
-            ProcMMU_handle = 0;
+            ProcMMU_MPU_M3_handle = 0;
+        }
+        osStatus = close (ProcMMU_DSP_handle);
+        if (osStatus != 0) {
+            perror ("ProcMMU_close: " PROC_MMU_DSP_DRIVER_NAME);
+            status = ProcMMU_E_OSFAILURE;
+            GT_setFailureReason (curTrace,
+                                 GT_4CLASS,
+                                 "ProcMMU_close",
+                                 status,
+                                 "Failed to close ProcMgr driver with OS!");
+        }
+        else {
+            ProcMMU_DSP_handle = 0;
         }
     }
 
@@ -407,9 +483,10 @@ ProcMMU_open (Void)
 
     if (ProcMMU_refCount == 0) {
         Osal_printf ("%s %d\n", __func__, __LINE__);
-        ProcMMU_handle = open (PROC_MMU_DRIVER_NAME, O_SYNC | O_RDWR);
-        if (ProcMMU_handle < 0) {
-            perror ("ProcMgr driver open: " PROC_MMU_DRIVER_NAME);
+        ProcMMU_MPU_M3_handle = open (PROC_MMU_MPU_M3_DRIVER_NAME,
+                                        O_SYNC | O_RDWR);
+        if (ProcMMU_MPU_M3_handle < 0) {
+            perror ("ProcMgr driver open: " PROC_MMU_MPU_M3_DRIVER_NAME);
             status = ProcMMU_E_OSFAILURE;
             GT_setFailureReason (curTrace,
                                  GT_4CLASS,
@@ -418,18 +495,35 @@ ProcMMU_open (Void)
                                  "Failed to open ProcMgr driver with OS!");
         }
         else {
-            osStatus = fcntl (ProcMMU_handle, F_SETFD, FD_CLOEXEC);
-            if (osStatus != 0) {
+            ProcMMU_DSP_handle = open (PROC_MMU_DSP_DRIVER_NAME,
+                                        O_SYNC | O_RDWR);
+            if (ProcMMU_DSP_handle < 0) {
+                perror ("ProcMgr driver open: " PROC_MMU_DSP_DRIVER_NAME);
+                /*! @retval PROCMGR_E_OSFAILURE Failed to open ProcMgr driver with
+                            OS */
                 status = ProcMMU_E_OSFAILURE;
                 GT_setFailureReason (curTrace,
                                      GT_4CLASS,
                                      "ProcMMU_open",
                                      status,
-                                     "Failed to set file descriptor flags!");
+                                     "Failed to open ProcMgr driver with OS!");
             }
-            else{
-                /* TBD: Protection for refCount. */
-                ProcMMU_refCount++;
+            else {
+                osStatus = fcntl (ProcMMU_MPU_M3_handle, F_SETFD, FD_CLOEXEC);
+                if (osStatus != 0) {
+                    /*! @retval PROCMGR_E_OSFAILURE Failed to set file descriptor
+                                                    flags */
+                    status = ProcMMU_E_OSFAILURE;
+                    GT_setFailureReason (curTrace,
+                                         GT_4CLASS,
+                                         "ProcMMU_open",
+                                         status,
+                                         "Failed to set file descriptor flags!");
+                }
+                else{
+                    /* TBD: Protection for refCount. */
+                    ProcMMU_refCount++;
+                }
             }
         }
     }
