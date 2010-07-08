@@ -26,6 +26,7 @@
 #include <sys/mman.h>
 
 #define __DEBUG__
+#undef  __DEBUG_ENTRY__
 #define __DEBUG_ASSERT__
 
 #ifdef HAVE_CONFIG_H
@@ -296,6 +297,7 @@ static bytes_t def_size(struct tiler_block_info *blk)
 
 static void dump_block(struct tiler_block_info *blk, char *prefix, char *suffix)
 {
+#if 0
     switch (blk->fmt)
     {
     case PIXEL_FMT_PAGE:
@@ -313,6 +315,7 @@ static void dump_block(struct tiler_block_info *blk, char *prefix, char *suffix)
         P("%s*[p=%p(0x%x),l=0x%x,s=%d,fmt=0x%x]%s", prefix, blk->ptr,
           blk->ssptr, blk->dim.len, blk->stride, blk->fmt, suffix);
     }
+#endif
 }
 
 void check_xy(int td, MemAllocBlock *blk, int offset)
@@ -321,7 +324,7 @@ void check_xy(int td, MemAllocBlock *blk, int offset)
     memcpy(&cblk, blk, sizeof(struct tiler_block_info));
 
     cblk.ssptr += def_bpp(cblk.fmt) * offset;
-    A_I(ioctl(td, TILIOC_QUERY_BLK, &cblk),==,0);
+    A_I(ioctl(td, TILIOC_QBLK, &cblk),==,0);
     A_I(cblk.fmt,==,blk->pixelFormat);
     if (cblk.fmt == TILFMT_PAGE)
     {
@@ -342,7 +345,7 @@ void check_bad(int td, MemAllocBlock *blk, int offset)
     memcpy(&cblk, blk, sizeof(struct tiler_block_info));
 
     cblk.ssptr += def_bpp(cblk.fmt) * offset;
-    A_I(ioctl(td, TILIOC_QUERY_BLK, &cblk),==,0);
+    A_I(ioctl(td, TILIOC_QBLK, &cblk),==,0);
     A_I(cblk.fmt,==,TILFMT_INVALID);
     A_I(cblk.dim.len,==,0);
     A_I(cblk.stride,==,0);
@@ -384,6 +387,11 @@ int test_d2c(pixels_t width, pixels_t height, int N)
 
         blk[ix].stride = 0;
 
+        if (ix)
+        {
+            blk[ix].align = PAGE_SIZE;
+            blk[ix].offs = blk[ix - 1].offs;
+        }
         buf[ix] = MemMgr_Alloc(blk + ix,  1);
         CHK_P(buf[ix],==,blk[ix].ptr);
         res |= NOT_P(buf[ix],!=,NULL);
@@ -398,20 +406,22 @@ int test_d2c(pixels_t width, pixels_t height, int N)
     {
         memcpy(txblk + ix, blk + ix, sizeof(*blk));
         dump_block(txblk + ix, "=(qb)=>", "");
-        A_I(ioctl(td, TILIOC_QUERY_BLK, txblk + ix),==,0);
+        A_I(ioctl(td, TILIOC_QBLK, txblk + ix),==,0);
         dump_block(txblk + ix, "<=(qb)=", "");
     }
 
     /* try remapping and unmapping buffers */
     DSPtr dsptrs[4];
     bytes_t sizes[4], size;
+    printf("\n= %d %d ", width, height);
     for (ix = 0; ix < N; ix++)
     {
         CHK_P(buf[ix],==,blk[ix].ptr);
-        dsptrs[ix] = TilerMem_VirtToPhys(buf[ix]);
+        dsptrs[ix] = txblk[ix].id;
         sizes[ix] = def_size(tblk + ix);
         printf("%x %x ", dsptrs[ix], sizes[ix]);
     }
+    printf("\n");
 
     for (ix = 0; ix < N; ix++)
     {
@@ -440,41 +450,38 @@ int test_d2c(pixels_t width, pixels_t height, int N)
 
     /* this section of the tests works on internal pointers, which are not
        yet supported by the algorithm */
-#if 0
-
-    int x = 0, y = 0;
-    /* check valid X, Y coordinates */
-    while (y < 1080)
-    {
-        check_xy(td, &blk[0], x + y * 4096);
-        check_xy(td, &blk[1], x + y * 2048);
-        check_xy(td, &blk[2], x + y * 2048);
-        if (x + y * 1920 < 4096 * 128)
+    if (0) {
+        int x = 0, y = 0;
+        /* check valid X, Y coordinates */
+        while (y < 1080)
         {
-            check_xy(td, &blk[3], x + y * 1920);
+            check_xy(td, &blk[0], x + y * 4096);
+            check_xy(td, &blk[1], x + y * 2048);
+            check_xy(td, &blk[2], x + y * 2048);
+            if (x + y * 1920 < 4096 * 128)
+            {
+                check_xy(td, &blk[3], x + y * 1920);
+            }
+
+            x += 1900;
+            if (x >= 1920)
+            {
+                x -= 1920; y++;
+            }
         }
 
-        x += 1900;
-        if (x >= 1920)
-        {
-            x -= 1920; y++;
-        }
+        /* check invalid X, Y coordinates */
+        check_bad(td, &blk[0], 4096 * 4096);
+        check_bad(td, &blk[1], 4096 * 2048);
+        check_bad(td, &blk[2], 4096 * 2048);
+        check_bad(td, &blk[3], 4096 * 128);
     }
-
-
-    /* check invalid X, Y coordinates */
-    check_bad(td, &blk[0], 4096 * 4096);
-    check_bad(td, &blk[1], 4096 * 2048);
-    check_bad(td, &blk[2], 4096 * 2048);
-    check_bad(td, &blk[3], 4096 * 128);
-#endif
 
     close(td);
 #endif
 
     for (ix = 0; ix < N; ix++)
     {
-        DP("%p", buf[ix]);
         res |= A_I(MemMgr_Free(buf[ix]),==,0);
     }
 
@@ -483,15 +490,12 @@ int test_d2c(pixels_t width, pixels_t height, int N)
 
 int test_d2c_cli(int argc, char **argv)
 {
-    DP("argc=%d", argc);
     if (argc < 5) return 1;
 
     pixels_t width = atoi(argv[1]), height = atoi(argv[2]);
-    DP("width=%d, height=%d", width, height);
 
     /* try remapping and unmapping buffers */
-    int res = 0, ix, n = (argc - 3) >> 1;
-    DP("n=%d", n);
+    int ix, n = (argc - 3) >> 1, td = A_S(open("/dev/tiler", O_RDWR),>=,0), res = td < 0 ? td : 0;
 
     DSPtr *dsptrs;
     bytes_t *sizes, size;
@@ -502,8 +506,6 @@ int test_d2c_cli(int argc, char **argv)
     {
         sscanf(argv[(ix << 1) + 3], "%x", dsptrs + ix);
         sscanf(argv[(ix << 1) + 4], "%x", sizes + ix);
-
-        printf("%x %x ", dsptrs[ix], sizes[ix]);
     }
 
     void *bufPtr = tiler_assisted_phase1_D2CReMap(n, dsptrs, sizes);
@@ -513,10 +515,14 @@ int test_d2c_cli(int argc, char **argv)
     {
         MemAllocBlock blk;
         ZERO(blk);
+        blk.id = dsptrs[ix];
+        blk.reserved = dsptrs[ix];
+        ERR_ADD_S(res, ioctl(td, TILIOC_QBLK, &blk));
+
         if (ix == 3)
         {
             blk.pixelFormat = PIXEL_FMT_PAGE;
-            blk.dim.len = ROUND_DOWN_TO2POW(width * height * 2, PAGE_SIZE);
+            blk.dim.len = ROUND_DOWN_TO2POW(blk.offs + width * height * 2, PAGE_SIZE);
             blk.stride = 0;
         }
         else
@@ -525,7 +531,7 @@ int test_d2c_cli(int argc, char **argv)
                                   ix ? PIXEL_FMT_16BIT : PIXEL_FMT_8BIT);
             blk.dim.area.width = width;
             blk.dim.area.height = height;
-            blk.stride = def_stride(def_bpp(blk.pixelFormat) * blk.dim.area.width);
+            blk.stride = def_stride(blk.offs + def_bpp(blk.pixelFormat) * blk.dim.area.width);
 
             /* emulate NV12 for N == 2 */
             if (n == 2 && ix)
@@ -540,6 +546,8 @@ int test_d2c_cli(int argc, char **argv)
     }
 
     res |= NOT_I(tiler_assisted_phase1_DeMap(bufPtr),==,0);
+
+    ERR_ADD_S(res, close(td));
     return res;
 }
 
