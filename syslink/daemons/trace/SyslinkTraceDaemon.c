@@ -45,6 +45,7 @@ extern "C" {
  */
 #define SYSM3_TRACE_BUFFER_PHYS_ADDR    0x9FFE0000
 #define APPM3_TRACE_BUFFER_PHYS_ADDR    0X9FFF0000
+#define TESLA_TRACE_BUFFER_PHYS_ADDR    0x9CEF0000
 
 #define TRACE_BUFFER_SIZE               0x10000
 
@@ -166,14 +167,72 @@ Void printAppM3Traces (Void *arg)
 }
 
 
+/* pull char from queue */
+Void printTeslaTraces (Void *arg)
+{
+    Int               status              = 0;
+    Memory_MapInfo    traceinfo;
+    UInt32            numOfBytesInBuffer  = 0;
+    volatile UInt32 * readPointer;
+    volatile UInt32 * writePointer;
+    Char            * traceBuffer;
+
+    Osal_printf ("\nSpawning Tesla trace thread\n ");
+
+    /* Get the user virtual address of the buffer */
+    traceinfo.src  = TESLA_TRACE_BUFFER_PHYS_ADDR;
+    traceinfo.size = TRACE_BUFFER_SIZE;
+    status = Memory_map (&traceinfo);
+    readPointer = (volatile UInt32 *)traceinfo.dst;
+    writePointer = (volatile UInt32 *)(traceinfo.dst + 0x4);
+    traceBuffer = (Char *)(traceinfo.dst + 0x8);
+
+    /* Initialze read indexes to zero */
+    *readPointer = 0;
+    *writePointer = 0;
+    do {
+        do {
+           sleep (TIMEOUT_SECS);
+        } while (*readPointer == *writePointer);
+
+        sem_wait(&semPrint);    /* Acquire exclusive access to printing */
+        if ( *readPointer < *writePointer ) {
+            numOfBytesInBuffer = (*writePointer) - (*readPointer);
+        } else {
+            numOfBytesInBuffer = ((TRACE_BUFFER_SIZE - 8) - (*readPointer)) + (*writePointer);
+        }
+
+        Osal_printf ("\n[DSP]: ");
+        while ( numOfBytesInBuffer-- ) {
+            if ((*readPointer) == (TRACE_BUFFER_SIZE - 8)){
+                (*readPointer) = 0;
+            }
+
+            Osal_printf ("%c", traceBuffer[*readPointer]);
+            if (traceBuffer[*readPointer] == '\n') {
+                Osal_printf ("[DSP]: ");
+            }
+
+            (*readPointer)++;
+        }
+        sem_post(&semPrint);    /* Release exclusive access to printing */
+
+    } while(1);
+
+    Osal_printf ("Leaving printTeslaTraces thread function \n");
+    return;
+}
+
+
 Int main (Int argc, Char * argv [])
 {
     pid_t       child_pid;
     pid_t       child_sid;
     pthread_t   thread_sys; /* server thread object */
     pthread_t   thread_app; /* server thread object */
+    pthread_t   thread_dsp; /* server thread object */
 
-    Osal_printf ("Spawning Ducati Trace daemon...\n");
+    Osal_printf ("Spawning Ducati-Tesla Trace daemon...\n");
 
     /* Fork off the parent process */
     child_pid = fork ();
@@ -212,11 +271,15 @@ Int main (Int argc, Char * argv [])
                     NULL);
     pthread_create (&thread_app, NULL, (Void *)&printAppM3Traces,
                     NULL);
+    pthread_create (&thread_dsp, NULL, (Void *)&printTeslaTraces,
+                    NULL);
 
     pthread_join (thread_sys, NULL);
     Osal_printf ("SysM3 trace thread exited\n");
     pthread_join (thread_app, NULL);
     Osal_printf ("AppM3 trace thread exited\n");
+    pthread_join (thread_dsp, NULL);
+    Osal_printf ("Tesla trace thread exited\n");
 
     UsrUtilsDrv_destroy ();
 
