@@ -17,6 +17,8 @@
 #ifndef _DEBUG_UTILS_H_
 #define _DEBUG_UTILS_H_
 
+#include <stdio.h>
+
 /*#define __DEBUG__*/
 /*#define __DEBUG_ENTRY__*/
 /*#define __DEBUG_ASSERT__*/
@@ -31,14 +33,18 @@
  *    ==> val is 5 at test.c:56:main()
  */
 /* debug print (fmt must be a literal); adds new-line. */
-#ifdef __DEBUG__
-#define P(fmt, ...) S_ { fprintf(stdout, fmt "\n", ##__VA_ARGS__); fflush(stdout); } _S
-#else
-#define P(fmt, ...)
-#endif
+#define __DEBUG_PRINT(fmt, ...) S_ { fprintf(stdout, fmt "\n", ##__VA_ARGS__); fflush(stdout); } _S
 
 /* debug print with context information (fmt must be a literal) */
-#define DP(fmt, ...) P(fmt " at %s(" __FILE__ ":%d)", ##__VA_ARGS__, __FUNCTION__, __LINE__)
+#define __DEBUG_DPRINT(fmt, ...) __DEBUG_PRINT(fmt " at %s(" __FILE__ ":%d)", ##__VA_ARGS__, __FUNCTION__, __LINE__)
+
+#ifdef __DEBUG__
+#define P(fmt, ...) __DEBUG_PRINT(fmt, ##__VA_ARGS__)
+#define DP(fmt, ...) __DEBUG_DPRINT(fmt, ##__VA_ARGS__)
+#else
+#define P(fmt, ...)
+#define DP(fmt, ...)
+#endif
 
 /* ---------- Program Flow Debug Macros ---------- */
 
@@ -72,13 +78,13 @@
 
 #ifdef __DEBUG_ENTRY__
 /* function entry */
-#define IN P("in %s(" __FILE__ ":%d)", __FUNCTION__, __LINE__)
+#define IN __DEBUG_PRINT("in %s(" __FILE__ ":%d)", __FUNCTION__, __LINE__)
 /* function exit */
-#define OUT P("out %s(" __FILE__ ":%d)", __FUNCTION__, __LINE__)
+#define OUT __DEBUG_PRINT("out %s(" __FILE__ ":%d)", __FUNCTION__, __LINE__)
 /* function abort (return;)  Use as { RET; return; } */
-#define RET DP("out() ")
+#define RET __DEBUG_DPRINT("out() ")
 /* generic function return */
-#define R(val,type,fmt) E_ { type __val__ = (type) val; DP("out(" fmt ")", __val__); __val__; } _E
+#define R(val,type,fmt) E_ { type __val__ = (type) val; __DEBUG_DPRINT("out(" fmt ")", __val__); __val__; } _E
 #else
 #define IN
 #define OUT
@@ -112,12 +118,12 @@
 #ifdef __DEBUG_ASSERT__
 #define A(exp,cmp,val,type,fmt) E_ { \
     type __exp__ = (type) (exp); type __val__ = (type) (val); \
-    if (!(__exp__ cmp __val__)) DP("assert: %s (=" fmt ") !" #cmp " " fmt, #exp, __exp__, __val__); \
+    if (!(__exp__ cmp __val__)) __DEBUG_DPRINT("assert: %s (=" fmt ") !" #cmp " " fmt, #exp, __exp__, __val__); \
     __exp__; \
 } _E
 #define CHK(exp,cmp,val,type,fmt) S_ { \
     type __exp__ = (type) (exp); type __val__ = (type) (val); \
-    if (!(__exp__ cmp __val__)) DP("assert: %s (=" fmt ") !" #cmp " " fmt, #exp, __exp__, __val__); \
+    if (!(__exp__ cmp __val__)) __DEBUG_DPRINT("assert: %s (=" fmt ") !" #cmp " " fmt, #exp, __exp__, __val__); \
 } _S
 #else
 #define A(exp,cmp,val,type,fmt) (exp)
@@ -136,7 +142,7 @@
 #ifdef __DEBUG_ASSERT__
 #define NOT(exp,cmp,val,type,fmt) E_ { \
     type __exp__ = (type) (exp); type __val__ = (type) (val); \
-    if (!(__exp__ cmp __val__)) DP("assert: %s (=" fmt ") !" #cmp " " fmt, #exp, __exp__, __val__); \
+    if (!(__exp__ cmp __val__)) __DEBUG_DPRINT("assert: %s (=" fmt ") !" #cmp " " fmt, #exp, __exp__, __val__); \
     !(__exp__ cmp __val__); \
 } _E
 #else
@@ -148,12 +154,38 @@
 #define NOT_L(exp,cmp,val) NOT(exp,cmp,val,long,"%ld")
 #define NOT_P(exp,cmp,val) NOT(exp,cmp,val,void *,"%p")
 
+
+/* system assertions - will use perror to give external error information */
+#ifdef __DEBUG_ASSERT__
+#define ERR_S(fmt, ...) S_ { fprintf(stderr, fmt " at %s(" __FILE__ ":%d", ##__VA_ARGS__, __FUNCTION__, __LINE__); perror(")"); fflush(stderr); } _S
+#define A_S(exp,cmp,val) E_ { \
+    int __exp__ = (int) (exp); int __val__ = (int) (val); \
+    if (!(__exp__ cmp __val__)) ERR_S("assert: %s (=%d) !" #cmp " %d", #exp, __exp__, __val__); \
+    __exp__; \
+} _E
+#define CHK_S(exp,cmp,val) S_ { \
+    int __exp__ = (int) (exp); int __val__ = (int) (val); \
+    if (!(__exp__ cmp __val__)) ERR_S("assert: %s (=%d) !" #cmp " %d", #exp, __exp__, __val__); \
+} _S
+#define NOT_S(exp,cmp,val) E_ { \
+    int __exp__ = (int) (exp); int __val__ = (int) (val); \
+    if (!(__exp__ cmp __val__)) ERR_S("assert: %s (=%d) !" #cmp " %d", #exp, __exp__, __val__); \
+    !(__exp__ cmp __val__); \
+} _E
+#else
+#define A_S(exp,cmp,val) (exp)
+#define CHK_S(exp,cmp,val)
+#define NOT_S(exp,cmp,val) (!((exp) cmp (val)))
+#endif
+
 /* error propagation macros - these macros ensure evaluation of the expression
    even if there was a prior error */
 
 /* new error is accumulated into error */
 #define ERR_ADD(err, exp) S_ { int __error__ = A_I(exp,==,0); err = err ? err : __error__; } _S
+#define ERR_ADD_S(err, exp) S_ { int __error__ = A_S(exp,==,0); err = err ? err : __error__; } _S
 /* new error overwrites old error */
 #define ERR_OVW(err, exp) S_ { int __error__ = A_I(exp,==,0); err = __error__ ? __error__ : err; } _S
+#define ERR_OVW_S(err, exp) S_ { int __error__ = A_S(exp,==,0); err = __error__ ? __error__ : err; } _S
 
 #endif
