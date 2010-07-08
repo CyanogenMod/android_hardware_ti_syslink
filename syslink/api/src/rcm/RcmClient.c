@@ -1777,6 +1777,20 @@ Int getReturnMsg(RcmClient_Handle handle,
 
             /* remove recipient from wait list */
             List_remove(handle->recipients, elem);
+#if !defined(__linux)
+            /* Android bionic Semdelete code returns -1 if count = 0 */
+            retval = OsalSemaphore_post(self.event);
+            if (retval < 0) {
+                GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "OsalSemaphore_post",
+                             retval,
+                             "self.event"
+                             "post fails");
+                status = RcmClient_E_FAIL;
+                goto exit;
+            }
+#endif
             retval = OsalSemaphore_delete(&(self.event));
             if (retval < 0){
                 GT_setFailureReason (curTrace,
