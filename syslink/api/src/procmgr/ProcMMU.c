@@ -484,6 +484,7 @@ ProcMMU_open (Void)
 
        /* De-assert RST3, and clear the Reset status */
         Osal_printf ("De-assert RST3\n");
+        reg = *(volatile UInt32 *)(mmuRstInfo.dst + RM_MPU_M3_RSTCTRL_OFFSET);
         *(volatile UInt32 *)(mmuRstInfo.dst + RM_MPU_M3_RSTCTRL_OFFSET) =
                                           (reg & RM_MPU_M3_UNRESET_RST3);
         while (!(*(volatile UInt32 *)(mmuRstInfo.dst + RM_MPU_M3_RSTST_OFFSET)
