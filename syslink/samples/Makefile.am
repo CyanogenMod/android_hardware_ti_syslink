@@ -28,4 +28,5 @@ SUBDIRS  = \
 	procmgr \
 	rcm \
 	tiler \
-	pwrmgmt
+	pwrmgmt \
+	interm3

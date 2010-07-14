@@ -52,7 +52,7 @@ TARGETNAME  =
 TARGETTYPE  =
 
 # For shared object library, soname is filename.so.maj_ver
-SH_SONAME = 
+SH_SONAME =
 
 # Folders in which gmake will run before building current target
 
@@ -63,7 +63,8 @@ ipc \
 rcm/single_test \
 rcm/multi_test \
 tiler \
-pwrmgmt
+pwrmgmt \
+interm3
 
 # Filename must not begin with '.', '/' or '\'
 
