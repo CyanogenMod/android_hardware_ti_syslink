@@ -117,6 +117,8 @@ void t_name##_push(t_name##_Stack* stack, t to_push)                          \
      {                                                                        \
           stack->bottom_ptr = stack->top_ptr =                                \
             (t_name##_Stack_Node*)(DLIF_malloc(sizeof(t_name##_Stack_Node))); \
+          if (NULL == stack->top_ptr)                                         \
+              return;                                                         \
           stack->top_ptr->next_ptr = NULL;                                    \
      }                                                                        \
      else                                                                     \
@@ -124,6 +126,8 @@ void t_name##_push(t_name##_Stack* stack, t to_push)                          \
           t_name##_Stack_Node* next_ptr = stack->top_ptr;                     \
           stack->top_ptr =                                                    \
             (t_name##_Stack_Node*)(DLIF_malloc(sizeof(t_name##_Stack_Node))); \
+          if (NULL == stack->top_ptr)                                         \
+              return;                                                         \
           stack->top_ptr->next_ptr = next_ptr;                                \
      }                                                                        \
                                                                               \

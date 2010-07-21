@@ -361,6 +361,10 @@ static void initialize_loaded_module(DLOAD_HANDLE handle,
 #endif
 
     loaded_module->name = DLIF_malloc(strlen(dyn_module->name) + 1);
+    if (NULL == loaded_module->name) {
+        DLIF_error(DLET_MISC, "Error allocating memory %d...\n",__LINE__);
+        exit(1);
+    }
     strcpy(loaded_module->name, dyn_module->name);
 
     loaded_module->file_handle = pHandle->file_handle++;
@@ -2509,8 +2513,10 @@ int32_t DLOAD_load(DLOAD_HANDLE handle, LOADER_FILE_DESC *fd, int argc,
         dyn_module->name = DLIF_malloc(sizeof(char));
         if(dyn_module->name)
             *dyn_module->name = '\0';
-        else
+        else {
+            delete_DLIMP_Dynamic_Module(handle, &dyn_module);
             return 0;
+        }
     }
 
     /*-----------------------------------------------------------------------*/
@@ -2520,6 +2526,7 @@ int32_t DLOAD_load(DLOAD_HANDLE handle, LOADER_FILE_DESC *fd, int argc,
     {
         DLIF_error(DLET_FILE, "Attempt to load invalid ELF file, '%s'.\n",
                    dyn_module->name);
+        delete_DLIMP_Dynamic_Module(handle, &dyn_module);
         return 0;
     }
 
@@ -2565,9 +2572,12 @@ int32_t DLOAD_load(DLOAD_HANDLE handle, LOADER_FILE_DESC *fd, int argc,
     /* structure.  Note that this step needs to be performed prior and in    */
     /* addition to the relocation entry processing.                          */
     /*-----------------------------------------------------------------------*/
-    if (!allocate_dynamic_segments_and_relocate_symbols(handle, fd, dyn_module))
+    if (!allocate_dynamic_segments_and_relocate_symbols(handle, fd, dyn_module)) {
+        loaded_module_ptr_remove(&pHandle->DLIMP_loaded_objects,
+                              dyn_module->loaded_module);
+        delete_DLIMP_Dynamic_Module(handle, &dyn_module);
         return 0;
-
+    }
     /*-----------------------------------------------------------------------*/
     /* Execute any user defined pre-initialization functions that may be     */
     /* associated with a dynamic executable module.                          */
@@ -2597,16 +2607,26 @@ int32_t DLOAD_load(DLOAD_HANDLE handle, LOADER_FILE_DESC *fd, int argc,
         !DLIF_register_dsbt_index_request(handle,
                                          dyn_module->name,
                                          dyn_module->loaded_module->file_handle,
-                                         dyn_module->dsbt_index))
+                                         dyn_module->dsbt_index)) {
+        dynamic_module_ptr_pop(&pHandle->DLIMP_dependency_stack);
+        loaded_module_ptr_remove(&pHandle->DLIMP_loaded_objects,
+				  dyn_module->loaded_module);
+        delete_DLIMP_Dynamic_Module(handle, &dyn_module);
         return 0;
+    }
 
     /*-----------------------------------------------------------------------*/
     /* Load this ELF file's dependents (all files on its DT_NEEDED list).    */
     /* Do not process relocation entries for anyone in the dependency graph  */
     /* until all modules in the graph are loaded and allocated.              */
     /*-----------------------------------------------------------------------*/
-    if (!dload_and_allocate_dependencies(handle, dyn_module))
+    if (!dload_and_allocate_dependencies(handle, dyn_module)) {
+        dynamic_module_ptr_pop(&pHandle->DLIMP_dependency_stack);
+        loaded_module_ptr_remove(&pHandle->DLIMP_loaded_objects,
+				  dyn_module->loaded_module);
+        delete_DLIMP_Dynamic_Module(handle, &dyn_module);
         return 0;
+    }
 
     /*-----------------------------------------------------------------------*/
     /* Remove the current ELF file from the list of files that are in the    */

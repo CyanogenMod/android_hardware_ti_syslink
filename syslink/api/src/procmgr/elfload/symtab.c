@@ -150,7 +150,7 @@ static BOOL breadth_first_lookup(DLOAD_HANDLE phandle,
     /* file_handle_queue.                                                    */
     /*-----------------------------------------------------------------------*/
     Int32_Queue file_handle_queue;
-    //memset(&file_handle_queue, 0, sizeof(Int32_Queue));
+    Int32_initialize_queue(&file_handle_queue);
     Int32_enqueue(&file_handle_queue, handle);
     LOADER_OBJECT *dHandle = (LOADER_OBJECT *)phandle;
 

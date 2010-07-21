@@ -1770,6 +1770,10 @@ static void read_rel_table(struct Elf32_Rel** rel_table,
 {
     int i;
     *rel_table = (struct Elf32_Rel*) DLIF_malloc(relnum*relent);
+    if (NULL == *rel_table) {
+        DLIF_error(DLET_MEMORY,"Failed to Allocate read_rel_table\n");
+        return;
+    }
     DLIF_fseek(elf_file, table_offset, LOADER_SEEK_SET);
     DLIF_fread(*rel_table, relnum, relent, elf_file);
 
@@ -1792,6 +1796,10 @@ static void read_rela_table(struct Elf32_Rela** rela_table,
 {
     int i;
     *rela_table = DLIF_malloc(relanum*relaent);
+    if (NULL == *rela_table) {
+        DLIF_error(DLET_MEMORY,"Failed to Allocate read_rela_table\n");
+        return;
+    }
     DLIF_fseek(elf_file, table_offset, LOADER_SEEK_SET);
     DLIF_fread(*rela_table, relanum, relaent, elf_file);
 

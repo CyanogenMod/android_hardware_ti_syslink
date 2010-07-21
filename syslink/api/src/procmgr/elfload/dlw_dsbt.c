@@ -173,7 +173,18 @@ BOOL DLIF_register_dsbt_index_request(DLOAD_HANDLE handle,
     /* current module and add it to the DSBT_Index_Request_List.             */
     /*-----------------------------------------------------------------------*/
     new_request = (DSBT_Index_Request *)DLIF_malloc(sizeof(DSBT_Index_Request));
+    if (NULL == new_request) {
+        DLIF_error(DLET_MISC,
+                   "Could not allocate memory for DSBT index request");
+        return FALSE;
+    }
     new_request->name = (char *)DLIF_malloc(strlen(requestor_name) + 1);
+    if (NULL == new_request->name) {
+        DLIF_free(new_request);
+        DLIF_error(DLET_MISC,
+                   "Could not allocate memory for DSBT index request name");
+        return FALSE;
+    }
     strcpy(new_request->name, requestor_name);
     new_request->file_handle = requestor_file_handle;
 

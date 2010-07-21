@@ -167,7 +167,7 @@ void DLDBG_add_target_record(void* client_handle, int handle)
     /*-----------------------------------------------------------------------*/
     targ_req.fp     = NULL;
     targ_req.align  = 4;
-    targ_req.flags |= DLOAD_SF_relocatable;
+    targ_req.flags  = DLOAD_SF_relocatable;
 
     /*-----------------------------------------------------------------------*/
     /* Request the target memory for the new debug record.                   */

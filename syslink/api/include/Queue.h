@@ -131,8 +131,10 @@ void t_name##_enqueue(t_name##_Queue* queue, t to_enqueue)               \
          queue->back_ptr = queue->back_ptr->next_ptr;                    \
      }                                                                   \
                                                                          \
-     queue->back_ptr->value = to_enqueue;                                \
-     queue->back_ptr->next_ptr = NULL;                                   \
+     if (NULL != queue->back_ptr) {                                      \
+         queue->back_ptr->value = to_enqueue;                            \
+         queue->back_ptr->next_ptr = NULL;                               \
+     }                                                                   \
 }                                                                        \
                                                                          \
 t t_name##_dequeue(t_name##_Queue* queue)                                \
