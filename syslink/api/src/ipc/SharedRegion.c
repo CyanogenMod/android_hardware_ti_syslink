@@ -462,7 +462,10 @@ SharedRegion_destroy (Void)
         else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
             /* Enter the gate */
-            key = IGateProvider_enter (SharedRegion_module->localLock);
+            if (SharedRegion_module->localLock != NULL) {
+                key = IGateProvider_enter (SharedRegion_module->localLock);
+            }
+
             if (SharedRegion_module->bCreatedInKnlSpace != NULL) {
                 Memory_free (NULL,
                             SharedRegion_module->bCreatedInKnlSpace,
@@ -484,11 +487,11 @@ SharedRegion_destroy (Void)
             SharedRegion_module->numOffsetBits = 0;
             SharedRegion_module->offsetMask    = 0;
 
-            /* Leave the gate */
-            IGateProvider_leave (SharedRegion_module->localLock, key);
-
-            /* Delete the local lock */
             if (SharedRegion_module->localLock != NULL) {
+                /* Leave the gate */
+                IGateProvider_leave (SharedRegion_module->localLock, key);
+
+                /* Delete the local lock */
                 status = GateMutex_delete ((GateMutex_Handle *)
                                            &SharedRegion_module->localLock);
                 GT_assert (curTrace, (status >= 0));
