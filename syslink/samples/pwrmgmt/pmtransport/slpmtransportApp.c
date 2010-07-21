@@ -92,7 +92,7 @@ extern "C" {
  */
 MessageQ_Handle                slpmTransport_messageQ;
 HeapBufMP_Handle               slpmTransport_heapHandle;
-MessageQ_QueueId               slpmTransport_queueId;
+MessageQ_QueueId               slpmTransport_queueId = MessageQ_INVALIDMESSAGEQ;
 UInt16                         slpmTransport_procId;
 UInt16                         slpmTransport_procId1;
 UInt32                         slpmTransport_curShAddr;
@@ -507,7 +507,7 @@ SlpmTransport_execute (Int testNo)
         }
     }
 
-    if (slpmTransport_messageQ != NULL) {
+    if (slpmTransport_queueId != MessageQ_INVALIDMESSAGEQ) {
         MessageQ_close (&slpmTransport_queueId);
     }
 

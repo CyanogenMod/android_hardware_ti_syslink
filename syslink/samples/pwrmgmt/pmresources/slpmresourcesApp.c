@@ -94,7 +94,7 @@ extern "C" {
  */
 MessageQ_Handle                slpmResources_messageQ;
 HeapBufMP_Handle               slpmResources_heapHandle;
-MessageQ_QueueId               slpmResources_queueId;
+MessageQ_QueueId               slpmResources_queueId = MessageQ_INVALIDMESSAGEQ;
 UInt16                         slpmResources_procId;
 UInt16                         slpmResources_procId1;
 UInt32                         slpmResources_curShAddr;
@@ -504,7 +504,7 @@ SlpmResources_execute (Int testNo)
         }
     }
 
-    if (slpmResources_messageQ != NULL) {
+    if (slpmResources_queueId != MessageQ_INVALIDMESSAGEQ) {
         MessageQ_close (&slpmResources_queueId);
     }
 

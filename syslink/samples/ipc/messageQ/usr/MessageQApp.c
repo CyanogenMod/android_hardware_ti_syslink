@@ -91,7 +91,7 @@ extern "C" {
  */
 MessageQ_Handle                MessageQApp_messageQ;
 HeapBufMP_Handle               MessageQApp_heapHandle;
-MessageQ_QueueId               MessageQApp_queueId;
+MessageQ_QueueId               MessageQApp_queueId = MessageQ_INVALIDMESSAGEQ;
 UInt16                         MessageQApp_procId;
 UInt16                         MessageQApp_procId1;
 UInt32                         MessageQApp_curShAddr;
@@ -496,7 +496,7 @@ MessageQApp_execute (Int testNo)
         }
     }
 
-    if (MessageQApp_messageQ != NULL) {
+    if (MessageQApp_queueId != MessageQ_INVALIDMESSAGEQ) {
         MessageQ_close (&MessageQApp_queueId);
     }
 
