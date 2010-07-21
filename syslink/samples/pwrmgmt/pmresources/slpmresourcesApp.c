@@ -196,7 +196,7 @@ SlpmResources_startup (Int testNo)
             imageName = SLPMRESOURCES_SYSM3_IMAGE;
 
         Osal_printf ("Loading image (%s) onto Ducati with ProcId %d\n",
-                        imageName, startParams.proc_id);
+                        imageName, slpmResources_procId);
         status = ProcMgr_load (slpmResources_procMgrHandle, imageName, 2,
                                 (String *) &imageName, &entryPoint, &fileId,
                                 slpmResources_procId);

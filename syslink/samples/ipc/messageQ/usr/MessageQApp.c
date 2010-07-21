@@ -193,7 +193,7 @@ MessageQApp_startup (Int testNo)
             imageName = MESSAGEQAPP_SYSM3_IMAGE;
 
         Osal_printf ("Loading image (%s) onto Ducati with ProcId %d\n",
-                        imageName, startParams.proc_id);
+                        imageName, MessageQApp_procId);
         status = ProcMgr_load (MessageQApp_procMgrHandle, imageName, 2,
                                 (String *) &imageName, &entryPoint, &fileId,
                                 MessageQApp_procId);

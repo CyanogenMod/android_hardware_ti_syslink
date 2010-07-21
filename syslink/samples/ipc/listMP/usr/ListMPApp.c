@@ -303,12 +303,19 @@ ListMPApp_execute (UInt32 sharedAddr)
                                    (IHeap_Handle)ListMPApp_heapHandle,
                                    sizeof (ListMP_Node),
                                    0);
+        if (NULL == node) {
+            status = ListMP_E_MEMORY;
+            Osal_printf("ERROR: Failed to allocate nodes for remotely created list.\n");
+            break;
+        }
         Osal_printf("Allocated node at 0x%x\n", (UInt32)node);
         node->id = 0x0 + i;
         ListMP_putTail (ListMPApp_handleRemote, &(node->elem));
 
         Osal_printf("Node 0x%x with id 0x%x successfully put.\n", (UInt32)node, node->id);
     }
+    if (status < 0)
+        goto func_clean;
     Osal_printf("Waiting for synchronization, press key to continue.\n");
     getchar();
 
@@ -321,12 +328,19 @@ ListMPApp_execute (UInt32 sharedAddr)
                                    (IHeap_Handle)ListMPApp_heapHandle,
                                     sizeof (ListMP_Node),
                                     0);
+        if (NULL == node) {
+            status = ListMP_E_MEMORY;
+            Osal_printf("ERROR: Failed to allocate nodes for locally created list.\n\n");
+            break;
+        }
         Osal_printf("Allocated node at 0x%x\n", (UInt32)node);
         node->id = 0x100 + i;
         ListMP_putTail (ListMPApp_handleLocal, &(node->elem));
 
         Osal_printf("Node 0x%x with id 0x%x successfully put.\n", (UInt32)node, node->id);
     }
+    if (status < 0)
+        goto func_clean;
 
     /* -------------------------------------------------------------------------
      * Get nodes from remotely created list.
@@ -349,6 +363,7 @@ ListMPApp_execute (UInt32 sharedAddr)
                       node,
                       sizeof (ListMP_Node));
     }
+func_clean:
     /* -------------------------------------------------------------------------
      * Cleanup
      * -------------------------------------------------------------------------

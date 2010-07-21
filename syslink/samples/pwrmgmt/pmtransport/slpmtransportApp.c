@@ -197,8 +197,8 @@ SlpmTransport_startup (Int testNo)
         else if (testNo == 2)
             imageName = SLPMTRANSPORT_SYSM3_IMAGE;
 
-        Osal_printf ("[A9]:Loading image (%s) onto Ducati with ProcId %d\n",
-                        imageName, startParams.proc_id);
+        Osal_printf ("Loading image (%s) onto Ducati with ProcId %d\n",
+                        imageName, slpmTransport_procId);
         status = ProcMgr_load (slpmTransport_procMgrHandle, imageName, 2,
                                 (String *) &imageName, &entryPoint, &fileId,
                                 slpmTransport_procId);
