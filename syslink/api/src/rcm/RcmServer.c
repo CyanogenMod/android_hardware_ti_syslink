@@ -73,8 +73,6 @@
 #define _RCM_KeyMask 0x7FF00000 /* key mask in function index */
 #define _Rcm_KeyShift 20 /* key bit position in function index */
 
-#define RcmServer_MAX_TABLES 9          // max number of function tables
-
 /* =============================================================================
  * Structures & Enums
  * =============================================================================
@@ -866,7 +864,7 @@ Int rcmGetFxnAddr(RcmServer_Handle handle, UInt32 fxnIdx,
     key = (fxnIdx & _RCM_KeyMask) >> _Rcm_KeyShift;
 
     i = (fxnIdx & 0xF000) >> 12;
-    if ((i > 0) && (i <= RcmServer_MAX_TABLES) && (handle->fxnTab[i] != NULL)) {
+    if ((i > 0) && (i < RCMSERVER_MAX_TABLES) && (handle->fxnTab[i] != NULL)) {
         /* fetch the function address from the table */
         j = (fxnIdx & 0x0FFF);
         slot = (handle->fxnTab[i])+j;
@@ -880,6 +878,9 @@ Int rcmGetFxnAddr(RcmServer_Handle handle, UInt32 fxnIdx,
                   key, slot->key, fxnIdx);
             status = RcmServer_E_INVALIDFXNIDX;
         }
+    }
+    if (NULL == addr) {
+        status = RcmServer_E_INVALIDFXNIDX;
     }
     if (status >= 0) {
         *addrPtr = addr;

@@ -1346,7 +1346,6 @@ Int RcmClient_waitUntilDone(RcmClient_Handle handle,
                 RcmClient_Message **returnMsg)
 {
     Int status = RcmClient_S_SUCCESS;
-    Int retval = 0;
     RcmClient_Message *rtnMsg = NULL;
 
     GT_0trace (curTrace, GT_ENTER, "RcmClient_waitUntilDone");
@@ -1371,15 +1370,14 @@ Int RcmClient_waitUntilDone(RcmClient_Handle handle,
     }
 
     /* get the return message from the server */
-    retval = getReturnMsg(handle, msgId, &rtnMsg);
-    if (retval < 0) {
+    status = getReturnMsg(handle, msgId, &rtnMsg);
+    if (status < 0) {
         GT_setFailureReason (curTrace,
                      GT_4CLASS,
                      "getReturnMsg",
-                     retval,
+                     status,
                      "Get return message failed");
         *returnMsg = NULL;
-        retval = status;
         goto exit;
     }
     *returnMsg = rtnMsg;
