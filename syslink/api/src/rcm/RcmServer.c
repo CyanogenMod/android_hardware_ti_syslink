@@ -184,7 +184,7 @@ Void RcmServer_init (Void)
                 GT_1CLASS,
                 "RcmServer module has been already setup in this process.\n"
                 " RefCount: [%d]\n",
-                RcmClient_module->setupRefCount);
+                RcmServer_module->setupRefCount);
     }
 
     GT_1trace (curTrace, GT_LEAVE, "RcmServer_init", status);
