@@ -517,10 +517,10 @@ Int ProcMgr_virtToPhysPages (ProcMgr_Handle handle,
                              ProcMgr_ProcId procId);
 
 /* Function to flush cache */
-Int ProcMgr_flushMemory(PVOID pMpuAddr, UInt32 ulSize);
+Int ProcMgr_flushMemory(PVOID bufAddr, UInt32 bufSize);
 
 /* Function to invalidate cache */
-Int ProcMgr_invalidateMemory(PVOID pMpuAddr, UInt32 ulSize);
+Int ProcMgr_invalidateMemory(PVOID bufAddr, UInt32 bufSize);
 
 
 /* =============================================================================

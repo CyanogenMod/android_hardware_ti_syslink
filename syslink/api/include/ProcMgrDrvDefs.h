@@ -214,6 +214,15 @@ typedef struct ProcMgr_CmdArgs_tag {
  */
 #define CMD_PROCMGR_GETVIRTTOPHYS       (PROCMGR_BASE_CMD + 28u)
 
+/*!
+ * @brief   Command for ProcMgr_dmaFlushRange
+ */
+#define CMD_PROCMGR_DMAFLUSHRANGE       (PROCMGR_BASE_CMD + 29u)
+
+/*!
+ * @brief   Command for ProcMgr_dmaInvRange
+ */
+#define CMD_PROCMGR_DMAINVRANGE         (PROCMGR_BASE_CMD + 30u)
 
 #define RPROC_IOC_MAGIC		'P'
 
@@ -606,6 +615,30 @@ typedef struct ProcMgr_CmdArgsVirtToPhysPages_tag {
     UInt32              numEntries;
     /*!<  number of entries to translate */
 } ProcMgr_CmdArgsVirtToPhysPages;
+
+/*!
+ *  @brief  Command arguments for ProcMgr_dmaInvRange
+ */
+typedef struct ProcMgr_CmdArgsdmaInvRange_tag {
+    ProcMgr_CmdArgs     commonArgs;
+    /*!< Common command args */
+    UInt32              ua;
+    /*!< user space address. */
+    UInt32              bufSize;
+    /*!<  size of user space buffer */
+} ProcMgr_CmdArgsdmaInvRange;
+
+/*!
+ *  @brief  Command arguments for ProcMgr_FlushInvRange
+ */
+typedef struct ProcMgr_CmdArgsdmaFlushRange_tag {
+    ProcMgr_CmdArgs     commonArgs;
+    /*!< Common command args */
+    UInt32              ua;
+    /*!< user space address. */
+    UInt32              bufSize;
+    /*!<  size of user space buffer */
+} ProcMgr_CmdArgsdmaFlushRange;
 
 
 

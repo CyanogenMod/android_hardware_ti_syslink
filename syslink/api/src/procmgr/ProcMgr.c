@@ -2974,7 +2974,6 @@ ProcMgr_virtToPhysPages (ProcMgr_Handle handle,
         cmdArgs.da = remoteAddr;
         cmdArgs.memEntries = physEntries;
         cmdArgs.numEntries = numOfPages;
-        printf("calling ProcMgrDrvUsr_ioctl \n");
         status = ProcMgrDrvUsr_ioctl (CMD_PROCMGR_GETVIRTTOPHYS, &cmdArgs);
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
         if (status < 0) {
@@ -2998,6 +2997,7 @@ ProcMgr_virtToPhysPages (ProcMgr_Handle handle,
     return status;
 }
 
+#if 0
 /*!
  *  @brief      Function to set error type for Flush fucntions
  *
@@ -3010,7 +3010,59 @@ static Int32 set_errno(Int32 ret)
     errno = -ret;
     return -1;
 }
+#endif
 
+/*!
+ *  @brief      Function to Invalidate user space buffers
+ *
+ *  @param      bufAddr     Userspace Virtual Address
+ *  @param      bufSize     size of the buffer
+ *
+ *  @sa         ProcMgr_flushMemory
+ */
+Int
+ProcMgr_invalidateMemory(PVOID bufAddr, UInt32 bufSize)
+{
+    Int                             status          = PROCMGR_SUCCESS;
+    ProcMgr_CmdArgsdmaInvRange      cmdArgs;
+
+    GT_1trace (curTrace, GT_ENTER, "ProcMgr_invalidateMemory", bufAddr);
+
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+    if (bufAddr == NULL) {
+        /*! @retval  PROCMGR_E_INVALIDARG Invalid value NULL provided for
+                     argument bufAddr */
+        status = PROCMGR_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                           GT_4CLASS,
+                           "ProcMgr_invalidateMemory",
+                           status,
+                           "Invalid value provided for argument bufAddr");
+    }
+    else {
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+        cmdArgs.ua = (UInt32)bufAddr;
+        cmdArgs.bufSize = bufSize;
+        status = ProcMgrDrvUsr_ioctl (CMD_PROCMGR_DMAINVRANGE, &cmdArgs);
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+        if (status < 0) {
+            GT_setFailureReason (curTrace,
+                                 GT_4CLASS,
+                                 "ProcMgr_invalidateMemory",
+                                 status,
+                                 "API (through IOCTL) failed on kernel-side!");
+        }
+    }
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+
+    GT_1trace (curTrace, GT_LEAVE, "ProcMgr_invalidateMemory", status);
+
+    /*! @retval PROCMGR_SUCCESS Operation successful */
+    return status;
+}
+
+
+#if 0
 /*!
  *  @brief      Function to invalidate user space buffers
  *
@@ -3043,7 +3095,6 @@ static Int32 dma_inv_range(Void *start, UInt32 size)
    Commented to out to remove build warning. Uncomment when this function
    can be used.
  */
-#if 0
 /*!
  *  @brief      Function to clean user space buffers
  *
@@ -3071,6 +3122,59 @@ static Int32 dma_clean_range(Void *start, UInt32 size)
     return ret;
 }
 #endif
+
+
+
+/*!
+ *  @brief      Function to flush user space buffers
+ *
+ *  @param      bufAddr    Userspace Virtual Address
+ *  @param      bufSize      size of the buffer
+ *
+ *  @sa         ProcMgr_invalidateMemory
+ */
+Int
+ProcMgr_flushMemory(PVOID bufAddr, UInt32 bufSize) {
+
+    Int                             status          = PROCMGR_SUCCESS;
+    ProcMgr_CmdArgsdmaFlushRange    cmdArgs;
+
+    GT_1trace (curTrace, GT_ENTER, "ProcMgr_flushMemory", bufAddr);
+
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+    if (bufAddr == NULL) {
+        /*! @retval  PROCMGR_E_INVALIDARG Invalid value NULL provided for
+                     argument bufAddr */
+        status = PROCMGR_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                           GT_4CLASS,
+                           "ProcMgr_flushMemory",
+                           status,
+                           "Invalid value provided for argument bufAddr");
+    }
+    else {
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+        cmdArgs.ua = (UInt32)bufAddr;
+        cmdArgs.bufSize = bufSize;
+        status = ProcMgrDrvUsr_ioctl (CMD_PROCMGR_DMAFLUSHRANGE, &cmdArgs);
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+        if (status < 0) {
+            GT_setFailureReason (curTrace,
+                                 GT_4CLASS,
+                                 "ProcMgr_flushMemory",
+                                 status,
+                                 "API (through IOCTL) failed on kernel-side!");
+        }
+    }
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+
+    GT_1trace (curTrace, GT_LEAVE, "ProcMgr_flushMemory", status);
+
+    /*! @retval PROCMGR_SUCCESS Operation successful */
+    return status;
+}
+
+#if 0
 
 /*!
  *  @brief      Function to flush user space buffers
@@ -3146,6 +3250,7 @@ ProcMgr_invalidateMemory(PVOID pMpuAddr, UInt32 ulSize)
 
     return status;
 }
+#endif
 
 #if defined (__cplusplus)
 }
