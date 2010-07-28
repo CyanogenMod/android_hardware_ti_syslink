@@ -75,6 +75,7 @@ extern "C" {
 #define NOTIFY_SYSM3ONLY_IMAGE  "./Notify_MPUSYS_Test_Core0.xem3"
 #define NOTIFY_SYSM3_IMAGE      "./Notify_MPUSYS_reroute_Test_Core0.xem3"
 #define NOTIFY_APPM3_IMAGE      "./Notify_MPUAPP_reroute_Test_Core1.xem3"
+#define NOTIFY_TESLA_IMAGE      "./Notify_Test_Dsp.xe64T"
 
 /** ============================================================================
  *  @macro  numIterations
@@ -237,10 +238,12 @@ static Int NotifyPing_startup (Int testNo)
     }
 
     eventId = eventNo;
-    procId = ((testNo == 1) ? \
-                MultiProc_getId ("SysM3") : MultiProc_getId("AppM3"));
+    procId = ((testNo == 1) ? MultiProc_getId ("SysM3") : \
+                ((testNo == 2) ? MultiProc_getId ("AppM3") : \
+                    MultiProc_getId("Tesla")));
 
-    status = ProcMgr_open (&procHandle, MultiProc_getId("SysM3"));
+    status = ProcMgr_open (&procHandle, (testNo == 2 ? \
+                                MultiProc_getId ("SysM3") : procId));
     if (status < 0) {
         Osal_printf ("Error in ProcMgr_open [0x%x]\n", status);
         return status;
@@ -283,11 +286,17 @@ static Int NotifyPing_startup (Int testNo)
     }
 
     if (status >= 0) {
-        startParams.proc_id = MultiProc_getId("SysM3");
-        if (procId == startParams.proc_id) {
+        startParams.proc_id = procId;
+        if (procId == MultiProc_getId("Tesla")) {
+            imagePath = NOTIFY_TESLA_IMAGE;
+            Osal_printf ("Testing Tesla only! Image = %s\n", imagePath);
+        }
+        else if (procId == MultiProc_getId("SysM3")) {
             imagePath = NOTIFY_SYSM3ONLY_IMAGE;
             Osal_printf ("Testing SysM3 only! Image = %s\n", imagePath);
-        } else {
+        }
+        else if (procId == MultiProc_getId("AppM3")) {
+            startParams.proc_id = MultiProc_getId("SysM3");
             imagePath = NOTIFY_SYSM3_IMAGE;
             Osal_printf ("Testing AppM3 only! Image = %s\n", imagePath);
         }
@@ -308,7 +317,6 @@ static Int NotifyPing_startup (Int testNo)
             return status;
         }
     }
-
 
     if ((status >= 0) && (procId == MultiProc_getId ("AppM3"))) {
         startParams.proc_id = procId;
@@ -619,18 +627,18 @@ Int NotifyPing_shutdown (Void)
     }
 
     /* Uninitialize ProcMgr setup */
+    stopParams.proc_id = procId;
     if (procId == MultiProc_getId ("AppM3")) {
-        stopParams.proc_id = procId;
         status = ProcMgr_stop (procHandle1, &stopParams);
         if (status < 0) {
             Osal_printf ("Error in ProcMgr_stop [0x%d]:APPM3\n", status);
             return status;
         } else {
+            stopParams.proc_id = MultiProc_getId ("SysM3");
             Osal_printf ("ProcMgr_stop [0x%x]:APPM3\n", status);
         }
     }
 
-    stopParams.proc_id = MultiProc_getId ("SysM3");
     status = ProcMgr_stop (procHandle, &stopParams);
     if (status < 0) {
         Osal_printf ("Error in ProcMgr_stop [0x%d]:SYSM3\n", status);
@@ -678,7 +686,7 @@ Void printUsage (Void)
 {
     Osal_printf ("Usage: ./notifyping.out <TestNo> [[<EventNo>] "
         "[<numIterations>]]\n");
-    Osal_printf ("\tValid Values:\n\t\tTestNo: 1 or 2\n"
+    Osal_printf ("\tValid Values:\n\t\tTestNo: 1 or 2 or 3\n"
                 "\t\tEventNo: 3 to 31\n"
                 "\t\tnumIterations: 1 to 100, default: 5\n");
     Osal_printf ("\tExamples:\n");
@@ -686,14 +694,20 @@ Void printUsage (Void)
                     "NotifyPing all events on SysM3\n");
     Osal_printf ("\t./notifyping.out 2      : "
                     "NotifyPing all events on AppM3\n");
+    Osal_printf ("\t./notifyping.out 3      : "
+                    "NotifyPing all events on Tesla\n");
     Osal_printf ("\t./notifyping.out 1 17   : "
                     "NotifyPing event#17 on SysM3 for 5 iterations\n");
     Osal_printf ("\t./notifyping.out 2 5    : "
                     "NotifyPing event#5 on AppM3 for 5 iterations\n");
+    Osal_printf ("\t./notifyping.out 3 7    : "
+                    "NotifyPing event#7 on Tesla for 5 iterations\n");
     Osal_printf ("\t./notifyping.out 1 8 10 : "
                     "NotifyPing event#8 on SysM3 for 10 iterations\n");
     Osal_printf ("\t./notifyping.out 2 30 15: "
                     "NotifyPing event#30 on AppM3 for 15 iterations\n");
+    Osal_printf ("\t./notifyping.out 3 24 50: "
+                    "NotifyPing event#24 on Tesla for 50 iterations\n");
 
     return;
 }
@@ -734,7 +748,7 @@ Int main (Int argc, Char * argv [])
             break;
     }
 
-    if ((validTest == TRUE) && ((testNo != 1 && testNo != 2) ||
+    if ((validTest == TRUE) && ((testNo < 1 || testNo > 3) ||
         (eventNo < 3 || eventNo > Notify_MAXEVENTS) ||
         (numIterations < 1 || numIterations > 100))) {
         validTest = FALSE;
