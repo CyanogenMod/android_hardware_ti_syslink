@@ -40,9 +40,11 @@ extern "C" {
 #define MSGQ_NAME                   "MsgQ_Mpu:0"
 #define SYSM3_SERVER_NAME           "RcmSvr_SysM3:0"
 #define APPM3_SERVER_NAME           "RcmSvr_AppM3:0"
+#define DSP_SERVER_NAME             "RcmSvr_Dsp:0"
 #define MPU_PROC_NAME               "MPU"
 #define SYSM3_PROC_NAME             "SysM3"
 #define APPM3_PROC_NAME             "AppM3"
+#define DSP_PROC_NAME               "Tesla"
 
 #if defined (__cplusplus)
 }

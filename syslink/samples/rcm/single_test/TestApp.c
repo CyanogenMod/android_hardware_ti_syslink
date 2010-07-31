@@ -56,6 +56,10 @@ Void printUsage (Void)
                     "MPU RCM Client <--> AppM3 RCM Server\n");
     Osal_printf ("\t./rcm_singletest.out 2 2 : "
                     "MPU RCM Server <--> AppM3 RCM Client\n");
+    Osal_printf ("\t./rcm_singletest.out 3 1 : "
+                    "MPU RCM Client <--> Tesla RCM Server\n");
+    Osal_printf ("\t./rcm_singletest.out 3 2 : "
+                    "MPU RCM Server <--> Tesla RCM Client\n");
 
     return;
 }
@@ -78,7 +82,7 @@ Int main (Int argc, Char * argv [])
 
     testNo = atoi (argv[1]);
     subTestNo = atoi (argv[2]);
-    if ((testNo != 1 && testNo != 2) || (subTestNo != 1 && subTestNo != 2)) {
+    if ((testNo < 1 || testNo > 3) || (subTestNo != 1 && subTestNo != 2)) {
         printUsage ();
         goto exit;
     }

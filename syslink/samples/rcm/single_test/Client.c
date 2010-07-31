@@ -76,6 +76,11 @@ extern "C" {
  */
 #define RCM_MPUCLIENT_APPM3_IMAGE      "./RCMServer_MPUAPP_Test_Core1.xem3"
 
+/*!
+ *  @brief  Name of the Tesla baseImage to be used for sample execution with
+ *          Tesla
+ */
+#define RCM_MPUCLIENT_DSP_IMAGE         "./RCMServer_Dsp_Test.xe64T"
 
 typedef struct {
     Int a;
@@ -352,9 +357,15 @@ Int ipcSetup (Int testCase)
         remoteServerName = APPM3_SERVER_NAME;
         procName = APPM3_PROC_NAME;
         break;
+    case 3:
+        Osal_printf ("ipcSetup: RCM test with RCM client and server on "
+                     "Tesla\n\n");
+        remoteServerName = DSP_SERVER_NAME;
+        procName = DSP_PROC_NAME;
+        break;
     default:
         Osal_printf ("ipcSetup: Please pass valid arg "
-                     "(0-local, 1-Sys M3, 2-App M3) \n");
+                     "(0-local, 1-Sys M3, 2-App M3, 3-Tesla) \n");
         goto exit;
         break;
     }
@@ -367,7 +378,8 @@ Int ipcSetup (Int testCase)
     }
     Osal_printf("Ipc_setup status [0x%x]\n", status);
 
-    procId = MultiProc_getId (SYSM3_PROC_NAME);
+    procId = ((testCase == 3) ? MultiProc_getId (DSP_PROC_NAME) : \
+                                MultiProc_getId (SYSM3_PROC_NAME));
     remoteIdClient = MultiProc_getId (procName);
 
     /* Open a handle to the ProcMgr instance. */
@@ -423,29 +435,31 @@ Int ipcSetup (Int testCase)
         imageName = RCM_MPUCLIENT_SYSM3ONLY_IMAGE;
     else if (testCase == 2)
         imageName = RCM_MPUCLIENT_SYSM3_IMAGE;
+    else if (testCase == 3)
+        imageName = RCM_MPUCLIENT_DSP_IMAGE;
 
-    uProcId = MultiProc_getId (SYSM3_PROC_NAME);
     if (testCase != 0) {
         status = ProcMgr_load (procMgrHandleClient, imageName, 2, &imageName,
-                                &entryPoint, &fileId, uProcId);
+                                &entryPoint, &fileId, procId);
         if (status < 0) {
-            Osal_printf ("ipcSetup: Error in ProcMgr_load SysM3 image [0x%x]\n",
-                            status);
+            Osal_printf ("ipcSetup: Error in ProcMgr_load %s image [0x%x]\n",
+                            procName, status);
             goto exit;
         }
-        Osal_printf ("ipcSetup: ProcMgr_load SysM3 image Status [0x%x]\n",
-                        status);
+        Osal_printf ("ipcSetup: ProcMgr_load %s image Status [0x%x]\n",
+                        procName, status);
     }
 #endif /* defined(SYSLINK_USE_LOADER) */
     if (testCase != 0) {
-        startParams.proc_id = MultiProc_getId (SYSM3_PROC_NAME);
+        startParams.proc_id = procId;
         status = ProcMgr_start (procMgrHandleClient, entryPoint, &startParams);
         if (status < 0) {
-            Osal_printf ("ipcSetup: Error in ProcMgr_start SysM3 [0x%x]\n",
-                            status);
+            Osal_printf ("ipcSetup: Error in ProcMgr_start %s [0x%x]\n",
+                            procName, status);
             goto exit;
         }
-        Osal_printf ("ipcSetup: ProcMgr_start SysM3 Status [0x%x]\n", status);
+        Osal_printf ("ipcSetup: ProcMgr_start %s Status [0x%x]\n", procName,
+                        status);
     }
 
     if (testCase == 2) {
@@ -688,8 +702,8 @@ Int RcmClientCleanup (Int testCase)
         Memory_free (srHeap, heapBufPtr, heapSize);
     }
 
+    stopParams.proc_id = remoteIdClient;
     if (testCase == 2) {
-        stopParams.proc_id = remoteIdClient;
         status = ProcMgr_stop(procMgrHandleClient1, &stopParams);
         if (status < 0)
             Osal_printf ("RcmClientCleanup: Error in ProcMgr_stop [0x%x]\n",
@@ -697,9 +711,9 @@ Int RcmClientCleanup (Int testCase)
         else
             Osal_printf ("RcmClientCleanup: ProcMgr_stop status: [0x%x]\n",
                             status);
+        stopParams.proc_id = MultiProc_getId (SYSM3_PROC_NAME);
     }
 
-    stopParams.proc_id = PROC_SYSM3;
     status = ProcMgr_stop(procMgrHandleClient, &stopParams);
     if (status < 0)
         Osal_printf ("RcmClientCleanup: Error in ProcMgr_stop [0x%x]\n",

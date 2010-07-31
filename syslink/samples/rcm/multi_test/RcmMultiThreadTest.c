@@ -82,6 +82,13 @@ extern "C" {
                                 "./RCMSrvClntMultiThread_MPUAPP_Test_Core1.xem3"
 
 /*!
+ *  @brief  Name of the Tesla baseImage to be used for sample execution with
+ *          Tesla
+ */
+#define RCM_MULTITHREAD_DSP_IMAGE        \
+                                "./RCMSrvClntMultiThread_Dsp_Test.xe64T"
+
+/*!
  *  @brief  Number of RCM functions being registered with the Server
  */
 #define NUM_RCM_FUNCTIONS       24
@@ -468,9 +475,15 @@ Int ipcSetup (Int testCase)
         remoteServerName = APPM3_SERVER_NAME;
         procName = APPM3_PROC_NAME;
         break;
+    case 3:
+        Osal_printf ("ipcSetup: RCM test with RCM client and server on "
+                     "Tesla\n\n");
+        remoteServerName = DSP_SERVER_NAME;
+        procName = DSP_PROC_NAME;
+        break;
     default:
         Osal_printf ("ipcSetup: Please pass valid arg "
-                     "(1-SysM3, 2-AppM3)\n\n");
+                     "(1-SysM3, 2-AppM3, 3-Tesla)\n\n");
         goto exit;
         break;
     }
@@ -483,7 +496,8 @@ Int ipcSetup (Int testCase)
     }
     Osal_printf("ipcSetup: Ipc_setup status [0x%x]\n", status);
 
-    procId = MultiProc_getId (SYSM3_PROC_NAME);
+    procId = ((testCase == 3) ? MultiProc_getId (DSP_PROC_NAME) : \
+                                MultiProc_getId (SYSM3_PROC_NAME));
     remoteId = MultiProc_getId (procName);
 
     /* Open a handle to the ProcMgr instance. */
@@ -539,24 +553,28 @@ Int ipcSetup (Int testCase)
         imageName = RCM_MULTITHREAD_SYSM3ONLY_IMAGE;
     else if (testCase == 2)
         imageName = RCM_MULTITHREAD_SYSM3_IMAGE;
+    else if (testCase == 3)
+        imageName = RCM_MULTITHREAD_DSP_IMAGE;
 
-    uProcId = MultiProc_getId (SYSM3_PROC_NAME);
     status = ProcMgr_load (procMgrHandle, imageName, 2, &imageName,
-                            &entryPoint, &fileId, uProcId);
+                            &entryPoint, &fileId, procId);
     if (status < 0) {
-        Osal_printf ("ipcSetup: Error in ProcMgr_load SysM3 image: [0x%x]\n",
-            status);
+        Osal_printf ("ipcSetup: Error in ProcMgr_load %s image: [0x%x]\n",
+                        procName, status);
         goto exit;
     }
-    Osal_printf ("ipcSetup: ProcMgr_load SysM3 image Status [0x%x]\n", status);
+    Osal_printf ("ipcSetup: ProcMgr_load %s image Status [0x%x]\n", procName,
+                    status);
 #endif /* defined(SYSLINK_USE_LOADER) */
-    startParams.proc_id = MultiProc_getId (SYSM3_PROC_NAME);
+    startParams.proc_id = procId;
     status = ProcMgr_start (procMgrHandle, entryPoint, &startParams);
     if (status < 0) {
-        Osal_printf ("ipcSetup: Error in ProcMgr_start SysM3 [0x%x]\n", status);
+        Osal_printf ("ipcSetup: Error in ProcMgr_start %s [0x%x]\n", procName,
+                        status);
         goto exit;
     }
-    Osal_printf ("ipcSetup: ProcMgr_start SysM3 Status [0x%x]\n", status);
+    Osal_printf ("ipcSetup: ProcMgr_start %s Status [0x%x]\n", procName,
+                    status);
 
     if (testCase == 2) {
 #if defined(SYSLINK_USE_LOADER)
@@ -945,8 +963,8 @@ Int RcmTestCleanup (Int testCase)
         Memory_free (srHeap, heapBufPtr, heapSize);
     }
 
+    stopParams.proc_id = remoteId;
     if (testCase == 2) {
-        stopParams.proc_id = remoteId;
         status = ProcMgr_stop (procMgrHandle1, &stopParams);
         if (status < 0)
             Osal_printf ("RcmTestCleanup: Error in ProcMgr_stop [0x%x]\n",
@@ -954,9 +972,9 @@ Int RcmTestCleanup (Int testCase)
         else
             Osal_printf ("RcmTestCleanup: ProcMgr_stop status: [0x%x]\n",
                             status);
+        stopParams.proc_id = MultiProc_getId (SYSM3_PROC_NAME);
     }
 
-    stopParams.proc_id = PROC_SYSM3;
     status = ProcMgr_stop (procMgrHandle, &stopParams);
     if (status < 0)
         Osal_printf ("RcmTestCleanup: Error in ProcMgr_stop [0x%x]\n",
@@ -1066,6 +1084,7 @@ Void printUsage (Void)
         "[<Remote#>]]:\n");
     Osal_printf ("\t./rcm_multithreadtest.out 1 : MPU <--> SysM3 Sample\n");
     Osal_printf ("\t./rcm_multithreadtest.out 2 : MPU <--> AppM3 Sample\n");
+    Osal_printf ("\t./rcm_multithreadtest.out 3 : MPU <--> Tesla Sample\n");
     Osal_printf ("<Local#> = Number of client threads on Chiron, "
         "defaults to 1.\n");
     Osal_printf ("<Remote#> = Number of client threads on Ducati, "
@@ -1091,7 +1110,7 @@ Int main (Int argc, Char * argv [])
     }
 
     testNo = atoi (argv[1]);
-    if (testNo != 1 && testNo != 2) {
+    if (testNo < 1 || testNo > 3) {
         printUsage ();
         goto exit;
     }
