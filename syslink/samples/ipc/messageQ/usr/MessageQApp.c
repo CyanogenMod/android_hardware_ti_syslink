@@ -80,6 +80,13 @@ extern "C" {
 #define MESSAGEQAPP_APPM3_IMAGE     "./MessageQ_MPUAPP_Test_Core1.xem3"
 
 /*!
+ *  @brief  Name of the Tesla baseImage to be used for sample execution with
+ *          Tesla
+ */
+#define MESSAGEQAPP_DSP_IMAGE       "./MessageQ_Dsp_Test.xe64T"
+
+
+/*!
  *  @brief  Number of transfers to be tested.
  */
 #define  MESSAGEQAPP_NUM_TRANSFERS  10
@@ -139,23 +146,24 @@ MessageQApp_startup (Int testNo)
     }
 
     /* Open a handle to the SysM3 ProcMgr instance. */
-    MessageQApp_procId = MultiProc_getId ("SysM3");
+    MessageQApp_procId = ((testNo == 3) ? MultiProc_getId ("Tesla") : \
+                                MultiProc_getId("SysM3"));
     status = ProcMgr_open (&MessageQApp_procMgrHandle, MessageQApp_procId);
     if (status < 0) {
-        Osal_printf ("Error in ProcMgr_open (SysM3) [0x%x]\n", status);
+        Osal_printf ("Error in ProcMgr_open [0x%x]\n", status);
     }
     else {
-        Osal_printf ("ProcMgr_open (SysM3) Status [0x%x]\n", status);
+        Osal_printf ("ProcMgr_open Status [0x%x]\n", status);
         ProcMgr_getAttachParams (NULL, &attachParams);
         /* Default params will be used if NULL is passed. */
         status = ProcMgr_attach (MessageQApp_procMgrHandle, &attachParams);
         if (status < 0) {
-            Osal_printf ("ProcMgr_attach (SysM3) failed [0x%x]\n", status);
+            Osal_printf ("ProcMgr_attach failed [0x%x]\n", status);
         }
         else {
-            Osal_printf ("ProcMgr_attach (SysM3) status: [0x%x]\n", status);
+            Osal_printf ("ProcMgr_attach status: [0x%x]\n", status);
             state = ProcMgr_getState (MessageQApp_procMgrHandle);
-            Osal_printf ("After attach: ProcMgr_getState (SysM3)\n"
+            Osal_printf ("After attach: ProcMgr_getState\n"
                          "    state [0x%x]\n", status);
         }
     }
@@ -191,17 +199,19 @@ MessageQApp_startup (Int testNo)
             imageName = MESSAGEQAPP_SYSM3ONLY_IMAGE;
         else if (testNo == 2)
             imageName = MESSAGEQAPP_SYSM3_IMAGE;
+        else if (testNo == 3)
+            imageName = MESSAGEQAPP_DSP_IMAGE;
 
-        Osal_printf ("Loading image (%s) onto Ducati with ProcId %d\n",
+        Osal_printf ("Loading image (%s) onto Slave with ProcId %d\n",
                         imageName, MessageQApp_procId);
         status = ProcMgr_load (MessageQApp_procMgrHandle, imageName, 2,
                                 (String *) &imageName, &entryPoint, &fileId,
                                 MessageQApp_procId);
         if (status < 0) {
-            Osal_printf ("Error in ProcMgr_load (SysM3) image: [0x%x]\n", status);
+            Osal_printf ("Error in ProcMgr_load image: [0x%x]\n", status);
         }
         else {
-            Osal_printf ("ProcMgr_load (SysM3) Status [0x%x]\n", status);
+            Osal_printf ("ProcMgr_load Status [0x%x]\n", status);
         }
     }
 #endif /* defined(SYSLINK_USE_LOADER) */
@@ -210,10 +220,10 @@ MessageQApp_startup (Int testNo)
         status = ProcMgr_start (MessageQApp_procMgrHandle, entryPoint,
                                 &startParams);
         if (status < 0) {
-            Osal_printf ("Error in ProcMgr_start (SysM3) [0x%x]\n", status);
+            Osal_printf ("Error in ProcMgr_start [0x%x]\n", status);
         }
         else {
-           Osal_printf ("ProcMgr_start (SysM3) Status [0x%x]\n", status);
+           Osal_printf ("ProcMgr_start Status [0x%x]\n", status);
         }
     }
 
@@ -347,6 +357,10 @@ MessageQApp_execute (Int testNo)
 
     /* Assign the MessageQ Name being opened */
     switch (testNo) {
+        case 3:
+            msgQName = DSP_MESSAGEQNAME;
+            break;
+
         case 2:
             msgQName = DUCATI_CORE1_MESSAGEQNAME;
             break;

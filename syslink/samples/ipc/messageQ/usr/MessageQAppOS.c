@@ -98,10 +98,11 @@ extern Int MessageQApp_shutdown (Int testNo);
 Void printUsage (Void)
 {
     Osal_printf ("Usage: ./messageQApp.out [<TestNo>]\n");
-    Osal_printf ("\tValid Values:\n\t\tTestNo: 1 or 2 (default = 1)\n");
+    Osal_printf ("\tValid Values:\n\t\tTestNo: 1 or 2 or 3 (default = 1)\n");
     Osal_printf ("\tExamples:\n");
     Osal_printf ("\t\t./messageQApp.out 1: MessageQ sample with SysM3\n");
     Osal_printf ("\t\t./messageQApp.out 2: MessageQ sample with AppM3\n");
+    Osal_printf ("\t\t./messageQApp.out 3: MessageQ sample with Tesla\n");
 
     return;
 }
@@ -186,7 +187,7 @@ main (int argc, char ** argv)
     switch (argc) {
         case 2:
             MessageQApp_testNo = atoi (argv[1]);
-            if (MessageQApp_testNo != 1 && MessageQApp_testNo != 2) {
+            if (MessageQApp_testNo < 1 || MessageQApp_testNo > 3) {
                 validTest = FALSE;
             }
             break;
