@@ -365,9 +365,6 @@ ProcMMU_close (Void)
 {
     Int                 status      = ProcMMU_S_SUCCESS;
     int                 osStatus    = 0;
-    Memory_MapInfo      mmuRstInfo;
-    Memory_UnmapInfo    mmuRstUnmapInfo;
-    volatile UInt32     reg;
 
     GT_0trace (curTrace, GT_ENTER, "ProcMMU_close");
 
@@ -389,44 +386,6 @@ ProcMMU_close (Void)
         }
     }
 
-    /* Get the user virtual address of the PRM base */
-    mmuRstInfo.src  = PROC_CORE_PRM_BASE;
-    mmuRstInfo.size = 0x1000;
-
-    status = Memory_map (&mmuRstInfo);
-#if !defined(SYSLINK_BUILD_OPTIMIZE)
-    if (status < 0) {
-        status = ProcMMU_E_OSFAILURE;
-        GT_setFailureReason (curTrace,
-                             GT_4CLASS,
-                             "ProcMMU_open",
-                             status,
-                             "Memory_map of PRM registers failed!");
-    }
-    else {
-#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-
-        Osal_printf ("Assert RST1 and RST2 and RST3\n");
-        reg = *(volatile UInt32 *)(mmuRstInfo.dst + RM_MPU_M3_RSTCTRL_OFFSET);
-        *(volatile UInt32 *)(mmuRstInfo.dst + RM_MPU_M3_RSTCTRL_OFFSET) = \
-                                                (reg | RM_MPU_ALL_RESETS);
-        Osal_printf ("Reset Status RSTST = 0x%x\n", *(volatile UInt32 *)
-                                (mmuRstInfo.dst + RM_MPU_M3_RSTST_OFFSET));
-
-        mmuRstUnmapInfo.addr  = mmuRstInfo.dst;
-        mmuRstUnmapInfo.size = 0x1000;
-        status = Memory_unmap (&mmuRstUnmapInfo);
-#if !defined(SYSLINK_BUILD_OPTIMIZE)
-        if (status < 0) {
-            GT_setFailureReason (curTrace,
-                                 GT_4CLASS,
-                                 "ProcMMU_open",
-                                 status,
-                                 "Memory_unmap of PRM registers failed!");
-        }
-    }
-#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-
     GT_1trace (curTrace, GT_LEAVE, "ProcMMU_close", status);
 
     return status;
@@ -443,103 +402,40 @@ ProcMMU_open (Void)
 {
     Int32               status          = ProcMMU_S_SUCCESS;
     Int32               osStatus        = 0;
-    Memory_MapInfo      mmuRstInfo;
-    Memory_UnmapInfo    mmuRstUnmapInfo;
-    volatile UInt32     reg;
 
     GT_0trace (curTrace, GT_ENTER, "ProcMMU_open");
 
-    /* temporary need - until RST3 is supported in IOMMU Driver */
-    UsrUtilsDrv_setup ();
-
-    /* Get the user virtual address of the PRM base */
-    mmuRstInfo.src  = PROC_CORE_PRM_BASE;
-    mmuRstInfo.size = 0x1000;
-    status = Memory_map (&mmuRstInfo);
-#if !defined(SYSLINK_BUILD_OPTIMIZE)
-    if (status < 0) {
-        status = ProcMMU_E_OSFAILURE;
-        GT_setFailureReason (curTrace,
-                             GT_4CLASS,
-                             "ProcMMU_open",
-                             status,
-                             "Memory_map of PRM registers failed!");
-    }
-    else {
-#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-
-        /* Check that releasing resets would indeed be effective */
-        reg = *(volatile UInt32 *)(mmuRstInfo.dst + RM_MPU_M3_RSTCTRL_OFFSET);
-        Osal_printf ("reg = 0x%x, Mmu_rstInfo.dst + RM_MPU_M3_RSTCTRL_OFFSET = "
-                    "0x%x\n", reg, (mmuRstInfo.dst + RM_MPU_M3_RSTCTRL_OFFSET));
-        if ((reg & RM_MPU_ALL_RESETS) != RM_MPU_ALL_RESETS) {
-            Osal_printf ("ProcMMU_open: Resets in not proper state!\n");
-            Osal_printf ("ProcMMU_open: Asserting RST1, RST2, and RST3...\n");
-            *(volatile UInt32*)(mmuRstInfo.dst + RM_MPU_M3_RSTCTRL_OFFSET) = \
-                                                     (reg | RM_MPU_ALL_RESETS);
-            /* Wait for resets to be in proper state. */
-            while (*(volatile UInt32 *)(mmuRstInfo.dst + \
-                            RM_MPU_M3_RSTCTRL_OFFSET) != RM_MPU_ALL_RESETS);
+    if (ProcMMU_refCount == 0) {
+        Osal_printf ("%s %d\n", __func__, __LINE__);
+        ProcMMU_handle = open (PROC_MMU_DRIVER_NAME, O_SYNC | O_RDWR);
+        if (ProcMMU_handle < 0) {
+            perror ("ProcMgr driver open: " PROC_MMU_DRIVER_NAME);
+            status = ProcMMU_E_OSFAILURE;
+            GT_setFailureReason (curTrace,
+                                 GT_4CLASS,
+                                 "ProcMMU_open",
+                                 status,
+                                 "Failed to open ProcMgr driver with OS!");
         }
-
-       /* De-assert RST3, and clear the Reset status */
-        Osal_printf ("De-assert RST3\n");
-        reg = *(volatile UInt32 *)(mmuRstInfo.dst + RM_MPU_M3_RSTCTRL_OFFSET);
-        *(volatile UInt32 *)(mmuRstInfo.dst + RM_MPU_M3_RSTCTRL_OFFSET) =
-                                          (reg & RM_MPU_M3_UNRESET_RST3);
-        while (!(*(volatile UInt32 *)(mmuRstInfo.dst + RM_MPU_M3_RSTST_OFFSET)
-                                                            & RM_MPU_M3_RST3));
-        Osal_printf ("RST3 released!");
-        *(volatile UInt32 *)(mmuRstInfo.dst + RM_MPU_M3_RSTST_OFFSET) = \
-                                                                RM_MPU_M3_RST3;
-
-        if (ProcMMU_refCount == 0) {
-            Osal_printf ("%s %d\n", __func__, __LINE__);
-            ProcMMU_handle = open (PROC_MMU_DRIVER_NAME, O_SYNC | O_RDWR);
-            if (ProcMMU_handle < 0) {
-                perror ("ProcMgr driver open: " PROC_MMU_DRIVER_NAME);
+        else {
+            osStatus = fcntl (ProcMMU_handle, F_SETFD, FD_CLOEXEC);
+            if (osStatus != 0) {
                 status = ProcMMU_E_OSFAILURE;
                 GT_setFailureReason (curTrace,
                                      GT_4CLASS,
                                      "ProcMMU_open",
                                      status,
-                                     "Failed to open ProcMgr driver with OS!");
+                                     "Failed to set file descriptor flags!");
             }
-            else {
-                osStatus = fcntl (ProcMMU_handle, F_SETFD, FD_CLOEXEC);
-                if (osStatus != 0) {
-                    status = ProcMMU_E_OSFAILURE;
-                    GT_setFailureReason (curTrace,
-                                         GT_4CLASS,
-                                         "ProcMMU_open",
-                                         status,
-                                         "Failed to set file descriptor flags!");
-                }
-                else{
-                    /* TBD: Protection for refCount. */
-                    ProcMMU_refCount++;
-                }
+            else{
+                /* TBD: Protection for refCount. */
+                ProcMMU_refCount++;
             }
-        }
-        else {
-            ProcMMU_refCount++;
-        }
-
-        mmuRstUnmapInfo.addr  = mmuRstInfo.dst;
-        mmuRstUnmapInfo.size = 0x1000;
-        status = Memory_unmap (&mmuRstUnmapInfo);
-#if !defined(SYSLINK_BUILD_OPTIMIZE)
-        if (status < 0) {
-            GT_setFailureReason (curTrace,
-                                 GT_4CLASS,
-                                 "ProcMMU_open",
-                                 status,
-                                 "Memory_unmap of PRM registers failed!");
         }
     }
-#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-
-    UsrUtilsDrv_destroy();
+    else {
+        ProcMMU_refCount++;
+    }
 
     GT_1trace (curTrace, GT_LEAVE, "ProcMMU_open", status);
 
