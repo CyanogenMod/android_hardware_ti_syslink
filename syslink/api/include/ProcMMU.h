@@ -129,7 +129,7 @@ extern "C" {
 #define ProcMMU_S_OPENHANDLE        PROCMMU_MAKE_SUCCESS(3)
 
 #define DUCATI_BASEIMAGE_PHYSICAL_ADDRESS    0x9CF00000
-#define TESLA_BASEIMAGE_PHYSICAL_ADDRESS     0x9A000000
+#define TESLA_BASEIMAGE_PHYSICAL_ADDRESS     0x9CC00000
 
 #define PAGE_SIZE_4KB                   0x1000
 #define PAGE_SIZE_64KB                  0x10000
@@ -240,12 +240,23 @@ extern "C" {
 
 #define DUCATI_MEM_IPC_HEAP0_ADDR       0xA0000000
 #define DUCATI_MEM_IPC_HEAP0_LEN        0x54000
+#define TESLA_MEM_IPC_HEAP0_ADDR        0x30000000
 
-#define DUCATI_MEM_IPC_HEAP1_ADDR       0xA0055000
+#define DUCATI_MEM_IPC_HEAP1_ADDR       0xA0054000
 #define DUCATI_MEM_IPC_HEAP1_LEN        0xAC000
+#define TESLA_MEM_IPC_HEAP1_ADDR        0x30054000
+
+#define TESLA_MEM_CODE_ADDR             0x20000000
+#define TESLA_MEM_CODE_LEN              0x80000
+
+#define TESLA_MEM_CONST_ADDR            0x20080000
+#define TESLA_MEM_CONST_LEN             0x80000
+
+#define TESLA_MEM_HEAP_ADDR             0x20100000
+#define TESLA_MEM_HEAP_LEN              0x1F0000
 
 #define TESLA_MEM_EXT_RAM_ADDR          0x20000000
-#define TESLA_MEM_EXT_RAM_LEN           0x2000000
+#define TESLA_MEM_EXT_RAM_LEN           0x300000
 
 /* Types of mapping attributes */
 
@@ -375,13 +386,18 @@ static const struct Mmu_entry L4MapDsp[] = {
     {L4_PERIPHERAL_L4ABE, TESLA_PERIPHERAL_L4ABE, PAGE_SIZE_16MB},
     /* IVA_HD Config: Covers all modules in IVA_HD Config space 16MB */
     {L3_IVAHD_CONFIG, TESLA_IVAHD_CONFIG, PAGE_SIZE_16MB},
+#if 0 /* No room for below entry. Need to be added when PTE is enabled */
     /* IVA_HD SL2: Covers all memory in IVA_HD SL2 space 16MB */
     {L3_IVAHD_SL2, TELSA_IVAHD_SL2, PAGE_SIZE_16MB},
+#endif
 };
 
 static const struct  Memory_entry L3MemoryRegionsDsp[] = {
     /*  MEM_EXT_RAM */
-    {TESLA_MEM_EXT_RAM_ADDR, (PAGE_SIZE_16MB * 2)},
+    {TESLA_MEM_CODE_ADDR, (PAGE_SIZE_1MB * 3)},
+    /*  MEM_IPC_HEAP0, MEM_IPC_HEAP1 */
+    {TESLA_MEM_IPC_HEAP0_ADDR, PAGE_SIZE_1MB},
+
 };
 
 Int32 ProcMMU_close (Void);

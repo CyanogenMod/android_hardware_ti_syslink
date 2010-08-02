@@ -368,8 +368,8 @@ ProcMMU_init (UInt32 aPhyAddr)
                         physAddr);
             /* OMAP4430 SDC code */
             /* Adjust below logic if using cacheable shared memory */
-            if (L3MemoryRegionsDsp[i].virtAddr == TESLA_MEM_EXT_RAM_ADDR) {
-                shmPhysAddrDsp = physAddr;
+            if (L3MemoryRegionsDsp[i].virtAddr == TESLA_MEM_IPC_HEAP0_ADDR) {
+                shmPhysAddrDsp = DUCATI_BASEIMAGE_PHYSICAL_ADDRESS;
             }
 
             virtAddr = L3MemoryRegionsDsp[i].virtAddr;
