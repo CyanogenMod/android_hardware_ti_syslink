@@ -297,7 +297,6 @@ NotifyDrvUsr_ioctl (UInt32 cmd, Ptr args)
         /* First field in the structure is the API status. */
         status = ((Notify_CmdArgs *) args)->apiStatus;
     }
-    status = ((Notify_CmdArgs *) args)->apiStatus;
     GT_1trace (curTrace, GT_LEAVE, "NotifyDrvUsr_ioctl", status);
 
     /*! @retval Notify_S_SUCCESS Operation successfully completed. */
