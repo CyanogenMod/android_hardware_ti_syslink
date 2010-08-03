@@ -51,7 +51,8 @@ SH_SONAME =
 
 SUBMODULES  = \
 pmtransport \
-pmresources
+pmresources \
+pmgeneric
 
 
 # Filename must not begin with '.', '/' or '\'
