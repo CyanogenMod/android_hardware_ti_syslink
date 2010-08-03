@@ -83,7 +83,7 @@ extern "C" {
 /*!
  *  @brief  Number of transfers to be tested.
  */
-#define  MESSAGEQAPP_NUM_TRANSFERS  12
+#define  MESSAGEQAPP_NUM_TRANSFERS  23
 #define  PM_SUSPEND                 0
 #define  PM_RESUME                  1
 
@@ -387,7 +387,7 @@ SlpmResources_execute (Int testNo)
                 Osal_printf ("MessageQ_alloc msg [0x%x]\n", msg);
             }
 
-            MessageQ_setMsgId (msg, (i % 16));
+            MessageQ_setMsgId (msg, (i % MESSAGEQAPP_NUM_TRANSFERS));
             /* In the middle of the requests we send the suspend */
 
             if (i==5) {
@@ -416,11 +416,12 @@ SlpmResources_execute (Int testNo)
 
                 /* Validate the returned message. */
                 if (msg != NULL) {
-                    if (MessageQ_getMsgId (msg) != ((i % 16) + 1)) {
+                    if (MessageQ_getMsgId (msg) !=
+                                    ((i % MESSAGEQAPP_NUM_TRANSFERS) + 1)) {
                         Osal_printf ("Data integrity failure!\n"
                                      "    Expected %d\n"
                                      "    Received %d\n",
-                                     ((i % 16) + 1),
+                                     ((i % MESSAGEQAPP_NUM_TRANSFERS) + 1),
                                      MessageQ_getMsgId (msg));
                         break;
                     }
