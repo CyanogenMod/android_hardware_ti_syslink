@@ -1780,56 +1780,46 @@ ProcMgr_stop (ProcMgr_Handle handle, ProcMgr_StopParams * params)
                              "ProcMgr_stop",
                              status,
                              "Invalid NULL handle specified");
-    }
-    else {
+    } else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
 
 #ifdef SYSLINK_USE_SYSMGR
         status = Ipc_control (params->proc_id, Ipc_CONTROLCMD_STOPCALLBACK,
                               NULL);
-#endif //#ifdef SYSLINK_USE_SYSMGR
 
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-#ifdef SYSLINK_USE_SYSMGR
         if (status < 0) {
-             GT_setFailureReason (curTrace,
-                                  GT_4CLASS,
-                                  "ProcMgr_stop",
-                                  status,
-                                  "Ipc API failed on kernel-side!");
+            GT_setFailureReason (curTrace,
+                                 GT_4CLASS,
+                                 "ProcMgr_stop",
+                                 status,
+                                 "Ipc API failed on kernel-side!");
         }
-        else {
-#endif //#ifdef SYSLINK_USE_SYSMGR
 #endif
-            cmdArgs.handle = procMgrHandle->knlObject;
-            cmdArgs.params = params;
-            status = ProcMgrDrvUsr_ioctl (CMD_PROCMGR_STOP, &cmdArgs);
-#if !defined(SYSLINK_BUILD_OPTIMIZE)
-            if (status < 0) {
-                GT_setFailureReason (curTrace,
-                                     GT_4CLASS,
-                                     "ProcMgr_stop",
-                                     status,
-                                     "API (through IOCTL) failed on kernel-side!");
-            }
-            else {
-#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-                if (params->proc_id == MultiProc_getId ("SysM3") ||
-                    params->proc_id == MultiProc_getId ("Tesla")) {
-                     status = ProcMMU_close (params->proc_id);
-                     if (status < 0) {
-                            Osal_printf ("Error in ProcMMU_close [0x%x]\n",
-                                         status);
-                     }
-                }
-#if !defined(SYSLINK_BUILD_OPTIMIZE)
-            }
-
-#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-#ifdef SYSLINK_USE_SYSMGR
-         }
 #endif //#ifdef SYSLINK_USE_SYSMGR
+        cmdArgs.handle = procMgrHandle->knlObject;
+        cmdArgs.params = params;
+        status = ProcMgrDrvUsr_ioctl (CMD_PROCMGR_STOP, &cmdArgs);
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+        if (status < 0) {
+            GT_setFailureReason (curTrace,
+                                 GT_4CLASS,
+                                 "ProcMgr_stop",
+                                 status,
+                                 "API (through IOCTL) failed on kernel-side!");
+        }
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+        if (params->proc_id == MultiProc_getId ("SysM3") ||
+            params->proc_id == MultiProc_getId ("Tesla")) {
+            status = ProcMMU_close (params->proc_id);
+            if (status < 0) {
+                Osal_printf ("Error in ProcMMU_close [0x%x]\n",
+                             status);
+            }
+        }
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
     }
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
 
     GT_1trace (curTrace, GT_LEAVE, "ProcMgr_stop", status);
 
