@@ -400,9 +400,9 @@ static const struct  Memory_entry L3MemoryRegionsDsp[] = {
 
 };
 
-Int32 ProcMMU_close (Void);
-Int32 ProcMMU_open (Void);
-UInt32 ProcMMU_init (UInt32 physAddr);
+Int32 ProcMMU_close (Int proc);
+Int32 ProcMMU_open (Int proc);
+UInt32 ProcMMU_init (UInt32 physAddr, Int proc);
 
 #if defined (__cplusplus)
 }

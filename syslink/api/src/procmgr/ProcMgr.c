@@ -1362,12 +1362,12 @@ ProcMgr_load (ProcMgr_Handle handle,
 
     if (procID == MultiProc_getId ("SysM3") || \
             procID == MultiProc_getId("Tesla")) {
-        status = ProcMMU_open ();
+        status = ProcMMU_open (procID);
         if (status < 0) {
             Osal_printf ("Error in ProcMMU_open [0x%x]\n", status);
             goto error_exit;
         }
-        status = ProcMMU_init (DUCATI_BASEIMAGE_PHYSICAL_ADDRESS);
+        status = ProcMMU_init (DUCATI_BASEIMAGE_PHYSICAL_ADDRESS, procID);
         if (status < 0) {
             Osal_printf ("Error in ProcMMU_init [0x%x]\n", status);
             goto error_exit;
@@ -1816,7 +1816,7 @@ ProcMgr_stop (ProcMgr_Handle handle, ProcMgr_StopParams * params)
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
                 if (params->proc_id == MultiProc_getId ("SysM3") ||
                     params->proc_id == MultiProc_getId ("Tesla")) {
-                     status = ProcMMU_close ();
+                     status = ProcMMU_close (params->proc_id);
                      if (status < 0) {
                             Osal_printf ("Error in ProcMMU_close [0x%x]\n",
                                          status);
