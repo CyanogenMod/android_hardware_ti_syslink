@@ -29,4 +29,5 @@ SUBDIRS  = \
 	rcm \
 	tiler \
 	pwrmgmt \
-	interm3
+	interm3 \
+	mmufault
