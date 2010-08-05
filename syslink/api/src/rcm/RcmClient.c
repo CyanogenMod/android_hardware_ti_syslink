@@ -560,7 +560,7 @@ Int RcmClient_delete(RcmClient_Handle *handlePtr)
         /* free resources acquired by thread */
     }
 
-    if ((*handlePtr)->serverMsgQ) {
+    if ((*handlePtr)->serverMsgQ != MessageQ_INVALIDMESSAGEQ) {
         MessageQ_close(&((*handlePtr)->serverMsgQ));
         (*handlePtr)->serverMsgQ = 0xFFFFFFFF;
     }
