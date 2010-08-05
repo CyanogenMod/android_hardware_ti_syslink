@@ -73,7 +73,7 @@ extern "C" {
 /*!
  *  @brief  Driver name for OsalDrv.
  */
-#define OSALDRV_DRIVER_NAME         "/dev/omap-rproc1"
+#define OSALDRV_DRIVER_NAME         "/dev/syslink-procmgr"
 
 
 /** ============================================================================
