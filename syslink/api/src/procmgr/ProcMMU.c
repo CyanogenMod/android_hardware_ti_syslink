@@ -112,27 +112,17 @@ static Int32
 ProcMMU_getEntrySize (UInt32 pa, UInt32 size, enum pageType *sizeTlb,
                      UInt32 *entrySize)
 {
-    Int32   status          = 0;
-    Bool    pageAlign4Kb    = FALSE;
-    Bool    pageAlign64Kb   = FALSE;
-    Bool    pageAlign1Mb    = FALSE;
-    Bool    pageAlign16Mb   = FALSE;
-    UInt32  physAddr        = pa;
+    Int32   status          = 0, i;
+    UInt32  msize;
+    UInt32 pagesize[] = { PAGE_SIZE_16MB, PAGE_SIZE_1MB, PAGE_SIZE_64KB, PAGE_SIZE_4KB};
 
     GT_4trace (curTrace, GT_ENTER, "ProcMMU_getEntrySize", pa, size, sizeTlb,
                 entrySize);
 
-    /*  First check the page alignment*/
-    if ((physAddr % PAGE_SIZE_4KB)  == 0)
-        pageAlign4Kb  = TRUE;
-    if ((physAddr % PAGE_SIZE_64KB) == 0)
-        pageAlign64Kb = TRUE;
-    if ((physAddr % PAGE_SIZE_1MB)  == 0)
-        pageAlign1Mb  = TRUE;
-    if ((physAddr % PAGE_SIZE_16MB) == 0)
-        pageAlign16Mb = TRUE;
+   for (i = 0; i < 4 && pa % pagesize[i]; i++) {}
 
-    if ((!pageAlign64Kb) && (!pageAlign1Mb)  && (!pageAlign4Kb)) {
+    /*  First check the page alignment*/
+    if (i == 4) {
         status = ProcMMU_E_INVALIDARG;
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
         GT_setFailureReason (curTrace,
@@ -141,61 +131,26 @@ ProcMMU_getEntrySize (UInt32 pa, UInt32 size, enum pageType *sizeTlb,
                              status,
                              "Invalid page aligment");
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+        return status;
     }
 
+    msize = (size < pagesize[i]) ? size : pagesize[i];
+
     /*  Now decide the entry size */
-    if (status >= 0) {
-        if (size >= PAGE_SIZE_16MB) {
-            if (pageAlign16Mb) {
-                *sizeTlb   = SUPER_SECTION;
-                *entrySize = PAGE_SIZE_16MB;
-            } else if (pageAlign1Mb) {
-                *sizeTlb   = SECTION;
-                *entrySize = PAGE_SIZE_1MB;
-            } else if (pageAlign64Kb) {
-                *sizeTlb   = LARGE_PAGE;
-                *entrySize = PAGE_SIZE_64KB;
-            } else if (pageAlign4Kb) {
-                *sizeTlb   = SMALL_PAGE;
-                *entrySize = PAGE_SIZE_4KB;
-            } else {
-                status = ProcMMU_E_INVALIDARG;
-            }
-        } else if (size >= PAGE_SIZE_1MB && size < PAGE_SIZE_16MB) {
-            if (pageAlign1Mb) {
-                *sizeTlb   = SECTION;
-                *entrySize = PAGE_SIZE_1MB;
-            } else if (pageAlign64Kb) {
-                *sizeTlb   = LARGE_PAGE;
-                *entrySize = PAGE_SIZE_64KB;
-            } else if (pageAlign4Kb) {
-                *sizeTlb   = SMALL_PAGE;
-                *entrySize = PAGE_SIZE_4KB;
-            } else {
-                status = ProcMMU_E_INVALIDARG;
-            }
-        } else if (size > PAGE_SIZE_4KB &&
-                size < PAGE_SIZE_1MB) {
-            if (pageAlign64Kb) {
-                *sizeTlb   = LARGE_PAGE;
-                *entrySize = PAGE_SIZE_64KB;
-            } else if (pageAlign4Kb) {
-                *sizeTlb   = SMALL_PAGE;
-                *entrySize = PAGE_SIZE_4KB;
-            } else {
-                status = ProcMMU_E_INVALIDARG;
-            }
-        } else if (size == PAGE_SIZE_4KB) {
-            if (pageAlign4Kb) {
-                *sizeTlb   = SMALL_PAGE;
-                *entrySize = PAGE_SIZE_4KB;
-            } else {
-                status = ProcMMU_E_INVALIDARG;
-            }
-        } else {
-            status = ProcMMU_E_INVALIDARG;
-        }
-    }
+    if (msize >= PAGE_SIZE_16MB) {
+        *sizeTlb   = SUPER_SECTION;
+        *entrySize = PAGE_SIZE_16MB;
+    } else if (msize >= PAGE_SIZE_1MB) {
+        *sizeTlb   = SECTION;
+        *entrySize = PAGE_SIZE_1MB;
+    } else if (msize >= PAGE_SIZE_64KB) {
+        *sizeTlb   = LARGE_PAGE;
+        *entrySize = PAGE_SIZE_64KB;
+    } else if (msize >= PAGE_SIZE_4KB) {
+        *sizeTlb   = SMALL_PAGE;
+        *entrySize = PAGE_SIZE_4KB;
+    } else
+        status = ProcMMU_E_INVALIDARG;
 
     GT_1trace (curTrace, GT_LEAVE, "ProcMMU_getEntrySize", status);
 
