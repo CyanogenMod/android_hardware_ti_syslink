@@ -87,6 +87,7 @@ static Int32 ProcMMU_DSP_handle = -1;
  */
 static UInt32 DucatiMMU_refCount = 0;
 static UInt32 TeslaMMU_refCount = 0;
+static sem_t sem_refCount;
 
 /* Attributes of L2 page tables for DSP MMU.*/
 struct pageInfo {
@@ -100,6 +101,13 @@ enum pageType {
     SMALL_PAGE      = 2,
     SUPER_SECTION   = 3
 };
+
+static void start(void) __attribute__((constructor));
+
+void start(void)
+{
+    sem_init(&sem_refConut, 0, 1);
+}
 
 /*
  *  @brief  Decides a TLB entry size
@@ -330,12 +338,17 @@ ProcMMU_close (Int proc)
 
     GT_0trace (curTrace, GT_ENTER, "ProcMMU_close");
 
-    if (proc == MultiProc_getId("Tesla") && --TeslaMMU_refCount)
+    sem_wait(&sem_refCount);
+    if (proc == MultiProc_getId("Tesla") && --TeslaMMU_refCount) {
+        sem_post(&sem_refCount);
         return status;
+    }
 
     if ((proc == MultiProc_getId("AppM3") || proc == MultiProc_getId("SysM3"))
-                                                        && --DucatiMMU_refCount)
+                                                      && --DucatiMMU_refCount) {
+        sem_post(&sem_refCount);
         return status;
+    }
 
     if (proc == MultiProc_getId("Tesla")) {
         osStatus = close (ProcMMU_DSP_handle);
@@ -368,7 +381,7 @@ ProcMMU_close (Int proc)
     }
 
     GT_1trace (curTrace, GT_LEAVE, "ProcMMU_close", status);
-
+    sem_post(&sem_refCount);
     return status;
 }
 
@@ -386,12 +399,17 @@ ProcMMU_open (Int proc)
 
     GT_0trace (curTrace, GT_ENTER, "ProcMMU_open");
 
-    if (proc == MultiProc_getId("Tesla") && TeslaMMU_refCount++)
+    sem_wait(&sem_refCount);
+    if (proc == MultiProc_getId("Tesla") && TeslaMMU_refCount++) {
+        sem_post(&sem_refCount);
         return status;
+    }
 
     if ((proc == MultiProc_getId("AppM3") || proc == MultiProc_getId("SysM3"))
-                                                        && DucatiMMU_refCount++)
+                                                     && DucatiMMU_refCount++) {
+        sem_post(&sem_refCount);
         return status;
+    }
 
     if (proc == MultiProc_getId("Tesla")){
         ProcMMU_DSP_handle = open (PROC_MMU_DSP_DRIVER_NAME,
@@ -437,6 +455,7 @@ ProcMMU_open (Int proc)
 
     GT_1trace (curTrace, GT_LEAVE, "ProcMMU_open", status);
 
+    sem_post(&sem_refCount);
     return status;
 }
 
