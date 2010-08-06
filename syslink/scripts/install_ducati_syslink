@@ -4,22 +4,6 @@
 
 echo " "
 echo " "
-#install omap-iommu driver
-echo "installing omap-iommu.ko"
-insmod omap-iommu.ko
-
-#install iommu driver
-echo "installing iommu.ko"
-insmod iommu.ko
-
-#install iommu2 driver
-echo "installing iommu2.ko"
-insmod iommu2.ko
-
-#install iovmm driver
-echo "installing iovmm.ko"
-insmod iovmm.ko
-
 #install notify syslink proc driver
 echo "installing syslink_proc.ko"
 insmod syslink_proc.ko
@@ -36,6 +20,13 @@ insmod syslink_proc4430.ko
 echo "installing syslink_ipc.ko"
 insmod syslink_ipc.ko
 
+#install devh44xx driver
+echo "installing devh44xx.ko"
+insmod devh44xx.ko
+
+#install devh driver
+echo "installing devh.ko"
+insmod devh.ko
 
 
 #syslink-procmgr

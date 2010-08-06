@@ -2,6 +2,14 @@
 
 echo " "
 echo " "
+#uninstall devh driver
+echo "uninstalling devh.ko"
+rmmod devh
+
+#uninstall devh44xx driver
+echo "uninstalling devh44xx.ko"
+rmmod devh44xx
+
 #uninstall syslink ipc driver
 echo "uninstalling syslink_ipc.ko"
 rmmod syslink_ipc
@@ -17,19 +25,3 @@ rmmod syslink_platform
 #uninstall syslink proc driver
 echo "uninstalling syslink_proc.ko"
 rmmod syslink_proc
-
-#uninstall iovmm driver
-echo "uninstalling iovmm.ko"
-rmmod iovmm
-
-#uninstall iommu2 driver
-echo "uninstalling iommu2.ko"
-rmmod iommu2
-
-#uninstall iommu driver
-echo "uninstalling iommu.ko"
-rmmod iommu
-
-#uninstall omap-iommu driver
-echo "uninstalling omap-iommu.ko"
-rmmod omap-iommu
