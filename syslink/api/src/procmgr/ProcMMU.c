@@ -63,9 +63,9 @@ extern "C" {
  *  Macros and types
  *  ============================================================================
  */
-#define PROC_MMU_MPU_M3_DRIVER_NAME  "/dev/omap-iommu0"
+#define PROC_MMU_MPU_M3_DRIVER_NAME  "/dev/iovmm-omap0"
 
-#define PROC_MMU_DSP_DRIVER_NAME     "/dev/omap-iommu1"
+#define PROC_MMU_DSP_DRIVER_NAME     "/dev/iovmm-omap1"
 
 
 /** ============================================================================
@@ -106,7 +106,7 @@ static void start(void) __attribute__((constructor));
 
 void start(void)
 {
-    sem_init(&sem_refConut, 0, 1);
+    sem_init(&sem_refCount, 0, 1);
 }
 
 /*
@@ -237,6 +237,241 @@ ProcMMU_addEntry (UInt32  *physAddr, UInt32 *dspAddr, UInt32 size, Int proc)
     return status;
 }
 
+Void
+ProcMMU_flushAllPteEntry (Void)
+{
+    Int32 status = 0;
+
+    status = ioctl (ProcMMU_handle, IOVMM_IOCCLEARPTEENTRIES, NULL);
+}
+
+
+
+/*!
+ *  @brief  Add DSP MMU entries corresponding to given MPU-Physical address
+ *          and DSP-virtual address
+ *
+ *  @sa     ProcMMU_getentrysize
+ */
+static Int32
+ProcMMU_addPteEntry (UInt32  *physAddr, UInt32 *dspAddr, UInt32 size)
+{
+    UInt32              mappedSize  = 0;
+    enum pageType       sizeTlb     = SECTION;
+    UInt32              entrySize   = 0;
+    Int32               status      = 0;
+    struct Iotlb_entry  tlbEntry;
+
+    GT_3trace (curTrace, GT_ENTER, "ProcMMU_addEntry", *physAddr, *dspAddr,
+                size);
+
+    while ((mappedSize < size) && (status == 0)) {
+        status = ProcMMU_getEntrySize (*physAddr, (size - mappedSize),
+                                        &sizeTlb, &entrySize);
+        if (status < 0) {
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+            GT_setFailureReason (curTrace,
+                                 GT_4CLASS,
+                                 "ProcMMU_addEntry",
+                                 status,
+                                 "getEntrySize failed!");
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+            break;
+        }
+
+        if (sizeTlb == SUPER_SECTION)
+            tlbEntry.pgsz = MMU_CAM_PGSZ_16M;
+        else if (sizeTlb == SECTION)
+            tlbEntry.pgsz = MMU_CAM_PGSZ_1M;
+        else if (sizeTlb == LARGE_PAGE)
+            tlbEntry.pgsz = MMU_CAM_PGSZ_64K;
+        else if (sizeTlb == SMALL_PAGE)
+            tlbEntry.pgsz = MMU_CAM_PGSZ_4K;
+
+        tlbEntry.elsz   = MMU_RAM_ELSZ_16;
+        tlbEntry.endian = MMU_RAM_ENDIAN_LITTLE;
+        tlbEntry.mixed  = MMU_RAM_MIXED;
+        tlbEntry.prsvd  = MMU_CAM_P;
+        tlbEntry.valid  = MMU_CAM_V;
+        tlbEntry.da     = *dspAddr;
+        tlbEntry.pa     = *physAddr;
+
+        status = ioctl (ProcMMU_handle, IOVMM_IOCSETPTEENT, &tlbEntry);
+
+        if (status < 0) {
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+            GT_setFailureReason (curTrace,
+                                 GT_4CLASS,
+                                 "ProcMMU_addEntry",
+                                 status,
+                                 "API (through IOCTL) failed on kernel-side!");
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+            break;
+        }
+
+        mappedSize  += entrySize;
+        *physAddr   += entrySize;
+        *dspAddr   += entrySize;
+    }
+
+    GT_1trace (curTrace, GT_LEAVE, "ProcMMU_addEntry", status);
+
+    return status;
+}
+
+
+/*!
+ *  @brief  Add DSP MMU entries corresponding to given MPU-Physical address
+ *
+ *
+ *  @sa     ProcMMU_getentrysize
+ */
+
+Int32
+ProcMMU_Map (UInt32 mpuAddr, UInt32 *da, UInt32 numOfBuffers, UInt32 size, UInt32 mem_pool_id, UInt32 flags)
+{
+    UInt32              mappedSize  = 0;
+    enum pageType       sizeTlb     = SECTION;
+    UInt32              entrySize   = 0;
+    Int32               status      = 0;
+    struct ProcMMU_map_entry map_entry;
+
+    GT_3trace (curTrace, GT_ENTER, "ProcMMU_Map", *physAddr, *dspAddr,
+                size);
+    if(numOfBuffers == 0){
+              status = ProcMMU_E_INVALIDARG;
+              goto err_out;
+    }
+
+    map_entry.mpuAddr = mpuAddr;
+    map_entry.mem_pool_id = mem_pool_id;
+    map_entry.flags = flags;
+    map_entry.numOfBuffers = numOfBuffers;
+    map_entry.size = size;
+    map_entry.da = da;
+    status = ioctl (ProcMMU_handle, IOVMM_IOCMEMMAP, &map_entry);
+    GT_1trace (curTrace, GT_LEAVE, "ProcMMU_Map", status);
+err_out:
+    return status;
+}
+
+/*!
+ *  @brief  Remove remote processor entries correspodning to given address
+ *
+ *
+ *  @sa     ProcMMU_Map
+ */
+
+
+Int
+ProcMMU_UnMap (UInt32 mappedAddr)
+{
+    Int    status;
+    GT_1trace (curTrace, GT_ENTER, "ProcMMU_UnMap", mappedAddr);
+    if(mappedAddr == NULL){
+            status = ProcMMU_E_INVALIDARG;
+            return status;
+    }
+    status = ioctl(ProcMMU_handle, IOVMM_IOCMEMUNMAP, &mappedAddr);
+    GT_1trace (curTrace, GT_LEAVE, "ProcMMU_UnMap", status);
+    return status;
+}
+
+/*!
+ *  @brief  flushes the cache entries for the given buffer mpuAddr
+ *
+ *
+ *  @sa     ProcMMU_InvMemory
+ */
+
+
+
+Int
+ProcMMU_FlushMemory (PVOID mpuAddr, UInt32 size)
+{
+    Int    status;
+    struct ProcMMU_cacheop_entry flush_entry;
+    GT_2trace (curTrace, GT_ENTER, "ProcMMU_FlushMemory", mpuAddr, size);
+    if((mpuAddr == NULL) ||(size == 0)){
+            status = ProcMMU_E_INVALIDARG;
+            return status;
+     }
+    flush_entry.mpuAddr = mpuAddr;
+    flush_entry.size = size;
+    status = ioctl(ProcMMU_handle, IOVMM_IOCMEMFLUSH, &flush_entry);
+    GT_1trace (curTrace, GT_LEAVE, "ProcMMU_FlushMemory", status);
+    return status;
+}
+
+
+/*!
+ *  @brief  Invalidates the cache entries for the given buffer mpuAddr
+ *
+ *
+ *  @sa     ProcMMU_InvMemory
+ */
+
+
+
+Int
+ProcMMU_InvMemory(PVOID mpuAddr, UInt32 size)
+{
+    Int    status;
+    struct ProcMMU_cacheop_entry inv_entry;
+    GT_2trace (curTrace, GT_ENTER, "ProcMMU_InvMemory", mpuAddr, size);
+    if((mpuAddr == NULL) ||(size == 0)){
+            status = ProcMMU_E_INVALIDARG;
+            return status;
+     }
+    inv_entry.mpuAddr = mpuAddr;
+    inv_entry.size = size;
+    status = ioctl(ProcMMU_handle, IOVMM_IOCMEMINV, &inv_entry);
+    GT_1trace (curTrace, GT_LEAVE, "ProcMMU_InvMemory", status);
+    return status;
+}
+
+
+/*!
+ *  @brief  Creates a Virtual memory pool for remote processor
+ *
+ *  @sa     ProcMMU_DeleteVMPool
+ */
+
+
+
+Int
+ProcMMU_CreateVMPool(UInt32 pool_id, UInt32 size, UInt32 da_begin, UInt32 da_end, UInt32 flags)
+{
+    Int    status;
+    struct ProcMMU_VaPool_entry pool_info;
+    GT_3trace (curTrace, GT_ENTER, "ProcMMU_CreateVMPool", pool_id, da_start, size);
+    if((pool_id == -1) ||(size == 0)){/*FIX ME: Need to add more error conditions*/
+            status = ProcMMU_E_INVALIDARG;
+            return status;
+     }
+    pool_info.pool_id= pool_id;
+    pool_info.size = size;
+    pool_info.da_begin = da_begin;
+    pool_info.da_end = da_end;
+    pool_info.flags = flags;
+    status = ioctl(ProcMMU_handle, IOVMM_IOCCREATEPOOL, &pool_info);
+    GT_1trace (curTrace, GT_LEAVE, "ProcMMU_CreateVMPool", status);
+    return status;
+}
+
+Int
+ProcMMU_DeleteVMPool(UInt32 pool_id)
+{
+    Int status;
+    GT_1trace (curTrace, GT_ENTER, "ProcMMU_DeleteVMPool", pool_id);
+    if(pool_id < POOL_MIN || pool_id > POOL_MAX) {
+         status = ProcMMU_E_INVALIDARG;
+         return status;
+      }
+    status = ioctl(ProcMMU_handle,IOVMM_IOCDELETEPOOL, &pool_id);
+    GT_1trace (curTrace, GT_LEAVE, "ProcMMU_DeleteVMPool", status);
+    return status;
+}
 
 /*!
  *  @brief  Function to Program Processor MMU.
@@ -284,6 +519,20 @@ ProcMMU_init (UInt32 aPhyAddr, Int proc)
         virtAddr = L3regions[i].virtAddr;
         status = ProcMMU_addEntry(&physAddr, &virtAddr,
                     (L3regions[i].size), proc);
+        /* OMAP4430 SDC code */
+        /* Adjust below logic if using cacheable shared memory */
+        if (L3MemoryRegions[i].virtAddr == DUCATI_MEM_IPC_HEAP0_ADDR) {
+            shmPhysAddr = physAddr;
+        }
+        virtAddr = L3MemoryRegions[i].virtAddr;
+        if(i >=2) {
+            status = ProcMMU_addPteEntry(&physAddr, &virtAddr,
+                    (L3MemoryRegions[i].size));
+        } else {
+        status = ProcMMU_addEntry(&physAddr, &virtAddr,
+                    (L3MemoryRegions[i].size));
+        }
+
         if (status < 0) {
             GT_setFailureReason (curTrace,
                                  GT_4CLASS,
@@ -320,7 +569,6 @@ ProcMMU_init (UInt32 aPhyAddr, Int proc)
     }
 
     GT_1trace (curTrace, GT_LEAVE, "ProcMMU_init", status);
-
     return status;
 }
 

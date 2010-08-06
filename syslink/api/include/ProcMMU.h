@@ -284,6 +284,97 @@ extern "C" {
 #define DSP_MAPTILERADDR                0x00000100
 
 
+/*
+ * IOVMF_FLAGS: attribute for iommu virtual memory area(iovma)
+ *
+ * lower 16 bit is used for h/w and upper 16 bit is for s/w.
+ */
+#define IOVMF_SW_SHIFT                  16
+#define IOVMF_HW_SIZE                   (1 << IOVMF_SW_SHIFT)
+#define IOVMF_HW_MASK                   (IOVMF_HW_SIZE - 1)
+#define IOVMF_SW_MASK                   (~IOVMF_HW_MASK)UL
+
+/*
+ * iovma: h/w flags derived from cam and ram attribute
+ */
+#define IOVMF_CAM_MASK                  (~((1 << 10) - 1))
+#define IOVMF_RAM_MASK                  (~IOVMF_CAM_MASK)
+#define IOVMF_PGSZ_MASK                 (3 << 0)
+#define IOVMF_PGSZ_1M                   MMU_CAM_PGSZ_1M
+#define IOVMF_PGSZ_64K                  MMU_CAM_PGSZ_64K
+#define IOVMF_PGSZ_4K                   MMU_CAM_PGSZ_4K
+#define IOVMF_PGSZ_16M                  MMU_CAM_PGSZ_16M
+#define IOVMF_ENDIAN_MASK               (1 << 9)
+#define IOVMF_ENDIAN_BIG                MMU_RAM_ENDIAN_BIG
+#define IOVMF_ENDIAN_LITTLE             MMU_RAM_ENDIAN_LITTLE
+#define IOVMF_ELSZ_MASK                 (3 << 7)
+#define IOVMF_ELSZ_8                    MMU_RAM_ELSZ_8
+#define IOVMF_ELSZ_16                   MMU_RAM_ELSZ_16
+#define IOVMF_ELSZ_32                   MMU_RAM_ELSZ_32
+#define IOVMF_ELSZ_NONE                 MMU_RAM_ELSZ_NONE
+#define IOVMF_MIXED_MASK                (1 << 6)
+#define IOVMF_MIXED                     MMU_RAM_MIXED
+
+/*
+ * iovma: s/w flags, used for mapping and umapping internally.
+ */
+#define IOVMF_MMIO                      (1 << IOVMF_SW_SHIFT)
+#define IOVMF_ALLOC                     (2 << IOVMF_SW_SHIFT)
+#define IOVMF_ALLOC_MASK                (3 << IOVMF_SW_SHIFT)
+
+/* "superpages" is supported just with physically linear pages */
+#define IOVMF_DISCONT                   (1 << (2 + IOVMF_SW_SHIFT))
+#define IOVMF_LINEAR                    (2 << (2 + IOVMF_SW_SHIFT))
+#define IOVMF_LINEAR_MASK               (3 << (2 + IOVMF_SW_SHIFT))
+#define IOVMF_DA_FIXED                  (1 << (4 + IOVMF_SW_SHIFT))
+#define IOVMF_DA_ANON                   (2 << (4 + IOVMF_SW_SHIFT))
+#define IOVMF_DA_MASK                   (3 << (4 + IOVMF_SW_SHIFT))
+#define IOVMF_DA_PHYS                   (4 << (4 + IOVMF_SW_SHIFT))
+#define IOVMF_DA_USER                   (5 << (4 + IOVMF_SW_SHIFT))
+#define MMU_CAM_P                       (1 << 3)
+#define MMU_CAM_V                       (1 << 2)
+#define MMU_CAM_PGSZ_MASK               3
+#define MMU_CAM_PGSZ_1M                 (0 << 0)
+#define MMU_CAM_PGSZ_64K                (1 << 0)
+#define MMU_CAM_PGSZ_4K                 (2 << 0)
+#define MMU_CAM_PGSZ_16M                (3 << 0)
+
+#define MMU_RAM_PADDR_SHIFT             12
+#define MMU_RAM_PADDR_MASK \
+                        ((~0UL >> MMU_RAM_PADDR_SHIFT) << MMU_RAM_PADDR_SHIFT)
+#define MMU_RAM_ENDIAN_SHIFT            9
+#define MMU_RAM_ENDIAN_MASK             (1 << MMU_RAM_ENDIAN_SHIFT)
+#define MMU_RAM_ENDIAN_BIG              (1 << MMU_RAM_ENDIAN_SHIFT)
+#define MMU_RAM_ENDIAN_LITTLE           (0 << MMU_RAM_ENDIAN_SHIFT)
+#define MMU_RAM_ELSZ_SHIFT              7
+#define MMU_RAM_ELSZ_MASK               (3 << MMU_RAM_ELSZ_SHIFT)
+#define MMU_RAM_ELSZ_8                  (0 << MMU_RAM_ELSZ_SHIFT)
+#define MMU_RAM_ELSZ_16                 (1 << MMU_RAM_ELSZ_SHIFT)
+#define MMU_RAM_ELSZ_32                 (2 << MMU_RAM_ELSZ_SHIFT)
+#define MMU_RAM_ELSZ_NONE               (3 << MMU_RAM_ELSZ_SHIFT)
+#define MMU_RAM_MIXED_SHIFT             6
+#define MMU_RAM_MIXED_MASK              (1 << MMU_RAM_MIXED_SHIFT)
+#define MMU_RAM_MIXED                   MMU_RAM_MIXED_MASK
+
+#define IOVMM_IOC_MAGIC                 'V'
+
+#define IOVMM_IOCSETTLBENT              _IO(IOVMM_IOC_MAGIC, 0)
+#define IOVMM_IOCMEMMAP                 _IO(IOVMM_IOC_MAGIC, 1)
+#define IOVMM_IOCMEMUNMAP               _IO(IOVMM_IOC_MAGIC, 2)
+#define IOVMM_IOCDATOPA                 _IO(IOVMM_IOC_MAGIC, 3)
+#define IOVMM_IOCMEMFLUSH               _IO(IOVMM_IOC_MAGIC, 4)
+#define IOVMM_IOCMEMINV                 _IO(IOVMM_IOC_MAGIC, 5)
+#define IOVMM_IOCCREATEPOOL             _IO(IOVMM_IOC_MAGIC, 6)
+#define IOVMM_IOCDELETEPOOL             _IO(IOVMM_IOC_MAGIC, 7)
+#define IOVMM_IOCSETPTEENT              _IO(IOVMM_IOC_MAGIC, 8)
+#define IOVMM_IOCCLEARPTEENTRIES        _IO(IOVMM_IOC_MAGIC, 9)
+#define IOMMU_IOCEVENTREG               _IO(IOVMM_IOC_MAGIC, 10)
+#define IOMMU_IOCEVENTUNREG             _IO(IOVMM_IOC_MAGIC, 11)
+
+/*FIX ME: ADD POOL IDS for Each processor*/
+#define POOL_MAX 2
+#define POOL_MIN 1
+
 #define PG_MASK(pg_size) (~((pg_size)-1))
 #define PG_ALIGN_LOW(addr, pg_size) ((addr) & PG_MASK(pg_size))
 #define PG_ALIGN_HIGH(addr, pg_size) (((addr)+(pg_size)-1) & PG_MASK(pg_size))
@@ -312,34 +403,35 @@ struct Iotlb_entry {
     };
 };
 
-#define MMU_CAM_P                   (1 << 3)
-#define MMU_CAM_V                   (1 << 2)
-#define MMU_CAM_PGSZ_MASK           3
-#define MMU_CAM_PGSZ_1M             (0 << 0)
-#define MMU_CAM_PGSZ_64K            (1 << 0)
-#define MMU_CAM_PGSZ_4K             (2 << 0)
-#define MMU_CAM_PGSZ_16M            (3 << 0)
+struct ProcMMU_map_entry {
+    UInt32 mpuAddr;
+    UInt32 da;
+    UInt32 numOfBuffers;
+    UInt32 size;
+    UInt32 mem_pool_id;
+    UInt32 flags;
+};
 
-#define MMU_RAM_PADDR_SHIFT         12
-#define MMU_RAM_PADDR_MASK \
-                        ((~0UL >> MMU_RAM_PADDR_SHIFT) << MMU_RAM_PADDR_SHIFT)
-#define MMU_RAM_ENDIAN_SHIFT        9
-#define MMU_RAM_ENDIAN_MASK         (1 << MMU_RAM_ENDIAN_SHIFT)
-#define MMU_RAM_ENDIAN_BIG          (1 << MMU_RAM_ENDIAN_SHIFT)
-#define MMU_RAM_ENDIAN_LITTLE       (0 << MMU_RAM_ENDIAN_SHIFT)
-#define MMU_RAM_ELSZ_SHIFT          7
-#define MMU_RAM_ELSZ_MASK           (3 << MMU_RAM_ELSZ_SHIFT)
-#define MMU_RAM_ELSZ_8              (0 << MMU_RAM_ELSZ_SHIFT)
-#define MMU_RAM_ELSZ_16             (1 << MMU_RAM_ELSZ_SHIFT)
-#define MMU_RAM_ELSZ_32             (2 << MMU_RAM_ELSZ_SHIFT)
-#define MMU_RAM_ELSZ_NONE           (3 << MMU_RAM_ELSZ_SHIFT)
-#define MMU_RAM_MIXED_SHIFT         6
-#define MMU_RAM_MIXED_MASK          (1 << MMU_RAM_MIXED_SHIFT)
-#define MMU_RAM_MIXED               MMU_RAM_MIXED_MASK
 
-#define IOMMU_IOC_MAGIC             'I'
+struct ProcMMU_unmap_entry {
+    UInt32 da;
+    UInt32 mem_pool_id;
+    UInt32 size;
+};
 
-#define IOMMU_IOCSETTLBENT          _IO(IOMMU_IOC_MAGIC, 0)
+
+struct ProcMMU_cacheop_entry {
+    PVOID mpuAddr;
+    UInt32 size;
+};
+
+struct ProcMMU_VaPool_entry {
+    UInt32 pool_id;
+    UInt32 da_begin;
+    UInt32 da_end;
+    UInt32 size;
+    UInt32 flags;
+};
 
 /* OMAP4430 SDC definitions */
 static const struct Mmu_entry L4Map[] = {
@@ -367,7 +459,8 @@ static const struct  Memory_entry L3MemoryRegions[] = {
     {0, PAGE_SIZE_16MB},
     /*  MEM_CONST_SYSM3, MEM_CONST_APPM3, MEM_HEAP_SYSM3, MEM_HEAP_APPM3,
        MEM_MPU_DUCATI_SHMEM, MEM_IPC_SHMEM */
-    {DUCATI_MEM_CONST_SYSM3_ADDR, (PAGE_SIZE_16MB * 2)},
+    {DUCATI_MEM_CONST_SYSM3_ADDR, PAGE_SIZE_16MB},
+    {DUCATI_MEM_CONST_SYSM3_ADDR + PAGE_SIZE_16MB, PAGE_SIZE_16MB},
 };
 
 /* OMAP4430 SDC definitions */
@@ -400,9 +493,21 @@ static const struct  Memory_entry L3MemoryRegionsDsp[] = {
 
 };
 
+typedef struct {
+    UInt32 mpuAddr;
+    /*!< Host Address to Map*/
+    UInt32 size;
+    /*!< Size of the Buffer to Map */
+} Mpu_InputAddrInfo;
+
 Int32 ProcMMU_close (Int proc);
 Int32 ProcMMU_open (Int proc);
 UInt32 ProcMMU_init (UInt32 physAddr, Int proc);
+Int32 ProcMMU_CreateVMPool (UInt32 pool_id, UInt32 size, UInt32 da_begin,
+                            UInt32 da_end, UInt32 flags);
+Int32 ProcMMU_Map (UInt32 mpuAddr, UInt32 * da, UInt32 numOfBuffers,
+                   UInt32 size, UInt32 mem_pool_id, UInt32 flags);
+Int32 ProcMMU_UnMap (UInt32 mpuAddr);
 
 #if defined (__cplusplus)
 }
