@@ -386,7 +386,7 @@ Int
 ProcMMU_FlushMemory (PVOID mpuAddr, UInt32 size)
 {
     Int    status;
-    struct ProcMMU_cacheop_entry flush_entry;
+    struct ProcMMU_dmm_dma_entry flush_entry;
     GT_2trace (curTrace, GT_ENTER, "ProcMMU_FlushMemory", mpuAddr, size);
     if((mpuAddr == NULL) ||(size == 0)){
             status = ProcMMU_E_INVALIDARG;
@@ -394,6 +394,7 @@ ProcMMU_FlushMemory (PVOID mpuAddr, UInt32 size)
      }
     flush_entry.mpuAddr = mpuAddr;
     flush_entry.size = size;
+    flush_entry.dir = DMA_TO_DEVICE;
     status = ioctl(ProcMMU_handle, IOVMM_IOCMEMFLUSH, &flush_entry);
     GT_1trace (curTrace, GT_LEAVE, "ProcMMU_FlushMemory", status);
     return status;
@@ -413,7 +414,7 @@ Int
 ProcMMU_InvMemory(PVOID mpuAddr, UInt32 size)
 {
     Int    status;
-    struct ProcMMU_cacheop_entry inv_entry;
+    struct ProcMMU_dmm_dma_entry inv_entry;
     GT_2trace (curTrace, GT_ENTER, "ProcMMU_InvMemory", mpuAddr, size);
     if((mpuAddr == NULL) ||(size == 0)){
             status = ProcMMU_E_INVALIDARG;
@@ -421,6 +422,7 @@ ProcMMU_InvMemory(PVOID mpuAddr, UInt32 size)
      }
     inv_entry.mpuAddr = mpuAddr;
     inv_entry.size = size;
+    inv_entry.dir = DMA_FROM_DEVICE;
     status = ioctl(ProcMMU_handle, IOVMM_IOCMEMINV, &inv_entry);
     GT_1trace (curTrace, GT_LEAVE, "ProcMMU_InvMemory", status);
     return status;

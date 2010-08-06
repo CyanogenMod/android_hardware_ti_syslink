@@ -3050,21 +3050,6 @@ ProcMgr_virtToPhysPages (ProcMgr_Handle handle,
     return status;
 }
 
-#if 0
-/*!
- *  @brief      Function to set error type for Flush fucntions
- *
- *  @param      ret    return value of flush functions
- *
- *  @sa         dma_flush_range
- */
-static Int32 set_errno(Int32 ret)
-{
-    errno = -ret;
-    return -1;
-}
-#endif
-
 /*!
  *  @brief      Function to Invalidate user space buffers
  *
@@ -3077,7 +3062,6 @@ Int
 ProcMgr_invalidateMemory(PVOID bufAddr, UInt32 bufSize)
 {
     Int                             status          = PROCMGR_SUCCESS;
-    ProcMgr_CmdArgsdmaInvRange      cmdArgs;
 
     GT_1trace (curTrace, GT_ENTER, "ProcMgr_invalidateMemory", bufAddr);
 
@@ -3094,9 +3078,7 @@ ProcMgr_invalidateMemory(PVOID bufAddr, UInt32 bufSize)
     }
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-        cmdArgs.ua = (UInt32)bufAddr;
-        cmdArgs.bufSize = bufSize;
-        status = ProcMgrDrvUsr_ioctl (CMD_PROCMGR_DMAINVRANGE, &cmdArgs);
+        status = ProcMMU_InvMemory(bufAddr, bufSize);
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
         if (status < 0) {
             GT_setFailureReason (curTrace,
@@ -3115,69 +3097,6 @@ ProcMgr_invalidateMemory(PVOID bufAddr, UInt32 bufSize)
 }
 
 
-#if 0
-/*!
- *  @brief      Function to invalidate user space buffers
- *
- *  @param      start    Start of Virtual Address
- *  @param      size     size of the buffer
- *
- *  @sa         dma_flush_range, dma_clean_range
- */
-static Int32 dma_inv_range(Void *start, UInt32 size)
-{
-    register unsigned long s asm("r0") = (unsigned long)start;
-    register unsigned long e asm("r1") = s + size;
-    register unsigned long nsyscall asm("r7");
-    register int ret asm("r0");
-
-    asm volatile("push {r6-r7}");
-    nsyscall = __PROCMGR_INV_MEMORY;
-    asm volatile("swi 0x0"
-        : "=r" (ret)
-        : "0" (s), "r" (e));
-    if (ret < 0)
-        ret = set_errno(ret);
-    asm("pop {r6-r7}");
-
-    return ret;
-}
-
-
-/*
-   Commented to out to remove build warning. Uncomment when this function
-   can be used.
- */
-/*!
- *  @brief      Function to clean user space buffers
- *
- *  @param      start    Start of Virtual Address
- *  @param      size     size of the buffer
- *
- *  @sa         dma_flush_range, dma_inv_range
- */
-static Int32 dma_clean_range(Void *start, UInt32 size)
-{
-    register unsigned long s asm("r0") = (unsigned long)start;
-    register unsigned long e asm("r1") = s + size;
-    register unsigned long nsyscall asm("r7");
-    register int ret asm("r0");
-
-    asm volatile("push {r6-r7}");
-    nsyscall = __PROCMGR_CLEAN_MEMORY;
-    asm volatile("swi 0x0"
-        : "=r" (ret)
-        : "0" (s), "r" (e));
-    if (ret < 0)
-        ret = set_errno(ret);
-    asm("pop {r6-r7}");
-
-    return ret;
-}
-#endif
-
-
-
 /*!
  *  @brief      Function to flush user space buffers
  *
@@ -3190,7 +3109,6 @@ Int
 ProcMgr_flushMemory(PVOID bufAddr, UInt32 bufSize) {
 
     Int                             status          = PROCMGR_SUCCESS;
-    ProcMgr_CmdArgsdmaFlushRange    cmdArgs;
 
     GT_1trace (curTrace, GT_ENTER, "ProcMgr_flushMemory", bufAddr);
 
@@ -3207,9 +3125,7 @@ ProcMgr_flushMemory(PVOID bufAddr, UInt32 bufSize) {
     }
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-        cmdArgs.ua = (UInt32)bufAddr;
-        cmdArgs.bufSize = bufSize;
-        status = ProcMgrDrvUsr_ioctl (CMD_PROCMGR_DMAFLUSHRANGE, &cmdArgs);
+        status = ProcMMU_FlushMemory(bufAddr, bufSize);
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
         if (status < 0) {
             GT_setFailureReason (curTrace,
@@ -3226,84 +3142,6 @@ ProcMgr_flushMemory(PVOID bufAddr, UInt32 bufSize) {
     /*! @retval PROCMGR_SUCCESS Operation successful */
     return status;
 }
-
-#if 0
-
-/*!
- *  @brief      Function to flush user space buffers
- *
- *  @param      start    Start of Virtual Address
- *  @param      size     size of the buffer
- *
- *  @sa         dma_inv_range, dma_clean_range
- */
-static Int32 dma_flush_range(Void *start, UInt32 size)
-{
-    register unsigned long s asm("r0") = (unsigned long)start;
-    register unsigned long e asm("r1") = s + size;
-    register unsigned long nsyscall asm("r7");
-    register int ret asm("r0");
-
-    asm volatile("push {r6-r7}");
-    nsyscall = __PROCMGR_FLUSH_MEMORY;
-    asm volatile("swi 0x0"
-        : "=r" (ret)
-        : "0" (s), "r" (e));
-    if (ret < 0)
-        ret = set_errno(ret);
-    asm("pop {r6-r7}");
-
-    return ret;
-}
-
-/*!
- *  @brief      Function to flush user space buffers
- *
- *  @param      pMpuAddr    Userspace Virtual Address
- *  @param      ulSize      size of the buffer
- *
- *  @sa         ProcMgr_invalidateMemory
- */
-Int
-ProcMgr_flushMemory(PVOID pMpuAddr, UInt32 ulSize)
-{
-    UInt32 ret_val;
-    Int    status          = PROCMGR_SUCCESS;
-
-    ret_val = dma_flush_range((PVOID)pMpuAddr, ulSize);
-    if (ret_val < 0) {
-        Osal_printf("PROC: Flush operation failed for Address 0x%x\n",
-                                                    (UInt32)pMpuAddr);
-        status = PROCMGR_E_FAIL;
-    }
-
-    return status;
-}
-
-/*!
- *  @brief      Function to Invalidate user space buffers
- *
- *  @param      pMpuAddr    Userspace Virtual Address
- *  @param      ulSize      size of the buffer
- *
- *  @sa         ProcMgr_flushMemory
- */
-Int
-ProcMgr_invalidateMemory(PVOID pMpuAddr, UInt32 ulSize)
-{
-    UInt32 ret_val;
-    Int    status          = PROCMGR_SUCCESS;
-
-    ret_val = dma_inv_range((PVOID)pMpuAddr, ulSize);
-    if (ret_val < 0) {
-        Osal_printf("PROC: Invalidate operation failed for Address 0x%x\n",
-                                                        (UInt32)pMpuAddr);
-        status = PROCMGR_E_FAIL;
-    }
-
-    return status;
-}
-#endif
 
 #if defined (__cplusplus)
 }
