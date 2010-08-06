@@ -102,7 +102,7 @@
 #include <errno.h>
 #include <sys/mman.h>
 #include <errno.h>
-
+#include <sys/eventfd.h>
 /* Standard headers */
 #include <Std.h>
 
@@ -3143,6 +3143,54 @@ ProcMgr_flushMemory(PVOID bufAddr, UInt32 bufSize) {
     return status;
 }
 
+/*!
+ *  @brief      Function to register for Event types
+ *
+ *  @param      pMpuAddr    Userspace Virtual Address
+ *  @param      ulSize      size of the buffer
+ *
+ *  @sa         ProcMgr_flushMemory
+ */
+Int
+ProcMgr_waitForEvent(ProcMgr_ProcId procId, ProcMgr_EventType eventType,
+                                                        Int timeout)
+{
+    Int efd;
+    Int status;
+    Int ret;
+    fd_set rfds;
+
+    efd = eventfd(0, 0);
+
+    Osal_printf("eventfd = %d, %s\n", efd, __func__);
+
+    status = ProcMMU_open ();
+    if (status < 0) {
+        Osal_printf ("Error in ProcMMU_open [0x%x]\n", status);
+        return PROCMGR_E_FAIL;
+    }
+
+
+    status = ProcMMU_registerEvent(procId, efd, TRUE);
+
+    if (status == ProcMMU_S_SUCCESS) {
+        /* wait on the MMU fault event */
+        status = read(efd, &ret, sizeof(uint64_t));
+        Osal_printf("MMU fault status = %d, ret = %d %s\n",
+                        status, ret, __func__);
+        /* unregister the event */
+        ProcMMU_registerEvent(procId, efd, FALSE);
+        status = PROCMGR_SUCCESS;
+    }
+    else {
+        Osal_printf("MMU fault status registration for procId %d"
+                    "failed\n", procId);
+        status = PROCMGR_E_FAIL;
+    }
+    ProcMMU_close ();
+
+    return status;
+}
 #if defined (__cplusplus)
 }
 #endif /* defined (__cplusplus) */

@@ -511,6 +511,7 @@ Int ProcMMU_FlushMemory(PVOID mpuAddr, UInt32 size);
 Int32 ProcMMU_close (Int proc);
 Int32 ProcMMU_open (Int proc);
 UInt32 ProcMMU_init (UInt32 physAddr, Int proc);
+Int32 ProcMMU_registerEvent(Int32 procId, int eventfd, bool reg);
 
 #if defined (__cplusplus)
 }

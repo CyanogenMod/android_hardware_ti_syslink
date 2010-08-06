@@ -266,6 +266,19 @@ typedef enum {
     /*!< End delimiter indicating start of invalid values for this enum */
 } ProcMgr_MapType;
 
+/*!
+ *  @brief  Event types
+ */
+typedef enum {
+    PROC_MMU_FAULT = 0u,
+    /*!< MMU fault event */
+    PROC_ERROR = 1u,
+    /*!< Proc Error event */
+    PROC_STOP     = 2u,
+    /*!< Proc Stop event */
+    PROC_START      = 3u
+    /*!< Proc start event */
+} ProcMgr_EventType;
 
 /*!
  *  @brief  Enumerations to indicate the available device address memory pools
@@ -535,6 +548,12 @@ Int ProcMgr_flushMemory(PVOID bufAddr, UInt32 bufSize);
 
 /* Function to invalidate cache */
 Int ProcMgr_invalidateMemory(PVOID bufAddr, UInt32 bufSize);
+
+/* Function to wait for an Event */
+Int
+ProcMgr_waitForEvent(ProcMgr_ProcId procId, ProcMgr_EventType eventType,
+                                                            Int timeout);
+
 
 
 /* =============================================================================

@@ -705,6 +705,35 @@ ProcMMU_open (Int proc)
     return status;
 }
 
+/*!
+ *  @brief  Function to Register for MMU faults
+ *
+ *  @sa
+ */
+Int32 ProcMMU_registerEvent(Int32 procId, Int32 eventfd, bool reg)
+{
+    Int32 fd = eventfd;
+    Int32 status = ProcMMU_S_SUCCESS;
+
+    if (reg)
+        status = ioctl (ProcMMU_handle, IOMMU_IOCEVENTREG, &fd);
+    else
+        status = ioctl (ProcMMU_handle, IOMMU_IOCEVENTUNREG, &fd);
+
+    if (status < 0) {
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+            GT_setFailureReason (curTrace,
+                                 GT_4CLASS,
+                                 "ProcMMU_registerEvent",
+                                 status,
+                                 "API (through IOCTL) failed on kernel-side!");
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+        return ProcMMU_E_OSFAILURE;
+    }
+    return ProcMMU_S_SUCCESS;
+}
+
+
 #if defined (__cplusplus)
 }
 #endif /* defined (__cplusplus) */
