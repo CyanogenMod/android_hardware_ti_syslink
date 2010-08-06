@@ -2607,8 +2607,9 @@ ProcMgr_map (ProcMgr_Handle     handle,
              ProcMgr_MapType    type)
 {
     Int                 status          = PROCMGR_SUCCESS;
-    ProcMgr_Object *    procMgrHandle   = (ProcMgr_Object *) handle;
-    ProcMgr_CmdArgsMap  cmdArgs;
+    Int                 flags           = 0;
+    Int                 numOfBuffers           = 1;
+    ProcMgr_MemPoolType poolId;
 
     GT_5trace (curTrace, GT_ENTER, "ProcMgr_map",
                handle, procAddr, size, mappedAddr, mappedSize);
@@ -2684,23 +2685,28 @@ ProcMgr_map (ProcMgr_Handle     handle,
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
         switch (type) {
         case ProcMgr_MapType_Phys:
-            type = (ProcMgr_MAPPHYSICALADDR | ProcMgr_MAPELEMSIZE32);
+            flags |= IOVMF_DA_PHYS;
+            poolId = ProcMgr_NONE_MemPool;
             break;
         case ProcMgr_MapType_Tiler:
-            type = (ProcMgr_MAPTILERADDR | ProcMgr_MAPELEMSIZE32);
+            flags |= IOVMF_DA_PHYS;
+            poolId = ProcMgr_NONE_MemPool;
+            break;
+	case ProcMgr_MapType_Virt:
+            flags |= IOVMF_DA_USER;
+            poolId = ProcMgr_DMM_MemPool;
             break;
         default:
+            status = PROCMGR_E_INVALIDARG;
             break;
         }
         GT_5trace (curTrace, GT_ENTER, "ProcMgr_map",
                type, procAddr, size, mappedAddr, mappedSize);
-        cmdArgs.handle = procMgrHandle->knlObject;
-        cmdArgs.procAddr = procAddr;
-        cmdArgs.size = size;
-        cmdArgs.type = type;
-        cmdArgs.mappedAddr = 0u; /* Return parameter. */
-        cmdArgs.mappedSize = 0u; /* Return parameter. */
-        status = ProcMgrDrvUsr_ioctl (CMD_PROCMGR_MAP, &cmdArgs);
+
+        if (status < 0)
+            goto error_exit;
+
+        status = ProcMMU_Map(procAddr, mappedAddr, numOfBuffers, size, poolId, flags);
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
         if (status < 0) {
             GT_setFailureReason (curTrace,
@@ -2711,9 +2717,7 @@ ProcMgr_map (ProcMgr_Handle     handle,
         }
         else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-            /* Return mapped address and size. */
-            *mappedAddr = cmdArgs.mappedAddr;
-            *mappedSize = cmdArgs.mappedSize;
+
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
         }
     }
@@ -2722,6 +2726,7 @@ ProcMgr_map (ProcMgr_Handle     handle,
     GT_1trace (curTrace, GT_LEAVE, "ProcMgr_map", status);
 
     /*! @retval PROCMGR_SUCCESS Operation successful */
+error_exit:
     return status;
 }
 
@@ -2741,10 +2746,8 @@ ProcMgr_unmap (ProcMgr_Handle   handle,
                UInt32           mappedAddr)
 {
     Int                   status          = PROCMGR_SUCCESS;
-    ProcMgr_Object *      procMgrHandle   = (ProcMgr_Object *) handle;
-    ProcMgr_CmdArgsUnMap  cmdArgs;
 
-    Osal_printf ("Enter ProcMgr_unmap\n");
+
 #if defined(SYSLINK_BUILD_DEBUG)
     GT_assert (curTrace, (handle        != NULL));
     GT_assert (curTrace, (mappedAddr    != NULL));
@@ -2770,13 +2773,13 @@ ProcMgr_unmap (ProcMgr_Handle   handle,
                          "Invalid value NULL provided for argument mappedAddr");
     }
     else {
-        cmdArgs.handle = procMgrHandle->knlObject;
-        cmdArgs.mappedAddr = mappedAddr; /* Return parameter. */
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-        status = ProcMgrDrvUsr_ioctl (CMD_PROCMGR_UNMAP, &cmdArgs);
+        status = ProcMMU_UnMap(mappedAddr);
     }
 
     Osal_printf ("Exit ProcMgr_unmap \n" );
+
+error_exit:
     return status;
 }
 

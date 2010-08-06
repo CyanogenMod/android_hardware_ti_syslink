@@ -405,20 +405,12 @@ struct Iotlb_entry {
 
 struct ProcMMU_map_entry {
     UInt32 mpuAddr;
-    UInt32 da;
+    UInt32 *da;
     UInt32 numOfBuffers;
     UInt32 size;
     UInt32 mem_pool_id;
     UInt32 flags;
 };
-
-
-struct ProcMMU_unmap_entry {
-    UInt32 da;
-    UInt32 mem_pool_id;
-    UInt32 size;
-};
-
 
 struct ProcMMU_cacheop_entry {
     PVOID mpuAddr;

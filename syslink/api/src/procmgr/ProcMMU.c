@@ -336,7 +336,7 @@ ProcMMU_Map (UInt32 mpuAddr, UInt32 *da, UInt32 numOfBuffers, UInt32 size, UInt3
     Int32               status      = 0;
     struct ProcMMU_map_entry map_entry;
 
-    GT_3trace (curTrace, GT_ENTER, "ProcMMU_Map", *physAddr, *dspAddr,
+    GT_3trace (curTrace, GT_ENTER, "ProcMMU_Map", mpuAddr, *da,
                 size);
     if(numOfBuffers == 0){
               status = ProcMMU_E_INVALIDARG;
@@ -368,10 +368,6 @@ ProcMMU_UnMap (UInt32 mappedAddr)
 {
     Int    status;
     GT_1trace (curTrace, GT_ENTER, "ProcMMU_UnMap", mappedAddr);
-    if(mappedAddr == NULL){
-            status = ProcMMU_E_INVALIDARG;
-            return status;
-    }
     status = ioctl(ProcMMU_handle, IOVMM_IOCMEMUNMAP, &mappedAddr);
     GT_1trace (curTrace, GT_LEAVE, "ProcMMU_UnMap", status);
     return status;
@@ -525,7 +521,7 @@ ProcMMU_init (UInt32 aPhyAddr, Int proc)
             shmPhysAddr = physAddr;
         }
         virtAddr = L3MemoryRegions[i].virtAddr;
-        if(i >=2) {
+        if(i >= 3) {
             status = ProcMMU_addPteEntry(&physAddr, &virtAddr,
                     (L3MemoryRegions[i].size));
         } else {

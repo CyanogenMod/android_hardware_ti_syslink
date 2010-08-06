@@ -268,6 +268,20 @@ typedef enum {
 
 
 /*!
+ *  @brief  Enumerations to indicate the available device address memory pools
+ */
+typedef enum {
+    ProcMgr_DMM_MemPool    = 0u,
+     /*!< Map/unmap to virtual address space (user) */
+    ProcMgr_TILER_MemPool    = 1u,
+    /*!< Map/unmap to Tiler address space */
+    ProcMgr_NONE_MemPool   = -1,
+    /*!< Provide valid Device address as input*/
+} ProcMgr_MemPoolType;
+
+
+
+/*!
  *  @brief  Module configuration structure.
  */
 typedef struct ProcMgr_Config {
