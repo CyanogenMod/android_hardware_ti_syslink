@@ -77,19 +77,12 @@ HeapBufMP_Handle                heapHandle1         = NULL;
 SizeT                           heapSize1           = 0;
 Ptr                             heapBufPtr1         = NULL;
 IHeap_Handle                    srHeap              = NULL;
-pthread_t                       mmu_fault_handle = NULL;
-
-static void mmu_fault_handler(void)
-{
-    int efd;
-    int status;
-    int ret;
-
-    status = ProcMgr_waitForEvent(PROC_SYSM3, PROC_MMU_FAULT, -1);
-
-    /* Initiate cleanup */
-    sem_post(&semDaemonWait);
-}
+pthread_t                       mmu_fault_handle    = 0;
+static Bool                     restart             = TRUE;
+#if defined (SYSLINK_USE_LOADER)
+UInt32                          fileIdSysM3;
+UInt32                          fileIdAppM3;
+#endif
 
 #if defined (__cplusplus)
 extern "C" {
@@ -97,9 +90,24 @@ extern "C" {
 
 
 /*
+ *  ======== mmu_fault_handler ========
+ */
+static Void mmu_fault_handler (Void)
+{
+    Int status;
+
+    status = ProcMgr_waitForEvent (PROC_SYSM3, PROC_MMU_FAULT, -1);
+
+    /* Initiate cleanup */
+    restart = TRUE;
+    sem_post(&semDaemonWait);
+}
+
+
+/*
  *  ======== signal_handler ========
  */
-static Void signal_handler(Int sig)
+static Void signal_handler (Int sig)
 {
     Osal_printf ("\nexiting from the syslink daemon\n ");
     sem_post(&semDaemonWait);
@@ -109,7 +117,7 @@ static Void signal_handler(Int sig)
 /*
  *  ======== ipc_cleanup ========
  */
-Void ipcCleanup()
+Void ipcCleanup (Void)
 {
     ProcMgr_StopParams stopParams;
     Int                status = 0;
@@ -154,6 +162,13 @@ Void ipcCleanup()
             Osal_printf ("Error in ProcMgr_stop(%d): status = 0x%x\n",
                             stopParams.proc_id, status);
         }
+
+#if defined(SYSLINK_USE_LOADER)
+        status = ProcMgr_unload (procMgrHandleAppM3, fileIdAppM3);
+        if(status < 0) {
+            Osal_printf ("Error in ProcMgr_unload, status [0x%x]\n", status);
+        }
+#endif
     }
 
     stopParams.proc_id = remoteIdSysM3;
@@ -162,6 +177,13 @@ Void ipcCleanup()
         Osal_printf ("Error in ProcMgr_stop(%d): status = 0x%x\n",
                         stopParams.proc_id, status);
     }
+
+#if defined(SYSLINK_USE_LOADER)
+    status = ProcMgr_unload (procMgrHandleSysM3, fileIdSysM3);
+    if(status < 0) {
+        Osal_printf ("Error in ProcMgr_unload, status [0x%x]\n", status);
+    }
+#endif
 
     if(appM3Client) {
         status = ProcMgr_detach (procMgrHandleAppM3);
@@ -204,9 +226,6 @@ Int ipcSetup (Char * sysM3ImageName, Char * appM3ImageName)
     ProcMgr_StartParams             startParams;
     UInt32                          entryPoint = 0;
     UInt16                          procId;
-#if defined (SYSLINK_USE_LOADER)
-    UInt32                          fileId;
-#endif
     Int                             status = 0;
     ProcMgr_AttachParams            attachParams;
     ProcMgr_State                   state;
@@ -290,7 +309,7 @@ Int ipcSetup (Char * sysM3ImageName, Char * appM3ImageName)
                 sysM3ImageName);
 
     status = ProcMgr_load (procMgrHandleSysM3, sysM3ImageName, 2,
-                            &sysM3ImageName, &entryPoint, &fileId,
+                            &sysM3ImageName, &entryPoint, &fileIdSysM3,
                             remoteIdSysM3);
     if(status < 0) {
         Osal_printf ("Error in ProcMgr_load, status [0x%x]\n", status);
@@ -310,7 +329,7 @@ Int ipcSetup (Char * sysM3ImageName, Char * appM3ImageName)
         Osal_printf ("APPM3 Load: loading the APPM3 image %s\n",
                     appM3ImageName);
         status = ProcMgr_load (procMgrHandleAppM3, appM3ImageName, 2,
-                              &appM3ImageName, &entryPoint, &fileId,
+                              &appM3ImageName, &entryPoint, &fileIdAppM3,
                               remoteIdAppM3);
         if(status < 0) {
             Osal_printf ("Error in ProcMgr_load, status [0x%x]\n", status);
@@ -498,85 +517,87 @@ Int main (Int argc, Char * argv [])
     //close(STDOUT_FILENO);
     //close(STDERR_FILENO);
 
-    // Determine args
-    switch(argc) {
-    case 0:
-    case 1:
-        status = -1;
-        Osal_printf ("Invalid arguments to Daemon.  Usage:\n");
-        Osal_printf ("\tRunning SysM3 only:\n"
-                     "\t\t./syslink_daemon.out <SysM3 image file>\n");
-        Osal_printf ("\tRunning SysM3 and AppM3:\n"
-                     "\t\t./syslink_daemon.out <SysM3 image file> "
-                     "<AppM3 image file>\n");
-        Osal_printf ("\t(full paths must be provided for image files)\n");
-        break;
-    case 2:     // load SysM3 only
-        // Test for file's presence
-        if (strlen (argv[1]) >= 1024) {
-            Osal_printf ("Filename is too big\n");
-            exit(EXIT_FAILURE);
-        }
-        fp = fopen(argv[1], "rb");
-        if (fp != NULL) {
-            fclose(fp);
-            status = ipcSetup (argv[1], NULL);
-            calledIpcSetup = true;
-        }
-        else
-            Osal_printf ("File %s could not be opened.\n", argv[1]);
-        break;
-    case 3:     // load AppM3 and SysM3
-    default:
-        // Test for file's presence
-        if ((strlen (argv[1]) >= 1024) || (strlen (argv[2]) >= 1024)){
-            Osal_printf ("Filenames are too big\n");
-            exit(EXIT_FAILURE);
-        }
-        fp = fopen(argv[1], "rb");
-        if(fp != NULL) {
-            fclose(fp);
-            fp = fopen(argv[2], "rb");
-            if(fp != NULL) {
+    while (restart) {
+        restart = FALSE;
+
+        /* Determine args */
+        switch(argc) {
+        case 0:
+        case 1:
+            status = -1;
+            Osal_printf ("Invalid arguments to Daemon.  Usage:\n");
+            Osal_printf ("\tRunning SysM3 only:\n"
+                         "\t\t./syslink_daemon.out <SysM3 image file>\n");
+            Osal_printf ("\tRunning SysM3 and AppM3:\n"
+                         "\t\t./syslink_daemon.out <SysM3 image file> "
+                         "<AppM3 image file>\n");
+            Osal_printf ("\t(full paths must be provided for image files)\n");
+            break;
+        case 2:     /* load SysM3 only */
+            /* Test for file's presence */
+            if (strlen (argv[1]) >= 1024) {
+                Osal_printf ("Filename is too big\n");
+                exit(EXIT_FAILURE);
+            }
+            fp = fopen(argv[1], "rb");
+            if (fp != NULL) {
                 fclose(fp);
-                status = ipcSetup(argv[1], argv[2]);
+                status = ipcSetup (argv[1], NULL);
                 calledIpcSetup = true;
             }
             else
-                Osal_printf ("File %s could not be opened.\n", argv[2]);
+                Osal_printf ("File %s could not be opened.\n", argv[1]);
+            break;
+        case 3:     /* load AppM3 and SysM3 */
+        default:
+            /* Test for file's presence */
+            if ((strlen (argv[1]) >= 1024) || (strlen (argv[2]) >= 1024)){
+                Osal_printf ("Filenames are too big\n");
+                exit(EXIT_FAILURE);
+            }
+            fp = fopen(argv[1], "rb");
+            if(fp != NULL) {
+                fclose(fp);
+                fp = fopen(argv[2], "rb");
+                if(fp != NULL) {
+                    fclose(fp);
+                    status = ipcSetup (argv[1], argv[2]);
+                    calledIpcSetup = true;
+                }
+                else
+                    Osal_printf ("File %s could not be opened.\n", argv[2]);
+            }
+            else
+                Osal_printf ("File %s could not be opened.\n", argv[1]);
+            break;
         }
-        else
-            Osal_printf ("File %s could not be opened.\n", argv[1]);
-        break;
-    }
-    if(calledIpcSetup) {
-        if(status < 0) {
-            Osal_printf ("ipcSetup failed!\n");
-            return (-1);        // Quit if there was a setup error
-        } else {
-            Osal_printf ("ipcSetup succeeded!\n");
+        if(calledIpcSetup) {
+            if(status < 0) {
+                Osal_printf ("ipcSetup failed!\n");
+                return (-1);        // Quit if there was a setup error
+            } else {
+                Osal_printf ("ipcSetup succeeded!\n");
 
-            /* Setup the signal handlers*/
-            signal (SIGINT, signal_handler);
-            signal (SIGKILL, signal_handler);
-            signal (SIGTERM, signal_handler);
+                /* Setup the signal handlers*/
+                signal (SIGINT, signal_handler);
+                signal (SIGKILL, signal_handler);
+                signal (SIGTERM, signal_handler);
 
-            /* Create the MMU fault handler thread */
-            Osal_printf ("Create MMU fault handler thread.\n");
-            pthread_create (&mmu_fault_handle, NULL,
-                                (Void *)&mmu_fault_handler, NULL);
+                /* Create the MMU fault handler thread */
+                Osal_printf ("Create MMU fault handler thread.\n");
+                pthread_create (&mmu_fault_handle, NULL,
+                                    (Void *)&mmu_fault_handler, NULL);
 
+                MemMgrThreadFxn ();
 
-            MemMgrThreadFxn();
-
-            /* IPC_Cleanup function*/
-            ipcCleanup();
+                /* IPC_Cleanup function*/
+                ipcCleanup ();
+            }
         }
     }
 
     return 0;
 }
-
 
 
 #if defined (__cplusplus)
