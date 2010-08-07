@@ -359,7 +359,7 @@ ProcMgrApp_startup ()
                                 ulSendBufferSize,
                                 &mappedAddr,
                                 &mappedSize,
-                                ProcMgr_MapType_Virt);
+                                ProcMgr_MapType_Virt, procId);
 
             if (status == 0) {
                 Osal_printf ("Error in ProcMgr_map [0x%x]\n", status);
@@ -378,9 +378,9 @@ ProcMgrApp_startup ()
             getchar();
 
             Osal_printf ("\n\n APPLICATION CALLING: ProcMgr_unmap \n");
-            status = ProcMgr_unmap(ProcMgrApp_handle,mappedAddr);
+            status = ProcMgr_unmap(ProcMgrApp_handle,mappedAddr, procId);
             if (status == 0) {
-                Osal_printf ("Error in ProcMgr_unmap [0x%x]\n", status);
+                Osal_printf ("Error in ProcMgr_unmap [0x%x]\n", status );
             }
             else {
                Osal_printf ("ProcMgr_unmap  done[0x%x]\n", status);

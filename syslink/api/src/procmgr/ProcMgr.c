@@ -2604,7 +2604,8 @@ ProcMgr_map (ProcMgr_Handle     handle,
              UInt32             size,
              UInt32 *           mappedAddr,
              UInt32 *           mappedSize,
-             ProcMgr_MapType    type)
+             ProcMgr_MapType    type,
+             ProcMgr_ProcId procID)
 {
     Int                 status          = PROCMGR_SUCCESS;
     Int                 flags           = 0;
@@ -2706,7 +2707,8 @@ ProcMgr_map (ProcMgr_Handle     handle,
         if (status < 0)
             goto error_exit;
 
-        status = ProcMMU_Map(procAddr, mappedAddr, numOfBuffers, size, poolId, flags);
+        status = ProcMMU_Map(procAddr, mappedAddr, numOfBuffers, size, poolId,
+                                                                 flags, procID);
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
         if (status < 0) {
             GT_setFailureReason (curTrace,
@@ -2743,7 +2745,8 @@ error_exit:
  */
 Int
 ProcMgr_unmap (ProcMgr_Handle   handle,
-               UInt32           mappedAddr)
+               UInt32           mappedAddr,
+               ProcMgr_ProcId procID)
 {
     Int                   status          = PROCMGR_SUCCESS;
 
@@ -2774,7 +2777,7 @@ ProcMgr_unmap (ProcMgr_Handle   handle,
     }
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-        status = ProcMMU_UnMap(mappedAddr);
+        status = ProcMMU_UnMap(mappedAddr, procID);
     }
 
     Osal_printf ("Exit ProcMgr_unmap \n" );
@@ -3059,7 +3062,8 @@ ProcMgr_virtToPhysPages (ProcMgr_Handle handle,
  *  @sa         ProcMgr_flushMemory
  */
 Int
-ProcMgr_invalidateMemory(PVOID bufAddr, UInt32 bufSize)
+ProcMgr_invalidateMemory(PVOID bufAddr, UInt32 bufSize,
+                        ProcMgr_ProcId procID)
 {
     Int                             status          = PROCMGR_SUCCESS;
 
@@ -3078,7 +3082,7 @@ ProcMgr_invalidateMemory(PVOID bufAddr, UInt32 bufSize)
     }
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-        status = ProcMMU_InvMemory(bufAddr, bufSize);
+        status = ProcMMU_InvMemory(bufAddr, bufSize, procID);
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
         if (status < 0) {
             GT_setFailureReason (curTrace,
@@ -3106,7 +3110,7 @@ ProcMgr_invalidateMemory(PVOID bufAddr, UInt32 bufSize)
  *  @sa         ProcMgr_invalidateMemory
  */
 Int
-ProcMgr_flushMemory(PVOID bufAddr, UInt32 bufSize) {
+ProcMgr_flushMemory(PVOID bufAddr, UInt32 bufSize, ProcMgr_ProcId procID) {
 
     Int                             status          = PROCMGR_SUCCESS;
 
@@ -3125,7 +3129,7 @@ ProcMgr_flushMemory(PVOID bufAddr, UInt32 bufSize) {
     }
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-        status = ProcMMU_FlushMemory(bufAddr, bufSize);
+        status = ProcMMU_FlushMemory(bufAddr, bufSize, procID);
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
         if (status < 0) {
             GT_setFailureReason (curTrace,
@@ -3164,7 +3168,7 @@ ProcMgr_waitForEvent(ProcMgr_ProcId procId, ProcMgr_EventType eventType,
 
     Osal_printf("eventfd = %d, %s\n", efd, __func__);
 
-    status = ProcMMU_open ();
+    status = ProcMMU_open (procId);
     if (status < 0) {
         Osal_printf ("Error in ProcMMU_open [0x%x]\n", status);
         return PROCMGR_E_FAIL;
@@ -3187,7 +3191,7 @@ ProcMgr_waitForEvent(ProcMgr_ProcId procId, ProcMgr_EventType eventType,
                     "failed\n", procId);
         status = PROCMGR_E_FAIL;
     }
-    ProcMMU_close ();
+    ProcMMU_close (procId);
 
     return status;
 }

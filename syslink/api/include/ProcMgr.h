@@ -281,7 +281,8 @@ typedef enum {
 } ProcMgr_EventType;
 
 /*!
- *  @brief  Enumerations to indicate the available device address memory pools
+ *  @brief  Enumerations to indicate the available device address memory
+ *  pools
  */
 typedef enum {
     ProcMgr_DMM_MemPool    = 0u,
@@ -512,11 +513,13 @@ Int ProcMgr_map (ProcMgr_Handle  handle,
                  UInt32          size,
                  UInt32 *        mappedAddr,
                  UInt32 *        mappedSize,
-                 ProcMgr_MapType type);
+                 ProcMgr_MapType type,
+                 ProcMgr_ProcId procID);
 
 /* Function that maps the specified slave address to master address space. */
 Int ProcMgr_unmap (ProcMgr_Handle  handle,
-                   UInt32          mappedAddr);
+                   UInt32          mappedAddr,
+                   ProcMgr_ProcId procID);
 
 /* Function that unreserves the slave processor's address space */
 Int ProcMgr_unReserveMemory (ProcMgr_Handle  handle, UInt32 * pResrvAddr);
@@ -544,10 +547,11 @@ Int ProcMgr_virtToPhysPages (ProcMgr_Handle handle,
                              ProcMgr_ProcId procId);
 
 /* Function to flush cache */
-Int ProcMgr_flushMemory(PVOID bufAddr, UInt32 bufSize);
+Int ProcMgr_flushMemory(PVOID bufAddr, UInt32 bufSize, ProcMgr_ProcId procID);
 
 /* Function to invalidate cache */
-Int ProcMgr_invalidateMemory(PVOID bufAddr, UInt32 bufSize);
+Int ProcMgr_invalidateMemory (PVOID bufAddr, UInt32 bufSize,
+                              ProcMgr_ProcId procID);
 
 /* Function to wait for an Event */
 Int

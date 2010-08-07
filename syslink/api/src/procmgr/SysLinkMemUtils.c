@@ -128,7 +128,7 @@ SysLinkMemUtils_map (SyslinkMemUtils_MpuAddrToMap   mpuAddrList[],
         /* FIX ME: Add Proc reserve call */
         status = ProcMgr_map (procMgrHandle, (UInt32)mpuAddrList[0].mpuAddr,
                         (UInt32)mpuAddrList[0].size, mappedAddr, &mappedSize,
-                        memType);
+                        memType, procId);
          /* FIX ME: Add the table that keeps the C-D translations */
         if (status < 0) {
             Osal_printf ("Error in ProcMgr_map [0x%x]\n", status);
@@ -168,7 +168,7 @@ SysLinkMemUtils_unmap (UInt32 mappedAddr, ProcMgr_ProcId procId)
         Osal_printf ("Error in ProcMgr_open [0x%x]\n", status);
     }
     else {
-        status = ProcMgr_unmap (procMgrHandle, mappedAddr);
+        status = ProcMgr_unmap (procMgrHandle, mappedAddr, procId);
         /* FIX ME: Add Proc unreserve call */
         if (status < 0) {
             Osal_printf ("Error in ProcMgr_unmap [0x%x]\n", status);

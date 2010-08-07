@@ -119,7 +119,8 @@ ProcMMU_getEntrySize (UInt32 pa, UInt32 size, enum pageType *sizeTlb,
 {
     Int32   status          = 0, i;
     UInt32  msize;
-    UInt32 pagesize[] = { PAGE_SIZE_16MB, PAGE_SIZE_1MB, PAGE_SIZE_64KB, PAGE_SIZE_4KB};
+    UInt32 pagesize[] = { PAGE_SIZE_16MB, PAGE_SIZE_1MB, PAGE_SIZE_64KB,
+                                                         PAGE_SIZE_4KB};
 
     GT_4trace (curTrace, GT_ENTER, "ProcMMU_getEntrySize", pa, size, sizeTlb,
                 entrySize);
@@ -213,9 +214,11 @@ ProcMMU_addEntry (UInt32  *physAddr, UInt32 *dspAddr, UInt32 size, Int proc)
         tlbEntry.pa     = *physAddr;
 
         if (proc == MultiProc_getId("AppM3") || proc == MultiProc_getId("SysM3"))
-            status = ioctl (ProcMMU_MPU_M3_handle, IOMMU_IOCSETTLBENT, &tlbEntry);
+            status = ioctl (ProcMMU_MPU_M3_handle, IOVMM_IOCSETTLBENT,
+                                                            &tlbEntry);
         else if (proc == MultiProc_getId("Tesla"))
-            status = ioctl (ProcMMU_DSP_handle, IOMMU_IOCSETTLBENT, &tlbEntry);
+            status = ioctl (ProcMMU_DSP_handle, IOVMM_IOCSETTLBENT,
+                                                            &tlbEntry);
         if (status < 0) {
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
             GT_setFailureReason (curTrace,
@@ -238,11 +241,13 @@ ProcMMU_addEntry (UInt32  *physAddr, UInt32 *dspAddr, UInt32 size, Int proc)
 }
 
 Void
-ProcMMU_flushAllPteEntry (Void)
+ProcMMU_flushAllPteEntry (Int proc)
 {
     Int32 status = 0;
-
-    status = ioctl (ProcMMU_handle, IOVMM_IOCCLEARPTEENTRIES, NULL);
+        if (proc == MultiProc_getId("AppM3") || proc == MultiProc_getId("SysM3"))
+            status = ioctl (ProcMMU_MPU_M3_handle, IOVMM_IOCCLEARPTEENTRIES, NULL);
+        else if (proc == MultiProc_getId("Tesla"))
+            status = ioctl (ProcMMU_DSP_handle, IOVMM_IOCCLEARPTEENTRIES, NULL);
 }
 
 
@@ -254,7 +259,7 @@ ProcMMU_flushAllPteEntry (Void)
  *  @sa     ProcMMU_getentrysize
  */
 static Int32
-ProcMMU_addPteEntry (UInt32  *physAddr, UInt32 *dspAddr, UInt32 size)
+ProcMMU_addPteEntry (UInt32  *physAddr, UInt32 *dspAddr, UInt32 size, Int proc)
 {
     UInt32              mappedSize  = 0;
     enum pageType       sizeTlb     = SECTION;
@@ -296,7 +301,10 @@ ProcMMU_addPteEntry (UInt32  *physAddr, UInt32 *dspAddr, UInt32 size)
         tlbEntry.da     = *dspAddr;
         tlbEntry.pa     = *physAddr;
 
-        status = ioctl (ProcMMU_handle, IOVMM_IOCSETPTEENT, &tlbEntry);
+        if (proc == MultiProc_getId("AppM3") || proc == MultiProc_getId("SysM3"))
+            status = ioctl (ProcMMU_MPU_M3_handle, IOVMM_IOCSETPTEENT, &tlbEntry);
+        else if (proc == MultiProc_getId("Tesla"))
+            status = ioctl (ProcMMU_DSP_handle, IOVMM_IOCSETPTEENT, &tlbEntry);
 
         if (status < 0) {
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
@@ -328,11 +336,9 @@ ProcMMU_addPteEntry (UInt32  *physAddr, UInt32 *dspAddr, UInt32 size)
  */
 
 Int32
-ProcMMU_Map (UInt32 mpuAddr, UInt32 *da, UInt32 numOfBuffers, UInt32 size, UInt32 mem_pool_id, UInt32 flags)
+ProcMMU_Map (UInt32 mpuAddr, UInt32 *da, UInt32 numOfBuffers, UInt32 size,
+                                  UInt32 memPoolId, UInt32 flags, Int proc)
 {
-    UInt32              mappedSize  = 0;
-    enum pageType       sizeTlb     = SECTION;
-    UInt32              entrySize   = 0;
     Int32               status      = 0;
     struct ProcMMU_map_entry map_entry;
 
@@ -344,12 +350,15 @@ ProcMMU_Map (UInt32 mpuAddr, UInt32 *da, UInt32 numOfBuffers, UInt32 size, UInt3
     }
 
     map_entry.mpuAddr = mpuAddr;
-    map_entry.mem_pool_id = mem_pool_id;
+    map_entry.memPoolId = memPoolId;
     map_entry.flags = flags;
     map_entry.numOfBuffers = numOfBuffers;
     map_entry.size = size;
     map_entry.da = da;
-    status = ioctl (ProcMMU_handle, IOVMM_IOCMEMMAP, &map_entry);
+    if (proc == MultiProc_getId("AppM3") || proc == MultiProc_getId("SysM3"))
+        status = ioctl (ProcMMU_MPU_M3_handle, IOVMM_IOCMEMMAP, &map_entry);
+    else if (proc == MultiProc_getId("Tesla"))
+        status = ioctl (ProcMMU_DSP_handle, IOVMM_IOCMEMMAP, &map_entry);
     GT_1trace (curTrace, GT_LEAVE, "ProcMMU_Map", status);
 err_out:
     return status;
@@ -364,11 +373,15 @@ err_out:
 
 
 Int
-ProcMMU_UnMap (UInt32 mappedAddr)
+ProcMMU_UnMap (UInt32 mappedAddr, Int proc)
 {
     Int    status;
     GT_1trace (curTrace, GT_ENTER, "ProcMMU_UnMap", mappedAddr);
-    status = ioctl(ProcMMU_handle, IOVMM_IOCMEMUNMAP, &mappedAddr);
+
+    if (proc == MultiProc_getId("AppM3") || proc == MultiProc_getId("SysM3"))
+        status = ioctl (ProcMMU_MPU_M3_handle, IOVMM_IOCMEMUNMAP, &mappedAddr);
+    else if (proc == MultiProc_getId("Tesla"))
+        status = ioctl (ProcMMU_DSP_handle, IOVMM_IOCMEMUNMAP, &mappedAddr);
     GT_1trace (curTrace, GT_LEAVE, "ProcMMU_UnMap", status);
     return status;
 }
@@ -383,7 +396,7 @@ ProcMMU_UnMap (UInt32 mappedAddr)
 
 
 Int
-ProcMMU_FlushMemory (PVOID mpuAddr, UInt32 size)
+ProcMMU_FlushMemory (PVOID mpuAddr, UInt32 size, Int proc)
 {
     Int    status;
     struct ProcMMU_dmm_dma_entry flush_entry;
@@ -395,7 +408,10 @@ ProcMMU_FlushMemory (PVOID mpuAddr, UInt32 size)
     flush_entry.mpuAddr = mpuAddr;
     flush_entry.size = size;
     flush_entry.dir = DMA_TO_DEVICE;
-    status = ioctl(ProcMMU_handle, IOVMM_IOCMEMFLUSH, &flush_entry);
+    if (proc == MultiProc_getId("AppM3") || proc == MultiProc_getId("SysM3"))
+        status = ioctl (ProcMMU_MPU_M3_handle, IOVMM_IOCMEMFLUSH, &flush_entry);
+    else if (proc == MultiProc_getId("Tesla"))
+        status = ioctl (ProcMMU_DSP_handle, IOVMM_IOCMEMFLUSH, &flush_entry);
     GT_1trace (curTrace, GT_LEAVE, "ProcMMU_FlushMemory", status);
     return status;
 }
@@ -411,7 +427,7 @@ ProcMMU_FlushMemory (PVOID mpuAddr, UInt32 size)
 
 
 Int
-ProcMMU_InvMemory(PVOID mpuAddr, UInt32 size)
+ProcMMU_InvMemory(PVOID mpuAddr, UInt32 size, Int proc)
 {
     Int    status;
     struct ProcMMU_dmm_dma_entry inv_entry;
@@ -423,7 +439,10 @@ ProcMMU_InvMemory(PVOID mpuAddr, UInt32 size)
     inv_entry.mpuAddr = mpuAddr;
     inv_entry.size = size;
     inv_entry.dir = DMA_FROM_DEVICE;
-    status = ioctl(ProcMMU_handle, IOVMM_IOCMEMINV, &inv_entry);
+    if (proc == MultiProc_getId("AppM3") || proc == MultiProc_getId("SysM3"))
+        status = ioctl (ProcMMU_MPU_M3_handle, IOVMM_IOCMEMINV, &inv_entry);
+    else if (proc == MultiProc_getId("Tesla"))
+        status = ioctl (ProcMMU_DSP_handle, IOVMM_IOCMEMINV, &inv_entry);
     GT_1trace (curTrace, GT_LEAVE, "ProcMMU_InvMemory", status);
     return status;
 }
@@ -438,35 +457,43 @@ ProcMMU_InvMemory(PVOID mpuAddr, UInt32 size)
 
 
 Int
-ProcMMU_CreateVMPool(UInt32 pool_id, UInt32 size, UInt32 da_begin, UInt32 da_end, UInt32 flags)
+ProcMMU_CreateVMPool(UInt32 poolId, UInt32 size, UInt32 daBegin, UInt32 daEnd,
+                                                       UInt32 flags, Int proc)
 {
     Int    status;
-    struct ProcMMU_VaPool_entry pool_info;
-    GT_3trace (curTrace, GT_ENTER, "ProcMMU_CreateVMPool", pool_id, da_start, size);
-    if((pool_id == -1) ||(size == 0)){/*FIX ME: Need to add more error conditions*/
+    struct ProcMMU_VaPool_entry poolInfo;
+    GT_3trace (curTrace, GT_ENTER, "ProcMMU_CreateVMPool", poolId, daBegin,
+                                                                        size);
+    if((poolId == -1) ||(size == 0)){
             status = ProcMMU_E_INVALIDARG;
             return status;
      }
-    pool_info.pool_id= pool_id;
-    pool_info.size = size;
-    pool_info.da_begin = da_begin;
-    pool_info.da_end = da_end;
-    pool_info.flags = flags;
-    status = ioctl(ProcMMU_handle, IOVMM_IOCCREATEPOOL, &pool_info);
+    poolInfo.poolId= poolId;
+    poolInfo.size = size;
+    poolInfo.daBegin = daBegin;
+    poolInfo.daEnd = daEnd;
+    poolInfo.flags = flags;
+    if (proc == MultiProc_getId("AppM3") || proc == MultiProc_getId("SysM3"))
+        status = ioctl (ProcMMU_MPU_M3_handle, IOVMM_IOCCREATEPOOL, &poolInfo);
+    else if (proc == MultiProc_getId("Tesla"))
+        status = ioctl (ProcMMU_DSP_handle, IOVMM_IOCCREATEPOOL, &poolInfo);
     GT_1trace (curTrace, GT_LEAVE, "ProcMMU_CreateVMPool", status);
     return status;
 }
 
 Int
-ProcMMU_DeleteVMPool(UInt32 pool_id)
+ProcMMU_DeleteVMPool(UInt32 poolId, Int proc)
 {
     Int status;
-    GT_1trace (curTrace, GT_ENTER, "ProcMMU_DeleteVMPool", pool_id);
-    if(pool_id < POOL_MIN || pool_id > POOL_MAX) {
+    GT_1trace (curTrace, GT_ENTER, "ProcMMU_DeleteVMPool", poolId);
+    if(poolId < POOL_MIN || poolId > POOL_MAX) {
          status = ProcMMU_E_INVALIDARG;
          return status;
       }
-    status = ioctl(ProcMMU_handle,IOVMM_IOCDELETEPOOL, &pool_id);
+    if (proc == MultiProc_getId("AppM3") || proc == MultiProc_getId("SysM3"))
+        status = ioctl (ProcMMU_MPU_M3_handle, IOVMM_IOCDELETEPOOL, &poolId);
+    else if (proc == MultiProc_getId("Tesla"))
+        status = ioctl (ProcMMU_DSP_handle, IOVMM_IOCDELETEPOOL, &poolId);
     GT_1trace (curTrace, GT_LEAVE, "ProcMMU_DeleteVMPool", status);
     return status;
 }
@@ -514,23 +541,22 @@ ProcMMU_init (UInt32 aPhyAddr, Int proc)
         Osal_printf ("VA = [0x%x] of size [0x%x] at PA = [0x%x]\n",
                 L3regions[i].virtAddr, L3regions[i].size, physAddr);
 
+    if (proc == MultiProc_getId("Tesla")) {
         virtAddr = L3regions[i].virtAddr;
         status = ProcMMU_addEntry(&physAddr, &virtAddr,
                     (L3regions[i].size), proc);
+    } else {
         /* OMAP4430 SDC code */
         /* Adjust below logic if using cacheable shared memory */
-        if (L3MemoryRegions[i].virtAddr == DUCATI_MEM_IPC_HEAP0_ADDR) {
-            shmPhysAddr = physAddr;
-        }
-        virtAddr = L3MemoryRegions[i].virtAddr;
+        virtAddr = L3regions[i].virtAddr;
         if(i >= 3) {
             status = ProcMMU_addPteEntry(&physAddr, &virtAddr,
-                    (L3MemoryRegions[i].size));
+                    (L3regions[i].size), proc);
         } else {
         status = ProcMMU_addEntry(&physAddr, &virtAddr,
-                    (L3MemoryRegions[i].size));
+                    (L3regions[i].size), proc);
         }
-
+    }
         if (status < 0) {
             GT_setFailureReason (curTrace,
                                  GT_4CLASS,
@@ -550,7 +576,9 @@ ProcMMU_init (UInt32 aPhyAddr, Int proc)
                     L4regions[i].size);
             virtAddr = L4regions[i].virtAddr;
             physAddr = L4regions[i].physAddr;
-            status = ProcMMU_addEntry (&physAddr, &virtAddr, (L4regions[i].size), proc);
+            if (proc == MultiProc_getId("Tesla")) {
+            status = ProcMMU_addEntry (&physAddr, &virtAddr, (L4regions[i].size)
+                                                                        , proc);
             if (status < 0) {
                 Osal_printf ("**** Failed to map Peripheral ****");
                 Osal_printf ("Phys addr [0x%x] Virt addr [0x%x] size [0x%x]",
@@ -563,7 +591,24 @@ ProcMMU_init (UInt32 aPhyAddr, Int proc)
                                      "L4Map addEntry failed!");
                 break;
             }
+            } else {
+                   status = ProcMMU_addPteEntry (&physAddr, &virtAddr,
+                                                        (L4Map[i].size), proc);
+                  if (status < 0) {
+                      Osal_printf ("**** Failed to map Peripheral ****");
+                      Osal_printf ("Phys addr [0x%x] Virt addr [0x%x]"
+                               " size [0x%x]",
+                               L4regions[i].physAddr, L4regions[i].virtAddr,
+                               L4regions[i].size);
+                      GT_setFailureReason (curTrace,
+                                     GT_4CLASS,
+                                     "ProcMMU_init",
+                                     status,
+                                     "L4Map addEntry failed!");
+              break;
+            }
         }
+    }
     }
 
     GT_1trace (curTrace, GT_LEAVE, "ProcMMU_init", status);
@@ -591,7 +636,7 @@ ProcMMU_close (Int proc)
     }
 
     if ((proc == MultiProc_getId("AppM3") || proc == MultiProc_getId("SysM3"))
-                                                      && --DucatiMMU_refCount) {
+                                                   && --DucatiMMU_refCount) {
         sem_post(&sem_refCount);
         return status;
     }
@@ -715,10 +760,14 @@ Int32 ProcMMU_registerEvent(Int32 procId, Int32 eventfd, bool reg)
     Int32 fd = eventfd;
     Int32 status = ProcMMU_S_SUCCESS;
 
-    if (reg)
-        status = ioctl (ProcMMU_handle, IOMMU_IOCEVENTREG, &fd);
-    else
-        status = ioctl (ProcMMU_handle, IOMMU_IOCEVENTUNREG, &fd);
+    if (procId == MultiProc_getId("AppM3") || procId == MultiProc_getId("SysM3")) {
+        if (reg)
+            status = ioctl (ProcMMU_MPU_M3_handle, IOMMU_IOCEVENTREG, &fd);
+        else
+            status = ioctl (ProcMMU_MPU_M3_handle, IOMMU_IOCEVENTUNREG, &fd);
+    }else {
+        status = ProcMMU_E_OSFAILURE;
+    }
 
     if (status < 0) {
 #if !defined(SYSLINK_BUILD_OPTIMIZE)

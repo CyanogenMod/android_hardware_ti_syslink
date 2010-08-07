@@ -408,11 +408,11 @@ struct ProcMMU_map_entry {
     UInt32 *da;
     UInt32 numOfBuffers;
     UInt32 size;
-    UInt32 mem_pool_id;
+    UInt32 memPoolId;
     UInt32 flags;
 };
 
-enum dma_data_direction {
+enum Dma_direction {
         DMA_BIDIRECTIONAL = 0,
         DMA_TO_DEVICE = 1,
         DMA_FROM_DEVICE = 2,
@@ -423,13 +423,13 @@ enum dma_data_direction {
 struct ProcMMU_dmm_dma_entry {
     PVOID mpuAddr;
      UInt32 size;
-    enum dma_data_direction dir;
-}
+    enum Dma_direction dir;
+};
 
 struct ProcMMU_VaPool_entry {
-    UInt32 pool_id;
-    UInt32 da_begin;
-    UInt32 da_end;
+    UInt32 poolId;
+    UInt32 daBegin;
+    UInt32 daEnd;
     UInt32 size;
     UInt32 flags;
 };
@@ -501,13 +501,13 @@ typedef struct {
     /*!< Size of the Buffer to Map */
 } Mpu_InputAddrInfo;
 
-Int32 ProcMMU_CreateVMPool (UInt32 pool_id, UInt32 size, UInt32 da_begin,
-                            UInt32 da_end, UInt32 flags);
+Int32 ProcMMU_CreateVMPool (UInt32 poolId, UInt32 size, UInt32 daBegin,
+                            UInt32 daEnd, UInt32 flags, Int proc);
 Int32 ProcMMU_Map (UInt32 mpuAddr, UInt32 * da, UInt32 numOfBuffers,
-                   UInt32 size, UInt32 mem_pool_id, UInt32 flags);
-Int32 ProcMMU_UnMap (UInt32 mpuAddr);
-Int ProcMMU_InvMemory(PVOID mpuAddr, UInt32 size);
-Int ProcMMU_FlushMemory(PVOID mpuAddr, UInt32 size);
+                   UInt32 size, UInt32 memPoolId, UInt32 flags, Int proc);
+Int32 ProcMMU_UnMap (UInt32 mpuAddr, Int proc);
+Int ProcMMU_InvMemory(PVOID mpuAddr, UInt32 size, Int proc);
+Int ProcMMU_FlushMemory(PVOID mpuAddr, UInt32 size, Int proc);
 Int32 ProcMMU_close (Int proc);
 Int32 ProcMMU_open (Int proc);
 UInt32 ProcMMU_init (UInt32 physAddr, Int proc);
