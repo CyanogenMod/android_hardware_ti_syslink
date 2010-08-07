@@ -30,7 +30,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <semaphore.h>
-
+#include <pthread.h>
 /* OSAL & Utils headers */
 #include <OsalPrint.h>
 #include <Memory.h>
@@ -41,7 +41,6 @@
 #include <ti/ipc/MultiProc.h>
 #include <ti/ipc/SharedRegion.h>
 #include <ti/ipc/MessageQ.h>
-#include "ProcMMU.h"
 
 /* Sample headers */
 #include <MemMgrServer_config.h>
@@ -78,6 +77,19 @@ HeapBufMP_Handle                heapHandle1         = NULL;
 SizeT                           heapSize1           = 0;
 Ptr                             heapBufPtr1         = NULL;
 IHeap_Handle                    srHeap              = NULL;
+pthread_t                       mmu_fault_handle = NULL;
+
+static void mmu_fault_handler(void)
+{
+    int efd;
+    int status;
+    int ret;
+
+    status = ProcMgr_waitForEvent(PROC_SYSM3, PROC_MMU_FAULT, -1);
+
+    /* Initiate cleanup */
+    sem_post(&semDaemonWait);
+}
 
 #if defined (__cplusplus)
 extern "C" {
@@ -548,6 +560,12 @@ Int main (Int argc, Char * argv [])
             signal (SIGINT, signal_handler);
             signal (SIGKILL, signal_handler);
             signal (SIGTERM, signal_handler);
+
+            /* Create the MMU fault handler thread */
+            Osal_printf ("Create MMU fault handler thread.\n");
+            pthread_create (&mmu_fault_handle, NULL,
+                                (Void *)&mmu_fault_handler, NULL);
+
 
             MemMgrThreadFxn();
 
