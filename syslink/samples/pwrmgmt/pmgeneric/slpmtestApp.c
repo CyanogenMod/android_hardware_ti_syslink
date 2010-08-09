@@ -53,7 +53,7 @@
 /* Application header */
 #include "slpmtestApp_config.h"
 
-
+/*#define DEBUG_ENABLE*/
 
 typedef struct MsgInfo {
     MessageQ_MsgHeader  header;
@@ -441,17 +441,19 @@ SlpmTest_execute (Int testNo, Int cmd, Int resource, Int* resArg)
         }
         else {
             Osal_printf ("MessageQ_alloc msg [0x%x]\n", msg);
+            SlpmMsg = (MsgInfo*)msg;
+            SlpmMsg->cmd = cmd;
+            memcpy(&SlpmMsg->resArg, resArg, MAX_NUM_ARGS * sizeof(Int32));
+            SlpmMsg->Resource = resource;
         }
-        SlpmMsg = (MsgInfo*)msg;
-        SlpmMsg->cmd = cmd;
-        memcpy(&SlpmMsg->resArg, resArg, MAX_NUM_ARGS * sizeof(Int32));
-        SlpmMsg->Resource = resource;
 
         MessageQ_setMsgId (msg, msgId);
         /* In the middle of the requests we send the suspend */
 
+#ifndef DEBUG_ENABLE
         /* Have the DSP reply to this message queue */
         MessageQ_setReplyQueue (slpmTest_messageQ, msg);
+#endif
 
         status = MessageQ_put (slpmTest_queueId, msg);
         if (status < 0) {
@@ -460,7 +462,8 @@ SlpmTest_execute (Int testNo, Int cmd, Int resource, Int* resArg)
             return status;
         }
 
-        status = MessageQ_get (slpmTest_messageQ, &msg, 10/*MessageQ_FOREVER*/);
+#ifndef DEBUG_ENABLE
+        status = MessageQ_get (slpmTest_messageQ, &msg, MessageQ_FOREVER);
         if (status < 0) {
             Osal_printf ("Error in MessageQ_get\n");
             return status;
@@ -478,11 +481,11 @@ SlpmTest_execute (Int testNo, Int cmd, Int resource, Int* resArg)
                 }
             }
             SlpmMsg = (MsgInfo*)msg;
-            memcpy(resArg, &SlpmMsg->resArg, MAX_NUM_ARGS*sizeof(Int32));
 
             status = MessageQ_free (msg);
             Osal_printf ("MessageQ_free status [0x%x]\n", status);
         }
+#endif
     }
 
     if (cmd & SUSPEND) {
@@ -519,8 +522,10 @@ SlpmTest_execute (Int testNo, Int cmd, Int resource, Int* resArg)
             /* Send a die message */
             MessageQ_setMsgId(msg, DIEMESSAGE);
 
+#ifndef DEBUG_ENABLE
             /* Have the DSP reply to this message queue */
             MessageQ_setReplyQueue (slpmTest_messageQ, msg);
+#endif
 
             /* Send the message off */
             status = MessageQ_put (slpmTest_queueId, msg);
@@ -533,6 +538,7 @@ SlpmTest_execute (Int testNo, Int cmd, Int resource, Int* resArg)
                                 status);
             }
 
+#ifndef DEBUG_ENABLE
             /* Wait for the final message. */
             status = MessageQ_get (slpmTest_messageQ, &msg, MessageQ_FOREVER);
             if (status < 0) {
@@ -557,6 +563,7 @@ SlpmTest_execute (Int testNo, Int cmd, Int resource, Int* resArg)
                 }
             }
             MessageQ_free(msg);
+#endif
         }
 #else
         Osal_printf ("Sample application successfully completed!\n");

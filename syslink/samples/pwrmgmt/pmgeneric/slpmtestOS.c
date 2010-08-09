@@ -43,7 +43,7 @@
 /* Module headers */
 #include <IpcUsr.h>
 #include <ti/ipc/MultiProc.h>
-//#include <ProcMgr.h>
+
 #include <UsrUtilsDrv.h>
 
 /* Application header */
@@ -56,11 +56,11 @@ extern "C" {
 
 
 typedef union Payload {
-    struct{
+    struct {
         unsigned pmMasterCore :8;
         unsigned rendezvousResume:8;
         unsigned force_suspend:8;
-        unsigned fill:8;
+        unsigned MaintCmd:8;
     };
     UInt32 whole;
 } Payload;
@@ -80,43 +80,45 @@ typedef union Payload {
 #define AUTOMATED_TEST               1
 
 
-#define LASTVALIDCMD                 32   // UPDATE THIS when adding a new CMD
+#define LASTVALIDCMD                 34
 
+#define FORCED_EXIT                  100
 
 Int Cmd2Mask[LASTVALIDCMD] ={
-    NOCMD,                          //0
-    REQUEST,                        //1.- Request Resource
-    REGISTER,                       //2.- Register Resource Notification Callback
-    VALIDATE,                       //3.- Validate Resource
-    UNREGISTER,                     //4.- Unregister Resource Notification Callback
-    RELEASE,                        //5.- Release Resource
-    SUSPEND,                        //6.- Send Suspend Notification
-    RESUME,                         //7.- Send Resume Notification
-    DUMPRCB,                        //8.- Dump RCB Content
-    LIST,                           //9.- List Resources
-    REQUEST_REGISTER,               //10.- Request-Register Resource
-    REQUEST_VALIDATE,               //11.- Request-Validate Resource
-    REGISTER_VALIDATE,              //12.- Register-Validate Resource
-    REQUEST_REGISTER_VALIDATE,      //13.- Request-Register-Validate Resource
-    UNREGISTER_RELEASE,             //14.- Unregister-Release Resource
-    MULTITHREADS,                   //15.- Run MultiThread Test
-    ENTER_I2C_SPINLOCK,             //16.- Enter I2C Spinlock
-    LEAVING_I2C_SPINLOCK,           //17.- Leaving I2C Spinlock
-    MULTITHREADS_I2C,               //18.- 3 Threads Entering Gate
-    MULTI_TASK_I2C,                 //19.- 3 Tasks Entering Gate
-    EXIT,                           //20.- Exit
-    NEWFEATURE,                     //21
-    IDLEWFION,                      //22
-    IDLEWFIOFF,                     //23
-    COUNTIDLES,                     //24
-    PAUL_01,                        //25
-    PAUL_02,                        //26
-    PAUL_03,                        //27
-    PAUL_04,                        //28
-    TIMER,                          //29
-    PWR_SUSPEND,                    //30
-
-    NOTIFY_SYSM3,                   //31
+    NOCMD,                     /* 0 */
+    REQUEST,                   /* 1.-Request Resource */
+    REGISTER,                  /* 2.-Register Resource Notification Callback */
+    VALIDATE,                  /* 3.-Validate Resource */
+    UNREGISTER,                /* 4.-Unregister Resource Notification Callback*/
+    RELEASE,                   /* 5.-Release Resource */
+    SUSPEND,                   /* 6.-Send Suspend Notification */
+    RESUME,                    /* 7.-Send Resume Notification */
+    DUMPRCB,                   /* 8.-Dump RCB Content */
+    LIST,                      /* 9.-List Resources */
+    REQUEST_REGISTER,          /* 10.-Request-Register Resource */
+    REQUEST_VALIDATE,          /* 11.-Request-Validate Resource */
+    REGISTER_VALIDATE,         /* 12.-Register-Validate Resource */
+    REQUEST_REGISTER_VALIDATE, /* 13.-Request-Register-Validate Resource */
+    UNREGISTER_RELEASE,        /* 14.-Unregister-Release Resource */
+    MULTITHREADS,              /* 15.-Run MultiThread Test */
+    ENTER_I2C_SPINLOCK,        /* 16.-Enter I2C Spinlock */
+    LEAVING_I2C_SPINLOCK,      /* 17.-Leaving I2C Spinlock */
+    MULTITHREADS_I2C,          /* 18.-3 Threads Entering Gate */
+    MULTI_TASK_I2C,            /* 19.-3 Tasks Entering Gate */
+    EXIT,                      /* 20.-Exit */
+    NEWFEATURE,                /* 21 */
+    IDLEWFION,                 /* 22 */
+    IDLEWFIOFF,                /* 23 */
+    COUNTIDLES,                /* 24 */
+    PAUL_01,                   /* 25 */
+    PAUL_02,                   /* 26 */
+    PAUL_03,                   /* 27 */
+    PAUL_04,                   /* 28 */
+    TIMER,                     /* 29 */
+    PWR_SUSPEND,               /* 30 */
+    NOTIFY_SYSM3,              /* 31 */
+    ENABLE_HIBERNATION,        /* 32 */
+    SET_CONSTRAINTS            /* 33 */
 };
 
 
@@ -148,8 +150,6 @@ extern Int SlpmTest_shutdown (Int testNo);
 /*!
  *  @brief  ProcMgr handle.
  */
-//ProcMgr_Handle SlpmTest_procMgrHandle = NULL;
-
 
 /** ============================================================================
  *  Functions
@@ -251,7 +251,6 @@ Int displayMainMenu (Void)
 {
     Char str [80];
 
-    sleep(1);
     Osal_printf ("\n\nPress Enter to continue...\n");
     fgets(str, 80, stdin);
     system("clear");
@@ -280,7 +279,7 @@ Int displayMainMenu (Void)
     Osal_printf ("  19.- 3 Tasks Entering Gate\n");
     Osal_printf ("\n");
     Osal_printf ("  20.- Exit\n");
-    Osal_printf ("\n");// 21. Juan's secret LM feature
+    Osal_printf ("\n");
     Osal_printf ("  22.- WFI ON during Idle\n");
     Osal_printf ("  23.- WFI OFF during Idle\n");
     Osal_printf ("  24.- Count Idles in 10 Ticks\n");
@@ -291,6 +290,9 @@ Int displayMainMenu (Void)
     Osal_printf ("  29.- TIMER\n");
     Osal_printf ("  30.- PWR_SUSPEND\n");
     Osal_printf ("  31.- Notify_SYSM3\n");
+    Osal_printf ("  32.- Enable Hiernation\n");
+    Osal_printf ("  33.- Set Constraints\n");
+    Osal_printf ("  100.- Forced Exit\n");
     Osal_printf ("\n");
     Osal_printf ("  Select one option:   ");
     fgets(str, 80, stdin);
@@ -359,13 +361,31 @@ Void PrintMessageUntilPressEnter (Int SlpmTestOn, Int* resArg)
         system("clear");
         SlpmTest_execute (SlpmTestOn, NEWFEATURE, -1, resArg);
         Osal_printf ("Load Monitor: \n");
-
-//        Osal_printf ("CPU Load: %d\n",resArg[0]);
-//        Osal_printf ("Hwi Load: %d   \n",resArg[1]);
-//        Osal_printf ("Swi Load: %d   \n",resArg[2]);
-//        Osal_printf ("Task Load: %d  \n",resArg[3]);
     }
 }
+
+Int getConstrMask (Int resource, Int* resArg)
+{
+    Char    str [80];
+
+    Osal_printf ("\n\n Request_constr =1 Release_constr =0 \n");
+    fgets(str, 80, stdin);
+    resArg[2] = atoi(str);
+    Osal_printf ("\n\n Constr Mask \n");
+    Osal_printf ("MHZ                       0\n");
+    Osal_printf ("USEC                      1\n");
+    Osal_printf ("BANDWITH                  2\n");
+    Osal_printf ("MHZ  | USEC               3\n");
+    Osal_printf ("MHZ  | BANDWITH           4\n");
+    Osal_printf ("USEC | BANDWITH           5\n");
+    Osal_printf ("MHZ  | USEC | BANDWITH    6\n");
+    fgets(str, 80, stdin);
+    resArg[3] = atoi(str);
+
+    return 0;
+
+}
+
 
 Int getResourceParam (Int resource, Int* resArg)
 {
@@ -378,18 +398,24 @@ Int getResourceParam (Int resource, Int* resArg)
         case IPU:
         case ISS:
         case IVA_HD:
+        case SYSM3:
+        case APPM3:
         case MPU:
             Osal_printf ("\n\n Performance (KHz)?\n");
             fgets(str, 80, stdin);
-            resArg[0]=atoi(str);
+            resArg[0] = atoi(str);
             Osal_printf ("\n\n Latency (uSec)\n");
             fgets(str, 80, stdin);
-            resArg[1]=atoi(str);
+            resArg[1] = atoi(str);
             break;
 
         case L3_BUS:
             Osal_printf ("\n\n Bandwidth\n");
-            goto OnlyOneArg;
+            fgets(str, 80, stdin);
+            resArg[0] = atoi(str);
+            Osal_printf ("\n\n Latency (uSec)\n");
+            fgets(str, 80, stdin);
+            resArg[1] = atoi(str);
         break;
 
         case REGULATOR:
@@ -423,13 +449,16 @@ Int getResourceParam (Int resource, Int* resArg)
         case PWR_SUSPEND:
             Osal_printf ("\n\n Is MasterCore (SYSM3=1, APPM3=0)?\n");
             fgets(str, 80, stdin);
-            resArg[0]=atoi(str);
+            resArg[0] = atoi(str);
             Osal_printf ("\n\n rendezvousResume? (TRUE=1, FALSE = 0)\n");
             fgets(str, 80, stdin);
-            resArg[1]=atoi(str);
-            Osal_printf ("\n\n force Suspend? \n");
+            resArg[1] = atoi(str);
+            Osal_printf ("\n\n MaintCmd? (Clean =0, G_FLUSH = 1, INV_CLEAN =2)\n");
             fgets(str, 80, stdin);
-            resArg[2]=atoi(str);
+            resArg[2] = atoi(str);
+            Osal_printf ("\n\n force Suspend? 0-Nothing, 1-Idle 2-Swi 3-Task Context\n");
+            fgets(str, 80, stdin);
+            resArg[3] = atoi(str);
             break;
 
         case NOTIFY_SYSM3:
@@ -439,25 +468,34 @@ Int getResourceParam (Int resource, Int* resArg)
             Osal_printf ("\n\n rendezvousResume? (TRUE=1, FALSE = 0)\n");
             fgets(str, 80, stdin);
             payload.rendezvousResume = atoi(str);
-            Osal_printf ("\n\n force Suspend? \n");
+            Osal_printf ("\n\n MaintCmd? (Clean =0, G_FLUSH = 1, INV_CLEAN =2)\n");
+            fgets(str, 80, stdin);
+            payload.MaintCmd=atoi(str);
+            Osal_printf ("\n\n force Suspend? 0-Nothing, 1-Idle 2-Swi 3-Task Context\n");
             fgets(str, 80, stdin);
             payload.force_suspend = atoi(str);
             resArg[0] = payload.whole;
             break;
 
-        case SYSM3:
-        case APPM3:
+        case ENABLE_HIBERNATION:
+            Osal_printf ("\n\n Enable=1 Disable=0 \n");
+            goto OnlyOneArg;
+            break;
+
         case IVASEQ0:
         case IVASEQ1:
         case GP_TIMER:
-        break;
+            break;
         default:
             Osal_printf ("  Resource not supported yet\n");
+            break;
         }
     return 0;
+
 OnlyOneArg:
     fgets(str, 80, stdin);
-    resArg[0]=atoi(str);
+    resArg[0] = atoi(str);
+
     return 0;
 }
 
@@ -488,7 +526,7 @@ Int main (Int argc, Char ** argv)
         SlpmTestOn = TEST_ON_SYSM3;
     }
     if (argc == 3) {
-            validTest = FALSE;
+        validTest = FALSE;
     }
     if (argc > 3) {
         cmd = atoi (argv[2]);
@@ -507,13 +545,14 @@ Int main (Int argc, Char ** argv)
     }
     else {
         status = SlpmTest_startup (SlpmTestOn);
-
         if (status == TEST_ERROR) {
             goto shutdown;
         }
 
         if (SlpmTestType == AUTOMATED_TEST) {
             SlpmTest_execute (SlpmTestOn, cmd, resource, resArg);
+            sleep(1);
+            SlpmTest_execute (SlpmTestOn, EXIT, resource, resArg);
             goto shutdown;
         }
 
@@ -523,11 +562,14 @@ Int main (Int argc, Char ** argv)
             resArg[0]   = NOVALID;
 
             cmd = displayMainMenu ();
-            if ((cmd > NOCMD) && (cmd <= LASTVALIDCMD)) {
+            if ((cmd >= NOCMD) && (cmd < LASTVALIDCMD)) {
                 cmd = Cmd2Mask[cmd];
             }
-            else{
+            else if(cmd == FORCED_EXIT){
                 goto shutdown;
+            }
+            else {
+                cmd = NOCMD;
             }
 
             switch(cmd) {
@@ -538,7 +580,6 @@ Int main (Int argc, Char ** argv)
                     resource = displayResMenu();
                     getResourceParam (resource,resArg);
                     break;
-
                 case REGISTER:
                 case VALIDATE:
                 case UNREGISTER:
@@ -550,7 +591,19 @@ Int main (Int argc, Char ** argv)
                 case MULTI_TASK_I2C:
                     resource = displayRemoteResourceList (SlpmTestOn, resource,
                                                             resArg);
-                    //getResourceParam(resource,&resArg);
+                    break;
+                case SET_CONSTRAINTS:
+                    resource = displayResMenu();
+                    if(resource <= LAST_CONSTR_RES) {
+                        getResourceParam (resource,resArg);
+                        getConstrMask(resource,resArg);
+                        resource = displayRemoteResourceList (SlpmTestOn,
+                                                        NORESOURCE,resArg);
+                    }
+                    else {
+                        /* Abort the Cmd Submision */
+                        cmd = NOCMD;
+                    }
                     break;
                 case NEWFEATURE:
                      PrintMessageUntilPressEnter (SlpmTestOn, resArg);
@@ -570,13 +623,25 @@ Int main (Int argc, Char ** argv)
                     resource = NOTIFY_SYSM3;
                     getResourceParam (resource, resArg);
                     resource = NORESOURCE;
+                    break;
+                case ENABLE_HIBERNATION:
+                    resource = ENABLE_HIBERNATION;
+                    getResourceParam (resource, resArg);
+                    resource = NORESOURCE;
                 default:
                     break;
              }
-             Osal_printf ("\n SlpmTest_execute SlpmTest On ProcId(%d) cmd(%d) "
-                          "Res(%d) arg(%x) &arg(%x)\n", SlpmTestOn, cmd, resource,
-                            resArg, &resArg);
-             SlpmTest_execute (SlpmTestOn, cmd, resource, resArg);
+             if (cmd != NOCMD) {
+                Osal_printf ("\n SlpmTest_execute SlpmTest On ProcId(%d) "
+                             "cmd(%d) Res(%d) arg(%x) &arg(%x)\n", SlpmTestOn,
+                             cmd, resource, resArg, &resArg);
+                SlpmTest_execute (SlpmTestOn, cmd, resource, resArg);
+
+                if (cmd == MULTITHREADS) {
+                    for (i=0; i< 500; i++)
+                        SlpmTest_execute (SlpmTestOn, cmd, resource, resArg);
+                }
+             }
         } while (cmd != EXIT);
 
 shutdown:

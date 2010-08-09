@@ -68,7 +68,7 @@ extern "C" {
 #define MULTITHREADS_I2C                      0x1000
 #define MULTI_TASK_I2C                        0x2000
 #define NEWFEATURE                            0x4000
-// Paul's Tests
+/* Paul's Tests */
 #define IDLEWFION                             0x8000
 #define IDLEWFIOFF                           0x10000
 #define COUNTIDLES                           0x20000
@@ -80,16 +80,16 @@ extern "C" {
 #define PWR_SUSPEND                         0x800000
 
 #define NOTIFY_SYSM3                       0x1000000
-
+#define ENABLE_HIBERNATION                 0x2000000
+#define SET_CONSTRAINTS                    0x4000000
 
 #define EXIT                              0x80000000
-
 
 #define REQUIRES_MESSAGEQ (REQUEST | REGISTER | VALIDATE | DUMPRCB | UNREGISTER \
     | RELEASE | MULTITHREADS | LIST | NEWFEATURE |ENTER_I2C_SPINLOCK \
     | LEAVING_I2C_SPINLOCK | MULTITHREADS_I2C | MULTI_TASK_I2C \
     | IDLEWFION | IDLEWFIOFF | COUNTIDLES | PAUL_01 | PAUL_02 | PAUL_03 \
-    | PAUL_04 | TIMER | PWR_SUSPEND)
+    | PAUL_04 | TIMER | PWR_SUSPEND | ENABLE_HIBERNATION | SET_CONSTRAINTS)
 
 #define EXIT_OR_NOVALID (~(SUSPEND | RESUME | REQUIRES_MESSAGEQ))
 
@@ -114,13 +114,14 @@ extern "C" {
 #define AUX_CLK         15
 
 #define NORESOURCE      -1
-//#define SYSTIMER    NORESOURCE
-
 
 #define FIRSTRESOURCE   FDIF
 #define LASTRESOURCE    AUX_CLK
 
 #define MAX_NUM_ARGS    10
+
+#define LAST_CONSTR_RES MPU
+
 
 #if defined (__cplusplus)
 }
