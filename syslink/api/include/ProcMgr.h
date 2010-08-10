@@ -213,6 +213,9 @@ typedef enum {
     /*!< End delimiter indicating start of invalid values for this enum */
 } ProcMgr_State ;
 
+/*!
+ *  @brief  Enumerations to identify the Processor
+ */
 typedef enum {
     PROC_TESLA = 0,
     PROC_APPM3 = 1,
@@ -281,8 +284,7 @@ typedef enum {
 } ProcMgr_EventType;
 
 /*!
- *  @brief  Enumerations to indicate the available device address memory
- *  pools
+ *  @brief  Enumerations to indicate the available device address memory pools
  */
 typedef enum {
     ProcMgr_DMM_MemPool    = 0u,
@@ -293,7 +295,13 @@ typedef enum {
     /*!< Provide valid Device address as input*/
 } ProcMgr_MemPoolType;
 
-
+/*!
+ *  @brief  Enumerations to indicate the Processor version
+ */
+typedef enum {
+    OMAP4_REV_ES1_0 = 0x0,
+    OMAP4_REV_ES2_0 = 0x10,
+} ProcMgr_cpuRevision;
 
 /*!
  *  @brief  Module configuration structure.
@@ -514,7 +522,7 @@ Int ProcMgr_map (ProcMgr_Handle  handle,
                  UInt32 *        mappedAddr,
                  UInt32 *        mappedSize,
                  ProcMgr_MapType type,
-                 ProcMgr_ProcId procID);
+                 ProcMgr_ProcId  procID);
 
 /* Function that maps the specified slave address to master address space. */
 Int ProcMgr_unmap (ProcMgr_Handle  handle,
@@ -547,18 +555,22 @@ Int ProcMgr_virtToPhysPages (ProcMgr_Handle handle,
                              ProcMgr_ProcId procId);
 
 /* Function to flush cache */
-Int ProcMgr_flushMemory(PVOID bufAddr, UInt32 bufSize, ProcMgr_ProcId procID);
+Int ProcMgr_flushMemory (PVOID          bufAddr,
+                         UInt32         bufSize,
+                         ProcMgr_ProcId procID);
 
 /* Function to invalidate cache */
-Int ProcMgr_invalidateMemory (PVOID bufAddr, UInt32 bufSize,
-                              ProcMgr_ProcId procID);
+Int ProcMgr_invalidateMemory (PVOID             bufAddr,
+                              UInt32            bufSize,
+                              ProcMgr_ProcId    procID);
 
 /* Function to wait for an Event */
-Int
-ProcMgr_waitForEvent(ProcMgr_ProcId procId, ProcMgr_EventType eventType,
-                                                            Int timeout);
+Int ProcMgr_waitForEvent (ProcMgr_ProcId    procId,
+                          ProcMgr_EventType eventType,
+                          Int               timeout);
 
-
+/* Function to get the OMAP revision */
+Int ProcMgr_getCpuRev (UInt32 *cpuRev);
 
 /* =============================================================================
  *  Compatibility layer for SYSBIOS

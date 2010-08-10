@@ -224,12 +224,18 @@ typedef struct ProcMgr_CmdArgs_tag {
  */
 #define CMD_PROCMGR_DMAINVRANGE         (PROCMGR_BASE_CMD + 30u)
 
-#define RPROC_IOC_MAGIC		'P'
+/*!
+ * @brief   Command for ProcMgr_getCpuRev
+ */
+#define CMD_PROCMGR_GETBOARDREV         (PROCMGR_BASE_CMD + 31u)
 
-#define RPROC_IOCMONITOR	_IO(RPROC_IOC_MAGIC, 0)
-#define RPROC_IOCSTART		_IO(RPROC_IOC_MAGIC, 1)
-#define RPROC_IOCSTOP		_IO(RPROC_IOC_MAGIC, 2)
-#define RPROC_IOCGETSTATE	_IOR(RPROC_IOC_MAGIC, 3, int)
+
+#define RPROC_IOC_MAGIC                 'P'
+
+#define RPROC_IOCMONITOR                _IO(RPROC_IOC_MAGIC, 0)
+#define RPROC_IOCSTART                  _IO(RPROC_IOC_MAGIC, 1)
+#define RPROC_IOCSTOP                   _IO(RPROC_IOC_MAGIC, 2)
+#define RPROC_IOCGETSTATE               _IOR(RPROC_IOC_MAGIC, 3, Int)
 
 
 
@@ -639,6 +645,16 @@ typedef struct ProcMgr_CmdArgsdmaFlushRange_tag {
     UInt32              bufSize;
     /*!<  size of user space buffer */
 } ProcMgr_CmdArgsdmaFlushRange;
+
+/*!
+ *  @brief  Command arguments for ProcMgr_getCpuRev
+ */
+typedef struct ProcMgr_CmdArgsGetCpuRev_tag {
+    ProcMgr_CmdArgs         commonArgs;
+    /*!< Common command args */
+    UInt32                * cpuRev;
+    /*!<  cpu revision */
+} ProcMgr_CmdArgsGetCpuRev;
 
 
 

@@ -54,6 +54,7 @@
 
 /* Module level headers */
 #include <ProcMMU.h>
+#include <ProcMgr.h>
 
 #if defined (__cplusplus)
 extern "C" {
@@ -240,6 +241,12 @@ ProcMMU_addEntry (UInt32  *physAddr, UInt32 *dspAddr, UInt32 size, Int proc)
     return status;
 }
 
+/*!
+ *  @brief  Flush all MMU entries, once this is called, one need to reprogram
+ *          MMU.
+ *
+ *  @sa     ProcMMU_init
+ */
 Void
 ProcMMU_flushAllPteEntry (Int proc)
 {
@@ -514,17 +521,19 @@ ProcMMU_init (UInt32 aPhyAddr, Int proc)
     UInt32 virtAddr         = 0;
     struct Mmu_entry *L4regions;
     struct Memory_entry *L3regions;
+    UInt32 cpuRev;
 
     GT_1trace (curTrace, GT_ENTER, "ProcMMU_init", aPhyAddr);
 
-    if (proc == MultiProc_getId("Tesla")) {
+    if (proc == MultiProc_getId ("Tesla")) {
         numL4Entries = (sizeof(L4MapDsp) / sizeof(struct Mmu_entry));
         numL3MemEntries = sizeof(L3MemoryRegionsDsp) /
                 sizeof(struct Memory_entry);
         L4regions = (struct Mmu_entry *)L4MapDsp;
         L3regions = (struct Memory_entry *)L3MemoryRegionsDsp;
         physAddr = TESLA_BASEIMAGE_PHYSICAL_ADDRESS;
-    } else {
+    }
+    else {
         numL4Entries = (sizeof(L4Map) / sizeof(struct Mmu_entry));
         numL3MemEntries = sizeof(L3MemoryRegions) /
                       sizeof(struct Memory_entry);
@@ -532,31 +541,30 @@ ProcMMU_init (UInt32 aPhyAddr, Int proc)
         L3regions = (struct Memory_entry *)L3MemoryRegions;
         physAddr = DUCATI_BASEIMAGE_PHYSICAL_ADDRESS;
     }
+    status = ProcMgr_getCpuRev (&cpuRev);
+    if (status < 0) {
+        Osal_printf ("Error in deciding the OMAP Revision [0x%x]\n", status);
+        goto error_exit;
+    }
 
     Osal_printf ("\n  Programming proc %d MMU using linear address \n", proc);
 
-    Osal_printf ("  Programming Ducati memory regions\n");
+    Osal_printf ("  Programming %s memory regions\n", MultiProc_getName (proc));
     Osal_printf ("=========================================\n");
     for (i = 0; i < numL3MemEntries; i++) {
         Osal_printf ("VA = [0x%x] of size [0x%x] at PA = [0x%x]\n",
                 L3regions[i].virtAddr, L3regions[i].size, physAddr);
 
-    if (proc == MultiProc_getId("Tesla")) {
         virtAddr = L3regions[i].virtAddr;
-        status = ProcMMU_addEntry(&physAddr, &virtAddr,
-                    (L3regions[i].size), proc);
-    } else {
-        /* OMAP4430 SDC code */
-        /* Adjust below logic if using cacheable shared memory */
-        virtAddr = L3regions[i].virtAddr;
-        if(i >= 3) {
+        if (proc != MultiProc_getId ("Tesla") && cpuRev != OMAP4_REV_ES1_0
+                && i >= 3) {
             status = ProcMMU_addPteEntry(&physAddr, &virtAddr,
-                    (L3regions[i].size), proc);
-        } else {
-        status = ProcMMU_addEntry(&physAddr, &virtAddr,
-                    (L3regions[i].size), proc);
+                                        (L3regions[i].size), proc);
         }
-    }
+        else {
+            status = ProcMMU_addEntry(&physAddr, &virtAddr,
+                                      (L3regions[i].size), proc);
+        }
         if (status < 0) {
             GT_setFailureReason (curTrace,
                                  GT_4CLASS,
@@ -568,7 +576,8 @@ ProcMMU_init (UInt32 aPhyAddr, Int proc)
     }
 
     if (status >= 0) {
-        Osal_printf ("  Programming Ducati L4 peripherals\n");
+        Osal_printf ("  Programming %s L4 peripherals\n",
+                    MultiProc_getName (proc));
         Osal_printf ("=========================================\n");
         for (i = 0; i < numL4Entries; i++) {
             Osal_printf ("PA [0x%x] VA [0x%x] size [0x%x]\n",
@@ -576,14 +585,21 @@ ProcMMU_init (UInt32 aPhyAddr, Int proc)
                     L4regions[i].size);
             virtAddr = L4regions[i].virtAddr;
             physAddr = L4regions[i].physAddr;
-            if (proc == MultiProc_getId("Tesla")) {
-            status = ProcMMU_addEntry (&physAddr, &virtAddr, (L4regions[i].size)
-                                                                        , proc);
+
+            if (proc != MultiProc_getId("Tesla") && cpuRev != OMAP4_REV_ES1_0) {
+                status = ProcMMU_addPteEntry(&physAddr, &virtAddr,
+                                             (L4regions[i].size), proc);
+            }
+            else {
+                status = ProcMMU_addEntry (&physAddr, &virtAddr,
+                                           (L4regions[i].size), proc);
+            }
+
             if (status < 0) {
                 Osal_printf ("**** Failed to map Peripheral ****");
                 Osal_printf ("Phys addr [0x%x] Virt addr [0x%x] size [0x%x]",
-                               L4regions[i].physAddr, L4regions[i].virtAddr,
-                               L4regions[i].size);
+                                L4regions[i].physAddr, L4regions[i].virtAddr,
+                                L4regions[i].size);
                 GT_setFailureReason (curTrace,
                                      GT_4CLASS,
                                      "ProcMMU_init",
@@ -591,26 +607,10 @@ ProcMMU_init (UInt32 aPhyAddr, Int proc)
                                      "L4Map addEntry failed!");
                 break;
             }
-            } else {
-                   status = ProcMMU_addPteEntry (&physAddr, &virtAddr,
-                                                        (L4Map[i].size), proc);
-                  if (status < 0) {
-                      Osal_printf ("**** Failed to map Peripheral ****");
-                      Osal_printf ("Phys addr [0x%x] Virt addr [0x%x]"
-                               " size [0x%x]",
-                               L4regions[i].physAddr, L4regions[i].virtAddr,
-                               L4regions[i].size);
-                      GT_setFailureReason (curTrace,
-                                     GT_4CLASS,
-                                     "ProcMMU_init",
-                                     status,
-                                     "L4Map addEntry failed!");
-              break;
-            }
         }
     }
-    }
 
+error_exit:
     GT_1trace (curTrace, GT_LEAVE, "ProcMMU_init", status);
     return status;
 }
@@ -717,7 +717,6 @@ ProcMMU_open (Int proc)
                                  "Failed to open ProcMgr driver with OS!");
         }
     } else {
-        Osal_printf ("%s %d\n", __func__, __LINE__);
         ProcMMU_MPU_M3_handle = open (PROC_MMU_MPU_M3_DRIVER_NAME,
                                         O_SYNC | O_RDWR);
         if (ProcMMU_MPU_M3_handle < 0) {

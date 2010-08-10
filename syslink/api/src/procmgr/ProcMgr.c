@@ -123,6 +123,7 @@
 #include <load.h>
 #include <_Ipc.h>
 #include <ProcMMU.h>
+#include <ProcMgr.h>
 
 #if defined (__cplusplus)
 extern "C" {
@@ -1359,9 +1360,8 @@ ProcMgr_load (ProcMgr_Handle handle,
 
     /*FIXME: (KW) Remove field ID if not used. */
     //cmdArgs.fileId = 0;
-
-    if (procID == MultiProc_getId ("SysM3") || \
-            procID == MultiProc_getId("Tesla")) {
+    if (procID == MultiProc_getId ("SysM3") ||
+            procID == MultiProc_getId ("Tesla")) {
         status = ProcMMU_open (procID);
         if (status < 0) {
             Osal_printf ("Error in ProcMMU_open [0x%x]\n", status);
@@ -1630,10 +1630,10 @@ ProcMgr_start (ProcMgr_Handle        handle,
 #ifdef SYSLINK_USE_SYSMGR
         /* read the symbol from slave binary */
         status = ProcMgr_getSymbolAddress (handle,
-                                          ((DLoad4430_Object *)
-                                          (procMgrHandle->loaderHandle))->fileId,
-                                          RESETVECTOR_SYMBOL,
-                                          &start);
+                                      ((DLoad4430_Object *)
+                                      (procMgrHandle->loaderHandle))->fileId,
+                                      RESETVECTOR_SYMBOL,
+                                      &start);
 
         if (status >= 0 && procMgrHandle->procId == MultiProc_getId ("Tesla")) {
             numBytes = 4;
@@ -2683,7 +2683,7 @@ ProcMgr_map (ProcMgr_Handle     handle,
             flags |= IOVMF_DA_PHYS;
             poolId = ProcMgr_NONE_MemPool;
             break;
-	case ProcMgr_MapType_Virt:
+        case ProcMgr_MapType_Virt:
             flags |= IOVMF_DA_USER;
             poolId = ProcMgr_DMM_MemPool;
             break;
@@ -2698,7 +2698,7 @@ ProcMgr_map (ProcMgr_Handle     handle,
             goto error_exit;
 
         status = ProcMMU_Map(procAddr, mappedAddr, numOfBuffers, size, poolId,
-                                                                 flags, procID);
+                                                                flags, procID);
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
         if (status < 0) {
             GT_setFailureReason (curTrace,
@@ -2776,6 +2776,54 @@ error_exit:
     return status;
 }
 
+/*!
+ *  @brief      Function to get the target revision
+ *
+ *              This function get the ES version of the OMAPBoard
+ *
+ *  @param      cpuRev    Return parameter
+  *
+ *  @sa         none
+ */
+
+
+Int
+ProcMgr_getCpuRev (UInt32 *cpuRev)
+{
+    Int                         status;
+    ProcMgr_CmdArgsGetCpuRev    cmdArgs;
+
+    GT_1trace (curTrace, GT_ENTER, "ProcMgr_getCpuRev", cpuRev);
+
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+    if (cpuRev == NULL) {
+        /*! @retval  PROCMGR_E_HANDLE Invalid NULL handle specified */
+        status = PROCMGR_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "ProcMgr_getCpuRev",
+                             status,
+                             "Invalid pointer specified");
+    }
+    else {
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+        cmdArgs.cpuRev = cpuRev;
+        status = ProcMgrDrvUsr_ioctl (CMD_PROCMGR_GETBOARDREV, &cmdArgs);
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+        if (status < 0) {
+            GT_setFailureReason (curTrace,
+                    GT_4CLASS,
+                    "ProcMgr_getCpuRev",
+                    status,
+                    "API (through IOCTL) failed on kernel-side!");
+        }
+    }
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+
+    GT_1trace (curTrace, GT_LEAVE, "ProcMgr_getCpuRev", status);
+
+    return status;
+}
 
 /*!
  *  @brief      Function to reserve slave address space
