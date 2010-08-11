@@ -380,8 +380,8 @@ BOOL DLIF_release(void* client_handle, struct DLOAD_MEMORY_SEGMENT* ptr)
 {
     void *physAddr;
     Memory_MapInfo mapinfo;
+    Memory_UnmapInfo unmapinfo;
     int status;
-
 
 #if LOADER_DEBUG
     if (debugging_on)
@@ -413,15 +413,21 @@ BOOL DLIF_release(void* client_handle, struct DLOAD_MEMORY_SEGMENT* ptr)
                        (UInt32)mapinfo.src);
             return FALSE;
         } else {
-            memset((void *)mapinfo.src, 0, ptr->memsz_in_bytes);
-            munmap((void *)mapinfo.src, ptr->memsz_in_bytes);
+            unmapinfo.addr = mapinfo.dst;
+            unmapinfo.size = mapinfo.size;
+            memset ((void *)mapinfo.dst, 0, ptr->memsz_in_bytes);
+            status = Memory_unmap (&unmapinfo);
+            if (status < 0) {
+                DLIF_error (DLET_MEMORY, "Memory_unmap failed\n");
+                return FALSE;
+            }
         }
     }
     else {
         DLTMM_free(client_handle, ptr->target_address);
     }
 
-    return 1;
+    return TRUE;
 }
 
 /*****************************************************************************/
@@ -541,10 +547,21 @@ BOOL DLIF_read(void* client_handle, void *ptr, size_t size, size_t nmemb,
 /*****************************************************************************/
 BOOL DLIF_write(void* client_handle, struct DLOAD_MEMORY_REQUEST* req)
 {
+    int status;
+    Memory_UnmapInfo unmapinfo;
+
     /*-----------------------------------------------------------------------*/
     /* Nothing to do since we are relocating directly into target memory.    */
     /*-----------------------------------------------------------------------*/
-    munmap((void *)req->host_address, req->segment->memsz_in_bytes);
+    if (req->host_address) {
+        unmapinfo.addr = (UInt32)req->host_address;
+        unmapinfo.size = req->segment->memsz_in_bytes;
+        status = Memory_unmap (&unmapinfo);
+        if (status < 0)
+                return FALSE;
+    }
+    else
+        return FALSE;
 
     return TRUE;
 }

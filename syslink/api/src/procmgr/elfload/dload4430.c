@@ -513,7 +513,7 @@ DLoad4430_load (DLoad4430_Handle handle,
                 UInt32 *         fileId)
 {
     Int                 status          = DLOAD_SUCCESS;
-    Int                 prog_argc;
+    Int                 prog_argc       = 0;
     Array_List          prog_argv;
     UInt32              proc_entry_point;
     UInt32              prog_handle;

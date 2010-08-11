@@ -1953,12 +1953,20 @@ static BOOL dload_dynamic_segment(DLOAD_HANDLE handle,
 /*   Copy all segments into host memory.                                     */
 /*****************************************************************************/
 static void copy_segments(DLOAD_HANDLE handle, LOADER_FILE_DESC* fp,
-                          DLIMP_Dynamic_Module* dyn_module)
+                          DLIMP_Dynamic_Module* dyn_module, int* data)
 {
     LOADER_OBJECT *pHandle = (LOADER_OBJECT *)handle;
     DLIMP_Loaded_Segment* seg =
        (DLIMP_Loaded_Segment*)(dyn_module->loaded_module->loaded_segments.buf);
     int s, seg_size = dyn_module->loaded_module->loaded_segments.size;
+    void **va = DLIF_malloc(seg_size * sizeof(void*));
+
+    if (!va) {
+        DLIF_error(DLET_MISC, "Failed to allocate va in copy_segments.\n");
+        return;
+    }
+    else
+        *data = (int)va;
 
     for (s=0; s<seg_size; s++)
     {
@@ -1977,6 +1985,8 @@ static void copy_segments(DLOAD_HANDLE handle, LOADER_FILE_DESC* fp,
         /*-------------------------------------------------------------------*/
         DLIF_copy(pHandle->client_handle, &targ_req);
 
+        va[s] = targ_req.host_address;
+
         /*-------------------------------------------------------------------*/
         /* Calculate offset for relocations.                                 */
         /*-------------------------------------------------------------------*/
@@ -1991,12 +2001,19 @@ static void copy_segments(DLOAD_HANDLE handle, LOADER_FILE_DESC* fp,
 /*   Write all segments to target memory.                                    */
 /*****************************************************************************/
 static void write_segments(DLOAD_HANDLE handle, LOADER_FILE_DESC* fp,
-                          DLIMP_Dynamic_Module* dyn_module)
+                          DLIMP_Dynamic_Module* dyn_module, int* data)
 {
     LOADER_OBJECT *pHandle = (LOADER_OBJECT *)handle;
     DLIMP_Loaded_Segment* seg =
         (DLIMP_Loaded_Segment*)(dyn_module->loaded_module->loaded_segments.buf);
     int s, seg_size = dyn_module->loaded_module->loaded_segments.size;
+    void **va = (void *)*data;
+
+    if (!va) {
+        DLIF_error(DLET_MISC, "Invalid host virtual address array passed into"
+                   "write_segments.\n");
+        return;
+    }
 
     for (s=0; s<seg_size; s++)
     {
@@ -2008,6 +2025,7 @@ static void write_segments(DLOAD_HANDLE handle, LOADER_FILE_DESC* fp,
         if (seg[s].phdr.p_flags & PF_X)
             seg[s].phdr.p_flags |= DLOAD_SF_executable;
         targ_req.align = seg[s].phdr.p_align;
+        targ_req.host_address = va[s];
 
         /*-------------------------------------------------------------------*/
         /* Copy segment data from the file into host buffer where it can     */
@@ -2015,6 +2033,8 @@ static void write_segments(DLOAD_HANDLE handle, LOADER_FILE_DESC* fp,
         /*-------------------------------------------------------------------*/
         DLIF_write(pHandle->client_handle, &targ_req);
     }
+
+    DLIF_free(va);
 }
 
 /*****************************************************************************/
@@ -2145,6 +2165,8 @@ static void process_dynamic_module_relocations(DLOAD_HANDLE handle,
                                                LOADER_FILE_DESC *fd,
                                                DLIMP_Dynamic_Module *dyn_module)
 {
+    int data = 0;
+
 #if LOADER_DEBUG || LOADER_PROFILE
     if(debugging_on || profiling_on)
     {
@@ -2156,7 +2178,7 @@ static void process_dynamic_module_relocations(DLOAD_HANDLE handle,
     /*-----------------------------------------------------------------------*/
     /* Copy segments from file to host memory                                */
     /*-----------------------------------------------------------------------*/
-    copy_segments(handle, fd, dyn_module);
+    copy_segments(handle, fd, dyn_module, &data);
 
    /*------------------------------------------------------------------------*/
    /* Process dynamic relocations.                                           */
@@ -2174,7 +2196,7 @@ static void process_dynamic_module_relocations(DLOAD_HANDLE handle,
     /*-----------------------------------------------------------------------*/
     /* Write segments from host memory to target memory                      */
     /*-----------------------------------------------------------------------*/
-    write_segments(handle, fd, dyn_module);
+    write_segments(handle, fd, dyn_module, &data);
 
 #if LOADER_DEBUG || LOADER_PROFILE
     /*-----------------------------------------------------------------------*/
@@ -2618,7 +2640,7 @@ int32_t DLOAD_load(DLOAD_HANDLE handle, LOADER_FILE_DESC *fd, int argc,
                                          dyn_module->dsbt_index)) {
         dynamic_module_ptr_pop(&pHandle->DLIMP_dependency_stack);
         loaded_module_ptr_remove(&pHandle->DLIMP_loaded_objects,
-				  dyn_module->loaded_module);
+                                  dyn_module->loaded_module);
         delete_DLIMP_Dynamic_Module(handle, &dyn_module);
         return 0;
     }
@@ -2631,7 +2653,7 @@ int32_t DLOAD_load(DLOAD_HANDLE handle, LOADER_FILE_DESC *fd, int argc,
     if (!dload_and_allocate_dependencies(handle, dyn_module)) {
         dynamic_module_ptr_pop(&pHandle->DLIMP_dependency_stack);
         loaded_module_ptr_remove(&pHandle->DLIMP_loaded_objects,
-				  dyn_module->loaded_module);
+                                  dyn_module->loaded_module);
         delete_DLIMP_Dynamic_Module(handle, &dyn_module);
         return 0;
     }
