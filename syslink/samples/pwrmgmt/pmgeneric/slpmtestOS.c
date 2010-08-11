@@ -304,18 +304,23 @@ Int displayResMenu (Void)
     Char str [80];
 
     Osal_printf ("\n\n============ Request Resource Menu ============\n");
-    Osal_printf ("  0.- IvaHD\n");
-    Osal_printf ("  1.- ISS\n");
-    Osal_printf ("  2.- Sdma\n");
-    Osal_printf ("  3.- Gptimer\n");
-    Osal_printf ("  4.- Gpio\n");
-    Osal_printf ("  5.- I2C\n");
-    Osal_printf ("  6.- Regulator\n");
-    Osal_printf ("  7.- Auxiliar Clock\n");
-    Osal_printf ("  8.- SYSM3\n");
-    Osal_printf ("  9.- APPM3\n");
-    Osal_printf ("  10.- L3 Bus\n");
-    Osal_printf ("  11.- Exit\n");
+
+    Osal_printf ("  0.-  FDIF\n");
+    Osal_printf ("  1.-  IPU\n");
+    Osal_printf ("  2.-  SYSM3\n");
+    Osal_printf ("  3.-  APPM3\n");
+    Osal_printf ("  4.-  ISS\n");
+    Osal_printf ("  5.-  IVAHD\n");
+    Osal_printf ("  6.-  IVASEQ0\n");
+    Osal_printf ("  7.-  IVASEQ1\n");
+    Osal_printf ("  8.-  L3 Bus\n");
+    Osal_printf ("  9.-  MPU\n");
+    Osal_printf ("  10.- Sdma\n");
+    Osal_printf ("  11.- Gptimer\n");
+    Osal_printf ("  12.- Gpio\n");
+    Osal_printf ("  13.- I2C\n");
+    Osal_printf ("  14.- Regulator\n");
+    Osal_printf ("  15.- Auxiliar Clock\n");
     fgets(str, 80, stdin);
 
     return atoi(str);
@@ -368,27 +373,49 @@ Int getResourceParam (Int resource, Int* resArg)
     Payload payload;
 
     switch (resource) {
+
+        case FDIF:
+        case IPU:
+        case ISS:
+        case IVA_HD:
+        case MPU:
+            Osal_printf ("\n\n Performance (KHz)?\n");
+            fgets(str, 80, stdin);
+            resArg[0]=atoi(str);
+            Osal_printf ("\n\n Latency (uSec)\n");
+            fgets(str, 80, stdin);
+            resArg[1]=atoi(str);
+            break;
+
+        case L3_BUS:
+            Osal_printf ("\n\n Bandwidth\n");
+            goto OnlyOneArg;
+        break;
+
         case REGULATOR:
             Osal_printf ("\n\n Provide Resource ID?\n");
             fgets(str, 80, stdin);
-            resArg[0]=atoi(str);
+            resArg[0] = atoi(str);
             Osal_printf ("\n\n Minimum Voltage?\n");
             fgets(str, 80, stdin);
-            resArg[1]=atoi(str);
+            resArg[1] = atoi(str);
             Osal_printf ("\n\n Maximum Voltage?\n");
             fgets(str, 80, stdin);
-            resArg[2]=atoi(str);
-            return 0;
-        case GPIO:
+            resArg[2] = atoi(str);
+            break;
+
+
+        case GP_IO:
         case I2C:
             Osal_printf ("\n\n Provide Resource ID?\n");
             goto OnlyOneArg;
-            case SDMA:
+        case SDMA:
             Osal_printf ("\n\n Number of Channels?\n");
             goto OnlyOneArg;
-        case AUXCLK:
+        case AUX_CLK:
             Osal_printf ("\n\n Number of Clk?\n");
             goto OnlyOneArg;
+
         case TIMER:
             Osal_printf ("\n\n Tick Period (uSec)?\n");
             goto OnlyOneArg;
@@ -403,8 +430,8 @@ Int getResourceParam (Int resource, Int* resArg)
             Osal_printf ("\n\n force Suspend? \n");
             fgets(str, 80, stdin);
             resArg[2]=atoi(str);
+            break;
 
-            return 0;
         case NOTIFY_SYSM3:
             Osal_printf ("\n\n Is MasterCore (SYSM3=1, APPM3=0)?\n");
             fgets(str, 80, stdin);
@@ -415,12 +442,19 @@ Int getResourceParam (Int resource, Int* resArg)
             Osal_printf ("\n\n force Suspend? \n");
             fgets(str, 80, stdin);
             payload.force_suspend = atoi(str);
-
             resArg[0] = payload.whole;
+            break;
+
+        case SYSM3:
+        case APPM3:
+        case IVASEQ0:
+        case IVASEQ1:
+        case GP_TIMER:
+        break;
         default:
             Osal_printf ("  Resource not supported yet\n");
-            return 0;
         }
+    return 0;
 OnlyOneArg:
     fgets(str, 80, stdin);
     resArg[0]=atoi(str);

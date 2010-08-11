@@ -96,24 +96,29 @@ extern "C" {
 #define REQUIRES_NOTIFY_SYSM3 NOTIFY_SYSM3
 
 
-#define IVAHD           0
-#define ISS             1
-#define SDMA            2
-#define GPTIMER         3
-#define GPIO            4
-#define I2C             5
-#define REGULATOR       6
-#define AUXCLK          7
-#define SYS_M3_PROC     8
-#define APP_M3_PROC     9
-#define L3BUS           10
+#define FDIF            0
+#define IPU             1
+#define SYSM3           2
+#define APPM3           3
+#define ISS             4
+#define IVA_HD          5
+#define IVASEQ0         6
+#define IVASEQ1         7
+#define L3_BUS          8
+#define MPU             9
+#define SDMA            10
+#define GP_TIMER        11
+#define GP_IO           12
+#define I2C             13
+#define REGULATOR       14
+#define AUX_CLK         15
 
 #define NORESOURCE      -1
 //#define SYSTIMER    NORESOURCE
 
 
-#define FIRSTRESOURCE   SDMA
-#define LASTRESOURCE    REGULATOR
+#define FIRSTRESOURCE   FDIF
+#define LASTRESOURCE    AUX_CLK
 
 #define MAX_NUM_ARGS    10
 
