@@ -382,7 +382,7 @@ err_out:
 Int
 ProcMMU_UnMap (UInt32 mappedAddr, Int proc)
 {
-    Int    status;
+    Int    status = 0;
     GT_1trace (curTrace, GT_ENTER, "ProcMMU_UnMap", mappedAddr);
 
     if (proc == MultiProc_getId("AppM3") || proc == MultiProc_getId("SysM3"))
@@ -405,7 +405,7 @@ ProcMMU_UnMap (UInt32 mappedAddr, Int proc)
 Int
 ProcMMU_FlushMemory (PVOID mpuAddr, UInt32 size, Int proc)
 {
-    Int    status;
+    Int    status = 0;
     struct ProcMMU_dmm_dma_entry flush_entry;
     GT_2trace (curTrace, GT_ENTER, "ProcMMU_FlushMemory", mpuAddr, size);
     if((mpuAddr == NULL) ||(size == 0)){
@@ -436,7 +436,7 @@ ProcMMU_FlushMemory (PVOID mpuAddr, UInt32 size, Int proc)
 Int
 ProcMMU_InvMemory(PVOID mpuAddr, UInt32 size, Int proc)
 {
-    Int    status;
+    Int    status = 0;
     struct ProcMMU_dmm_dma_entry inv_entry;
     GT_2trace (curTrace, GT_ENTER, "ProcMMU_InvMemory", mpuAddr, size);
     if((mpuAddr == NULL) ||(size == 0)){
@@ -467,7 +467,7 @@ Int
 ProcMMU_CreateVMPool(UInt32 poolId, UInt32 size, UInt32 daBegin, UInt32 daEnd,
                                                        UInt32 flags, Int proc)
 {
-    Int    status;
+    Int    status = 0;
     struct ProcMMU_VaPool_entry poolInfo;
     GT_3trace (curTrace, GT_ENTER, "ProcMMU_CreateVMPool", poolId, daBegin,
                                                                         size);
@@ -491,7 +491,7 @@ ProcMMU_CreateVMPool(UInt32 poolId, UInt32 size, UInt32 daBegin, UInt32 daEnd,
 Int
 ProcMMU_DeleteVMPool(UInt32 poolId, Int proc)
 {
-    Int status;
+    Int status = 0;
     GT_1trace (curTrace, GT_ENTER, "ProcMMU_DeleteVMPool", poolId);
     if(poolId < POOL_MIN || poolId > POOL_MAX) {
          status = ProcMMU_E_INVALIDARG;

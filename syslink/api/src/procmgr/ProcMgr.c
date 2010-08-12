@@ -1608,7 +1608,7 @@ ProcMgr_start (ProcMgr_Handle        handle,
     Memory_MapInfo          sysCtrlMapInfo;
     Memory_UnmapInfo        sysCtrlUnmapInfo;
     UInt32                  numBytes;
-    UInt32                  entryPt;
+    UInt32                  entryPt         = entry_point;
 
     GT_2trace (curTrace, GT_ENTER, "ProcMgr_start", handle, params);
 
@@ -2772,7 +2772,6 @@ ProcMgr_unmap (ProcMgr_Handle   handle,
 
     Osal_printf ("Exit ProcMgr_unmap \n" );
 
-error_exit:
     return status;
 }
 
