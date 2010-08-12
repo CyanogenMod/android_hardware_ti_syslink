@@ -459,52 +459,48 @@ SharedRegion_destroy (Void)
                                  status,
                                  "API (through IOCTL) failed on kernel-side!");
         }
-        else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-            /* Enter the gate */
-            if (SharedRegion_module->localLock != NULL) {
-                key = IGateProvider_enter (SharedRegion_module->localLock);
-            }
-
-            if (SharedRegion_module->bCreatedInKnlSpace != NULL) {
-                Memory_free (NULL,
-                            SharedRegion_module->bCreatedInKnlSpace,
-                            (  sizeof (UInt32) *
-                               SharedRegion_module->cfg.numEntries));
-            }
-            if (SharedRegion_module->regions != NULL) {
-                Memory_free (NULL,
-                             SharedRegion_module->regions,
-                             (  sizeof (SharedRegion_Region)
-                              * SharedRegion_module->cfg.numEntries));
-                SharedRegion_module->regions = NULL;
-            }
-
-            Memory_set (&SharedRegion_module->cfg,
-                        0,
-                        sizeof (SharedRegion_Config));
-
-            SharedRegion_module->numOffsetBits = 0;
-            SharedRegion_module->offsetMask    = 0;
-
-            if (SharedRegion_module->localLock != NULL) {
-                /* Leave the gate */
-                IGateProvider_leave (SharedRegion_module->localLock, key);
-
-                /* Delete the local lock */
-                status = GateMutex_delete ((GateMutex_Handle *)
-                                           &SharedRegion_module->localLock);
-                GT_assert (curTrace, (status >= 0));
-                if (status < 0) {
-                    status = SharedRegion_E_FAIL;
-                }
-            }
-
-            /* Close the driver handle. */
-            SharedRegionDrv_close ();
-#if !defined(SYSLINK_BUILD_OPTIMIZE)
+        /* Enter the gate */
+        if (SharedRegion_module->localLock != NULL) {
+            key = IGateProvider_enter (SharedRegion_module->localLock);
         }
-#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+
+        if (SharedRegion_module->bCreatedInKnlSpace != NULL) {
+            Memory_free (NULL,
+                         SharedRegion_module->bCreatedInKnlSpace,
+                         (  sizeof (UInt32) *
+                         SharedRegion_module->cfg.numEntries));
+        }
+        if (SharedRegion_module->regions != NULL) {
+            Memory_free (NULL,
+                         SharedRegion_module->regions,
+                         (  sizeof (SharedRegion_Region)
+                          * SharedRegion_module->cfg.numEntries));
+            SharedRegion_module->regions = NULL;
+        }
+
+        Memory_set (&SharedRegion_module->cfg,
+                    0,
+                    sizeof (SharedRegion_Config));
+
+        SharedRegion_module->numOffsetBits = 0;
+        SharedRegion_module->offsetMask    = 0;
+
+        if (SharedRegion_module->localLock != NULL) {
+            /* Leave the gate */
+            IGateProvider_leave (SharedRegion_module->localLock, key);
+
+            /* Delete the local lock */
+            status = GateMutex_delete ((GateMutex_Handle *)
+                                       &SharedRegion_module->localLock);
+            GT_assert (curTrace, (status >= 0));
+            if (status < 0) {
+                status = SharedRegion_E_FAIL;
+            }
+        }
+
+        /* Close the driver handle. */
+        SharedRegionDrv_close ();
     }
 
     GT_1trace (curTrace, GT_LEAVE, "SharedRegion_destroy", status);
