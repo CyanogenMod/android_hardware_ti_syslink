@@ -230,7 +230,7 @@ SlpmTest_startup (Int testNo)
             imageName = SLPMTEST_SYSM3_IMAGE;
 
         Osal_printf ("Loading image (%s) onto Ducati with ProcId %d\n",
-                        imageName, startParams.proc_id);
+                        imageName, slpmTest_procId);
         status = ProcMgr_load (slpmTest_procMgrHandle, imageName, 2,
                                 (String *) &imageName, &entryPoint, &fileId,
                                 slpmTest_procId);
@@ -435,10 +435,6 @@ SlpmTest_execute (Int testNo, Int cmd, Int resource, Int* resArg)
 
         /* Allocate message. */
         msg = MessageQ_alloc (HEAPID, sizeof(MsgInfo));
-        SlpmMsg = (MsgInfo*)msg;
-        SlpmMsg->cmd = cmd;
-        memcpy(&SlpmMsg->resArg, resArg, MAX_NUM_ARGS * sizeof(Int32));
-        SlpmMsg->Resource = resource;
         if (msg == NULL) {
             Osal_printf ("Error in MessageQ_alloc\n");
             return status;
@@ -446,6 +442,10 @@ SlpmTest_execute (Int testNo, Int cmd, Int resource, Int* resArg)
         else {
             Osal_printf ("MessageQ_alloc msg [0x%x]\n", msg);
         }
+        SlpmMsg = (MsgInfo*)msg;
+        SlpmMsg->cmd = cmd;
+        memcpy(&SlpmMsg->resArg, resArg, MAX_NUM_ARGS * sizeof(Int32));
+        SlpmMsg->Resource = resource;
 
         MessageQ_setMsgId (msg, msgId);
         /* In the middle of the requests we send the suspend */
