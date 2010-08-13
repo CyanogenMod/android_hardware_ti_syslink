@@ -3194,42 +3194,49 @@ ProcMgr_flushMemory(PVOID bufAddr, UInt32 bufSize, ProcMgr_ProcId procID) {
  *  @sa         ProcMgr_flushMemory
  */
 Int
-ProcMgr_waitForEvent(ProcMgr_ProcId procId, ProcMgr_EventType eventType,
-                                                        Int timeout)
+ProcMgr_waitForEvent (ProcMgr_ProcId    procId,
+                      ProcMgr_EventType eventType,
+                      Int               timeout)
 {
-    Int efd;
-    Int status;
-    Int ret;
-    fd_set rfds;
+    Int         efd;
+    Int         status;
+    uint64_t    ret;
+
+    GT_3trace (curTrace, GT_ENTER, "ProcMgr_waitForEvent", procId, eventType,
+                timeout);
 
     efd = eventfd(0, 0);
-
-    Osal_printf("eventfd = %d, %s\n", efd, __func__);
+    if (efd == -1)
+        return PROCMGR_E_FAIL;
 
     status = ProcMMU_open (procId);
     if (status < 0) {
         Osal_printf ("Error in ProcMMU_open [0x%x]\n", status);
+        close(efd);
         return PROCMGR_E_FAIL;
     }
 
-
-    status = ProcMMU_registerEvent(procId, efd, TRUE);
-
+    status = ProcMMU_registerEvent (procId, efd, TRUE);
     if (status == ProcMMU_S_SUCCESS) {
         /* wait on the MMU fault event */
         status = read(efd, &ret, sizeof(uint64_t));
-        Osal_printf("MMU fault status = %d, ret = %d %s\n",
-                        status, ret, __func__);
         /* unregister the event */
-        ProcMMU_registerEvent(procId, efd, FALSE);
+        ProcMMU_registerEvent (procId, efd, FALSE);
         status = PROCMGR_SUCCESS;
     }
     else {
-        Osal_printf("MMU fault status registration for procId %d"
-                    "failed\n", procId);
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "ProcMgr_waitForEvent",
+                             status,
+                             "MMU fault status registration failed!");
         status = PROCMGR_E_FAIL;
     }
+
     ProcMMU_close (procId);
+    close(efd);
+
+    GT_1trace (curTrace, GT_LEAVE, "ProcMgr_waitForEvent", status);
 
     return status;
 }
