@@ -117,7 +117,7 @@ static Void signal_handler (Int sig)
 /*
  *  ======== ipc_cleanup ========
  */
-Void ipcCleanup (Void)
+static Void ipcCleanup (Void)
 {
     ProcMgr_StopParams stopParams;
     Int                status = 0;
@@ -219,7 +219,7 @@ Void ipcCleanup (Void)
 /*
  *  ======== ipcSetup ========
  */
-Int ipcSetup (Char * sysM3ImageName, Char * appM3ImageName)
+static Int ipcSetup (Char * sysM3ImageName, Char * appM3ImageName)
 {
     Ipc_Config                      config;
     ProcMgr_StopParams              stopParams;
@@ -484,7 +484,7 @@ Int main (Int argc, Char * argv [])
     pid_t   child_sid;
     Int     status;
     FILE  * fp;
-    Bool    calledIpcSetup = false;
+    Bool    callIpcSetup = false;
 
     Osal_printf ("Spawning TILER server daemon...\n");
 
@@ -517,83 +517,80 @@ Int main (Int argc, Char * argv [])
     //close(STDOUT_FILENO);
     //close(STDERR_FILENO);
 
+    /* Determine args */
+    switch(argc) {
+    case 0:
+    case 1:
+        status = -1;
+        Osal_printf ("Invalid arguments to Daemon.  Usage:\n");
+        Osal_printf ("\tRunning SysM3 only:\n"
+                     "\t\t./syslink_daemon.out <SysM3 image file>\n");
+        Osal_printf ("\tRunning SysM3 and AppM3:\n"
+                     "\t\t./syslink_daemon.out <SysM3 image file> "
+                     "<AppM3 image file>\n");
+        Osal_printf ("\t(full paths must be provided for image files)\n");
+        break;
+    case 2:     /* load SysM3 only */
+        /* Test for file's presence */
+        if (strlen (argv[1]) >= 1024) {
+            Osal_printf ("Filename is too big\n");
+            exit(EXIT_FAILURE);
+        }
+        fp = fopen(argv[1], "rb");
+        if (fp != NULL) {
+            fclose(fp);
+            callIpcSetup = true;
+        }
+        else
+            Osal_printf ("File %s could not be opened.\n", argv[1]);
+        break;
+    case 3:     /* load AppM3 and SysM3 */
+    default:
+        /* Test for file's presence */
+        if ((strlen (argv[1]) >= 1024) || (strlen (argv[2]) >= 1024)){
+            Osal_printf ("Filenames are too big\n");
+            exit(EXIT_FAILURE);
+        }
+        fp = fopen(argv[1], "rb");
+        if(fp != NULL) {
+            fclose(fp);
+            fp = fopen(argv[2], "rb");
+            if(fp != NULL) {
+                fclose(fp);
+                callIpcSetup = true;
+            } else
+                Osal_printf ("File %s could not be opened.\n", argv[2]);
+        } else
+            Osal_printf ("File %s could not be opened.\n", argv[1]);
+        break;
+    }
+    if(!callIpcSetup)
+        return (-1);
+
+    /* Setup the signal handlers*/
+    signal (SIGINT, signal_handler);
+    signal (SIGKILL, signal_handler);
+    signal (SIGTERM, signal_handler);
+
     while (restart) {
         restart = FALSE;
 
-        /* Determine args */
-        switch(argc) {
-        case 0:
-        case 1:
-            status = -1;
-            Osal_printf ("Invalid arguments to Daemon.  Usage:\n");
-            Osal_printf ("\tRunning SysM3 only:\n"
-                         "\t\t./syslink_daemon.out <SysM3 image file>\n");
-            Osal_printf ("\tRunning SysM3 and AppM3:\n"
-                         "\t\t./syslink_daemon.out <SysM3 image file> "
-                         "<AppM3 image file>\n");
-            Osal_printf ("\t(full paths must be provided for image files)\n");
-            break;
-        case 2:     /* load SysM3 only */
-            /* Test for file's presence */
-            if (strlen (argv[1]) >= 1024) {
-                Osal_printf ("Filename is too big\n");
-                exit(EXIT_FAILURE);
-            }
-            fp = fopen(argv[1], "rb");
-            if (fp != NULL) {
-                fclose(fp);
-                status = ipcSetup (argv[1], NULL);
-                calledIpcSetup = true;
-            }
-            else
-                Osal_printf ("File %s could not be opened.\n", argv[1]);
-            break;
-        case 3:     /* load AppM3 and SysM3 */
-        default:
-            /* Test for file's presence */
-            if ((strlen (argv[1]) >= 1024) || (strlen (argv[2]) >= 1024)){
-                Osal_printf ("Filenames are too big\n");
-                exit(EXIT_FAILURE);
-            }
-            fp = fopen(argv[1], "rb");
-            if(fp != NULL) {
-                fclose(fp);
-                fp = fopen(argv[2], "rb");
-                if(fp != NULL) {
-                    fclose(fp);
-                    status = ipcSetup (argv[1], argv[2]);
-                    calledIpcSetup = true;
-                }
-                else
-                    Osal_printf ("File %s could not be opened.\n", argv[2]);
-            }
-            else
-                Osal_printf ("File %s could not be opened.\n", argv[1]);
-            break;
+        status = ipcSetup (argv[1], (argc == 2) ? NULL : argv[2]);
+        if(status < 0) {
+            Osal_printf ("ipcSetup failed!\n");
+            return (-1);
         }
-        if(calledIpcSetup) {
-            if(status < 0) {
-                Osal_printf ("ipcSetup failed!\n");
-                return (-1);        // Quit if there was a setup error
-            } else {
-                Osal_printf ("ipcSetup succeeded!\n");
+        Osal_printf ("ipcSetup succeeded!\n");
 
-                /* Setup the signal handlers*/
-                signal (SIGINT, signal_handler);
-                signal (SIGKILL, signal_handler);
-                signal (SIGTERM, signal_handler);
+        /* Create the MMU fault handler thread */
+        Osal_printf ("Create MMU fault handler thread.\n");
+        pthread_create (&mmu_fault_handle, NULL,
+                            (Void *)&mmu_fault_handler, NULL);
 
-                /* Create the MMU fault handler thread */
-                Osal_printf ("Create MMU fault handler thread.\n");
-                pthread_create (&mmu_fault_handle, NULL,
-                                    (Void *)&mmu_fault_handler, NULL);
+        MemMgrThreadFxn ();
 
-                MemMgrThreadFxn ();
-
-                /* IPC_Cleanup function*/
-                ipcCleanup ();
-            }
-        }
+        /* IPC_Cleanup function*/
+        ipcCleanup ();
     }
 
     return 0;
