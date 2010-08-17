@@ -789,18 +789,33 @@ exit:
     return (-1);
 }
 
+static Void printUsage (Void)
+{
+    Osal_printf ("\nInvalid arguments!\n"
+                 "Usage: ./syslink_daemon.out <[-s] <SysM3 image file>> "
+                 "[<[-a] <AppM3 image file>>]\n"
+                 "Rules: - Full paths must be provided for image files.\n"
+                 "       - Images can be specified in any order as long as\n"
+                 "         the corresponding option is specified.\n"
+                 "       - All images not preceded by an option are applied\n"
+                 "         to the cores whose images are not already\n"
+                 "         specified in the order of SysM3, AppM3\n\n");
+    exit (EXIT_FAILURE);
+}
 
 Int main (Int argc, Char * argv [])
 {
     pid_t   child_pid;
     pid_t   child_sid;
-    Int     status;
-    FILE  * fp;
-    Bool    callIpcSetup = false;
+    Int     status      = 0;
+    Int     o;
+    Int     i;
+    Char  * images []   = {NULL, NULL};
+    Int     numImages   = sizeof (images) / sizeof (images [0]);
 
-    if (isDaemonRunning (argv[0])) {
+    if (isDaemonRunning (argv [0])) {
         Osal_printf ("Multiple instances of syslink_daemon.out are not "
-                     "supported\n");
+                     "supported!\n");
         return (-1);
     }
 
@@ -835,54 +850,42 @@ Int main (Int argc, Char * argv [])
     //close(STDERR_FILENO);
 
     /* Determine args */
-    switch(argc) {
-    case 0:
-    case 1:
-        status = -1;
-        Osal_printf ("Invalid arguments to Daemon.  Usage:\n");
-        Osal_printf ("\tRunning SysM3 only:\n"
-                     "\t\t./syslink_daemon.out <SysM3 image file>\n");
-        Osal_printf ("\tRunning SysM3 and AppM3:\n"
-                     "\t\t./syslink_daemon.out <SysM3 image file> "
-                     "<AppM3 image file>\n");
-        Osal_printf ("\t(full paths must be provided for image files)\n");
-        break;
-    case 2:     /* load SysM3 only */
-        /* Test for file's presence */
-        if (strlen (argv[1]) >= 1024) {
-            Osal_printf ("Filename is too big\n");
-            exit (EXIT_FAILURE);
+    while ((o = getopt (argc, argv, ":a:s:")) != -1) {
+        switch (o) {
+        case 's':
+            images [0] = optarg;
+            break;
+        case 'a':
+            images [1] = optarg;
+            break;
+        case ':':
+            status = -1;
+            Osal_printf ("Option -%c requires an operand\n", optopt);
+            break;
+        case '?':
+            status = -1;
+            Osal_printf ("Unrecognized option: -%c\n", optopt);
+            break;
         }
-        fp = fopen (argv[1], "rb");
-        if (fp != NULL) {
-            fclose (fp);
-            callIpcSetup = true;
-        }
-        else
-            Osal_printf ("File %s could not be opened.\n", argv[1]);
-        break;
-    case 3:     /* load AppM3 and SysM3 */
-    default:
-        /* Test for file's presence */
-        if ((strlen (argv[1]) >= 1024) || (strlen (argv[2]) >= 1024)){
-            Osal_printf ("Filenames are too big\n");
-            exit (EXIT_FAILURE);
-        }
-        fp = fopen (argv[1], "rb");
-        if(fp != NULL) {
-            fclose (fp);
-            fp = fopen (argv[2], "rb");
-            if(fp != NULL) {
-                fclose (fp);
-                callIpcSetup = true;
-            } else
-                Osal_printf ("File %s could not be opened.\n", argv[2]);
-        } else
-            Osal_printf ("File %s could not be opened.\n", argv[1]);
-        break;
     }
-    if(!callIpcSetup) {
-        return (-1);
+
+    for (i = 0; optind < argc; optind++) {
+        while (i < numImages && images [i]) i++;
+        if (i == numImages) {
+            printUsage ();
+        }
+        images [i++] = argv [optind];
+    }
+
+    for (i = 0; i < numImages; i++) {
+        if (images [i] && access (images [i], R_OK)) {
+            Osal_printf ("Error opening %s\n", images [i]);
+            printUsage ();
+        }
+    }
+
+    if (status || optind < argc || !images [0]) {
+        printUsage ();
     }
 
     /* Setup the signal handlers */
@@ -900,7 +903,7 @@ Int main (Int argc, Char * argv [])
 
         sem_init (&semDaemonWait, 0, 0);
 
-        status = ipcSetup (argv[1], (argc == 2) ? NULL : argv[2]);
+        status = ipcSetup (images [0], images [1]);
         if (status < 0) {
             Osal_printf ("ipcSetup failed!\n");
             sem_destroy (&semDaemonWait);
@@ -921,7 +924,7 @@ Int main (Int argc, Char * argv [])
             exit (EXIT_FAILURE);
         }
         /* Only if AppM3 image is specified */
-        if (argc != 2) {
+        if (images [1]) {
             /* Create an AppM3 fault handler thread */
             Osal_printf ("Create AppM3 event handler thread\n");
             status = pthread_create (&appM3EvtHandlerThrd, NULL,
