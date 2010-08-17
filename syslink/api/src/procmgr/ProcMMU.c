@@ -414,7 +414,7 @@ ProcMMU_FlushMemory (PVOID mpuAddr, UInt32 size, Int proc)
      }
     flush_entry.mpuAddr = mpuAddr;
     flush_entry.size = size;
-    flush_entry.dir = DMA_TO_DEVICE;
+    flush_entry.dir = DMA_BIDIRECTIONAL;
     if (proc == MultiProc_getId("AppM3") || proc == MultiProc_getId("SysM3"))
         status = ioctl (ProcMMU_MPU_M3_handle, IOVMM_IOCMEMFLUSH, &flush_entry);
     else if (proc == MultiProc_getId("Tesla"))
@@ -445,7 +445,7 @@ ProcMMU_InvMemory(PVOID mpuAddr, UInt32 size, Int proc)
      }
     inv_entry.mpuAddr = mpuAddr;
     inv_entry.size = size;
-    inv_entry.dir = DMA_FROM_DEVICE;
+    inv_entry.dir = DMA_BIDIRECTIONAL;
     if (proc == MultiProc_getId("AppM3") || proc == MultiProc_getId("SysM3"))
         status = ioctl (ProcMMU_MPU_M3_handle, IOVMM_IOCMEMINV, &inv_entry);
     else if (proc == MultiProc_getId("Tesla"))
