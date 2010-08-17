@@ -58,6 +58,9 @@
 #define RCM_MSGQ_DOMX_HEAPID            1
 #define RCM_MSGQ_HEAP_SR                1
 
+#define DUCATI_DMM_POOL_0_ID            0
+#define DUCATI_DMM_POOL_0_START         0x90000000
+#define DUCATI_DMM_POOL_0_SIZE          0x10000000
 
 /*
  *  ======== MemMgrThreadFxn ========
@@ -153,6 +156,11 @@ static Void ipcCleanup (Void)
 
     if (heapBufPtr) {
         Memory_free (srHeap, heapBufPtr, heapSize);
+    }
+
+    status = ProcMgr_deleteDMMPool (DUCATI_DMM_POOL_0_ID, remoteIdSysM3);
+    if (status < 0) {
+        Osal_printf ("Error in ProcMgr_deleteDMMPool:status = 0x%x\n", status);
     }
 
     if(appM3Client) {
@@ -344,6 +352,17 @@ static Int ipcSetup (Char * sysM3ImageName, Char * appM3ImageName)
             Osal_printf ("Error in ProcMgr_start, status [0x%x]\n", status);
             goto exit_procmgr_stop_sysm3;
         }
+    }
+
+    Osal_printf ("SYSM3: Creating Ducati DMM pool of size 0x%x\n",
+                DUCATI_DMM_POOL_0_SIZE);
+    status = ProcMgr_createDMMPool (DUCATI_DMM_POOL_0_ID,
+                                    DUCATI_DMM_POOL_0_START,
+                                    DUCATI_DMM_POOL_0_SIZE,
+                                    remoteIdSysM3);
+    if(status < 0) {
+        Osal_printf ("Error in ProcMgr_createDMMPool, status [0x%x]\n", status);
+        goto exit_procmgr_stop_sysm3;
     }
 
     srCount = SharedRegion_getNumRegions();
