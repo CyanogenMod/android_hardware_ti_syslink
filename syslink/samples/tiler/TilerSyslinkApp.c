@@ -97,6 +97,13 @@ extern "C" {
 #define RCM_MSGQ_DOMX_HEAPID            1
 #define RCM_MSGQ_HEAP_SR                1
 
+#define DUCATI_DMM_POOL_0_ID            0
+#define DUCATI_DMM_POOL_0_START         0x90000000
+#define DUCATI_DMM_POOL_0_SIZE          0x10000000
+
+#define ROUND_DOWN_TO2POW(x, N)         ((x) & ~((N)-1))
+#define ROUND_UP_TO2POW(x, N)           ROUND_DOWN_TO2POW((x) + (N) - 1, N)
+
 /* =============================================================================
  * Structs & Enums
  * =============================================================================
@@ -177,6 +184,7 @@ Int SyslinkUseBufferTest (Int procId, Bool useTiler, UInt numTrials)
     SizeT                           heapSize1           = 0;
     Ptr                             heapBufPtr1         = NULL;
     IHeap_Handle                    srHeap              = NULL;
+    UInt32                          sizeAlign;
 
     Ipc_getConfig (&config);
     status = Ipc_setup (&config);
@@ -269,6 +277,15 @@ Int SyslinkUseBufferTest (Int procId, Bool useTiler, UInt numTrials)
                                      &startParams);
             Osal_printf ("ProcMgr_start AppM3 Status [0x%x]\n", status);
         }
+    }
+
+    status = ProcMgr_createDMMPool (DUCATI_DMM_POOL_0_ID,
+                                    DUCATI_DMM_POOL_0_START,
+                                    DUCATI_DMM_POOL_0_SIZE,
+                                    procIdSysM3);
+    if (status < 0) {
+        Osal_printf ("Error in ProcMgr_createDMMPool [0x%x]\n", status);
+        goto exit_sysm3_start;
     }
 
     srCount = SharedRegion_getNumRegions();
@@ -495,8 +512,9 @@ Int SyslinkUseBufferTest (Int procId, Bool useTiler, UInt numTrials)
         mpuAddrList[0].size = mapSize;
         status = SysLinkMemUtils_map (mpuAddrList, 1, &mappedAddr,
                                 mapType, PROC_SYSM3);
-        Osal_printf ("MPU Address = 0x%x     Mapped Address = 0x%x\n",
-                                mpuAddrList[0].mpuAddr, mappedAddr);
+        Osal_printf ("MPU Address = 0x%x     Mapped Address = 0x%x,"
+                     "size = 0x%x\n", mpuAddrList[0].mpuAddr,
+                     mappedAddr, mpuAddrList[0].size);
 
         //////////////// Do actual test here ////////////////
 
@@ -510,6 +528,12 @@ Int SyslinkUseBufferTest (Int procId, Bool useTiler, UInt numTrials)
                 Osal_printf ("\tExpected: [0x%x]\tActual: [0x%x]\n",
                                 (0xbeef0000 | i), uintBuf[i]);
             }
+        }
+        if (!useTiler) {
+            sizeAlign = mapSize + ((UInt32)mapBase -
+                                    ROUND_DOWN_TO2POW((UInt32)mapBase, 4096));
+            sizeAlign = ROUND_UP_TO2POW(sizeAlign, 4096);
+            ProcMgr_flushMemory (mapBase, sizeAlign, PROC_SYSM3);
         }
 
         // allocate a remote command message
@@ -535,6 +559,9 @@ Int SyslinkUseBufferTest (Int procId, Bool useTiler, UInt numTrials)
             // Check the buffer data
             Osal_printf ("Testing data\n");
             count = 0;
+            if (!useTiler) {
+                ProcMgr_invalidateMemory (mapBase, sizeAlign, PROC_SYSM3);
+            }
             for(i = 0; i < mapSize / sizeof(UInt) && count < maxCount; i++) {
                 if (uintBuf[i] != ~(0xbeef0000 | i)) {
                     Osal_printf ("ERROR: Data mismatch at offset 0x%x\n",
@@ -649,12 +676,18 @@ Int SyslinkUseBufferTest (Int procId, Bool useTiler, UInt numTrials)
         Memory_free (srHeap, heapBufPtr, heapSize);
     }
 
+    status = ProcMgr_deleteDMMPool (DUCATI_DMM_POOL_0_ID, procIdSysM3);
+    if (status < 0) {
+        Osal_printf ("Error in ProcMgr_deleteDMMPool:status = 0x%x\n", status);
+    }
+
     if (procId == procIdAppM3) {
         stopParams.proc_id = procIdAppM3;
         status = ProcMgr_stop (procMgrHandleAppM3, &stopParams);
         Osal_printf ("ProcMgr_stop status: [0x%x]\n", status);
     }
 
+exit_sysm3_start:
     stopParams.proc_id = procIdSysM3;
     status = ProcMgr_stop (procMgrHandleSysM3, &stopParams);
     Osal_printf ("ProcMgr_stop status: [0x%x]\n", status);
