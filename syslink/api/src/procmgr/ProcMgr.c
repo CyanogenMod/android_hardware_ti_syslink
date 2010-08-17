@@ -3239,6 +3239,75 @@ ProcMgr_waitForEvent (ProcMgr_ProcId    procId,
 
     return status;
 }
+
+
+/*!
+ *  @brief      Function to create DMM pool
+ *
+ *  @param      poolId    Pool ID that is assigned to this pool
+ *  @param      daBegin   Virtual Address beginning address
+ *  @param      size      size of the buffer
+ *  @param      proc      The destination Processor ID
+ *
+ *  @sa         ProcMgr_deleteDMMPool
+ */
+Int
+ProcMgr_createDMMPool (UInt32 poolId, UInt32 daBegin, UInt32 size, Int proc)
+{
+    Int status = PROCMGR_SUCCESS;
+
+    GT_1trace (curTrace, GT_ENTER, "ProcMgr_createDMMPool", proc);
+
+    status = ProcMMU_CreateVMPool (poolId, size, daBegin, (daBegin + size),
+                                                                0, proc);
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+    if (status < 0) {
+        GT_setFailureReason (curTrace,
+                                 GT_4CLASS,
+                                 "ProcMgr_createDMMPool",
+                                 status,
+                                 "API (through IOCTL) failed on kernel-side!");
+    }
+#endif
+
+    GT_1trace (curTrace, GT_LEAVE, "ProcMgr_createDMMPool", status);
+
+    return status;
+}
+
+
+/*!
+ *  @brief      Function to delete DMM pool
+ *
+ *  @param      poolId    Pool ID that is assigned to this pool
+ *  @param      proc      Processor to which the pool is assigned
+ *
+ *  @sa         ProcMgr_createDMMPool
+ */
+Int
+ProcMgr_deleteDMMPool (UInt32 poolId, Int proc)
+{
+    Int status = PROCMGR_SUCCESS;
+
+    GT_1trace (curTrace, GT_ENTER, "ProcMgr_deleteDMMPool", proc);
+
+    status = ProcMMU_DeleteVMPool (poolId, proc);
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+    if (status < 0) {
+        GT_setFailureReason (curTrace,
+                                 GT_4CLASS,
+                                 "ProcMgr_deleteDMMPool",
+                                 status,
+                                 "API (through IOCTL) failed on kernel-side!");
+    }
+#endif
+
+    GT_1trace (curTrace, GT_LEAVE, "ProcMgr_deleteDMMPool", status);
+
+    return status;
+}
+
+
 #if defined (__cplusplus)
 }
 #endif /* defined (__cplusplus) */

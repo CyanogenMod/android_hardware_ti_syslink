@@ -463,7 +463,7 @@ ProcMMU_InvMemory(PVOID mpuAddr, UInt32 size, Int proc)
 
 
 
-Int
+Int32
 ProcMMU_CreateVMPool(UInt32 poolId, UInt32 size, UInt32 daBegin, UInt32 daEnd,
                                                        UInt32 flags, Int proc)
 {
@@ -488,20 +488,25 @@ ProcMMU_CreateVMPool(UInt32 poolId, UInt32 size, UInt32 daBegin, UInt32 daEnd,
     return status;
 }
 
-Int
+/*!
+ *  @brief  Deletes the Virtual memory pool
+ *
+ *  @sa     ProcMMU_CreateVMPool
+ */
+Int32
 ProcMMU_DeleteVMPool(UInt32 poolId, Int proc)
 {
     Int status = 0;
+
     GT_1trace (curTrace, GT_ENTER, "ProcMMU_DeleteVMPool", poolId);
-    if(poolId < POOL_MIN || poolId > POOL_MAX) {
-         status = ProcMMU_E_INVALIDARG;
-         return status;
-      }
+
     if (proc == MultiProc_getId("AppM3") || proc == MultiProc_getId("SysM3"))
         status = ioctl (ProcMMU_MPU_M3_handle, IOVMM_IOCDELETEPOOL, &poolId);
     else if (proc == MultiProc_getId("Tesla"))
         status = ioctl (ProcMMU_DSP_handle, IOVMM_IOCDELETEPOOL, &poolId);
+
     GT_1trace (curTrace, GT_LEAVE, "ProcMMU_DeleteVMPool", status);
+
     return status;
 }
 

@@ -503,6 +503,7 @@ typedef struct {
 
 Int32 ProcMMU_CreateVMPool (UInt32 poolId, UInt32 size, UInt32 daBegin,
                             UInt32 daEnd, UInt32 flags, Int proc);
+Int32 ProcMMU_DeleteVMPool (UInt32 poolId, Int proc);
 Int32 ProcMMU_Map (UInt32 mpuAddr, UInt32 * da, UInt32 numOfBuffers,
                    UInt32 size, UInt32 memPoolId, UInt32 flags, Int proc);
 Int32 ProcMMU_UnMap (UInt32 mpuAddr, Int proc);

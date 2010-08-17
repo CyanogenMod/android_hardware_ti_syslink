@@ -572,6 +572,15 @@ Int ProcMgr_waitForEvent (ProcMgr_ProcId    procId,
 /* Function to get the OMAP revision */
 Int ProcMgr_getCpuRev (UInt32 *cpuRev);
 
+/* Function to create DMM pool */
+Int ProcMgr_createDMMPool (UInt32   poolId,
+                           UInt32   daBegin,
+                           UInt32   size,
+                           Int      proc);
+
+/* Function to delete DMM pool */
+Int ProcMgr_deleteDMMPool (UInt32 poolId, Int proc);
+
 /* =============================================================================
  *  Compatibility layer for SYSBIOS
  * =============================================================================
