@@ -43,7 +43,6 @@
 #include <ti/ipc/MessageQ.h>
 
 /* Sample headers */
-#include <MemMgrServer_config.h>
 #include <CrashInfo.h>
 
 /* Defines for the default HeapBufMP being configured in the System */
@@ -69,17 +68,15 @@
 #define STACKBUFFERADD                  0x9E0FD000
 #define STACKBUFFERSZE                  0x3000
 
-/*
- *  ======== MemMgrThreadFxn ========
- */
-Void MemMgrThreadFxn();
+#define SYSM3_PROC_NAME                 "SysM3"
+#define APPM3_PROC_NAME                 "AppM3"
 
 ProcMgr_Handle                  procMgrHandleSysM3;
 ProcMgr_Handle                  procMgrHandleAppM3;
 Bool                            appM3Client         = FALSE;
 UInt16                          remoteIdSysM3;
 UInt16                          remoteIdAppM3;
-extern sem_t                    semDaemonWait;
+sem_t                           semDaemonWait;
 HeapBufMP_Handle                heapHandle          = NULL;
 SizeT                           heapSize            = 0;
 Ptr                             heapBufPtr          = NULL;
@@ -694,6 +691,8 @@ Int main (Int argc, Char * argv [])
     if(!callIpcSetup)
         return (-1);
 
+    sem_init (&semDaemonWait, 0, 0);
+
     /* Setup the signal handlers*/
     signal (SIGINT, signal_handler);
     signal (SIGKILL, signal_handler);
@@ -714,11 +713,14 @@ Int main (Int argc, Char * argv [])
         pthread_create (&mmu_fault_handle, NULL,
                             (Void *)&mmu_fault_handler, NULL);
 
-        MemMgrThreadFxn ();
+        /* wait for commands */
+        sem_wait (&semDaemonWait);
 
         /* IPC_Cleanup function*/
         ipcCleanup ();
     }
+
+    sem_destroy (&semDaemonWait);
 
     return 0;
 }

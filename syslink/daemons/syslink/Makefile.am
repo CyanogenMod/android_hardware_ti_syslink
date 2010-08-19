@@ -29,13 +29,11 @@ AM_CFLAGS = -DSYSLINK_USE_LOADER
 bin_PROGRAMS = syslink_daemon.out
 
 syslink_daemon_out_SOURCES = \
-SyslinkDaemon.c \
-MemMgrServer.c
+SyslinkDaemon.c
 
 syslink_daemon_out_CPPFLAGS    = \
 	-I$(PROJROOT)/inc \
 	-I$(PROJROOT)/../api/include \
-	$(MEMMGR_CFLAGS) \
 	 $(AM_CFLAGS)
 
 API_SRCDIR = ../../api/src
@@ -46,5 +44,4 @@ syslink_daemon_out_LDADD = \
 	$(API_SRCDIR)/ipc/libipc.la \
 	$(API_SRCDIR)/rcm/librcm.la \
 	$(API_SRCDIR)/notify/libsyslinknotify.la \
-	$(MEMMGR_LIBS) \
 	$(API_SRCDIR)/sysmgr/libsysmgr.la

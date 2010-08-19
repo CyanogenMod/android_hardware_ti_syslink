@@ -72,8 +72,7 @@ SUBMODULES  = \
 # Filename must not begin with '.', '/' or '\'
 
 SOURCES     = \
-SyslinkDaemon.c \
-MemMgrServer.c
+SyslinkDaemon.c
 
 # Search path for include files
 

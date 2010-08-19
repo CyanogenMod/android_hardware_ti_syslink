@@ -6,8 +6,7 @@ include $(CLEAR_VARS)
 LOCAL_ARM_MODE := arm
 
 LOCAL_SRC_FILES:= \
-	SyslinkDaemon.c \
-	MemMgrServer.c
+	SyslinkDaemon.c
 
 LOCAL_C_INCLUDES += \
 	$(LOCAL_PATH)/../inc \

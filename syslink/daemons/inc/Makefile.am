@@ -22,5 +22,5 @@
 #      Original version.
 #  ----------------------------------------------------------------------------
 
-library_include_HEADERS = MemMgrServer_config.h TilerMgrServer_config.h
+library_include_HEADERS = TilerMgrServer_config.h
 library_includedir = $(includedir)/syslink
