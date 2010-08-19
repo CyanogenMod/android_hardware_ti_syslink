@@ -960,6 +960,16 @@ ProcMgr_open (ProcMgr_Handle * handlePtr, UInt16 procId)
     }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
 
+    /* Open handle to MMU */
+    status = ProcMMU_open (procId);
+    if (status < 0) {
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "ProcMgr_open",
+                             status,
+                             "ProcMMU_open failed!");
+    }
+
     GT_1trace (curTrace, GT_LEAVE, "ProcMgr_open", status);
 
     /*! @retval PROCMGR_SUCCESS Operation successful */
@@ -1078,6 +1088,15 @@ ProcMgr_close (ProcMgr_Handle * handlePtr)
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
     }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+
+    status = ProcMMU_close (procMgrHandle->procId);
+    if (status < 0) {
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "ProcMgr_close",
+                             status,
+                             "ProcMMU_close failed!");
+    }
 
     GT_1trace (curTrace, GT_LEAVE, "ProcMgr_close", status);
 
@@ -1362,11 +1381,6 @@ ProcMgr_load (ProcMgr_Handle handle,
     //cmdArgs.fileId = 0;
     if (procID == MultiProc_getId ("SysM3") ||
             procID == MultiProc_getId ("Tesla")) {
-        status = ProcMMU_open (procID);
-        if (status < 0) {
-            Osal_printf ("Error in ProcMMU_open [0x%x]\n", status);
-            goto error_exit;
-        }
         status = ProcMMU_init (DUCATI_BASEIMAGE_PHYSICAL_ADDRESS, procID);
         if (status < 0) {
             Osal_printf ("Error in ProcMMU_init [0x%x]\n", status);
@@ -1808,16 +1822,6 @@ ProcMgr_stop (ProcMgr_Handle handle, ProcMgr_StopParams * params)
                                  status,
                                  "API (through IOCTL) failed on kernel-side!");
         }
-#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-        if (params->proc_id == MultiProc_getId ("SysM3") ||
-            params->proc_id == MultiProc_getId ("Tesla")) {
-            status = ProcMMU_close (params->proc_id);
-            if (status < 0) {
-                Osal_printf ("Error in ProcMMU_close [0x%x]\n",
-                             status);
-            }
-        }
-#if !defined(SYSLINK_BUILD_OPTIMIZE)
     }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
 
