@@ -31,4 +31,5 @@ SUBDIRS  = \
 	pwrmgmt \
 	interm3 \
 	event_listener \
-	dmm
+	dmm \
+	memmgr

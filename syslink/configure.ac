@@ -164,7 +164,8 @@ AC_CONFIG_FILES([syslink.pc
 		samples/pwrmgmt/pmgeneric/Makefile
 		samples/interm3/Makefile
 		samples/event_listener/Makefile
-		samples/dmm/Makefile])
+		samples/dmm/Makefile
+		samples/memmgr/Makefile])
 
 AC_OUTPUT
 echo "
