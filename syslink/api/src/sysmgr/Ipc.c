@@ -209,6 +209,9 @@ Ipc_getConfig (Ipc_Config * config)
         /*  Get the FrameQ default config */
         FrameQ_getConfig (&config->frameQCfgParams) ;
 #endif /* TBD: Temporarily comment. */
+
+        UsrUtilsDrv_destroy();
+
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
     }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
