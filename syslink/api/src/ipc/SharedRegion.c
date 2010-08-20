@@ -441,6 +441,7 @@ SharedRegion_destroy (Void)
 {
     Int                        status = SharedRegion_S_SUCCESS;
     SharedRegionDrv_CmdArgs    cmdArgs;
+    SharedRegion_Config        tCfg;
     IArg                       key;
 
     GT_0trace (curTrace, GT_ENTER, "SharedRegion_destroy");
@@ -449,6 +450,9 @@ SharedRegion_destroy (Void)
     SharedRegion_module->setupRefCount--;
     /* This is needed at runtime so should not be in SYSLINK_BUILD_OPTIMIZE. */
     if (SharedRegion_module->setupRefCount == 0) {
+        SharedRegion_getConfig (&tCfg);
+        cmdArgs.args.setup.regions  = SharedRegion_module->regions;
+        cmdArgs.args.setup.config   = (SharedRegion_Config *) &tCfg;
         status = SharedRegionDrv_ioctl (CMD_SHAREDREGION_DESTROY, &cmdArgs);
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
         if (status < 0) {

@@ -204,6 +204,7 @@ SharedRegionDrv_ioctl (UInt32 cmd, Ptr args)
     SharedRegion_Region     * regions  = NULL;
     SharedRegion_Config     * config;
     Memory_MapInfo            mapInfo;
+    Memory_UnmapInfo          unmapInfo;
     UInt16                    i;
 
     GT_2trace (curTrace, GT_ENTER, "SharedRegionDrv_ioctl", cmd, args);
@@ -249,8 +250,23 @@ SharedRegionDrv_ioctl (UInt32 cmd, Ptr args)
                 }
             }
         }
-        else {
-            /* TBD: Need to do Memory_unmap in destroy. */
+        else if (cmd == CMD_SHAREDREGION_DESTROY) {
+            config = cargs->args.setup.config;
+            for (i = 0u; (   (i < config->numEntries) && (status >= 0)); i++) {
+                regions = &(cargs->args.setup.regions [i]);
+                if (regions->entry.isValid == TRUE) {
+                    unmapInfo.addr  = (UInt32) regions->entry.base;
+                    unmapInfo.size = regions->entry.len;
+                    status = Memory_unmap (&unmapInfo);
+                    if (status < 0) {
+                        GT_setFailureReason (curTrace,
+                                             GT_4CLASS,
+                                             "SharedRegionDrv_ioctl",
+                                             status,
+                                             "Memory_unmap failed!");
+                    }
+                }
+            }
         }
     }
 
