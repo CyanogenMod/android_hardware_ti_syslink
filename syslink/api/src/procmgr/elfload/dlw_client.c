@@ -402,25 +402,27 @@ BOOL DLIF_release(void* client_handle, struct DLOAD_MEMORY_SEGMENT* ptr)
             return FALSE;
         }
 
-        UsrUtilsDrv_setup();
-
+        UsrUtilsDrv_setup ();
         mapinfo.src = (unsigned long)physAddr;
         mapinfo.size =  ptr->memsz_in_bytes;
-        status = Memory_map(&mapinfo);
+        status = Memory_map (&mapinfo);
         if (status < 0) {
             DLIF_error(DLET_MEMORY,
                        "Memory_map failed for Physical Address 0x%x Exiting\n",
                        (UInt32)mapinfo.src);
-            return FALSE;
-        } else {
+        }
+        else {
             unmapinfo.addr = mapinfo.dst;
             unmapinfo.size = mapinfo.size;
             memset ((void *)mapinfo.dst, 0, ptr->memsz_in_bytes);
             status = Memory_unmap (&unmapinfo);
             if (status < 0) {
                 DLIF_error (DLET_MEMORY, "Memory_unmap failed\n");
-                return FALSE;
             }
+        }
+        UsrUtilsDrv_destroy ();
+        if (status < 0) {
+            return FALSE;
         }
     }
     else {
@@ -446,17 +448,16 @@ BOOL DLIF_copy(void* client_handle, struct DLOAD_MEMORY_REQUEST* targ_req)
 
     dstAddr = (void *)translate_addr(client_handle,
                                      (unsigned long)(obj_desc->target_address));
-
     if (dstAddr == NULL) {
         DLIF_error(DLET_MEMORY, "The target address is out of range\n");
         return FALSE;
     }
 
-    UsrUtilsDrv_setup();
-
+    UsrUtilsDrv_setup ();
     mapinfo.src = (unsigned long)dstAddr;
     mapinfo.size =  targ_req->segment->memsz_in_bytes;
     status = Memory_map(&mapinfo);
+    UsrUtilsDrv_destroy ();
     if (status < 0) {
         DLIF_error(DLET_MEMORY,
                    "Memory_map failed for Physical Address 0x%x Exiting\n",
