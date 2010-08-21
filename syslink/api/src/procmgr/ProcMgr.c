@@ -174,6 +174,10 @@ typedef struct ProcMgr_Object_tag {
     /*!< Processor ID */
     UInt16           numMemEntries;
     /*!< Number of valid memory entries */
+    UInt16           numOpenMemEntries;
+    /*!< Number of memory entries retrieved during open call */
+    UInt16           numAttachMemEntries;
+    /*!< Number of memory entries retrieved during attach call */
     ProcMgr_AddrInfo memEntries [PROCMGR_MAX_MEMORY_REGIONS];
     /*!< Configuration of memory regions */
     DLoad4430_Handle loaderHandle;
@@ -913,6 +917,8 @@ ProcMgr_open (ProcMgr_Handle * handlePtr, UInt16 procId)
                      */
                     if (cmdArgs.procInfo.numMemEntries != 0) {
                         handle->numMemEntries = cmdArgs.procInfo.numMemEntries;
+                        handle->numOpenMemEntries =
+                                                cmdArgs.procInfo.numMemEntries;
                         Memory_copy (&(handle->memEntries),
                                      &(cmdArgs.procInfo.memEntries),
                                      sizeof (handle->memEntries));
@@ -1053,10 +1059,12 @@ ProcMgr_close (ProcMgr_Handle * handlePtr)
             /* The object can be closed now since all open handles are closed.*/
             cmdArgs.handle = procMgrHandle->knlObject;
             /* Copy memory information to command arguments. */
-            cmdArgs.procInfo.numMemEntries = procMgrHandle->numMemEntries;
-            Memory_copy (&(cmdArgs.procInfo.memEntries),
-                         &(procMgrHandle->memEntries),
-                         sizeof (procMgrHandle->memEntries));
+            cmdArgs.procInfo.numMemEntries = procMgrHandle->numOpenMemEntries;
+            if (cmdArgs.procInfo.numMemEntries != 0) {
+                Memory_copy (&(cmdArgs.procInfo.memEntries),
+                             &(procMgrHandle->memEntries),
+                             sizeof (procMgrHandle->memEntries));
+            }
             status = ProcMgrDrvUsr_ioctl (CMD_PROCMGR_CLOSE, &cmdArgs);
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
             if (status < 0) {
@@ -1067,6 +1075,13 @@ ProcMgr_close (ProcMgr_Handle * handlePtr)
                                   "API (through IOCTL) failed on kernel-side!");
             }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+            /* Update memory information back. */
+            if (cmdArgs.procInfo.numMemEntries != 0) {
+                Memory_copy (&(procMgrHandle->memEntries),
+                             &(cmdArgs.procInfo.memEntries),
+                             sizeof (procMgrHandle->memEntries));
+                procMgrHandle->numMemEntries = 0;
+            }
 
             status = DLoad4430_delete (&procMgrHandle->loaderHandle);
             status = DLoad4430_destroy ();
@@ -1240,10 +1255,15 @@ ProcMgr_attach (ProcMgr_Handle handle, ProcMgr_AttachParams * params)
         else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
             /* Store the memory information received. */
-            procMgrHandle->numMemEntries = cmdArgs.procInfo.numMemEntries;
-            Memory_copy (&(procMgrHandle->memEntries),
-                         &(cmdArgs.procInfo.memEntries),
-                         sizeof (procMgrHandle->memEntries));
+            if (cmdArgs.procInfo.numMemEntries != 0) {
+                GT_assert (curTrace, (procMgrHandle->numOpenEntries == 0));
+                procMgrHandle->numMemEntries = cmdArgs.procInfo.numMemEntries;
+                procMgrHandle->numAttachMemEntries =
+                                                cmdArgs.procInfo.numMemEntries;
+                Memory_copy (&(procMgrHandle->memEntries),
+                             &(cmdArgs.procInfo.memEntries),
+                             sizeof (procMgrHandle->memEntries));
+            }
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
         }
     }
@@ -1298,10 +1318,12 @@ ProcMgr_detach (ProcMgr_Handle handle)
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
         cmdArgs.handle = procMgrHandle->knlObject;
         /* Copy memory information. */
-        cmdArgs.procInfo.numMemEntries = procMgrHandle->numMemEntries;
-        Memory_copy (&(cmdArgs.procInfo.memEntries),
-                     &(procMgrHandle->memEntries),
-                     sizeof (procMgrHandle->memEntries));
+        cmdArgs.procInfo.numMemEntries = procMgrHandle->numAttachMemEntries;
+        if (cmdArgs.procInfo.numMemEntries != 0) {
+            Memory_copy (&(cmdArgs.procInfo.memEntries),
+                         &(procMgrHandle->memEntries),
+                         sizeof (procMgrHandle->memEntries));
+        }
         status = ProcMgrDrvUsr_ioctl (CMD_PROCMGR_DETACH, &cmdArgs);
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
         if (status < 0) {
@@ -1314,10 +1336,12 @@ ProcMgr_detach (ProcMgr_Handle handle)
         else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
             /* Update memory information back. */
-            procMgrHandle->numMemEntries = cmdArgs.procInfo.numMemEntries;
-            Memory_copy (&(procMgrHandle->memEntries),
-                         &(cmdArgs.procInfo.memEntries),
-                         sizeof (procMgrHandle->memEntries));
+            if (cmdArgs.procInfo.numMemEntries != 0) {
+                Memory_copy (&(procMgrHandle->memEntries),
+                             &(cmdArgs.procInfo.memEntries),
+                             sizeof (procMgrHandle->memEntries));
+                procMgrHandle->numMemEntries = 0;
+            }
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
         }
     }
