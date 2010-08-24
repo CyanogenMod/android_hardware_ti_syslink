@@ -68,6 +68,25 @@ extern "C" {
 
 #define PROC_MMU_DSP_DRIVER_NAME     "/dev/iovmm-omap1"
 
+#if !defined(__linux)
+#define PROC_CORE_PRM_BASE              0x4A306000
+#define RM_MPU_M3_RSTCTRL_OFFSET        0x910
+#define RM_MPU_M3_RSTST_OFFSET          0x914
+#define RM_MPU_M3_RST1                  0x1
+#define RM_MPU_M3_RST2                  0x2
+#define RM_MPU_M3_RST3                  0x4
+#define RM_MPU_ALL_RESETS               0x7
+#define RM_MPU_M3_UNRESET_RST3          0xFFFFFFFB
+
+#define RM_DSP_PWRSTCTRL_OFFSET         0x400
+#define RM_DSP_PWRSTCTRL_ON             0x3
+#define RM_DSP_RSTCTRL_OFFSET           0x410
+#define RM_DSP_RSTST_OFFSET             0x414
+#define RM_DSP_RST1                     0x1
+#define RM_DSP_RST2                     0x2
+#define RM_DSP_ALL_RESETS               0x3
+#define RM_DSP_UNRESET_RST2             0xFFFFFFFD
+#endif
 
 /** ============================================================================
  *  Globals
@@ -630,7 +649,12 @@ Int
 ProcMMU_close (Int proc)
 {
     Int                 status      = ProcMMU_S_SUCCESS;
-    int                 osStatus    = 0;
+    Int                 osStatus    = 0;
+#if !defined(__linux)
+    Memory_MapInfo      mmuRstInfo;
+    Memory_UnmapInfo    mmuRstUnmapInfo;
+    volatile UInt32     reg;
+#endif
 
     GT_0trace (curTrace, GT_ENTER, "ProcMMU_close");
 
@@ -646,7 +670,30 @@ ProcMMU_close (Int proc)
         return status;
     }
 
+#if !defined(__linux)
+    /* Get the user virtual address of the PRM base */
+    mmuRstInfo.src  = PROC_CORE_PRM_BASE;
+    mmuRstInfo.size = 0x1000;
+    status = Memory_map (&mmuRstInfo);
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+    if (status < 0) {
+        status = ProcMMU_E_OSFAILURE;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "ProcMMU_open",
+                             status,
+                             "Memory_map of PRM registers failed!");
+        return status;
+    }
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+#endif
+
     if (proc == MultiProc_getId("Tesla")) {
+#if !defined(__linux)
+        reg = *(volatile UInt32 *)(mmuRstInfo.dst + RM_DSP_RSTCTRL_OFFSET);
+        *(volatile UInt32 *)(mmuRstInfo.dst + RM_DSP_RSTCTRL_OFFSET) = \
+                                                     (reg | RM_DSP_RST1);
+#endif
         osStatus = close (ProcMMU_DSP_handle);
         if (osStatus != 0) {
             perror ("ProcMMU_close: " PROC_MMU_DSP_DRIVER_NAME);
@@ -660,7 +707,21 @@ ProcMMU_close (Int proc)
         else {
             ProcMMU_DSP_handle = 0;
         }
-    } else {
+#if !defined(__linux)
+        Osal_printf("Assert DSP RST1 and RST2\n");
+        reg = *(volatile UInt32 *)(mmuRstInfo.dst + RM_DSP_RSTCTRL_OFFSET);
+        *(volatile UInt32 *)(mmuRstInfo.dst + RM_DSP_RSTCTRL_OFFSET) = \
+                                               (reg | RM_DSP_ALL_RESETS);
+        Osal_printf ("Reset Status RSTST = 0x%x\n", *(volatile UInt32 *)
+                                     (mmuRstInfo.dst + RM_DSP_RSTST_OFFSET));
+#endif
+    }
+    else {
+#if !defined(__linux)
+        reg = *(volatile UInt32 *)(mmuRstInfo.dst + RM_MPU_M3_RSTCTRL_OFFSET);
+        *(volatile UInt32 *)(mmuRstInfo.dst + RM_MPU_M3_RSTCTRL_OFFSET) = \
+                                        (reg | RM_MPU_M3_RST1 | RM_MPU_M3_RST2);
+#endif
         osStatus = close (ProcMMU_MPU_M3_handle);
         if (osStatus != 0) {
             perror ("ProcMMU_close: " PROC_MMU_MPU_M3_DRIVER_NAME);
@@ -674,10 +735,35 @@ ProcMMU_close (Int proc)
         else {
             ProcMMU_MPU_M3_handle = 0;
         }
+#if !defined(__linux)
+        Osal_printf ("Assert RST1 and RST2 and RST3\n");
+        reg = *(volatile UInt32 *)(mmuRstInfo.dst + RM_MPU_M3_RSTCTRL_OFFSET);
+        *(volatile UInt32 *)(mmuRstInfo.dst + RM_MPU_M3_RSTCTRL_OFFSET) = \
+                                              (reg | RM_MPU_ALL_RESETS);
+        Osal_printf ("Reset Status RSTST = 0x%x\n", *(volatile UInt32 *)
+                                  (mmuRstInfo.dst + RM_MPU_M3_RSTST_OFFSET));
+#endif
     }
 
-    GT_1trace (curTrace, GT_LEAVE, "ProcMMU_close", status);
+#if !defined(__linux)
+    mmuRstUnmapInfo.addr  = mmuRstInfo.dst;
+    mmuRstUnmapInfo.size = 0x1000;
+    status = Memory_unmap (&mmuRstUnmapInfo);
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+    if (status < 0) {
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "ProcMMU_open",
+                             status,
+                             "Memory_unmap of PRM registers failed!");
+   }
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+#endif
+
     sem_post(&sem_refCount);
+
+    GT_1trace (curTrace, GT_LEAVE, "ProcMMU_close", status);
+
     return status;
 }
 
@@ -692,6 +778,11 @@ ProcMMU_open (Int proc)
 {
     Int32               status          = ProcMMU_S_SUCCESS;
     Int32               osStatus        = 0;
+#if !defined(__linux)
+    Memory_MapInfo      mmuRstInfo;
+    Memory_UnmapInfo    mmuRstUnmapInfo;
+    volatile UInt32     reg;
+#endif
 
     GT_0trace (curTrace, GT_ENTER, "ProcMMU_open");
 
@@ -707,7 +798,51 @@ ProcMMU_open (Int proc)
         return status;
     }
 
+#if !defined(__linux)
+    /* Get the user virtual address of the PRM base */
+    UsrUtilsDrv_setup ();
+    mmuRstInfo.src  = PROC_CORE_PRM_BASE;
+    mmuRstInfo.size = 0x1000;
+    status = Memory_map (&mmuRstInfo);
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+    if (status < 0) {
+        status = ProcMMU_E_OSFAILURE;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "ProcMMU_open",
+                             status,
+                             "Memory_map of PRM registers failed!");
+        return status;
+    }
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+#endif
+
     if (proc == MultiProc_getId("Tesla")){
+#if !defined(__linux)
+        /* Check that releasing resets would indeed be effective */
+        reg = *(volatile UInt32 *)(mmuRstInfo.dst + RM_DSP_RSTCTRL_OFFSET);
+        Osal_printf ("reg = 0x%x, Mmu_rstInfo.dst + RM_DSP_RSTCTRL_OFFSET = "
+                     "0x%x\n", reg, (mmuRstInfo.dst + RM_DSP_RSTCTRL_OFFSET));
+        if ((reg & RM_DSP_ALL_RESETS) != RM_DSP_ALL_RESETS) {
+           Osal_printf("ProcMMU_open: DSP Resets in not proper state!\n");
+           Osal_printf("ProcMMU_open: Asserting RST1, RST2...\n");
+           *(volatile UInt32*)(mmuRstInfo.dst + RM_DSP_RSTCTRL_OFFSET) = \
+                                            (reg | RM_DSP_ALL_RESETS);
+           /* Wait for resets to be in proper state. */
+           while (*(volatile UInt32 *)(mmuRstInfo.dst + \
+                  RM_DSP_RSTCTRL_OFFSET) != RM_DSP_ALL_RESETS);
+        }
+
+        /* De-assert RST2, and clear the Reset status */
+        Osal_printf("De-assert DSP RST2\n");
+        *(volatile UInt32 *)(mmuRstInfo.dst + RM_DSP_RSTCTRL_OFFSET) =
+                                            (reg & RM_DSP_UNRESET_RST2);
+        while (!(*(volatile UInt32 *)(mmuRstInfo.dst + RM_DSP_RSTST_OFFSET)
+                                                           & RM_DSP_RST2));
+        Osal_printf("RST2 released!");
+        *(volatile UInt32 *)(mmuRstInfo.dst + RM_DSP_RSTST_OFFSET) = \
+                                                                   RM_DSP_RST2;
+#endif
         ProcMMU_DSP_handle = open (PROC_MMU_DSP_DRIVER_NAME,
                                     O_SYNC | O_RDWR);
         if (ProcMMU_DSP_handle < 0) {
@@ -721,7 +856,34 @@ ProcMMU_open (Int proc)
                                  status,
                                  "Failed to open ProcMgr driver with OS!");
         }
-    } else {
+    }
+    else {
+#if !defined(__linux)
+        /* Check that releasing resets would indeed be effective */
+        reg = *(volatile UInt32 *)(mmuRstInfo.dst + RM_MPU_M3_RSTCTRL_OFFSET);
+        Osal_printf ("reg = 0x%x, Mmu_rstInfo.dst + RM_MPU_M3_RSTCTRL_OFFSET = "
+                    "0x%x\n", reg, (mmuRstInfo.dst + RM_MPU_M3_RSTCTRL_OFFSET));
+        if ((reg & RM_MPU_ALL_RESETS) != RM_MPU_ALL_RESETS) {
+            Osal_printf ("ProcMMU_open: Resets in not proper state!\n");
+            Osal_printf ("ProcMMU_open: Asserting RST1, RST2, and RST3...\n");
+            *(volatile UInt32*)(mmuRstInfo.dst + RM_MPU_M3_RSTCTRL_OFFSET) = \
+                                                   (reg | RM_MPU_ALL_RESETS);
+            /* Wait for resets to be in proper state. */
+            while (*(volatile UInt32 *)(mmuRstInfo.dst + \
+                             RM_MPU_M3_RSTCTRL_OFFSET) != RM_MPU_ALL_RESETS);
+        }
+        /* De-assert RST3, and clear the Reset status */
+        Osal_printf ("De-assert RST3\n");
+        reg = *(volatile UInt32 *)(mmuRstInfo.dst + RM_MPU_M3_RSTCTRL_OFFSET);
+        *(volatile UInt32 *)(mmuRstInfo.dst + RM_MPU_M3_RSTCTRL_OFFSET) =
+                                          (reg & RM_MPU_M3_UNRESET_RST3);
+        while (!(*(volatile UInt32 *)(mmuRstInfo.dst + RM_MPU_M3_RSTST_OFFSET)
+                                                             & RM_MPU_M3_RST3));
+        Osal_printf ("RST3 released!");
+        *(volatile UInt32 *)(mmuRstInfo.dst + RM_MPU_M3_RSTST_OFFSET) = \
+                                                                RM_MPU_M3_RST3;
+        Osal_printf ("%s %d\n", __func__, __LINE__);
+#endif
         ProcMMU_MPU_M3_handle = open (PROC_MMU_MPU_M3_DRIVER_NAME,
                                         O_SYNC | O_RDWR);
         if (ProcMMU_MPU_M3_handle < 0) {
@@ -748,9 +910,26 @@ ProcMMU_open (Int proc)
         }
     }
 
-    GT_1trace (curTrace, GT_LEAVE, "ProcMMU_open", status);
+#if !defined(__linux)
+    mmuRstUnmapInfo.addr  = mmuRstInfo.dst;
+    mmuRstUnmapInfo.size = 0x1000;
+    status = Memory_unmap (&mmuRstUnmapInfo);
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+    if (status < 0) {
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "ProcMMU_open",
+                             status,
+                             "Memory_unmap of PRM registers failed!");
+     }
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+    UsrUtilsDrv_destroy();
+#endif
 
     sem_post(&sem_refCount);
+
+    GT_1trace (curTrace, GT_LEAVE, "ProcMMU_open", status);
+
     return status;
 }
 
