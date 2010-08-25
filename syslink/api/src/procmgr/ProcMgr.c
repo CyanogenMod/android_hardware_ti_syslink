@@ -997,6 +997,7 @@ Int
 ProcMgr_close (ProcMgr_Handle * handlePtr)
 {
     Int                     status = PROCMGR_SUCCESS;
+    UInt16                  procId = MultiProc_INVALIDID;
     ProcMgr_Object *        procMgrHandle;
     ProcMgr_CmdArgsClose    cmdArgs;
 
@@ -1027,6 +1028,7 @@ ProcMgr_close (ProcMgr_Handle * handlePtr)
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
         procMgrHandle = (ProcMgr_Object *) (*handlePtr);
+        procId = procMgrHandle->procId;
         /* TBD: Enter critical section protection. */
         /* key = Gate_enter (ProcMgr_state.gateHandle); */
         if (procMgrHandle->openRefCount == 0) {
@@ -1104,13 +1106,15 @@ ProcMgr_close (ProcMgr_Handle * handlePtr)
     }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
 
-    status = ProcMMU_close (procMgrHandle->procId);
-    if (status < 0) {
-        GT_setFailureReason (curTrace,
-                             GT_4CLASS,
-                             "ProcMgr_close",
-                             status,
-                             "ProcMMU_close failed!");
+    if (procId != MultiProc_INVALIDID) {
+        status = ProcMMU_close (procId);
+        if (status < 0) {
+            GT_setFailureReason (curTrace,
+                                 GT_4CLASS,
+                                 "ProcMgr_close",
+                                 status,
+                                 "ProcMMU_close failed!");
+        }
     }
 
     GT_1trace (curTrace, GT_LEAVE, "ProcMgr_close", status);
