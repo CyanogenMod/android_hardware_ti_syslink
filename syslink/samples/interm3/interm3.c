@@ -62,8 +62,8 @@ extern "C" {
 #define RCM_MSGQ_HEAP_SR        0
 #define RCM_MSGQ_HEAPID         0
 
-#define INTERM3_EVENT           3
-#define INTERM3_EVENT_END       4
+#define INTERM3_EVENT           4
+#define INTERM3_EVENT_END       5
 
 ProcMgr_Handle                  procMgrHandleSysM3;
 ProcMgr_Handle                  procMgrHandleAppM3;
