@@ -510,11 +510,6 @@ Int ProcMgr_getSymbolAddress (ProcMgr_Handle handle,
                               String         symbolName,
                               UInt32 *       symValue);
 
-/* Function that reserves the slave processor's address space */
-Int ProcMgr_reserveMemory (ProcMgr_Handle handle,
-                           UInt32         size,
-                           UInt32 *       pResrvAddr);
-
 /* Function that maps the specified slave address to master address space. */
 Int ProcMgr_map (ProcMgr_Handle  handle,
                  UInt32          procAddr,
@@ -528,9 +523,6 @@ Int ProcMgr_map (ProcMgr_Handle  handle,
 Int ProcMgr_unmap (ProcMgr_Handle  handle,
                    UInt32          mappedAddr,
                    ProcMgr_ProcId procID);
-
-/* Function that unreserves the slave processor's address space */
-Int ProcMgr_unReserveMemory (ProcMgr_Handle  handle, UInt32 * pResrvAddr);
 
 /* Function that registers for notification when the slave processor
  * transitions to any of the states specified.

@@ -241,100 +241,6 @@ ProcMMU_addEntry (UInt32  *physAddr, UInt32 *dspAddr, UInt32 size, Int proc)
 }
 
 /*!
- *  @brief  Flush all MMU entries, once this is called, one need to reprogram
- *          MMU.
- *
- *  @sa     ProcMMU_init
- */
-Void
-ProcMMU_flushAllPteEntry (Int proc)
-{
-    Int32 status = 0;
-        if (proc == MultiProc_getId("AppM3") || proc == MultiProc_getId("SysM3"))
-            status = ioctl (ProcMMU_MPU_M3_handle, IOVMM_IOCCLEARPTEENTRIES, NULL);
-        else if (proc == MultiProc_getId("Tesla"))
-            status = ioctl (ProcMMU_DSP_handle, IOVMM_IOCCLEARPTEENTRIES, NULL);
-}
-
-
-
-/*!
- *  @brief  Add DSP MMU entries corresponding to given MPU-Physical address
- *          and DSP-virtual address
- *
- *  @sa     ProcMMU_getentrysize
- */
-static Int32
-ProcMMU_addPteEntry (UInt32  *physAddr, UInt32 *dspAddr, UInt32 size, Int proc)
-{
-    UInt32              mappedSize  = 0;
-    enum pageType       sizeTlb     = SECTION;
-    UInt32              entrySize   = 0;
-    Int32               status      = 0;
-    struct Iotlb_entry  tlbEntry;
-
-    GT_3trace (curTrace, GT_ENTER, "ProcMMU_addEntry", *physAddr, *dspAddr,
-                size);
-
-    while ((mappedSize < size) && (status == 0)) {
-        status = ProcMMU_getEntrySize (*physAddr, (size - mappedSize),
-                                        &sizeTlb, &entrySize);
-        if (status < 0) {
-#if !defined(SYSLINK_BUILD_OPTIMIZE)
-            GT_setFailureReason (curTrace,
-                                 GT_4CLASS,
-                                 "ProcMMU_addEntry",
-                                 status,
-                                 "getEntrySize failed!");
-#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-            break;
-        }
-
-        if (sizeTlb == SUPER_SECTION)
-            tlbEntry.pgsz = MMU_CAM_PGSZ_16M;
-        else if (sizeTlb == SECTION)
-            tlbEntry.pgsz = MMU_CAM_PGSZ_1M;
-        else if (sizeTlb == LARGE_PAGE)
-            tlbEntry.pgsz = MMU_CAM_PGSZ_64K;
-        else if (sizeTlb == SMALL_PAGE)
-            tlbEntry.pgsz = MMU_CAM_PGSZ_4K;
-
-        tlbEntry.elsz   = MMU_RAM_ELSZ_16;
-        tlbEntry.endian = MMU_RAM_ENDIAN_LITTLE;
-        tlbEntry.mixed  = MMU_RAM_MIXED;
-        tlbEntry.prsvd  = MMU_CAM_P;
-        tlbEntry.valid  = MMU_CAM_V;
-        tlbEntry.da     = *dspAddr;
-        tlbEntry.pa     = *physAddr;
-
-        if (proc == MultiProc_getId("AppM3") || proc == MultiProc_getId("SysM3"))
-            status = ioctl (ProcMMU_MPU_M3_handle, IOVMM_IOCSETPTEENT, &tlbEntry);
-        else if (proc == MultiProc_getId("Tesla"))
-            status = ioctl (ProcMMU_DSP_handle, IOVMM_IOCSETPTEENT, &tlbEntry);
-
-        if (status < 0) {
-#if !defined(SYSLINK_BUILD_OPTIMIZE)
-            GT_setFailureReason (curTrace,
-                                 GT_4CLASS,
-                                 "ProcMMU_addEntry",
-                                 status,
-                                 "API (through IOCTL) failed on kernel-side!");
-#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-            break;
-        }
-
-        mappedSize  += entrySize;
-        *physAddr   += entrySize;
-        *dspAddr   += entrySize;
-    }
-
-    GT_1trace (curTrace, GT_LEAVE, "ProcMMU_addEntry", status);
-
-    return status;
-}
-
-
-/*!
  *  @brief  Add DSP MMU entries corresponding to given MPU-Physical address
  *
  *
@@ -562,11 +468,12 @@ ProcMMU_init (UInt32 aPhyAddr, Int proc)
         virtAddr = L3regions[i].virtAddr;
         if (proc != MultiProc_getId ("Tesla") && cpuRev != OMAP4_REV_ES1_0
                 && i >= 3) {
-            status = ProcMMU_addPteEntry(&physAddr, &virtAddr,
-                                        (L3regions[i].size), proc);
+            status = ProcMMU_Map (physAddr, &virtAddr, 1, L3regions[i].size, -1,
+                                                        DMM_DA_PHYS, proc);
+            physAddr += L3regions[i].size;
         }
         else {
-            status = ProcMMU_addEntry(&physAddr, &virtAddr,
+            status = ProcMMU_addEntry (&physAddr, &virtAddr,
                                       (L3regions[i].size), proc);
         }
         if (status < 0) {
@@ -591,8 +498,8 @@ ProcMMU_init (UInt32 aPhyAddr, Int proc)
             physAddr = L4regions[i].physAddr;
 
             if (proc != MultiProc_getId("Tesla") && cpuRev != OMAP4_REV_ES1_0) {
-                status = ProcMMU_addPteEntry(&physAddr, &virtAddr,
-                                             (L4regions[i].size), proc);
+                status = ProcMMU_Map (physAddr, &virtAddr, 1,
+                                    (L4regions[i].size), -1, DMM_DA_PHYS, proc);
             }
             else {
                 status = ProcMMU_addEntry (&physAddr, &virtAddr,

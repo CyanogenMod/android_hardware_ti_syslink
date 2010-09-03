@@ -2627,7 +2627,7 @@ ProcMgr_map (ProcMgr_Handle     handle,
              UInt32 *           mappedAddr,
              UInt32 *           mappedSize,
              ProcMgr_MapType    type,
-             ProcMgr_ProcId procID)
+             ProcMgr_ProcId     procID)
 {
     Int                 status          = PROCMGR_SUCCESS;
     Int                 flags           = 0;
@@ -2708,15 +2708,15 @@ ProcMgr_map (ProcMgr_Handle     handle,
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
         switch (type) {
         case ProcMgr_MapType_Phys:
-            flags |= IOVMF_DA_PHYS;
+            flags |= DMM_DA_PHYS;
             poolId = ProcMgr_NONE_MemPool;
             break;
         case ProcMgr_MapType_Tiler:
-            flags |= IOVMF_DA_PHYS;
+            flags |= DMM_DA_PHYS;
             poolId = ProcMgr_NONE_MemPool;
             break;
         case ProcMgr_MapType_Virt:
-            flags |= IOVMF_DA_USER;
+            flags |= DMM_DA_USER;
             poolId = ProcMgr_DMM_MemPool;
             break;
         default:
@@ -2729,7 +2729,7 @@ ProcMgr_map (ProcMgr_Handle     handle,
         if (status < 0)
             goto error_exit;
 
-        status = ProcMMU_Map(procAddr, mappedAddr, numOfBuffers, size, poolId,
+        status = ProcMMU_Map (procAddr, mappedAddr, numOfBuffers, size, poolId,
                                                                 flags, procID);
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
         if (status < 0) {
@@ -2772,18 +2772,18 @@ ProcMgr_unmap (ProcMgr_Handle   handle,
 {
     Int                   status          = PROCMGR_SUCCESS;
 
-
 #if defined(SYSLINK_BUILD_DEBUG)
     GT_assert (curTrace, (handle        != NULL));
     GT_assert (curTrace, (mappedAddr    != NULL));
 #endif
+
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
     if (handle == NULL) {
         /*! @retval  PROCMGR_E_HANDLE Invalid NULL handle specified */
         status = PROCMGR_E_HANDLE;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
-                             "ProcMgr_map",
+                             "ProcMgr_unmap",
                              status,
                              "Invalid NULL handle specified");
     }
@@ -2793,16 +2793,16 @@ ProcMgr_unmap (ProcMgr_Handle   handle,
         status = PROCMGR_E_INVALIDARG;
         GT_setFailureReason (curTrace,
                          GT_4CLASS,
-                         "ProcMgr_map",
+                         "ProcMgr_unmap",
                          status,
                          "Invalid value NULL provided for argument mappedAddr");
     }
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-        status = ProcMMU_UnMap(mappedAddr, procID);
+        status = ProcMMU_UnMap (mappedAddr, procID);
     }
 
-    Osal_printf ("Exit ProcMgr_unmap \n" );
+    GT_1trace (curTrace, GT_LEAVE, "ProcMgr_unmap", status);
 
     return status;
 }
@@ -2855,44 +2855,6 @@ ProcMgr_getCpuRev (UInt32 *cpuRev)
 
     return status;
 }
-
-/*!
- *  @brief      Function to reserve slave address space
- *
- *              This function reserves the provided slave address of
- *              specified size
- *
- *  @param      handle      Handle to the ProcMgr object
- *  @param      size        Size (in bytes) of region to be mapped
- *  @param      pResrvAddr  Return parameter: reserved slave address
-  *
- *  @sa         ProcMgr_map
- */
-Int
-ProcMgr_reserveMemory (ProcMgr_Handle   handle,
-                       UInt32           size,
-                       UInt32 *         pResrvAddr)
-{
-    return 1;
-}
-
-
-/*!
- *  @brief      Function to unreserve slave address space
- *
- *              This function unreserves the provided slave address
- *
- *  @param      handle      Handle to the ProcMgr object
- *  @param      pResrvAddr  Return parameter: reserved slave address
-  *
- *  @sa         ProcMgr_reserveMemory
- */
-Int
-ProcMgr_unReserveMemory (ProcMgr_Handle  handle, UInt32 * pResrvAddr)
-{
-    return 1;
-}
-
 
 /*!
  *  @brief      Function that registers for notification when the slave

@@ -323,14 +323,10 @@ extern "C" {
 #define IOVMF_ALLOC_MASK                (3 << IOVMF_SW_SHIFT)
 
 /* "superpages" is supported just with physically linear pages */
-#define IOVMF_DISCONT                   (1 << (2 + IOVMF_SW_SHIFT))
-#define IOVMF_LINEAR                    (2 << (2 + IOVMF_SW_SHIFT))
-#define IOVMF_LINEAR_MASK               (3 << (2 + IOVMF_SW_SHIFT))
-#define IOVMF_DA_FIXED                  (1 << (4 + IOVMF_SW_SHIFT))
-#define IOVMF_DA_ANON                   (2 << (4 + IOVMF_SW_SHIFT))
-#define IOVMF_DA_MASK                   (3 << (4 + IOVMF_SW_SHIFT))
-#define IOVMF_DA_PHYS                   (4 << (4 + IOVMF_SW_SHIFT))
-#define IOVMF_DA_USER                   (5 << (4 + IOVMF_SW_SHIFT))
+#define DMM_DA_ANON                     0x1
+#define DMM_DA_PHYS                     0x2
+#define DMM_DA_USER                     0x4
+
 #define MMU_CAM_P                       (1 << 3)
 #define MMU_CAM_V                       (1 << 2)
 #define MMU_CAM_PGSZ_MASK               3
