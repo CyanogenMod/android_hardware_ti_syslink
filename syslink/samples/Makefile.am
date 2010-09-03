@@ -30,4 +30,5 @@ SUBDIRS  = \
 	tiler \
 	pwrmgmt \
 	interm3 \
-	mmufault
+	mmufault \
+	dmm
