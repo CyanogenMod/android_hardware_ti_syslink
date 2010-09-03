@@ -119,6 +119,12 @@ SysLinkMemUtils_map (SyslinkMemUtils_MpuAddrToMap   mpuAddrList[],
         procId = PROC_SYSM3;
     }
 
+    if (memType == ProcMgr_MapType_Tiler) {
+        /* Tiler address, return the same address until Phase 2 is ready */
+        *mappedAddr = mpuAddrList[0].mpuAddr;
+        return status;
+    }
+
     /* Open a handle to the ProcMgr instance. */
     status = ProcMgr_open (&procMgrHandle, procId);
     if (status < 0) {
