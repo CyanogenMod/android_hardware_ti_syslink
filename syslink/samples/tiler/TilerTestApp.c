@@ -78,13 +78,13 @@ static const char *SYSLINK_TUX_IMAGE[] = {
  */
 Int main (Int argc, Char * argv [])
 {
-    Int status = 0;
-    Int testNo;
-    Int subTestNo;
-    Int procId;
-    UInt numTrials;
-    Int i;
-    Bool validArgs = TRUE;
+    Int     status      = 0;
+    Int     testNo;
+    Int     subTestNo   = -1;
+    Int     procId      = -1;
+    UInt    numTrials   = 1;
+    Int     i;
+    Bool    validArgs   = TRUE;
 
     Osal_printf ("\n== Syslink Mem Utils Sample ==\n");
 

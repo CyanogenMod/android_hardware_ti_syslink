@@ -134,7 +134,7 @@ typedef struct {
  */
 Int SyslinkUseBufferTest (Int procId, Bool useTiler, UInt numTrials)
 {
-    Int                             fd;
+    Int                             fd                  = -1;
     void *                          mapBase;
     SyslinkMemUtils_MpuAddrToMap    mpuAddrList[1];
     UInt32                          mapSize             = 4096;
@@ -184,7 +184,7 @@ Int SyslinkUseBufferTest (Int procId, Bool useTiler, UInt numTrials)
     SizeT                           heapSize1           = 0;
     Ptr                             heapBufPtr1         = NULL;
     IHeap_Handle                    srHeap              = NULL;
-    UInt32                          sizeAlign;
+    UInt32                          sizeAlign           = 0;
 
     Ipc_getConfig (&config);
     status = Ipc_setup (&config);

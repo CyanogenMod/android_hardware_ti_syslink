@@ -39,18 +39,17 @@
 extern "C" {
 #endif /* defined (__cplusplus) */
 
-pthread_t                       mmu_fault_handle = NULL;
-sem_t                           sem_fault_wait;
+static pthread_t                mmu_fault_handle;
+static sem_t                    sem_fault_wait;
 
 static void mmu_fault_handler(void)
 {
-	int efd;
 	int status;
-	int ret;
 
 	status = ProcMgr_waitForEvent(PROC_SYSM3, PROC_MMU_FAULT, -1);
 
-	Osal_printf ("Received MMU fault notification from Ducati !!!\n");
+	Osal_printf ("Received MMU fault notification from Ducati!!! "
+			"status = 0x%x\n", status);
 
 	/* Initiate cleanup */
 	sem_post(&sem_fault_wait);
@@ -59,23 +58,21 @@ static void mmu_fault_handler(void)
 /*
  *  ======== main ========
  */
-Int main (Int argc, Char * argv [])
+int main (int argc, char * argv [])
 {
-	Int status      = 0;
-	ProcMgr_Config * cfg;
-
 	/* Create the MMU fault handler thread */
 	Osal_printf ("Create MMU fault handler thread.\n");
 	sem_init(&sem_fault_wait, 0, 0);
 	pthread_create (&mmu_fault_handle, NULL,
-	                (Void *)&mmu_fault_handler, NULL);
+	                (void *)&mmu_fault_handler, NULL);
 
 	sem_wait(&sem_fault_wait);
 
 	sem_destroy(&sem_fault_wait);
 
 	Osal_printf ("Exiting fault handler application application.\n");
-	return status;
+
+	return 0;
 }
 
 #if defined (__cplusplus)
