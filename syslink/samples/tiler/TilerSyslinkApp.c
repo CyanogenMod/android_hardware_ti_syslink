@@ -184,7 +184,6 @@ Int SyslinkUseBufferTest (Int procId, Bool useTiler, UInt numTrials)
     SizeT                           heapSize1           = 0;
     Ptr                             heapBufPtr1         = NULL;
     IHeap_Handle                    srHeap              = NULL;
-    UInt32                          sizeAlign           = 0;
 
     Ipc_getConfig (&config);
     status = Ipc_setup (&config);
@@ -464,30 +463,12 @@ Int SyslinkUseBufferTest (Int procId, Bool useTiler, UInt numTrials)
             if (bufPtr == NULL) {
                 Osal_printf ("Error: tilerAlloc returned null.\n");
                 status = -1;
-
                 return status;
             }
             else {
                 Osal_printf ("tilerAlloc returned 0x%x.\n", (UInt)bufPtr);
             }
 
-            mapType = ProcMgr_MapType_Tiler;
-        }
-        else {
-            Osal_printf ("Calling malloc.\n");
-            bufPtr = (Ptr)malloc(mapSize);
-
-            if (bufPtr == NULL) {
-                Osal_printf ("Error: malloc returned null.\n");
-                return -1;
-            }
-            else {
-                Osal_printf ("malloc returned 0x%x.\n", (UInt)bufPtr);
-            }
-            mapType = ProcMgr_MapType_Virt;
-        }
-
-        if (useTiler) {
             Osal_printf ("Opening /dev/mem.\n");
             fd = open ("/dev/mem", O_RDWR|O_SYNC);
             if (fd) {
@@ -504,9 +485,19 @@ Int SyslinkUseBufferTest (Int procId, Bool useTiler, UInt numTrials)
                 return -2;
             }
         }
-        else
-            mapBase = bufPtr;
+        else {
+                Osal_printf ("Calling malloc.\n");
+                mapBase = (Ptr)malloc(mapSize);
+                if (mapBase == NULL) {
+                    Osal_printf ("Error: malloc returned null.\n");
+                    return -1;
+                }
+                else {
+                    Osal_printf ("malloc returned 0x%x.\n", (UInt)mapBase);
+                }
+        }
 
+        mapType = ProcMgr_MapType_Virt;
         printf("map_base = 0x%x \n", (UInt32)mapBase);
         mpuAddrList[0].mpuAddr = (UInt32)mapBase;
         mpuAddrList[0].size = mapSize;
@@ -530,10 +521,7 @@ Int SyslinkUseBufferTest (Int procId, Bool useTiler, UInt numTrials)
             }
         }
         if (!useTiler) {
-            sizeAlign = mapSize + ((UInt32)mapBase -
-                                    ROUND_DOWN_TO2POW((UInt32)mapBase, 4096));
-            sizeAlign = ROUND_UP_TO2POW(sizeAlign, 4096);
-            ProcMgr_flushMemory (mapBase, sizeAlign, PROC_SYSM3);
+            ProcMgr_flushMemory (mapBase, mapSize, PROC_SYSM3);
         }
 
         // allocate a remote command message
@@ -560,7 +548,7 @@ Int SyslinkUseBufferTest (Int procId, Bool useTiler, UInt numTrials)
             Osal_printf ("Testing data\n");
             count = 0;
             if (!useTiler) {
-                ProcMgr_invalidateMemory (mapBase, sizeAlign, PROC_SYSM3);
+                ProcMgr_invalidateMemory (mapBase, mapSize, PROC_SYSM3);
             }
             for(i = 0; i < mapSize / sizeof(UInt) && count < maxCount; i++) {
                 if (uintBuf[i] != ~(0xbeef0000 | i)) {
@@ -588,20 +576,22 @@ Int SyslinkUseBufferTest (Int procId, Bool useTiler, UInt numTrials)
 
         ///////////////////// Cleanup //////////////////////
 
+        SysLinkMemUtils_unmap (mappedAddr, PROC_SYSM3);
+
         if (useTiler) {
             Osal_printf ("Freeing TILER buffer\n");
-            TilerMgr_Free((Int)bufPtr);
 
             if (munmap(mapBase,mapSize) == -1)
-                    Osal_printf ("Memory Unmap failed.\n");
+                Osal_printf ("Memory Unmap failed.\n");
             else
                 Osal_printf ("Memory Unmap successful.\n");
             close(fd);
 
+            TilerMgr_Free((Int)bufPtr);
+
             TilerMgr_Close();
         }
         else {
-            SysLinkMemUtils_unmap(mappedAddr, PROC_SYSM3);
             free(bufPtr);
         }
     }
