@@ -62,6 +62,8 @@
 #define DUCATI_DMM_POOL_0_START         0x90000000
 #define DUCATI_DMM_POOL_0_SIZE          0x10000000
 
+#define FAULT_RECOVERY_DELAY            500000
+
 /*
  *  ======== MemMgrThreadFxn ========
  */
@@ -261,6 +263,9 @@ static Int ipcSetup (Char * sysM3ImageName, Char * appM3ImageName)
     Osal_printf ("MultiProc_getId remoteId: [0x%x]\n", remoteIdAppM3);
     procId = remoteIdSysM3;
     Osal_printf ("MultiProc_getId procId: [0x%x]\n", procId);
+
+    /* Temporary fix to account for a timing issue during recovery. */
+    usleep(FAULT_RECOVERY_DELAY);
 
     printf("RCM procId= %d\n", procId);
     /* Open a handle to the ProcMgr instance. */
