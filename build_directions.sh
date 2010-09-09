@@ -135,10 +135,10 @@ function build_syslink()
 	echo "        Building tiler memmgr APIs and Samples	   "
 	echo "*****************************************************"
 	echo "							   "
-	cd ${TILER_USERSPACE}/memmgr
+	cd ${TILER_USERSPACE}
 	./bootstrap.sh
-	./configure --prefix ${PREFIX}/target --bindir ${PREFIX}/target/syslink \
-	--host ${HOST} --build i686-pc-linux-gnu ${ENABLE_UNIT_TESTS} ${ENABLE_TILERMGR}
+	./configure --prefix ${PREFIX}/target --bindir ${PREFIX}/target/bin \
+	--host ${HOST} --build i686-pc-linux-gnu ${ENABLE_TILERMGR} ${ENABLE_TESTS}
 	if [[ "$arg" == "--clean" ]]; then
 		make clean > /dev/null 2>&1
         fi
@@ -165,7 +165,7 @@ function build_syslink()
 	./bootstrap.sh
 	./configure --prefix ${PREFIX}/target --bindir ${PREFIX}/target/syslink \
 	--host ${HOST} ${ENABLE_DEBUG}  --build i686-pc-linux-gnu
-	export TILER_INC_PATH=${TILER_USERSPACE}/memmgr
+	export TILER_INC_PATH=${TILER_USERSPACE}
 	if [[ "$arg" == "--clean" ]]; then
 		make clean > /dev/null 2>&1
 	fi
