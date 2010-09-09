@@ -205,14 +205,14 @@ main (int argc, char ** argv)
         status = SlpmResources_startup (slpmResources_testNo);
 
     if (status >= 0) {
-        SlpmResources_execute (slpmResources_testNo);
+        status = SlpmResources_execute (slpmResources_testNo);
     }
 
     SlpmResources_shutdown (slpmResources_testNo);
     }
 
     /* Trace for TITAN support */
-    if(status < 0)
+    if(status)
         Osal_printf ("test_case_status=%d\n", status);
     else
         Osal_printf ("test_case_status=0\n");

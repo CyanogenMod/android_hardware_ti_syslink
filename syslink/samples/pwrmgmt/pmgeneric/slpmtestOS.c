@@ -157,21 +157,32 @@ extern Int SlpmTest_shutdown (Int testNo);
  */
 Void printUsage (Void)
 {
-    Osal_printf ("\nUsage: ./slpmtest.out <RemoteProc> <cmd> <Resource> <arg0> <arg1> .. <arg9>\n");
-    Osal_printf ("Valid Values:\n\t\tRemoteProc: 1 or 2 (default = 2)\n");
-    Osal_printf ("\n\t\tCmd: TODO");
-    Osal_printf ("\n\t\tResource: ");
-    Osal_printf ("\n\t  0.- IvaHD");
-    Osal_printf ("\n\t  1.- ISS");
-    Osal_printf ("\n\t  2.- Sdma");
-    Osal_printf ("\n\t  3.- Gptimer");
-    Osal_printf ("\n\t  4.- Gpio");
-    Osal_printf ("\n\t  5.- I2C");
-    Osal_printf ("\n\t  6.- Regulator");
+    Osal_printf ("\nUsage: ./slpmtest.out <RemoteProc> <cmd> <Resource> <arg0> "
+                 "<arg1> .. <arg9>\n");
+    Osal_printf ("Valid Values:\n\tRemoteProc: 1 or 2 (default = 1)\n");
+    Osal_printf ("\n\t\tCmd = Type of test. Check TestSpec");
+    Osal_printf ("\n\t\tResource:\n");
+    Osal_printf ("  0.-  FDIF\n");
+    Osal_printf ("  1.-  IPU\n");
+    Osal_printf ("  2.-  SYSM3\n");
+    Osal_printf ("  3.-  APPM3\n");
+    Osal_printf ("  4.-  ISS\n");
+    Osal_printf ("  5.-  IVAHD\n");
+    Osal_printf ("  6.-  IVASEQ0\n");
+    Osal_printf ("  7.-  IVASEQ1\n");
+    Osal_printf ("  8.-  L3 Bus\n");
+    Osal_printf ("  9.-  MPU\n");
+    Osal_printf ("  10.- Sdma\n");
+    Osal_printf ("  11.- Gptimer\n");
+    Osal_printf ("  12.- Gpio\n");
+    Osal_printf ("  13.- I2C\n");
+    Osal_printf ("  14.- Regulator\n");
+    Osal_printf ("  15.- Auxiliar Clock\n");
     Osal_printf ("\n\tExamples:");
     Osal_printf ("\n\t\t./SlpmTest.out 1: SLPM Menu Test for SysM3\n");
     Osal_printf ("\n\t\t./SlpmTest.out 2: SLPM Menu Test for AppM3\n");
-    Osal_printf ("\n\t\t./SlpmTest.out 1 7 4: Request-Register-Validate Gptimer on SysM3\n");
+    Osal_printf ("\n\t\t./SlpmTest.out 1 7 11: Request-Register-Validate "
+                 "Gptimer on SysM3\n");
 
     return;
 }
@@ -453,10 +464,12 @@ Int getResourceParam (Int resource, Int* resArg)
             Osal_printf ("\n\n rendezvousResume? (TRUE=1, FALSE = 0)\n");
             fgets(str, 80, stdin);
             resArg[1] = atoi(str);
-            Osal_printf ("\n\n MaintCmd? (Clean =0, G_FLUSH = 1, INV_CLEAN =2)\n");
+            Osal_printf ("\n\n MaintCmd? (Clean =0, G_FLUSH = 1, "
+                         "INV_CLEAN =2)\n");
             fgets(str, 80, stdin);
             resArg[2] = atoi(str);
-            Osal_printf ("\n\n force Suspend? 0-Nothing, 1-Idle 2-Swi 3-Task Context\n");
+            Osal_printf ("\n\n force Suspend? 0-Nothing, 1-Idle 2-Swi "
+                         "3-Task Context\n");
             fgets(str, 80, stdin);
             resArg[3] = atoi(str);
             break;
@@ -468,10 +481,12 @@ Int getResourceParam (Int resource, Int* resArg)
             Osal_printf ("\n\n rendezvousResume? (TRUE=1, FALSE = 0)\n");
             fgets(str, 80, stdin);
             payload.rendezvousResume = atoi(str);
-            Osal_printf ("\n\n MaintCmd? (Clean =0, G_FLUSH = 1, INV_CLEAN =2)\n");
+            Osal_printf ("\n\n MaintCmd? (Clean =0, G_FLUSH = 1, "
+                         "INV_CLEAN =2)\n");
             fgets(str, 80, stdin);
             payload.MaintCmd=atoi(str);
-            Osal_printf ("\n\n force Suspend? 0-Nothing, 1-Idle 2-Swi 3-Task Context\n");
+            Osal_printf ("\n\n force Suspend? 0-Nothing, 1-Idle 2-Swi "
+                         "3-Task Context\n");
             fgets(str, 80, stdin);
             payload.force_suspend = atoi(str);
             resArg[0] = payload.whole;
@@ -504,6 +519,7 @@ OnlyOneArg:
 Int main (Int argc, Char ** argv)
 {
     Int     status                      = 0;
+    Int     slpmStatus                  = 0;
     Bool    validTest                   = TRUE;
     Int     SlpmTestType;
     Int     SlpmTestOn                  = TEST_ON_APPM3;
@@ -550,9 +566,24 @@ Int main (Int argc, Char ** argv)
         }
 
         if (SlpmTestType == AUTOMATED_TEST) {
-            SlpmTest_execute (SlpmTestOn, cmd, resource, resArg);
-            sleep(1);
-            SlpmTest_execute (SlpmTestOn, EXIT, resource, resArg);
+            if (cmd == MULTITHREADS) {
+                for (i=0; i< 500; i++) {
+                    status = SlpmTest_execute (SlpmTestOn, cmd, resource,
+                                                resArg);
+                    if (status) {
+                        slpmStatus = status;
+                        break;
+                    }
+                }
+            } else {
+                status = SlpmTest_execute (SlpmTestOn, cmd, resource, resArg);
+                if (status)
+                    slpmStatus = status;
+                sleep(1);
+            }
+            status = SlpmTest_execute (SlpmTestOn, EXIT, resource, resArg);
+            if (slpmStatus)
+                status = slpmStatus;
             goto shutdown;
         }
 
@@ -635,11 +666,16 @@ Int main (Int argc, Char ** argv)
                 Osal_printf ("\n SlpmTest_execute SlpmTest On ProcId(%d) "
                              "cmd(%d) Res(%d) arg(%x) &arg(%x)\n", SlpmTestOn,
                              cmd, resource, resArg, &resArg);
-                SlpmTest_execute (SlpmTestOn, cmd, resource, resArg);
-
+                status = SlpmTest_execute (SlpmTestOn, cmd, resource, resArg);
+                if (status)
+                        Osal_printf ("status=%d\n", status);
                 if (cmd == MULTITHREADS) {
-                    for (i=0; i< 500; i++)
-                        SlpmTest_execute (SlpmTestOn, cmd, resource, resArg);
+                    for (i=0; i< 500; i++) {
+                        status = SlpmTest_execute (SlpmTestOn, cmd, resource,
+                                                    resArg);
+                        if (status)
+                                Osal_printf ("status=%d for i=%d\n", status, i);
+                    }
                 }
              }
         } while (cmd != EXIT);
@@ -649,7 +685,7 @@ shutdown:
     }
 
     /* Trace for TITAN support */
-    if (status < 0)
+    if (status)
         Osal_printf ("test_case_status=%d\n", status);
     else
         Osal_printf ("test_case_status=0\n");

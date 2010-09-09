@@ -423,9 +423,10 @@ SlpmTest_startup (Int testNo)
 Int
 SlpmTest_execute (Int testNo, Int cmd, Int resource, Int* resArg)
 {
-    Int32                    status = -1;
-    MessageQ_Msg             msg    = NULL;
+    Int32                    status             = -1;
+    MessageQ_Msg             msg                = NULL;
     UInt16                   msgId;
+    Int32                    slpmErrorStatus    = 0;
     MsgInfo*                 SlpmMsg;
 
     Osal_printf ("Entered SlpmTest_execute\n");
@@ -479,8 +480,12 @@ SlpmTest_execute (Int testNo, Int cmd, Int resource, Int* resArg)
                                  MessageQ_getMsgId (msg));
                     return status;
                 }
+
+                SlpmMsg = (MsgInfo*)msg;
+                if (SlpmMsg->resArg[0]) {
+                    slpmErrorStatus = SlpmMsg->resArg[0];
+                }
             }
-            SlpmMsg = (MsgInfo*)msg;
 
             status = MessageQ_free (msg);
             Osal_printf ("MessageQ_free status [0x%x]\n", status);
@@ -586,6 +591,10 @@ SlpmTest_execute (Int testNo, Int cmd, Int resource, Int* resArg)
         }
 
         Osal_printf ("Leaving SlpmTest_execute\n");
+    }
+    if (slpmErrorStatus) {
+        status = slpmErrorStatus;
+        Osal_printf ("***status = %d\n", status);
     }
 
     return (status);

@@ -103,6 +103,12 @@ ProcMgr_Handle                 slpmResources_procMgrHandle1;
 SizeT                          slpmResources_heapSize         = 0;
 Ptr                            slpmResources_ptr              = NULL;
 
+typedef struct MsgInfo {
+    MessageQ_MsgHeader  header;
+    Int32               slpmError;
+} MsgInfo;
+
+
 /** ============================================================================
  *  Functions
  *  ============================================================================
@@ -329,11 +335,13 @@ SlpmResources_startup (Int testNo)
 Int
 SlpmResources_execute (Int testNo)
 {
-    Int32                    status = 0;
-    MessageQ_Msg             msg    = NULL;
+    Int32                    status             = 0;
+    MessageQ_Msg             msg                = NULL;
     MessageQ_Params          msgParams;
     UInt16                   i;
     Char                   * msgQName;
+    Int32                    slpmErrorStatus    = 0;
+    MsgInfo*                 SlpmMsg;
 
     Osal_printf ("Entered SlpmResources_execute\n");
 
@@ -425,6 +433,11 @@ SlpmResources_execute (Int testNo)
                                      MessageQ_getMsgId (msg));
                         break;
                     }
+                    SlpmMsg = (MsgInfo*)msg;
+                    if (SlpmMsg->slpmError) {
+                        slpmErrorStatus = SlpmMsg->slpmError;
+                        break;
+                    }
                 }
 
                 status = MessageQ_free (msg);
@@ -508,6 +521,9 @@ SlpmResources_execute (Int testNo)
     if (slpmResources_queueId != MessageQ_INVALIDMESSAGEQ) {
         MessageQ_close (&slpmResources_queueId);
     }
+
+    if (slpmErrorStatus)
+        status = slpmErrorStatus;
 
     Osal_printf ("Leaving SlpmResources_execute\n");
 
