@@ -43,7 +43,7 @@ Steps to Build SysLink:
 
 		Enter your option:
 	8. If option 1 is chosen then
-	    a. First the libmemgr.so is built and installed in $(PREFIX)/target/lib
+	    a. First the libtimemmgr.so is built and installed in $(PREFIX)/target/lib
 	       folder.
 	    b. Second the SysLink APIs, daemons and samples will be built and
 	       installed in $(PREFIX)/target/lib and $(PREFIX)/target/syslink folder
@@ -53,7 +53,7 @@ Steps to Build SysLink:
 ----------
 	Prequisites:
 	------------
-	1. Tiler library (libmemmgr.so) needs to be built and installed first as
+	1. Tiler library (libtimemmgr.so) needs to be built and installed first as
 	   SysLinkMemUtils module depends on the tiler code.
 	2. The Tiler library should have been built with autotools, and the
 	   pkgconfig folder exists in the appropriate folder. The required package

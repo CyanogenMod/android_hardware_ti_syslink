@@ -112,7 +112,7 @@ CFLAGS="$CFLAGS -DLINUX"
 AC_CHECK_PROG([HAVE_PKGCONFIG], [pkg-config], [yes], [no])
 
 # Check for libraries
-PKG_CHECK_MODULES([MEMMGR], [libmemmgr])
+PKG_CHECK_MODULES([MEMMGR], [libtimemmgr])
 
 AC_CONFIG_FILES([syslink.pc
 		Makefile

@@ -43,7 +43,7 @@ PKG_CHECK_MODULES([SYSLINK], [syslink], [
 ])
 
 # Check for libraries
-PKG_CHECK_MODULES([MEMMGR], [libmemmgr])
+PKG_CHECK_MODULES([MEMMGR], [libtimemmgr])
 
 AC_SUBST(STUB_SYSLINK)
 
