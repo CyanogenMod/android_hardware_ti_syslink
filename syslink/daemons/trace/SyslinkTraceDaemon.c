@@ -25,6 +25,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <pthread.h>
@@ -51,7 +52,8 @@ extern "C" {
 
 #define TIMEOUT_SECS                    1
 
-sem_t semPrint;    /* Semaphore to allow only one thread to print at once */
+static FILE *log;
+sem_t        semPrint; /* Semaphore to allow only one thread to print at once */
 
 /* pull char from queue */
 Void printSysM3Traces (Void *arg)
@@ -63,7 +65,7 @@ Void printSysM3Traces (Void *arg)
     volatile UInt32 * writePointer;
     Char            * traceBuffer;
 
-    Osal_printf ("\nSpawning SysM3 trace thread\n ");
+    fprintf (log, "\nSpawning SysM3 trace thread\n ");
 
     /* Get the user virtual address of the buffer */
     traceinfo.src  = SYSM3_TRACE_BUFFER_PHYS_ADDR;
@@ -88,24 +90,25 @@ Void printSysM3Traces (Void *arg)
             numOfBytesInBuffer = ((TRACE_BUFFER_SIZE - 8) - (*readPointer)) + (*writePointer);
         }
 
-        Osal_printf ("\n[SYSM3]: ");
+        fprintf (log, "\n[SYSM3]: ");
         while ( numOfBytesInBuffer-- ) {
             if ((*readPointer) == (TRACE_BUFFER_SIZE - 8)){
                 (*readPointer) = 0;
             }
 
-            Osal_printf ("%c", traceBuffer[*readPointer]);
+            fprintf (log, "%c", traceBuffer[*readPointer]);
             if (traceBuffer[*readPointer] == '\n') {
-                Osal_printf ("[SYSM3]: ");
+                fprintf (log, "[SYSM3]: ");
             }
 
             (*readPointer)++;
         }
+        fflush (log);
         sem_post(&semPrint);    /* Release exclusive access to printing */
 
     } while(1);
 
-    Osal_printf ("Leaving printSysM3Traces thread function \n");
+    fprintf (log, "Leaving printSysM3Traces thread function \n");
     return;
 }
 
@@ -120,7 +123,7 @@ Void printAppM3Traces (Void *arg)
     volatile UInt32 * writePointer;
     Char            * traceBuffer;
 
-    Osal_printf ("\nSpawning AppM3 trace thread\n ");
+    fprintf (log, "\nSpawning AppM3 trace thread\n ");
 
     /* Get the user virtual address of the buffer */
     traceinfo.src  = APPM3_TRACE_BUFFER_PHYS_ADDR;
@@ -145,24 +148,25 @@ Void printAppM3Traces (Void *arg)
             numOfBytesInBuffer = ((TRACE_BUFFER_SIZE - 8) - *readPointer) + *writePointer;
         }
 
-        Osal_printf ("\n[APPM3]: ");
+        fprintf (log, "\n[APPM3]: ");
         while ( numOfBytesInBuffer-- ) {
             if (*readPointer >= (TRACE_BUFFER_SIZE - 8)){
                 *readPointer = 0;
             }
 
-            Osal_printf ("%c", traceBuffer[*readPointer]);
+            fprintf (log, "%c", traceBuffer[*readPointer]);
             if (traceBuffer[*readPointer] == '\n') {
-                Osal_printf ("[APPM3]: ");
+                fprintf (log, "[APPM3]: ");
             }
 
             (*readPointer)++;
         }
+        fflush (log);
         sem_post(&semPrint);    /* Release exclusive access to printing */
 
     } while(1);
 
-    Osal_printf ("Leaving printAppM3Traces thread function \n");
+    fprintf (log, "Leaving printAppM3Traces thread function \n");
     return;
 }
 
@@ -177,7 +181,7 @@ Void printTeslaTraces (Void *arg)
     volatile UInt32 * writePointer;
     Char            * traceBuffer;
 
-    Osal_printf ("\nSpawning Tesla trace thread\n ");
+    fprintf (log, "\nSpawning Tesla trace thread\n ");
 
     /* Get the user virtual address of the buffer */
     traceinfo.src  = TESLA_TRACE_BUFFER_PHYS_ADDR;
@@ -202,59 +206,96 @@ Void printTeslaTraces (Void *arg)
             numOfBytesInBuffer = ((TRACE_BUFFER_SIZE - 8) - (*readPointer)) + (*writePointer);
         }
 
-        Osal_printf ("\n[DSP]: ");
+        fprintf (log, "\n[DSP]: ");
         while ( numOfBytesInBuffer-- ) {
             if ((*readPointer) == (TRACE_BUFFER_SIZE - 8)){
                 (*readPointer) = 0;
             }
 
-            Osal_printf ("%c", traceBuffer[*readPointer]);
+            fprintf (log, "%c", traceBuffer[*readPointer]);
             if (traceBuffer[*readPointer] == '\n') {
-                Osal_printf ("[DSP]: ");
+                fprintf (log, "[DSP]: ");
             }
 
             (*readPointer)++;
         }
+        fflush (log);
         sem_post(&semPrint);    /* Release exclusive access to printing */
 
     } while(1);
 
-    Osal_printf ("Leaving printTeslaTraces thread function \n");
+    fprintf (log, "Leaving printTeslaTraces thread function \n");
     return;
+}
+
+
+/** print usage and exit */
+static Void printUsageExit (Char * app)
+{
+    Osal_printf ("%s: [-h] [-l logfile] [-f]\n", app);
+    Osal_printf ("  -h   show this help message\n");
+    Osal_printf ("  -l   select file to log to (default stdout)\n");
+    Osal_printf ("  -f   run in foreground (do not fork daemon process)\n");
+
+    exit (EXIT_SUCCESS);
 }
 
 
 Int main (Int argc, Char * argv [])
 {
-    pid_t       child_pid;
-    pid_t       child_sid;
     pthread_t   thread_sys; /* server thread object */
     pthread_t   thread_app; /* server thread object */
     pthread_t   thread_dsp; /* server thread object */
+    Char      * log_file    = NULL;
+    Bool        daemon      = TRUE;
+    Int         i;
+
+    /* parse cmd-line args */
+    for (i = 1; i < argc; i++) {
+        if (!strcmp ("-l", argv[i])) {
+            if (++i >= argc)
+                printUsageExit (argv[0]);
+            log_file = argv[i];
+        } else if (!strcmp ("-f", argv[i])) {
+            daemon = FALSE;
+        } else if (!strcmp ("-h", argv[i])) {
+            printUsageExit (argv[0]);
+        }
+    }
 
     Osal_printf ("Spawning Ducati-Tesla Trace daemon...\n");
 
-    /* Fork off the parent process */
-    child_pid = fork ();
-    if (child_pid < 0) {
-        Osal_printf ("Spawning Trace daemon failed!\n");
-        exit (EXIT_FAILURE);     /* Failure */
+    if (daemon) {
+        pid_t child_pid;
+        pid_t child_sid;
+
+        /* Fork off the parent process */
+        child_pid = fork ();
+        if (child_pid < 0) {
+            Osal_printf ("Spawning Trace daemon failed!\n");
+            exit (EXIT_FAILURE);     /* Failure */
+        }
+
+        /* If we got a good PID, then we can exit the parent process. */
+        if (child_pid > 0) {
+            exit (EXIT_SUCCESS);    /* Success */
+        }
+
+        /* Create a new SID for the child process */
+        child_sid = setsid ();
+        if (child_sid < 0) {
+            Osal_printf ("setsid failed!\n");
+            exit (EXIT_FAILURE);     /* Failure */
+        }
     }
 
-    /* If we got a good PID, then we can exit the parent process. */
-    if (child_pid > 0) {
-        exit (EXIT_SUCCESS);    /* Succeess */
-    }
-
-    /* Change file mode mask */
-    umask (0);
-
-    /* Create a new SID for the child process */
-    child_sid = setsid ();
-    if (child_sid < 0)
-    {
-        Osal_printf ("setsid failed!\n");
-        exit (EXIT_FAILURE);     /* Failure */
+    if (!log_file) {
+        /* why do we need this?  It would be an issue when logging to file.. */
+        /* Change file mode mask */
+        umask (0);
+        log = stdout;
+    } else {
+        log = fopen (log_file, "a+");
     }
 
     /* Change the current working directory */
