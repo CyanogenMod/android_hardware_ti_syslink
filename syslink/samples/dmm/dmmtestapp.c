@@ -309,11 +309,15 @@ int test_mapbuffertest(int size, int num_of_buffers, bool unmap)
 	Osal_printf("Running map buffer test\n");
 
 	buffers = malloc(sizeof(int) * num_of_buffers);
+	if (!buffers)
+		return -1;
+	memset(buffers, 0x0, sizeof(int) * num_of_buffers);
 
 	while (i < num_of_buffers) {
 		buf_ptr = (void *)malloc(size);
 		if (buf_ptr == NULL) {
 			Osal_printf("Error: malloc returned null.\n");
+			free(buffers);
 			return -1;
 		} else {
 			Osal_printf("malloc returned 0x%x.\n",
@@ -375,7 +379,6 @@ int test_usebuffer(int size, int iterations)
 	int				tiler_buf_length;
 	uint32_t			*dataPtr;
 	uint32_t			dummyMappedAddr;
-	uint32_t			ssptr;
 
 	Osal_printf("Running Tiler use buffer test case\n");
 	/* allocate a remote command message */
@@ -417,9 +420,7 @@ int test_usebuffer(int size, int iterations)
 		if (tilVaPtr == NULL)
 			goto exit_nomem;
 
-		ssptr = TilerMem_VirtToPhys(tilVaPtr);
-
-		mpuAddrList[0].mpuAddr = ssptr;
+		mpuAddrList[0].mpuAddr = (uint32_t)tilVaPtr;
 		mpuAddrList[0].size = tiler_buf_length;
 		status = SysLinkMemUtils_map(mpuAddrList, 1, &mappedAddr,
 					ProcMgr_MapType_Tiler, PROC_SYSM3);
