@@ -37,7 +37,7 @@ ACLOCAL_AMFLAGS=-I m4
 
 PROJROOT = $(top_srcdir)
 
-AM_CFLAGS =
+AM_CFLAGS = $(MEMMGR_CFLAGS)
 
 SUBDIRS  = procmgr4430
 
@@ -74,4 +74,5 @@ libprocmgr_la_LIBTOOLFLAGS = --tag=disable-static
 libprocmgr_la_LDFLAGS = -version-info 0:0:0
 libprocmgr_la_LIBADD = \
 ../utils/libipcutils.la \
-../sysmgr/libsysmgr.la
+../sysmgr/libsysmgr.la \
+$(MEMMGR_LIBS)

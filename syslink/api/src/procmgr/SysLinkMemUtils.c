@@ -60,6 +60,7 @@
 #include <ti/ipc/MultiProc.h>
 #include <ProcMgr.h>
 #include <SysLinkMemUtils.h>
+#include <tilermem.h>
 
 
 #if defined (__cplusplus)
@@ -120,8 +121,8 @@ SysLinkMemUtils_map (SyslinkMemUtils_MpuAddrToMap   mpuAddrList[],
     }
 
     if (memType == ProcMgr_MapType_Tiler) {
-        /* Tiler address, return the same address until Phase 2 is ready */
-        *mappedAddr = mpuAddrList[0].mpuAddr;
+        /* TILER addresses are pre-mapped, so just return the TILER ssPtr */
+        *mappedAddr = TilerMem_VirtToPhys ((void *)mpuAddrList[0].mpuAddr);
         return status;
     }
 

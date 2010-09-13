@@ -111,11 +111,12 @@ INCLUDES    = \
     $(PROJROOT)/api/include \
     $(PROJROOT)/api/inc \
     $(PROJROOT)/api/include/linux\
+    $(TILER_INC_PATH)
 
 # Libraries needed for linking.
 
 #SH_LIBS        = pthread utils
-SH_LIBS        = ipcutils sysmgr
+SH_LIBS        = ipcutils sysmgr memmgr
 #SH_LIBS        = utils
 ST_LIBS        = gcc
 
@@ -129,6 +130,7 @@ LIBINCLUDES += \
 #LIBINCLUDES += \
 #    $(PROJROOT)/api/src/utils
 
+LIBINCLUDES += $(TILER_INC_PATH)/../ $(TILER_INC_PATH)
 
 # Do not change below "include" line(s)
 
