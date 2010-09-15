@@ -24,11 +24,12 @@ CFLAGS=-Wall -g -O2 $(INCLUDE) -finline-functions -D$(PROCFAMILY) $(LDFLAGS)
 
 LIBS = -lsyslinknotify -lipcutils -lipc -lprocmgr
 SYSMGRLIBS = -lprocmgr -lsysmgr
+MEMMGRLIBS = -lmemmgr
 
 all: notifyping.out
 
 notifyping.out: notifyping.c
-	$(CC) $(CFLAGS) -o notifyping.out notifyping.c $(LIBS) $(SYSMGRLIBS)
+	$(CC) $(CFLAGS) -o notifyping.out notifyping.c $(LIBS) $(SYSMGRLIBS) $(MEMMGRLIBS)
 
 install: notifyping.out
 	$(INSTALL) -D $< $(TARGETDIR)/syslink/$<

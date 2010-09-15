@@ -25,11 +25,12 @@ CFLAGS=-Wall -g -O2 $(INCLUDE) -finline-functions -D$(PROCFAMILY) $(LDFLAGS)
 CFLAGS += -DSYSLINK_TRACE_ENABLE
 
 LIBS =  -lipcutils -lipc -lprocmgr -lsysmgr -lsyslinknotify
+MEMMGRLIBS = -lmemmgr
 
 all: heapBufMPApp.out
 
 heapBufMPApp.out:
-	$(CC) $(CFLAGS) -o heapBufMPApp.out HeapBufMPAppOS.c HeapBufMPApp.c $(LIBS)
+	$(CC) $(CFLAGS) -o heapBufMPApp.out HeapBufMPAppOS.c HeapBufMPApp.c $(LIBS) $(MEMMGRLIBS)
 
 install: heapBufMPApp.out
 	$(INSTALL) -D $< $(TARGETDIR)/syslink/$<

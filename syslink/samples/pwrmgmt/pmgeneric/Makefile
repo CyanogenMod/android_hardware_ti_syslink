@@ -35,11 +35,12 @@ CFLAGS += -DSYSLINK_USE_LOADER
 
 LIBS = -lipcutils -lsyslinknotify -lipc -lprocmgr
 LIBS += -lsysmgr
+MEMMGRLIBS = -lmemmgr
 
 all: slpmtest.out
 
 slpmtest.out:
-	$(CC) $(CFLAGS) -o slpmtest.out slpmtestOS.c slpmtestApp.c $(LIBS)
+	$(CC) $(CFLAGS) -o slpmtest.out slpmtestOS.c slpmtestApp.c $(LIBS) $(MEMMGRLIBS)
 
 slpmtestinstall: slpmtest.out
 	$(INSTALL) -D $< $(TARGETDIR)/syslink/$<

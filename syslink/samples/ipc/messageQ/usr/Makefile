@@ -35,11 +35,12 @@ CFLAGS += -DSYSLINK_USE_LOADER
 
 LIBS = -lipcutils -lsyslinknotify -lipc -lprocmgr
 LIBS += -lsysmgr
+MEMMGRLIBS = -lmemmgr
 
 all: messageQApp.out
 
 messageQApp.out:
-	$(CC) $(CFLAGS) -o messageQApp.out MessageQAppOS.c MessageQApp.c $(LIBS)
+	$(CC) $(CFLAGS) -o messageQApp.out MessageQAppOS.c MessageQApp.c $(LIBS) $(MEMMGRLIBS)
 
 messageQinstall1: messageQApp.out
 	$(INSTALL) -D $< $(TARGETDIR)/syslink/$<

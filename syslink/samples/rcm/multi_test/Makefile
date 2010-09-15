@@ -34,20 +34,21 @@ CFLAGS += -DSYSLINK_USE_LOADER
 
 LIBS = -lipcutils -lsyslinknotify -lipc -lprocmgr -lrcm -lpthread -lrt
 LIBS += -lsysmgr
+MEMMGRLIBS = -lmemmgr
 
 all: rcm_multitest.out rcm_multithreadtest.out rcm_multiclienttest.out rcm_daemontest.out
 
 rcm_multitest.out:
-	$(CC) $(CFLAGS) -o rcm_multitest.out RcmClientServerTest.c $(LIBS)
+	$(CC) $(CFLAGS) -o rcm_multitest.out RcmClientServerTest.c $(LIBS) $(MEMMGRLIBS)
 
 rcm_multithreadtest.out:
-	$(CC) $(CFLAGS) -o rcm_multithreadtest.out RcmMultiThreadTest.c $(LIBS)
+	$(CC) $(CFLAGS) -o rcm_multithreadtest.out RcmMultiThreadTest.c $(LIBS) $(MEMMGRLIBS)
 
 rcm_multiclienttest.out:
-	$(CC) $(CFLAGS) -o rcm_multiclienttest.out RcmMultiClientTest.c $(LIBS)
+	$(CC) $(CFLAGS) -o rcm_multiclienttest.out RcmMultiClientTest.c $(LIBS) $(MEMMGRLIBS)
 
 rcm_daemontest.out:
-	$(CC) $(CFLAGS) -DSYSLINK_USE_DAEMON -o rcm_daemontest.out RcmMultiThreadTest.c $(LIBS)
+	$(CC) $(CFLAGS) -DSYSLINK_USE_DAEMON -o rcm_daemontest.out RcmMultiThreadTest.c $(LIBS) $(MEMMGRLIBS)
 
 install1: rcm_multitest.out
 	$(INSTALL) -D $< $(TARGETDIR)/syslink/$<

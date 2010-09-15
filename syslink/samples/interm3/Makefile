@@ -24,11 +24,12 @@ CFLAGS=-Wall -g -O2 $(INCLUDE) -finline-functions -D$(PROCFAMILY) $(LDFLAGS)
 
 LIBS = -lsyslinknotify -lipcutils -lipc -lprocmgr
 SYSMGRLIBS = -lprocmgr -lsysmgr
+MEMMGRLIBS = -lmemmgr
 
 all: interm3.out
 
 interm3.out: interm3.c
-	$(CC) $(CFLAGS) -o interm3.out interm3.c $(LIBS) $(SYSMGRLIBS)
+	$(CC) $(CFLAGS) -o interm3.out interm3.c $(LIBS) $(SYSMGRLIBS) $(MEMMGRLIBS)
 
 install: interm3.out
 	$(INSTALL) -D $< $(TARGETDIR)/syslink/$<

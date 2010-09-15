@@ -24,11 +24,12 @@ LDFLAGS = $(addprefix -L, $(LDPATH))
 CFLAGS=-Wall -g -O2 $(INCLUDE) -finline-functions -D$(PROCFAMILY) $(LDFLAGS)
 
 LIBS = -lipcutils -lipc -lprocmgr -lomap4430proc -lsysmgr -lsyslinknotify
+MEMMGRLIBS = -lmemmgr
 
 all: procMgrApp.out
 
 procMgrApp.out: ProcMgrAppOS.c
-	$(CC) $(CFLAGS) -o procMgrApp.out ProcMgrApp.c ProcMgrAppOS.c $(LIBS)
+	$(CC) $(CFLAGS) -o procMgrApp.out ProcMgrApp.c ProcMgrAppOS.c $(LIBS) $(MEMMGRLIBS)
 
 install: procMgrApp.out
 	$(INSTALL) -D $< $(TARGETDIR)/syslink/$<

@@ -35,11 +35,12 @@ CFLAGS += -DSYSLINK_USE_LOADER
 
 LIBS = -lipcutils -lsyslinknotify -lipc -lprocmgr
 LIBS += -lsysmgr
+MEMMGRLIBS = -lmemmgr
 
 all: slpmtransport.out
 
 slpmtransport.out:
-	$(CC) $(CFLAGS) -o slpmtransport.out slpmtransportOS.c slpmtransportApp.c $(LIBS)
+	$(CC) $(CFLAGS) -o slpmtransport.out slpmtransportOS.c slpmtransportApp.c $(LIBS) $(MEMMGRLIBS)
 
 slpmtransportinstall: slpmtransport.out
 	$(INSTALL) -D $< $(TARGETDIR)/syslink/$<

@@ -72,6 +72,7 @@ INCLUDES    = \
 
 ST_LIBS        =
 SH_LIBS        = pthread rt ipcutils syslinknotify ipc procmgr sysmgr rcm
+SH_LIBS       += memmgr
 
 # Search path for library (and linker command) files.
 # Current folder and target folder are included by default.

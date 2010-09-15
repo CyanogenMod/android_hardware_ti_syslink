@@ -25,11 +25,12 @@ CFLAGS=-Wall -g -O2 $(INCLUDE) -finline-functions -D$(PROCFAMILY) $(LDFLAGS)
 CFLAGS += -DSYSLINK_TRACE_ENABLE
 
 LIBS = -lipcutils -lipc -lprocmgr -lsysmgr -lsyslinknotify
+MEMMGRLIBS = -lmemmgr
 
 all: sharedRegionApp.out
 
 sharedRegionApp.out:
-	$(CC) $(CFLAGS) -o sharedRegionApp.out SharedRegionAppOS.c SharedRegionApp.c $(LIBS)
+	$(CC) $(CFLAGS) -o sharedRegionApp.out SharedRegionAppOS.c SharedRegionApp.c $(LIBS) $(MEMMGRLIBS)
 
 install: sharedRegionApp.out
 	$(INSTALL) -D $< $(TARGETDIR)/syslink/$<

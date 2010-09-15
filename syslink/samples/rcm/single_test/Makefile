@@ -82,6 +82,7 @@ ST_LIBS        =
 SH_LIBS        = pthread rt ipcutils procmgr ipc rcm syslinknotify
 #Uncomment the below line to use sys manager
 SH_LIBS        += sysmgr
+SH_LIBS        += memmgr
 
 # Search path for library (and linker command) files.
 # Current folder and target folder are included by default.

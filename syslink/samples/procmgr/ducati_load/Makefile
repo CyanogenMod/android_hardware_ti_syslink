@@ -24,11 +24,12 @@ LDFLAGS = $(addprefix -L, $(LDPATH))
 CFLAGS=-Wall -g -O2 $(INCLUDE) -finline-functions -D$(PROCFAMILY) $(LDFLAGS)
 
 LIBS = -lipcutils -lipc -lprocmgr -lomap4430proc -lsysmgr -lsyslinknotify
+MEMMGRLIBS = -lmemmgr
 
 all: ducati_load.out
 
 ducati_load.out: ducati_load.c getopt.c
-	$(CC) $(CFLAGS) -o ducati_load.out ducati_load.c getopt.c $(LIBS) 
+	$(CC) $(CFLAGS) -o ducati_load.out ducati_load.c getopt.c $(LIBS) $(MEMMGRLIBS)
 
 install: ducati_load.out
 	$(INSTALL) -D $< $(TARGETDIR)/syslink/$<

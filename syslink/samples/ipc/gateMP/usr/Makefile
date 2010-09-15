@@ -25,11 +25,12 @@ CFLAGS=-Wall -g -O2 $(INCLUDE) -finline-functions -D$(PROCFAMILY) $(LDFLAGS)
 CFLAGS += -DSYSLINK_TRACE_ENABLE
 
 LIBS =  -lipcutils -lipc -lprocmgr -lsysmgr -lsyslinknotify
+MEMMGRLIBS = -lmemmgr
 
 all: gateMPApp.out
 
 gateMPApp.out:
-	$(CC) $(CFLAGS) -o gateMPApp.out GateMPApp.c $(LIBS)
+	$(CC) $(CFLAGS) -o gateMPApp.out GateMPApp.c $(LIBS) $(MEMMGRLIBS)
 
 install: gateMPApp.out
 	$(INSTALL) -D $< $(TARGETDIR)/syslink/$<

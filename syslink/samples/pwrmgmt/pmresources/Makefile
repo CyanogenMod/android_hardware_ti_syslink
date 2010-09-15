@@ -35,11 +35,12 @@ CFLAGS += -DSYSLINK_USE_LOADER
 
 LIBS = -lipcutils -lsyslinknotify -lipc -lprocmgr
 LIBS += -lsysmgr
+MEMMGRLIBS = -lmemmgr
 
 all: slpmresources.out
 
 slpmresources.out:
-	$(CC) $(CFLAGS) -o slpmresources.out slpmresourcesOS.c slpmresourcesApp.c $(LIBS)
+	$(CC) $(CFLAGS) -o slpmresources.out slpmresourcesOS.c slpmresourcesApp.c $(LIBS) $(MEMMGRLIBS)
 
 slpmresourcesinstall: slpmresources.out
 	$(INSTALL) -D $< $(TARGETDIR)/syslink/$<

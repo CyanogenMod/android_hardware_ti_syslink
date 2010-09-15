@@ -25,11 +25,12 @@ CFLAGS=-Wall -g -O2 $(INCLUDE) -finline-functions -D$(PROCFAMILY) $(LDFLAGS)
 CFLAGS += -DSYSLINK_TRACE_ENABLE
 
 LIBS =  -lipcutils -lipc -lprocmgr -lsysmgr -lsyslinknotify
+MEMMGRLIBS = -lmemmgr
 
 all: nameServerApp.out
 
 nameServerApp.out:
-	$(CC) $(CFLAGS) -o nameServerApp.out NameServerApp.c $(LIBS)
+	$(CC) $(CFLAGS) -o nameServerApp.out NameServerApp.c $(LIBS) $(MEMMGRLIBS)
 
 install: nameServerApp.out
 	$(INSTALL) -D $< $(TARGETDIR)/syslink/$<

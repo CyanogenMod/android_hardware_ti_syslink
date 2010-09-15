@@ -24,11 +24,12 @@ CFLAGS=-Wall -g -O2 $(INCLUDE) -finline-functions -D$(PROCFAMILY) $(LDFLAGS)
 CFLAGS += -DSYSLINK_TRACE_ENABLE
 
 LIBS = -lipcutils -lipc -lprocmgr -lsysmgr -lsyslinknotify
+MEMMGRLIBS = -lmemmgr
 
 all: listMPApp.out
 
 listMPApp.out:
-	$(CC) $(CFLAGS) -o listMPApp.out ListMPAppOS.c ListMPApp.c $(LIBS)
+	$(CC) $(CFLAGS) -o listMPApp.out ListMPAppOS.c ListMPApp.c $(LIBS) $(MEMMGRLIBS)
 
 install: listMPApp.out
 	$(INSTALL) -D $< $(TARGETDIR)/syslink/$<
