@@ -258,8 +258,9 @@ exit:
  */
 int test_flushfailuretest(int size)
 {
-	void	*buf_ptr;
+	void	*buf_ptr = 0;
 	int	err;
+	int 	tc_passed = 1;
 
 	buf_ptr = (void *)malloc(size);
 	err = ProcMgr_flushMemory(buf_ptr, size, PROC_SYSM3);
@@ -269,6 +270,7 @@ int test_flushfailuretest(int size)
 	} else {
 		Osal_printf("Flush memory success for buffer 0x%x\n",
 						(uint32_t)buf_ptr);
+		tc_passed = 0;
 	}
 
 	err = ProcMgr_invalidateMemory(buf_ptr, size, PROC_SYSM3);
@@ -278,9 +280,17 @@ int test_flushfailuretest(int size)
 	} else {
 		Osal_printf("Invalidate memory success for buffer 0x%x\n",
 						(uint32_t)buf_ptr);
+		tc_passed = 0;
 	}
 
 	free(buf_ptr);
+
+	if (tc_passed == 1) {
+		Osal_printf("Test passed!\n");
+	} else {
+		Osal_printf("Test failed!\n");
+	}
+
 	return 0;
 }
 
@@ -332,6 +342,7 @@ int test_mapbuffertest(int size, int num_of_buffers, bool unmap)
 		Osal_printf("MPU Address = 0x%x     Mapped Address = 0x%x,"
 				"size = 0x%x\n", mpuAddrList[0].mpuAddr,
 				mappedAddr, mpuAddrList[0].size);
+		Osal_printf("Mapped Base Address = 0x%x\n", mappedAddr & 0xfffff000);
 		Osal_printf("Flushing mpuAddr 0x%x of size 0x%x\n",
 				mpuAddrList[0].mpuAddr, mpuAddrList[0].size);
 		ProcMgr_flushMemory(buf_ptr, size, PROC_SYSM3);
@@ -379,6 +390,7 @@ int test_usebuffer(int size, int iterations)
 	int				tiler_buf_length;
 	uint32_t			*dataPtr;
 	uint32_t			dummyMappedAddr;
+	int 				tc_passed = 1;
 
 	Osal_printf("Running Tiler use buffer test case\n");
 	/* allocate a remote command message */
@@ -398,13 +410,13 @@ int test_usebuffer(int size, int iterations)
 		dataPtr = (void *)(((uint32_t)buf_ptr + PAGE_SIZE - 1)
 							& ~(PAGE_SIZE - 1));
 
-		Osal_printf("Calling malloc of size 0x%x.Iternation %d\n",
+		Osal_printf("Calling malloc of size 0x%x. Iteration %d\n",
 							map_size, iterations);
 		if (buf_ptr == NULL) {
 			Osal_printf("Error: malloc returned null.\n");
 			goto exit_nomem;
 		} else {
-			Osal_printf("malloc returned 0x%x.Passed to Tlier"
+			Osal_printf("malloc returned 0x%x. Passed to Tiler"
 				"0x%x\n", (uint32_t)buf_ptr, (uint32_t)dataPtr);
 		}
 
@@ -477,8 +489,9 @@ int test_usebuffer(int size, int iterations)
 					count++;
 				}
 			}
-			if (count == 0)
-				Osal_printf("Test passed!\n");
+			if (count > 0) {
+				tc_passed  = 0;
+			}
 		}
 
 		/* Set the memory to some other value to avoid a
@@ -492,6 +505,13 @@ int test_usebuffer(int size, int iterations)
 		MemMgr_UnMap(tilVaPtr);
 		free(buf_ptr);
 	}
+
+	if (tc_passed == 1) {
+		Osal_printf("Test passed!\n");
+	} else {
+		Osal_printf("Test failed!\n");
+	}
+
 exit_nomem:
 	/* return message to the heap */
 	Osal_printf("Calling RcmClient_free\n");
@@ -520,6 +540,7 @@ int test_iobuffertest(int size, int iterations)
 	uint32_t			ssptr;
 	uint32_t			*map_base;
 	int				fd;
+	int 				tc_passed = 1;
 
 	Osal_printf("Running IO Map use buffer test case\n");
 	Osal_printf("WARNING WARNING WARNING !\n");
@@ -605,8 +626,9 @@ int test_iobuffertest(int size, int iterations)
 					count++;
 				}
 			}
-			if (count == 0)
-				Osal_printf("Test passed!\n");
+			if (count > 0) {
+				tc_passed = 0;
+			}
 		}
 
 		/* Set the memory to some other value to avoid a
@@ -622,6 +644,13 @@ exit_mmap_fail:
 		TilerMgr_Free(ssptr);
 		TilerMgr_Close();
 	}
+
+	if (tc_passed == 1) {
+		Osal_printf("Test passed!\n");
+	} else {
+		Osal_printf("Test failed!\n");
+	}
+
 exit_nomem:
 	/* return message to the heap */
 	Osal_printf("Calling RcmClient_free\n");
@@ -650,6 +679,7 @@ int test_dmmbuffer(int size, int iterations)
 	int rcmMsgSize;
 	RCM_Remote_FxnArgs *fxnArgs;
 	int count = 0;
+	int tc_passed = 1;
 
 	/* allocate a remote command message */
 	Osal_printf("Allocating RCM message\n");
@@ -661,7 +691,7 @@ int test_dmmbuffer(int size, int iterations)
 	}
 
 	while (iterations-- > 0) {
-		Osal_printf("Calling malloc.Iternation %d\n", iterations);
+		Osal_printf("Calling malloc. Iteration %d\n", iterations);
 
 		buf_ptr = (void *)malloc(map_size);
 		if (buf_ptr == NULL) {
@@ -721,8 +751,9 @@ int test_dmmbuffer(int size, int iterations)
 					count++;
 				}
 			}
-			if (count == 0)
-				Osal_printf("Test passed!\n");
+			if (count > 0) {
+				tc_passed = 0;
+			}
 		}
 
 		/* Set the memory to some other value to avoid a
@@ -734,6 +765,13 @@ int test_dmmbuffer(int size, int iterations)
 		SysLinkMemUtils_unmap(mappedAddr, PROC_SYSM3);
 		free(buf_ptr);
 	}
+
+	if (tc_passed == 1) {
+		Osal_printf("Test passed!\n");
+	} else {
+		Osal_printf("Test failed!\n");
+	}
+
 exit_nomem:
 	/* return message to the heap */
 	Osal_printf("Calling RcmClient_free\n");
