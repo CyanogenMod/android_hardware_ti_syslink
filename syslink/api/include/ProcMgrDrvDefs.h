@@ -229,6 +229,15 @@ typedef struct ProcMgr_CmdArgs_tag {
  */
 #define CMD_PROCMGR_GETBOARDREV         (PROCMGR_BASE_CMD + 31u)
 
+/*!
+ *  @brief  Command for ProcMgr_reg_event
+ */
+#define CMD_PROCMGR_REGEVENT            (PROCMGR_BASE_CMD + 32u)
+
+/*!
+ *  @brief  Command for ProcMgr_unreg_event
+ */
+#define CMD_PROCMGR_UNREGEVENT          (PROCMGR_BASE_CMD + 33u)
 
 #define RPROC_IOC_MAGIC                 'P'
 
@@ -236,6 +245,9 @@ typedef struct ProcMgr_CmdArgs_tag {
 #define RPROC_IOCSTART                  _IO(RPROC_IOC_MAGIC, 1)
 #define RPROC_IOCSTOP                   _IO(RPROC_IOC_MAGIC, 2)
 #define RPROC_IOCGETSTATE               _IOR(RPROC_IOC_MAGIC, 3, Int)
+#define RPROC_IOCREGEVENT               _IOR(RPROC_IOC_MAGIC, 4, ProcMgr_CmdArgsRegEvent)
+#define RPROC_IOCUNREGEVENT             _IOR(RPROC_IOC_MAGIC, 5, ProcMgr_CmdArgsUnRegEvent)
+
 
 
 
@@ -445,6 +457,20 @@ typedef struct ProcMgr_CmdArgsStop_tag {
     ProcMgr_StopParams *    params;
     /*!< Optional ProcMgr start parameters. */
 } ProcMgr_CmdArgsStop;
+
+/*!
+ *  @brief  Command arguments for ProcMgr_regEvent
+ */
+typedef struct ProcMgr_CmdArgsRegEvent_tag {
+    ProcMgr_CmdArgs     commonArgs;
+    /*!< Common command args */
+    UInt16              procId;
+    /*!< Processor Id */
+    Int32               fd;
+    /*!< Eventfd descriptor id for notification */
+    ProcMgr_EventType   event;
+    /*!< Type of event to be registered */
+} ProcMgr_CmdArgsRegEvent, ProcMgr_CmdArgsUnRegEvent;
 
 /*!
  *  @brief  Command arguments for ProcMgr_getState

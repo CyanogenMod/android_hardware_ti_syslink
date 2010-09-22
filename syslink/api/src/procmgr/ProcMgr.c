@@ -3191,9 +3191,10 @@ ProcMgr_waitForEvent (ProcMgr_ProcId    procId,
                       ProcMgr_EventType eventType,
                       Int               timeout)
 {
-    Int         efd;
-    Int         status;
-    uint64_t    ret;
+    Int                     efd;
+    Int                     status;
+    uint64_t                ret;
+    ProcMgr_CmdArgsRegEvent cmdArgs;
 
     GT_3trace (curTrace, GT_ENTER, "ProcMgr_waitForEvent", procId, eventType,
                 timeout);
@@ -3202,31 +3203,51 @@ ProcMgr_waitForEvent (ProcMgr_ProcId    procId,
     if (efd == -1)
         return PROCMGR_E_FAIL;
 
-    status = ProcMMU_open (procId);
-    if (status < 0) {
-        Osal_printf ("Error in ProcMMU_open [0x%x]\n", status);
-        close(efd);
-        return PROCMGR_E_FAIL;
-    }
+    switch (eventType) {
+    case PROC_MMU_FAULT:
+        status = ProcMMU_open (procId);
+        if (status < 0) {
+            Osal_printf ("Error in ProcMMU_open [0x%x]\n", status);
+            close(efd);
+            return PROCMGR_E_FAIL;
+        }
 
-    status = ProcMMU_registerEvent (procId, efd, TRUE);
-    if (status == ProcMMU_S_SUCCESS) {
-        /* wait on the MMU fault event */
-        status = read(efd, &ret, sizeof(uint64_t));
-        /* unregister the event */
-        ProcMMU_registerEvent (procId, efd, FALSE);
-        status = PROCMGR_SUCCESS;
-    }
-    else {
-        GT_setFailureReason (curTrace,
-                             GT_4CLASS,
-                             "ProcMgr_waitForEvent",
-                             status,
-                             "MMU fault status registration failed!");
-        status = PROCMGR_E_FAIL;
-    }
+        status = ProcMMU_registerEvent (procId, efd, TRUE);
+        if (status == ProcMMU_S_SUCCESS) {
+            /* wait on the MMU fault event */
+            status = read(efd, &ret, sizeof(uint64_t));
+            /* unregister the event */
+            ProcMMU_registerEvent (procId, efd, FALSE);
+            status = PROCMGR_SUCCESS;
+        }
+        else {
+            GT_setFailureReason (curTrace,
+                                 GT_4CLASS,
+                                 "ProcMgr_waitForEvent",
+                                 status,
+                                 "MMU fault status registration failed!");
+            status = PROCMGR_E_FAIL;
+        }
+        ProcMMU_close (procId);
+        break;
 
-    ProcMMU_close (procId);
+    case PROC_STOP:
+    case PROC_START:
+        cmdArgs.procId = procId;
+        cmdArgs.event = eventType;
+        cmdArgs.fd = efd;
+        status = ProcMgrDrvUsr_ioctl (CMD_PROCMGR_REGEVENT, &cmdArgs);
+        if (status == PROCMGR_SUCCESS) {
+            /* wait on the MMU fault event */
+            status = read(efd, &ret, sizeof(uint64_t));
+            /* unregister the event */
+            status = ProcMgrDrvUsr_ioctl (CMD_PROCMGR_UNREGEVENT, &cmdArgs);
+        }
+        break;
+
+    default:
+        status = PROCMGR_E_INVALIDARG;
+    }
     close(efd);
 
     GT_1trace (curTrace, GT_LEAVE, "ProcMgr_waitForEvent", status);

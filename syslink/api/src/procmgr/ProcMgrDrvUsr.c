@@ -445,6 +445,50 @@ ProcMgrDrvUsr_ioctl (UInt32 cmd, Ptr args)
         }
         break;
 
+        case CMD_PROCMGR_REGEVENT:
+        {
+            ProcMgr_CmdArgsRegEvent *srcArgs = (ProcMgr_CmdArgsRegEvent *) args;
+
+            if (srcArgs->procId == TEMP_PROC_SYSM3_ID)
+                osStatus = ioctl (ProcDrvSysM3_handle, RPROC_IOCREGEVENT, args);
+            else if (srcArgs->procId == TEMP_PROC_APPM3_ID)
+                osStatus = ioctl (ProcDrvAppM3_handle, RPROC_IOCREGEVENT, args);
+            else
+                osStatus = ioctl (ProcDrvTesla_handle, RPROC_IOCREGEVENT, args);
+            if (osStatus < 0) {
+                /*! @retval PROCMGR_E_OSFAILURE Driver ioctl failed */
+                status = PROCMGR_E_OSFAILURE;
+                GT_setFailureReason (curTrace,
+                                     GT_4CLASS,
+                                     "ProcMgrDrvUsr_ioctl",
+                                     status,
+                                     "Driver ioctl failed!");
+            }
+        }
+        break;
+
+        case CMD_PROCMGR_UNREGEVENT:
+        {
+            ProcMgr_CmdArgsUnRegEvent *srcArgs = (ProcMgr_CmdArgsUnRegEvent *) args;
+
+            if (srcArgs->procId == TEMP_PROC_SYSM3_ID)
+                osStatus = ioctl (ProcDrvSysM3_handle, RPROC_IOCUNREGEVENT, args);
+            else if (srcArgs->procId == TEMP_PROC_APPM3_ID)
+                osStatus = ioctl (ProcDrvAppM3_handle, RPROC_IOCUNREGEVENT, args);
+            else
+                osStatus = ioctl (ProcDrvTesla_handle, RPROC_IOCUNREGEVENT, args);
+            if (osStatus < 0) {
+                /*! @retval PROCMGR_E_OSFAILURE Driver ioctl failed */
+                status = PROCMGR_E_OSFAILURE;
+                GT_setFailureReason (curTrace,
+                                     GT_4CLASS,
+                                     "ProcMgrDrvUsr_ioctl",
+                                     status,
+                                     "Driver ioctl failed!");
+            }
+        }
+        break;
+
         default:
         {
             osStatus = ioctl (ProcMgrDrvUsr_handle, cmd, args);
