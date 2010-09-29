@@ -3179,76 +3179,192 @@ ProcMgr_flushMemory(PVOID bufAddr, UInt32 bufSize, ProcMgr_ProcId procID) {
 }
 
 /*!
- *  @brief      Function to register for Event types
+ *  @brief      Function to register for Mutiple Events types
  *
- *  @param      pMpuAddr    Userspace Virtual Address
- *  @param      ulSize      size of the buffer
+ *  @param      procId       Processor ID
+ *  @param      eventType    Array of events
+ *  @param      size         Number of events
+ *  @param      timeout      Timeout
+ *  @param      index        Index of event received
  *
- *  @sa         ProcMgr_flushMemory
+ *  @sa         ProcMgr_waitForEvent
+ */
+Int
+ProcMgr_waitForMultipleEvents (ProcMgr_ProcId      procId,
+                               ProcMgr_EventType * eventType,
+                               UInt32              size,
+                               Int                 timeout,
+                               UInt *              index)
+{
+    Int                   * efd;
+    fd_set                  fds;
+    struct timeval          tv;
+    struct timeval       *  to = NULL;
+    Int                     status = PROCMGR_SUCCESS;
+    Int                     i;
+    Int                     max = 0;
+    Bool                    mmuEventUsed = FALSE;
+    ProcMgr_CmdArgsRegEvent cmdArgs;
+
+    GT_5trace (curTrace, GT_ENTER, "ProcMgr_waitForMultipleEvents", procId,
+               eventType, size, timeout, index);
+
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+    if (!size) {
+        status = PROCMGR_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "ProcMgr_waitForMultipleEvents",
+                             status,
+                             "Invalid value provided for argument size");
+    }
+    else if (!index) {
+        status = PROCMGR_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "ProcMgr_waitForMultipleEvents",
+                             status,
+                             "Invalid value provided for argument index");
+    }
+    else {
+#endif
+        efd = Memory_alloc (NULL, sizeof(Int) * size, 0);
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+        if (!efd) {
+            status = PROCMGR_E_MEMORY;
+            GT_setFailureReason (curTrace,
+                                 GT_4CLASS,
+                                 "ProcMgr_waitForMultipleEvents",
+                                 status,
+                                 "Unable to allocate memory for efd");
+        }
+        else {
+#endif
+            if (timeout != -1) {
+                tv.tv_sec = timeout / 1000;
+                tv.tv_usec = (timeout % 1000) * 1000;
+                to = &tv;
+            }
+            FD_ZERO (&fds);
+            for (i = 0; i < size; i++) {
+                if (eventType [i] == PROC_MMU_FAULT && !mmuEventUsed) {
+                    status = ProcMMU_open (procId);
+                    if (status < 0) {
+                        status = PROCMGR_E_FAIL;
+                        GT_setFailureReason (curTrace,
+                                             GT_4CLASS,
+                                             "ProcMgr_waitForMultipleEvents",
+                                             status,
+                                             "Error in ProcMMU_open");
+                        break;
+                    }
+                    mmuEventUsed = TRUE;
+                }
+                efd [i] = eventfd (0, 0);
+                if (efd [i] == -1) {
+                    status = PROCMGR_E_FAIL;
+                    break;
+                }
+
+                switch (eventType [i]) {
+                case PROC_MMU_FAULT:
+                    status = ProcMMU_registerEvent (procId, efd [i], TRUE);
+                    if (status == ProcMMU_S_SUCCESS) {
+                        status = PROCMGR_SUCCESS;
+                    }
+                    else {
+                        status = PROCMGR_E_FAIL;
+                    }
+                    break;
+
+                case PROC_STOP:
+                case PROC_START:
+                    cmdArgs.procId = procId;
+                    cmdArgs.event = eventType [i];
+                    cmdArgs.fd = efd [i];
+                    status = ProcMgrDrvUsr_ioctl (CMD_PROCMGR_REGEVENT, &cmdArgs);
+                    break;
+
+                default:
+                    status = PROCMGR_E_INVALIDARG;
+                    break;
+                }
+                if (status != PROCMGR_SUCCESS) {
+                    close (efd [i]);
+                    break;
+                }
+
+                FD_SET (efd [i], &fds);
+                if (efd [i] > max) {
+                    max = efd [i];
+                }
+            }
+
+            if (status == PROCMGR_SUCCESS) {
+                status = select (max + 1, &fds, NULL, NULL, to);
+                if (!status) {
+                    status = PROCMGR_E_TIMEOUT;
+                }
+                else if (status < 0) {
+                    status = PROCMGR_E_FAIL;
+                }
+                else {
+                    status = PROCMGR_SUCCESS;
+                }
+            }
+
+            while (i--) {
+                if (FD_ISSET (efd [i], &fds)) {
+                    *index = i;
+                    if (eventType [i] == PROC_MMU_FAULT) {
+                        ProcMMU_registerEvent (procId, efd [i], FALSE);
+                    } else {
+                        cmdArgs.event = eventType [i];
+                        cmdArgs.fd = efd [i];
+                        ProcMgrDrvUsr_ioctl (CMD_PROCMGR_UNREGEVENT, &cmdArgs);
+                    }
+                }
+                close (efd [i]);
+            }
+
+            if (mmuEventUsed) {
+                ProcMMU_close (procId);
+            }
+
+            Memory_free (NULL, efd, sizeof(Int) * size);
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+        }
+    }
+#endif
+
+    GT_1trace (curTrace, GT_LEAVE, "ProcMgr_waitForMultipleEvents", status);
+
+    return status;
+}
+
+
+/*!
+ *  @brief      Function to register for an event type
+ *
+ *  @param      procId       Processor ID
+ *  @param      eventType    Event Type
+ *  @param      timeout      Timeout
+ *
+ *  @sa         ProcMgr_waitForMultipleEvents
  */
 Int
 ProcMgr_waitForEvent (ProcMgr_ProcId    procId,
                       ProcMgr_EventType eventType,
                       Int               timeout)
 {
-    Int                     efd;
-    Int                     status;
-    uint64_t                ret;
-    ProcMgr_CmdArgsRegEvent cmdArgs;
+    UInt    index;
+    Int     status;
 
     GT_3trace (curTrace, GT_ENTER, "ProcMgr_waitForEvent", procId, eventType,
-                timeout);
+               timeout);
 
-    efd = eventfd(0, 0);
-    if (efd == -1)
-        return PROCMGR_E_FAIL;
-
-    switch (eventType) {
-    case PROC_MMU_FAULT:
-        status = ProcMMU_open (procId);
-        if (status < 0) {
-            Osal_printf ("Error in ProcMMU_open [0x%x]\n", status);
-            close(efd);
-            return PROCMGR_E_FAIL;
-        }
-
-        status = ProcMMU_registerEvent (procId, efd, TRUE);
-        if (status == ProcMMU_S_SUCCESS) {
-            /* wait on the MMU fault event */
-            status = read(efd, &ret, sizeof(uint64_t));
-            /* unregister the event */
-            ProcMMU_registerEvent (procId, efd, FALSE);
-            status = PROCMGR_SUCCESS;
-        }
-        else {
-            GT_setFailureReason (curTrace,
-                                 GT_4CLASS,
-                                 "ProcMgr_waitForEvent",
-                                 status,
-                                 "MMU fault status registration failed!");
-            status = PROCMGR_E_FAIL;
-        }
-        ProcMMU_close (procId);
-        break;
-
-    case PROC_STOP:
-    case PROC_START:
-        cmdArgs.procId = procId;
-        cmdArgs.event = eventType;
-        cmdArgs.fd = efd;
-        status = ProcMgrDrvUsr_ioctl (CMD_PROCMGR_REGEVENT, &cmdArgs);
-        if (status == PROCMGR_SUCCESS) {
-            /* wait on the MMU fault event */
-            status = read(efd, &ret, sizeof(uint64_t));
-            /* unregister the event */
-            status = ProcMgrDrvUsr_ioctl (CMD_PROCMGR_UNREGEVENT, &cmdArgs);
-        }
-        break;
-
-    default:
-        status = PROCMGR_E_INVALIDARG;
-    }
-    close(efd);
+    status = ProcMgr_waitForMultipleEvents (procId, &eventType, 1,
+                                            timeout, &index);
 
     GT_1trace (curTrace, GT_LEAVE, "ProcMgr_waitForEvent", status);
 

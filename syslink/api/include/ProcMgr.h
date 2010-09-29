@@ -134,6 +134,12 @@ extern "C" {
 #define PROCMGR_E_TRANSLATE        PROCMGR_MAKE_FAILURE(8)
 
 /*!
+ *  @def    PROCMGR_E_TIMEOUT
+ *  @brief  The operation has timed out.
+ */
+#define PROCMGR_E_TIMEOUT          PROCMGR_MAKE_FAILURE(9)
+
+/*!
  *  @def    PROCMGR_SUCCESS
  *  @brief  Operation successful.
  */
@@ -560,6 +566,13 @@ Int ProcMgr_invalidateMemory (PVOID             bufAddr,
 Int ProcMgr_waitForEvent (ProcMgr_ProcId    procId,
                           ProcMgr_EventType eventType,
                           Int               timeout);
+
+/* Function to wait for multiple Events */
+Int ProcMgr_waitForMultipleEvents (ProcMgr_ProcId      procId,
+                                   ProcMgr_EventType * eventType,
+                                   UInt32              size,
+                                   Int                 timeout,
+                                   UInt *              index);
 
 /* Function to get the OMAP revision */
 Int ProcMgr_getCpuRev (UInt32 *cpuRev);
