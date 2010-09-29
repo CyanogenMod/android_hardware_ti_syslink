@@ -30,5 +30,5 @@ SUBDIRS  = \
 	tiler \
 	pwrmgmt \
 	interm3 \
-	mmufault \
+	event_listener \
 	dmm

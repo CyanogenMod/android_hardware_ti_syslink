@@ -40,7 +40,7 @@ SH_LIB_ARGS    =
 # shared library soname (SH_LIB): filename.so.maj_ver.min_ver
 # executable            (EXEC)  : filename.out
 
-TARGETNAME  = mmufault_listener
+TARGETNAME  = event_listener
 
 
 # TARGETTYPE must be EXEC, ST_LIB or SH_LIB in upper case.
@@ -60,7 +60,7 @@ SUBMODULES  = \
 # Filename must not begin with '.', '/' or '\'
 
 SOURCES     = \
-mmufault_listener.c
+event_listener.c
 
 # Search path for include files
 

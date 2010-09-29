@@ -65,7 +65,7 @@ rcm/multi_test \
 tiler \
 pwrmgmt \
 interm3 \
-mmufault \
+event_listener \
 dmm
 
 # Filename must not begin with '.', '/' or '\'
