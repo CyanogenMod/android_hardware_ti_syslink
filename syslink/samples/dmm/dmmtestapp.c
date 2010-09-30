@@ -23,7 +23,7 @@
  */
 
 
- /* OS-specific headers */
+/* OS-specific headers */
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -132,20 +132,19 @@ int ipcSetup(int proc_id)
 			goto exit;
 		}
 
-
-		Osal_printf ("ipcSetup: ProcMgr_open Status [0x%x]\n", status);
+		Osal_printf("ipcSetup: ProcMgr_open Status [0x%x]\n", status);
 		ProcMgr_getAttachParams(NULL, &attachParams);
 		/* Default params will be used if NULL is passed. */
-		status = ProcMgr_attach (proc_mgr_handle, &attachParams);
+		status = ProcMgr_attach(proc_mgr_handle, &attachParams);
 		if (status < 0) {
-			Osal_printf ("ipcSetup: ProcMgr_attach failed [0x%x]\n",
+			Osal_printf("ipcSetup: ProcMgr_attach failed [0x%x]\n",
 									status);
 		} else {
-			Osal_printf ("ipcSetup: ProcMgr_attach status: [0x%x]\n",
+			Osal_printf("ipcSetup: ProcMgr_attach status: [0x%x]\n",
 									status);
 			state = ProcMgr_getState(proc_mgr_handle);
-			Osal_printf ("ipcSetup: After attach: ProcMgr_getState\n"
-			             "    state [0x%x]\n", state);
+			Osal_printf("ipcSetup: After attach: ProcMgr_getState\n"
+						"state [0x%x]\n", state);
 		}
 	}
 
@@ -157,19 +156,19 @@ int ipcSetup(int proc_id)
 									status);
 			goto exit;
 		}
-		Osal_printf ("ipcSetup: ProcMgr_open Status [0x%x]\n", status);
+		Osal_printf("ipcSetup: ProcMgr_open Status [0x%x]\n", status);
 		ProcMgr_getAttachParams(NULL, &attachParams);
 		/* Default params will be used if NULL is passed. */
-		status = ProcMgr_attach (proc_mgr_handle1, &attachParams);
+		status = ProcMgr_attach(proc_mgr_handle1, &attachParams);
 		if (status < 0) {
-			Osal_printf ("ipcSetup: ProcMgr_attach failed [0x%x]\n",
+			Osal_printf("ipcSetup: ProcMgr_attach failed [0x%x]\n",
 									status);
 		} else {
-			Osal_printf ("ipcSetup: ProcMgr_attach status: [0x%x]\n",
+			Osal_printf("ipcSetup: ProcMgr_attach status: [0x%x]\n",
 									status);
 			state = ProcMgr_getState(proc_mgr_handle1);
-			Osal_printf ("ipcSetup: After attach: ProcMgr_getState\n"
-			             "    state [0x%x]\n", state);
+			Osal_printf("ipcSetup: After attach: ProcMgr_getState\n"
+						"    state [0x%x]\n", state);
 		}
 	}
 
@@ -260,7 +259,7 @@ int test_flushfailuretest(int size)
 {
 	void	*buf_ptr = 0;
 	int	err;
-	int 	tc_passed = 1;
+	int	tc_passed = 1;
 
 	buf_ptr = (void *)malloc(size);
 	err = ProcMgr_flushMemory(buf_ptr, size, PROC_SYSM3);
@@ -285,11 +284,10 @@ int test_flushfailuretest(int size)
 
 	free(buf_ptr);
 
-	if (tc_passed == 1) {
+	if (tc_passed == 1)
 		Osal_printf("Test passed!\n");
-	} else {
+	else
 		Osal_printf("Test failed!\n");
-	}
 
 	return 0;
 }
@@ -342,7 +340,8 @@ int test_mapbuffertest(int size, int num_of_buffers, bool unmap)
 		Osal_printf("MPU Address = 0x%x     Mapped Address = 0x%x,"
 				"size = 0x%x\n", mpuAddrList[0].mpuAddr,
 				mappedAddr, mpuAddrList[0].size);
-		Osal_printf("Mapped Base Address = 0x%x\n", mappedAddr & 0xfffff000);
+		Osal_printf("Mapped Base Address = 0x%x\n",
+						mappedAddr & 0xfffff000);
 		Osal_printf("Flushing mpuAddr 0x%x of size 0x%x\n",
 				mpuAddrList[0].mpuAddr, mpuAddrList[0].size);
 		ProcMgr_flushMemory(buf_ptr, size, PROC_SYSM3);
@@ -390,7 +389,7 @@ int test_usebuffer(int size, int iterations)
 	int				tiler_buf_length;
 	uint32_t			*dataPtr;
 	uint32_t			dummyMappedAddr;
-	int 				tc_passed = 1;
+	int				tc_passed = 1;
 
 	Osal_printf("Running Tiler use buffer test case\n");
 	/* allocate a remote command message */
@@ -489,9 +488,8 @@ int test_usebuffer(int size, int iterations)
 					count++;
 				}
 			}
-			if (count > 0) {
+			if (count > 0)
 				tc_passed  = 0;
-			}
 		}
 
 		/* Set the memory to some other value to avoid a
@@ -506,11 +504,10 @@ int test_usebuffer(int size, int iterations)
 		free(buf_ptr);
 	}
 
-	if (tc_passed == 1) {
+	if (tc_passed == 1)
 		Osal_printf("Test passed!\n");
-	} else {
+	else
 		Osal_printf("Test failed!\n");
-	}
 
 exit_nomem:
 	/* return message to the heap */
@@ -540,7 +537,7 @@ int test_iobuffertest(int size, int iterations)
 	uint32_t			ssptr;
 	uint32_t			*map_base;
 	int				fd;
-	int 				tc_passed = 1;
+	int				tc_passed = 1;
 
 	Osal_printf("Running IO Map use buffer test case\n");
 	Osal_printf("WARNING WARNING WARNING !\n");
@@ -626,9 +623,8 @@ int test_iobuffertest(int size, int iterations)
 					count++;
 				}
 			}
-			if (count > 0) {
+			if (count > 0)
 				tc_passed = 0;
-			}
 		}
 
 		/* Set the memory to some other value to avoid a
@@ -645,11 +641,10 @@ exit_mmap_fail:
 		TilerMgr_Close();
 	}
 
-	if (tc_passed == 1) {
+	if (tc_passed == 1)
 		Osal_printf("Test passed!\n");
-	} else {
+	else
 		Osal_printf("Test failed!\n");
-	}
 
 exit_nomem:
 	/* return message to the heap */
@@ -664,9 +659,10 @@ exit:
  *
  *  @param  size             Size of the buffer to Map
  *  @param  iterations       Number of iterations to run the test
+ *  @param  align            Alignment of user buffer(power of 2)
  *  @sa
  */
-int test_dmmbuffer(int size, int iterations)
+int test_dmmbuffer(int size, int iterations, int align)
 {
 	uint32_t *buf_ptr;
 	int map_size = size;
@@ -691,14 +687,25 @@ int test_dmmbuffer(int size, int iterations)
 	}
 
 	while (iterations-- > 0) {
-		Osal_printf("Calling malloc. Iteration %d\n", iterations);
+		Osal_printf("Calling memory allocator. Iteration %d\n",
+							iterations);
+		status = 0;
+		if (align) {
+#ifdef HAVE_POSIX_MEMALIGN
+			status = posix_memalign((void **)&buf_ptr, align,
+								map_size);
+#else
+			Osal_printf("memalign not supported, using malloc\n");
+			buf_ptr = (void *)malloc(map_size);
+#endif
+		} else
+			buf_ptr = (void *)malloc(map_size);
 
-		buf_ptr = (void *)malloc(map_size);
-		if (buf_ptr == NULL) {
-			Osal_printf("Error: malloc returned null.\n");
+		if (buf_ptr == NULL || status) {
+			Osal_printf("Error: memory allocator returned null.\n");
 			goto exit_nomem;
 		} else {
-			Osal_printf("malloc returned 0x%x.\n",
+			Osal_printf("memory allocator returned 0x%x.\n",
 						(uint32_t)buf_ptr);
 		}
 
@@ -751,9 +758,8 @@ int test_dmmbuffer(int size, int iterations)
 					count++;
 				}
 			}
-			if (count > 0) {
+			if (count > 0)
 				tc_passed = 0;
-			}
 		}
 
 		/* Set the memory to some other value to avoid a
@@ -766,11 +772,10 @@ int test_dmmbuffer(int size, int iterations)
 		free(buf_ptr);
 	}
 
-	if (tc_passed == 1) {
+	if (tc_passed == 1)
 		Osal_printf("Test passed!\n");
-	} else {
+	else
 		Osal_printf("Test failed!\n");
-	}
 
 exit_nomem:
 	/* return message to the heap */
@@ -795,38 +800,38 @@ int ipc_shutdown(int proc_id)
 	RcmClient_exit();
 
 	if (proc_id == PROC_APPM3) {
-		status =  ProcMgr_detach (proc_mgr_handle1);
-		Osal_printf ("DMMTEST CASE: ProcMgr_detach status [0x%x]\n",
+		status =  ProcMgr_detach(proc_mgr_handle1);
+		Osal_printf("DMMTEST CASE: ProcMgr_detach status [0x%x]\n",
 								status);
-		status = ProcMgr_close (&proc_mgr_handle1);
+		status = ProcMgr_close(&proc_mgr_handle1);
 		if (status < 0) {
-		    Osal_printf ("DMMTEST: Error in ProcMgr_close [0x%x]\n",
-		                    status);
+			Osal_printf("DMMTEST: Error in ProcMgr_close [0x%x]\n",
+								status);
 		} else {
-		    Osal_printf ("DMMTEST: ProcMgr_close status: [0x%x]\n",
-		                    status);
+			Osal_printf("DMMTEST: ProcMgr_close status: [0x%x]\n",
+								status);
 		}
-		ProcMgr_detach (proc_mgr_handle);
-		Osal_printf ("DMMTEST: ProcMgr_detach status [0x%x]\n", status);
+		ProcMgr_detach(proc_mgr_handle);
+		Osal_printf("DMMTEST: ProcMgr_detach status [0x%x]\n", status);
 
-		status = ProcMgr_close (&proc_mgr_handle);
+		status = ProcMgr_close(&proc_mgr_handle);
 	}
 
 	if (proc_id == PROC_SYSM3) {
-		status =  ProcMgr_detach (proc_mgr_handle);
-		Osal_printf ("DMMTEST CASE: ProcMgr_detach status [0x%x]\n",
+		status =  ProcMgr_detach(proc_mgr_handle);
+		Osal_printf("DMMTEST CASE: ProcMgr_detach status [0x%x]\n",
 								status);
-		status = ProcMgr_close (&proc_mgr_handle);
+		status = ProcMgr_close(&proc_mgr_handle);
 		if (status < 0) {
-		    Osal_printf ("DMMTEST: Error in ProcMgr_close [0x%x]\n",
-		                    status);
+			Osal_printf("DMMTEST: Error in ProcMgr_close [0x%x]\n",
+								status);
 		} else {
-		    Osal_printf ("DMMTEST: ProcMgr_close status: [0x%x]\n",
-		                    status);
+		    Osal_printf("DMMTEST: ProcMgr_close status: [0x%x]\n",
+								status);
 		}
 	}
 
-	status = Ipc_destroy ();
+	status = Ipc_destroy();
 
 	return status;
 }
@@ -883,8 +888,24 @@ int main(int argc, char *argv[])
 	Osal_printf("Running Test case %d\n", testNo);
 	switch (testNo) {
 	case DMM_BUFFER:
-		test_dmmbuffer(atoi(argv[3]), atoi(argv[4]));
+	{
+		int align;
+		int not_power_2;
+
+		if (argc < 6)
+			align = 0;
+		else {
+			align = atoi(argv[5]);
+			not_power_2 = align & (align-1);
+			if (not_power_2) {
+				Osal_printf("ERROR: Alignnment argument"
+					"should be power of 2\n");
+				break;
+			}
+		}
+		test_dmmbuffer(atoi(argv[3]), atoi(argv[4]), align);
 		break;
+	}
 	case USE_BUFFER:
 		test_usebuffer(atoi(argv[3]), atoi(argv[4]));
 		break;
@@ -910,7 +931,7 @@ exit:
 	if (!validArgs) {
 		Osal_printf("Test 1 - DMM buffer\n"
 				"\tUsage: ./dmm_daemontest.out 1 <Proc#> "
-				"<Buffer Size> <NumIterations>:\n");
+				"<Buffer Size> <NumIterations> <align>:\n");
 		Osal_printf("Test 2 - Tiler use buffer\n"
 				"\tUsage: ./dmm_daemontest.out 2 <Proc#> "
 				"<Buffer Size> <NumIterations>:\n");
