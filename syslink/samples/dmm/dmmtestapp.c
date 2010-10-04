@@ -69,7 +69,8 @@ enum {
 	FLUSH_BUFFER_NEG = 4,
 	MAP_NO_UNMAP = 5,
 	MAP_IO_BUFFER = 6,
-	DMM_TESTS_NUM = MAP_IO_BUFFER,
+	MMU_FAULT_1 = 7,
+	DMM_TESTS_NUM = MMU_FAULT_1,
 };
 /*!
  *  @brief  Structure defining RCM remote function arguments
@@ -785,6 +786,44 @@ exit:
 	return 0;
 }
 
+/*!
+ *  @brief  Function to generate MMU fault
+ *
+ *  @param  fault_addr  The address used to generate the fault
+ *
+ *  @sa
+ */
+void test_mmufault(unsigned int fault_addr, int opt)
+{
+	int status = 0;
+	RcmClient_Message *rcmMsg = NULL;
+	int rcmMsgSize;
+	RCM_Remote_FxnArgs *fxnArgs;
+
+	/* allocate a remote command message */
+	Osal_printf("Allocating RCM message\n");
+	rcmMsgSize = sizeof(RCM_Remote_FxnArgs);
+	status = RcmClient_alloc(rcm_client_handle, rcmMsgSize, &rcmMsg);
+	if (status < 0) {
+		Osal_printf("Error allocating RCM message\n");
+		goto exit;
+	}
+
+	/* fill in the remote command message */
+	rcmMsg->fxnIdx = fxn_buffer_test_idx;
+	fxnArgs = (RCM_Remote_FxnArgs *)(&rcmMsg->data);
+	fxnArgs->num_bytes = 0x1000;
+	fxnArgs->buf_ptr   = (Ptr)fault_addr;
+
+	Osal_printf("Attempting MMU fault at address 0x%x\n", fault_addr);
+
+	status = RcmClient_exec(rcm_client_handle, rcmMsg, &return_msg);
+	if (status == 0)
+		Osal_printf("Test failed: FAILED TO generate MMU fault\n");
+exit:
+	return;
+}
+
 int ipc_shutdown(int proc_id)
 {
 	int status = 0;
@@ -921,6 +960,13 @@ int main(int argc, char *argv[])
 	case MAP_IO_BUFFER:
 		test_iobuffertest(atoi(argv[3]), atoi(argv[4]));
 		break;
+	case MMU_FAULT_1:
+	{
+		unsigned int fault_address = 0x9A000000;
+
+		test_mmufault(fault_address, 0);
+		break;
+	}
 	default:
 		printf("Invalid Test case number\n");
 	}
@@ -947,6 +993,8 @@ exit:
 		Osal_printf("Test 6 - Map IO buffer Test:\n"
 				"\tUsage: ./dmm_daemontest.out 6 <Proc#> "
 				"<Buffer Size> <num_of_buffers>\n");
+		Osal_printf("Test 7 - MMU fault Test case:\n"
+				"\tUsage: ./dmm_daemontest.out 7 <Proc#>\n ");
 	}
 	return status;
 }
