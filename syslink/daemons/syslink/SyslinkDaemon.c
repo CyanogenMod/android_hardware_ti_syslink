@@ -65,8 +65,9 @@
 
 #define FAULT_RECOVERY_DELAY            500000
 
-#define CONTEXTBUFFERADD                0x9E0FC000;
-#define STACKBUFFERADD                  0x9E0FD000;
+#define CONTEXTBUFFERADD                0x9E0FC000
+#define STACKBUFFERADD                  0x9E0FD000
+#define STACKBUFFERSZE                  0x3000
 
 /*
  *  ======== MemMgrThreadFxn ========
@@ -105,7 +106,7 @@ static Void exc_dump_registers()
 {
     Int                 status;
     UInt32              i;
-    struct ExcContext   excContext;
+    volatile ExcContext * excContext;
     Memory_MapInfo      traceinfo;
     char              * ttype;
 
@@ -120,118 +121,62 @@ static Void exc_dump_registers()
         Osal_printf ("traceinfo.dst: %x   traceinfo.size: %x\n", traceinfo.dst, traceinfo.size);
     }
 
+
     /*Fill the Structure with data from memory*/
-    i = traceinfo.dst;
-    excContext.threadType = (BIOS_ThreadType) * ((volatile UInt32 *) i);
-    i = i + 4;
-    excContext.threadHandle = (Ptr) * ((volatile UInt32 *) i);
-    i = i + 4;
-    excContext.threadStack = (Ptr) * ((volatile UInt32 *) i);
-    i = i + 4;
-    excContext.threadStackSize = (size_t) * ((volatile UInt32 *) i);
-    i = i + 4;
-    excContext.r0 = (Ptr) * ((volatile UInt32 *) i);
-    i = i + 4;
-    excContext.r1 = (Ptr) * ((volatile UInt32 *) i);
-    i = i + 4;
-    excContext.r2 = (Ptr) * ((volatile UInt32 *) i);
-    i = i + 4;
-    excContext.r3 = (Ptr) * ((volatile UInt32 *) i);
-    i = i + 4;
-    excContext.r4 = (Ptr) * ((volatile UInt32 *) i);
-    i = i + 4;
-    excContext.r5 = (Ptr) * ((volatile UInt32 *) i);
-    i = i + 4;
-    excContext.r6 = (Ptr) * ((volatile UInt32 *) i);
-    i = i + 4;
-    excContext.r7 = (Ptr) * ((volatile UInt32 *) i);
-    i = i + 4;
-    excContext.r8 = (Ptr) * ((volatile UInt32 *) i);
-    i = i + 4;
-    excContext.r9 = (Ptr) * ((volatile UInt32 *) i);
-    i = i + 4;
-    excContext.r10 = (Ptr) * ((volatile UInt32 *) i);
-    i = i + 4;
-    excContext.r11 = (Ptr) * ((volatile UInt32 *) i);
-    i = i + 4;
-    excContext.r12 = (Ptr) * ((volatile UInt32 *) i);
-    i = i + 4;
-    excContext.sp = (Ptr) * ((volatile UInt32 *) i);
-    i = i + 4;
-    excContext.lr = (Ptr) * ((volatile UInt32 *) i);
-    i = i + 4;
-    excContext.pc = (Ptr) * ((volatile UInt32 *) i);
-    i = i + 4;
-    excContext.psr = (Ptr) * ((volatile UInt32 *) i);
-    i = i + 4;
-    excContext.ICSR = (Ptr) * ((volatile UInt32 *) i);
-    i = i + 4;
-    excContext.MMFSR = (Ptr) * ((volatile UInt32 *) i);
-    i = i + 4;
-    excContext.BFSR = (Ptr) * ((volatile UInt32 *) i);
-    i = i + 4;
-    excContext.UFSR = (Ptr) * ((volatile UInt32 *) i);
-    i = i + 4;
-    excContext.HFSR = (Ptr) * ((volatile UInt32 *) i);
-    i = i + 4;
-    excContext.DFSR = (Ptr) * ((volatile UInt32 *) i);
-    i = i + 4;
-    excContext.MMAR = (Ptr) * ((volatile UInt32 *) i);
-    i = i + 4;
-    excContext.BFAR = (Ptr) * ((volatile UInt32 *) i);
-    i = i + 4;
-    excContext.AFSR = (Ptr) * ((volatile UInt32 *) i);
+    excContext = (volatile ExcContext *) traceinfo.dst;
 
     Osal_printf ("\n================================\n");
     Osal_printf ("==========CONTEXT DUMP==========\n");
     Osal_printf ("================================\n");
 
-    switch (excContext.threadType) {
+    switch (excContext->threadType) {
     case BIOS_ThreadType_Task:
-          ttype = "Task";
-          break;
-      case BIOS_ThreadType_Swi:
-          ttype = "Swi";
-          break;
-      case BIOS_ThreadType_Hwi:
-          ttype = "Hwi";
-          break;
-      case BIOS_ThreadType_Main:
-          ttype = "Main";
-          break;
+        ttype = "Task";
+        break;
+    case BIOS_ThreadType_Swi:
+        ttype = "Swi";
+        break;
+    case BIOS_ThreadType_Hwi:
+        ttype = "Hwi";
+        break;
+    case BIOS_ThreadType_Main:
+        ttype = "Main";
+        break;
+    default:
+        ttype = "Unknown_thread";
     }
 
     Osal_printf ("Exception occurred in ThreadType_%s.\n", ttype);
-    Osal_printf ("%s handle: 0x%x.\n", ttype, excContext.threadHandle);
-    Osal_printf ("%s stack base: 0x%x.\n", ttype, excContext.threadStack);
-    Osal_printf ("%s stack size: 0x%x.\n", ttype, excContext.threadStackSize);
-    Osal_printf ("R0 = %08x  R8  = %08x\n", excContext.r0, excContext.r8);
-    Osal_printf ("R1 = %08x  R9  = %08x\n", excContext.r1, excContext.r9);
-    Osal_printf ("R2 = %08x  R10 = %08x\n", excContext.r2, excContext.r10);
-    Osal_printf ("R3 = %08x  R11 = %08x\n", excContext.r3, excContext.r11);
-    Osal_printf ("R4 = %08x  R12 = %08x\n", excContext.r4, excContext.r12);
-    Osal_printf ("R5 = %08x  SP  = %08x\n", excContext.r5, excContext.sp);
-    Osal_printf ("R6 = %08x  LR  = %08x\n", excContext.r6, excContext.lr);
-    Osal_printf ("R7 = %08x  PC  = %08x\n", excContext.r7, excContext.pc);
-    Osal_printf ("PSR = %08x\n", excContext.psr);
-    Osal_printf ("ICSR = %08x\n", excContext.ICSR);
-    Osal_printf ("MMFSR = %02x\n", excContext.MMFSR);
-    Osal_printf ("BFSR = %02x\n", excContext.BFSR);
-    Osal_printf ("UFSR = %04x\n", excContext.UFSR);
-    Osal_printf ("HFSR = %08x\n", excContext.HFSR);
-    Osal_printf ("DFSR = %08x\n", excContext.DFSR);
-    Osal_printf ("MMAR = %08x\n", excContext.MMAR);
-    Osal_printf ("BFAR = %08x\n", excContext.BFAR);
-    Osal_printf ("AFSR = %08x\n", excContext.AFSR);
+    Osal_printf ("%s handle: 0x%x.\n", ttype, excContext->threadHandle);
+    Osal_printf ("%s stack base: 0x%x.\n", ttype, excContext->threadStack);
+    Osal_printf ("%s stack size: 0x%x.\n", ttype, excContext->threadStackSize);
+    Osal_printf ("R0 = %08x  R8  = %08x\n", excContext->r0, excContext->r8);
+    Osal_printf ("R1 = %08x  R9  = %08x\n", excContext->r1, excContext->r9);
+    Osal_printf ("R2 = %08x  R10 = %08x\n", excContext->r2, excContext->r10);
+    Osal_printf ("R3 = %08x  R11 = %08x\n", excContext->r3, excContext->r11);
+    Osal_printf ("R4 = %08x  R12 = %08x\n", excContext->r4, excContext->r12);
+    Osal_printf ("R5 = %08x  SP  = %08x\n", excContext->r5, excContext->sp);
+    Osal_printf ("R6 = %08x  LR  = %08x\n", excContext->r6, excContext->lr);
+    Osal_printf ("R7 = %08x  PC  = %08x\n", excContext->r7, excContext->pc);
+    Osal_printf ("PSR = %08x\n", excContext->psr);
+    Osal_printf ("ICSR = %08x\n", excContext->ICSR);
+    Osal_printf ("MMFSR = %02x\n", excContext->MMFSR);
+    Osal_printf ("BFSR = %02x\n", excContext->BFSR);
+    Osal_printf ("UFSR = %04x\n", excContext->UFSR);
+    Osal_printf ("HFSR = %08x\n", excContext->HFSR);
+    Osal_printf ("DFSR = %08x\n", excContext->DFSR);
+    Osal_printf ("MMAR = %08x\n", excContext->MMAR);
+    Osal_printf ("BFAR = %08x\n", excContext->BFAR);
+    Osal_printf ("AFSR = %08x\n", excContext->AFSR);
     Osal_printf ("\n");
 
     traceinfo.src = STACKBUFFERADD;
-    if (traceinfo.size > 0x2FFC) {
+    if (traceinfo.size > STACKBUFFERSZE - 4) {
         Osal_printf ("ERROR: Stack size larger than allocated space. Limiting to 12KB\n");
-        traceinfo.size = 0x2FFC;
+        traceinfo.size = STACKBUFFERSZE;
     }
 
-    traceinfo.size = excContext.threadStackSize + 4;
+    traceinfo.size = excContext->threadStackSize + 4;
     status = Memory_map (&traceinfo);
 
     if (status!= MEMORYOS_SUCCESS) {

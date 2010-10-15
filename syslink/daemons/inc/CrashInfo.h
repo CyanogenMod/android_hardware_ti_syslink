@@ -32,16 +32,16 @@ typedef enum {
 /*!
  *  Exception Context - Register contents at the time of an exception.
  */
-struct ExcContext {
+typedef struct {
     /* Thread Context */
-    BIOS_ThreadType threadType; /* Type of thread executing at */
-                                /* the time the exception occurred */
-    Ptr     threadHandle;       /* Handle to thread executing at */
-                                /* the time the exception occurred */
-    Ptr     threadStack;        /* Address of stack contents of thread */
-                                /* executing at the time the exception */
-                                /* occurred */
-    size_t   threadStackSize;    /* size of thread stack */
+    BIOS_ThreadType threadType;     /* Type of thread executing at */
+                                    /* the time the exception occurred */
+    Ptr             threadHandle;   /* Handle to thread executing at */
+                                    /* the time the exception occurred */
+    Ptr             threadStack;    /* Address of stack contents of thread */
+                                    /* executing at the time the exception */
+                                    /* occurred */
+    size_t          threadStackSize;/* size of thread stack */
 
     /* Internal Registers */
     Ptr     r0;
@@ -72,4 +72,4 @@ struct ExcContext {
     Ptr     MMAR;
     Ptr     BFAR;
     Ptr     AFSR;
-};
+} ExcContext;
