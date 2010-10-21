@@ -435,6 +435,12 @@ ProcMMU_init (UInt32 aPhyAddr, Int proc)
 
     GT_1trace (curTrace, GT_ENTER, "ProcMMU_init", aPhyAddr);
 
+    status = ProcMgr_getCpuRev (&cpuRev);
+    if (status < 0) {
+        Osal_printf ("Error in deciding the OMAP Revision [0x%x]\n", status);
+        goto error_exit;
+    }
+
     if (proc == MultiProc_getId ("Tesla")) {
         numL4Entries = (sizeof(L4MapDsp) / sizeof(struct Mmu_entry));
         numL3MemEntries = sizeof(L3MemoryRegionsDsp) /
@@ -444,17 +450,18 @@ ProcMMU_init (UInt32 aPhyAddr, Int proc)
         physAddr = TESLA_BASEIMAGE_PHYSICAL_ADDRESS;
     }
     else {
-        numL4Entries = (sizeof(L4Map) / sizeof(struct Mmu_entry));
+        if (cpuRev == OMAP4_REV_ES1_0) {
+            numL4Entries = (sizeof(L4Map_1) / sizeof(struct Mmu_entry));
+            L4regions = (struct Mmu_entry *)L4Map_1;
+        }
+        else {
+            numL4Entries = (sizeof(L4Map) / sizeof(struct Mmu_entry));
+            L4regions = (struct Mmu_entry *)L4Map;
+        }
         numL3MemEntries = sizeof(L3MemoryRegions) /
                       sizeof(struct Memory_entry);
-        L4regions = (struct Mmu_entry *)L4Map;
         L3regions = (struct Memory_entry *)L3MemoryRegions;
         physAddr = DUCATI_BASEIMAGE_PHYSICAL_ADDRESS;
-    }
-    status = ProcMgr_getCpuRev (&cpuRev);
-    if (status < 0) {
-        Osal_printf ("Error in deciding the OMAP Revision [0x%x]\n", status);
-        goto error_exit;
     }
 
     Osal_printf ("\n  Programming proc %d MMU using linear address \n", proc);

@@ -190,6 +190,9 @@ extern "C" {
 #define DUCATI_PERIPHERAL_L4PER         0xA8000000
 #define TESLA_PERIPHERAL_L4PER          0x48000000
 
+#define L4_PERIPHERAL_L4EMU             0x54000000
+#define DUCATI_PERIPHERAL_L4EMU         0xB4000000
+
 #define L4_PERIPHERAL_L4ABE             0x49000000
 #define DUCATI_PERIPHERAL_L4ABE         0xA9000000
 #define TESLA_PERIPHERAL_L4ABE          0x49000000
@@ -202,17 +205,20 @@ extern "C" {
 #define DUCATI_IVAHD_SL2                0xBB000000
 #define TELSA_IVAHD_SL2                 0xBB000000
 
-#define L3_TILER_MODE0_1_ADDR           0x60000000
-#define DUCATI_TILER_MODE0_1_ADDR       0x60000000
-#define DUCATI_TILER_MODE0_1_LEN        0x10000000
-#define TESLA_TILER_MODE0_1_ADDR        0x60000000
-#define TESLA_TILER_MODE0_1_LEN         0x10000000
+#define L3_TILER_MODE_0_1_ADDR          0x60000000
+#define DUCATI_TILER_MODE_0_1_ADDR      0x60000000
+#define DUCATI_TILER_MODE_0_1_LEN       0x10000000
+#define TESLA_TILER_MODE_0_1_ADDR       0x60000000
+#define TESLA_TILER_MODE_0_1_LEN        0x10000000
 
-#define L3_TILER_MODE3_ADDR             0x78000000
-#define DUCATI_TILER_MODE3_ADDR         0x78000000
-#define DUCATI_TILER_MODE3_LEN          0x8000000
-#define TESLA_TILER_MODE3_ADDR          0x78000000
-#define TESLA_TILER_MODE3_LEN           0x8000000
+#define L3_TILER_MODE_2_ADDR            0x70000000
+#define DUCATI_TILER_MODE_2_ADDR        0x70000000
+
+#define L3_TILER_MODE_3_ADDR            0x78000000
+#define DUCATI_TILER_MODE_3_ADDR        0x78000000
+#define DUCATI_TILER_MODE_3_LEN         0x8000000
+#define TESLA_TILER_MODE_3_ADDR         0x78000000
+#define TESLA_TILER_MODE_3_LEN          0x8000000
 
 #define DUCATI_BOOTVECS_UNUSED_ADDR     0x1000
 #define DUCATI_BOOTVECS_UNUSED_LEN      0x3000
@@ -433,10 +439,33 @@ struct ProcMMU_VaPool_entry {
 /* OMAP4430 SDC definitions */
 static const struct Mmu_entry L4Map[] = {
     /* TILER 8-bit and 16-bit modes */
-    {L3_TILER_MODE0_1_ADDR, DUCATI_TILER_MODE0_1_ADDR,
+    {L3_TILER_MODE_0_1_ADDR, DUCATI_TILER_MODE_0_1_ADDR,
         (PAGE_SIZE_16MB * 16)},
-    /* TILER: Pages-mode */
-    {L3_TILER_MODE3_ADDR, DUCATI_TILER_MODE3_ADDR,
+    /* TILER 32-bit mode */
+    {L3_TILER_MODE_2_ADDR, DUCATI_TILER_MODE_2_ADDR,
+        (PAGE_SIZE_16MB * 8)},
+    /* TILER: Page-mode */
+    {L3_TILER_MODE_3_ADDR, DUCATI_TILER_MODE_3_ADDR,
+        (PAGE_SIZE_16MB * 8)},
+    /*  L4_CFG: Covers all modules in L4_CFG 16MB*/
+    {L4_PERIPHERAL_L4CFG, DUCATI_PERIPHERAL_L4CFG, PAGE_SIZE_16MB},
+    /*  L4_PER: Covers all modules in L4_PER 16MB*/
+    {L4_PERIPHERAL_L4PER, DUCATI_PERIPHERAL_L4PER, PAGE_SIZE_16MB},
+    /* IVA_HD Config: Covers all modules in IVA_HD Config space 16MB */
+    {L3_IVAHD_CONFIG, DUCATI_IVAHD_CONFIG, PAGE_SIZE_16MB},
+    /* IVA_HD SL2: Covers all memory in IVA_HD SL2 space 16MB */
+    {L3_IVAHD_SL2, DUCATI_IVAHD_SL2, PAGE_SIZE_16MB},
+    /* L4_EMU: to enable STM*/
+    {L4_PERIPHERAL_L4EMU, DUCATI_PERIPHERAL_L4EMU, PAGE_SIZE_16MB},
+};
+
+/* OMAP4430 SDC definitions */
+static const struct Mmu_entry L4Map_1[] = {
+    /* TILER 8-bit and 16-bit modes */
+    {L3_TILER_MODE_0_1_ADDR, DUCATI_TILER_MODE_0_1_ADDR,
+        (PAGE_SIZE_16MB * 16)},
+    /* TILER: Page-mode */
+    {L3_TILER_MODE_3_ADDR, DUCATI_TILER_MODE_3_ADDR,
         (PAGE_SIZE_16MB * 8)},
     /*  L4_CFG: Covers all modules in L4_CFG 16MB*/
     {L4_PERIPHERAL_L4CFG, DUCATI_PERIPHERAL_L4CFG, PAGE_SIZE_16MB},
@@ -463,10 +492,10 @@ static const struct  Memory_entry L3MemoryRegions[] = {
 /* OMAP4430 SDC definitions */
 static const struct Mmu_entry L4MapDsp[] = {
     /* TILER 8-bit and 16-bit modes */
-    {L3_TILER_MODE0_1_ADDR, TESLA_TILER_MODE0_1_ADDR,
+    {L3_TILER_MODE_0_1_ADDR, TESLA_TILER_MODE_0_1_ADDR,
         (PAGE_SIZE_16MB * 16)},
-    /* TILER: Pages-mode */
-    {L3_TILER_MODE3_ADDR, TESLA_TILER_MODE3_ADDR,
+    /* TILER: Page-mode */
+    {L3_TILER_MODE_3_ADDR, TESLA_TILER_MODE_3_ADDR,
         (PAGE_SIZE_16MB * 8)},
     /*  L4_CFG: Covers all modules in L4_CFG 16MB*/
     {L4_PERIPHERAL_L4CFG, TESLA_PERIPHERAL_L4CFG, PAGE_SIZE_16MB},
