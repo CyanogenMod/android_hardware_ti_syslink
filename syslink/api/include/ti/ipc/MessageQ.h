@@ -269,6 +269,12 @@ extern "C" {
  */
 #define MessageQ_E_CANNOTFREESTATICMSG  -18
 
+/*!
+ *  @def    MessageQ_E_UNBLOCKED
+ *  @brief  Operation is successful.
+ */
+#define MessageQ_E_UNBLOCKED            -20
+
 
 /* =============================================================================
  * Macros
@@ -722,6 +728,34 @@ Void MessageQ_setReplyQueue(MessageQ_Handle handle, MessageQ_Msg msg);
  *  @param      traceFlag   Message trace flag
  */
 Void MessageQ_setMsgTrace(MessageQ_Msg msg, Bool traceFlag);
+
+/*!
+ *  @brief      Unblocks a MessageQ
+ *
+ *  Unblocks a reader thread that is blocked on a MessageQ_get.  The
+ *  MessageQ_get call will return with status #MessageQ_E_UNBLOCKED indicating
+ *  that it returned due to a MessageQ_unblock rather than a timeout or a
+ *  received message.  This call should only be used during a shutdown sequence
+ *  in order to ensure that there is no blocked reader on a queue before
+ *  deleting the queue.  A queue may not be used after it has been unblocked.
+ *
+ *  MessageQ_unblock works by raising a flag in the queue indicating that it
+ *  is unblocked and then signaling the synchronizer that is configured with
+ *  the target queue.  If MessageQ_unblock is called upon a queue that has
+ *  no blocked listeners, then any subsequent MessageQ_get will not block and
+ *  will immediately return MessageQ_E_UNBLOCKED regardless of whether there
+ *  is a message on the queue.
+ *
+ *  Restrictions:
+ *  -  A queue may not be used after it has been unblocked.
+ *  -  MessageQ_unblock may only be called on a local queue.
+ *  -  May only be used with a queue configured with a blocking synchronizer.
+ *
+ *  @param[in]  handle      MessageQ handle
+ *
+ *  @sa         MessageQ_get
+ */
+Void MessageQ_unblock(MessageQ_Handle handle);
 
 #if defined (__cplusplus)
 }

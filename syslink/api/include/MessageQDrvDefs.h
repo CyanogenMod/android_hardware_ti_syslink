@@ -84,7 +84,8 @@ enum messageq_drv_cmd {
     MESSAGEQ_ATTACH,
     MESSAGEQ_DETACH,
     MESSAGEQ_GET,
-    MESSAGEQ_SHAREDMEMREQ
+    MESSAGEQ_SHAREDMEMREQ,
+    MESSAGEQ_UNBLOCK
 };
 
 /*  ----------------------------------------------------------------------------
@@ -217,6 +218,12 @@ enum messageq_drv_cmd {
                                         MESSAGEQ_SHAREDMEMREQ,                 \
                                         MessageQDrv_CmdArgs)
 
+/*!
+ *  @brief  Command for MessageQ_unblock
+ */
+#define CMD_MESSAGEQ_UNBLOCK            _IOWR(MESSAGEQ_IOC_MAGIC,              \
+                                        MESSAGEQ_UNBLOCK,                      \
+                                        MessageQDrv_CmdArgs)
 
 /*  ----------------------------------------------------------------------------
  *  Command arguments for MessageQ
@@ -310,6 +317,10 @@ typedef struct MessageQDrv_CmdArgs_Tag {
         struct {
             UInt16                remoteProcId;
         } detach;
+
+        struct {
+            Ptr                   handle;
+        } unblock;
     } args;
 
     Int32 apiStatus;
