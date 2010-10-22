@@ -474,7 +474,7 @@ ProcMMU_init (UInt32 aPhyAddr, Int proc)
 
         virtAddr = L3regions[i].virtAddr;
         if (proc != MultiProc_getId ("Tesla") && cpuRev != OMAP4_REV_ES1_0
-                && i >= 3) {
+                && i > 3) {
             status = ProcMMU_Map (physAddr, &virtAddr, 1, L3regions[i].size, -1,
                                                         DMM_DA_PHYS, proc);
             physAddr += L3regions[i].size;
