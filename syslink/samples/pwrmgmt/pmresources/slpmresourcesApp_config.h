@@ -42,6 +42,8 @@ extern "C" {
 #define DSP_MESSAGEQNAME            "MsgQ2"
 #define ARM_MESSAGEQNAME            "MsgQ3"
 
+#define WAIT_DUCATI_SAVE_CONTEXT    1u
+
 
 #if defined (__cplusplus)
 }

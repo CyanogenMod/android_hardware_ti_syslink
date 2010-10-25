@@ -401,6 +401,9 @@ SlpmResources_execute (Int testNo)
             if (i==5) {
                 status = ProcMgr_control (slpmResources_procMgrHandle,
                                           PM_SUSPEND, NULL);
+                /* Delay is needed when hibernation is enabled to simulate*/
+                /* the behavior in the System Suspend-Resume path*/
+                sleep (WAIT_DUCATI_SAVE_CONTEXT);
                 status = ProcMgr_control (slpmResources_procMgrHandle,
                                           PM_RESUME, NULL);
             }
