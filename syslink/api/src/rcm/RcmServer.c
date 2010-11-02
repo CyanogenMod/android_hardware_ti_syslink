@@ -920,11 +920,11 @@ _RcmServer_Instance_finalize (RcmServer_Object * obj)
             msgqMsg = &packet->msgqHeader;
             rval = MessageQ_put (MessageQ_getReplyQueue (msgqMsg), msgqMsg);
             if (rval < 0) {
-                GT_setFailureReason (curTrace,
-                                     GT_4CLASS,
-                                     "_RcmServer_Instance_finalize",
-                                     rval,
-                                     "Unable to return msg back to client!");
+                GT_2trace (curTrace,
+                           GT_4CLASS,
+                           "_RcmServer_Instance_finalize: Unable to return "
+                           "msg 0x%x from job stream 0x%x back to Client",
+                           rval, job->jobId);
             }
         }
 
@@ -1014,7 +1014,28 @@ _RcmServer_Instance_finalize (RcmServer_Object * obj)
         }
         List_destruct (&(poolAry [i].threadList));
 
-        /* TODO make sure there are no messages on the queue */
+        /* Return any remaining messages on the readyQueue */
+        msgQueH = &(poolAry [i].readyQueue);
+
+        while ((elem = List_get (msgQueH)) != NULL) {
+            packet = (RcmClient_Packet *)elem;
+            GT_2trace (curTrace,
+                       GT_3CLASS,
+                       "_RcmServer_Instance_finalize: Returning unprocessed "
+                       "message, msgId = 0x%x, packet = 0x%x",
+                       packet->msgId, packet);
+            _RcmServer_setStatusCode (packet, RcmServer_Status_Unprocessed);
+            msgqMsg = &packet->msgqHeader;
+            rval = MessageQ_put (MessageQ_getReplyQueue (msgqMsg), msgqMsg);
+            if (rval < 0) {
+                GT_2trace (curTrace,
+                           GT_4CLASS,
+                           "_RcmServer_Instance_finalize: Unable to return "
+                           "msg 0x%x from pool 0x%x back to Client",
+                           rval, packet->message.poolId);
+            }
+        }
+
         List_destruct (&(poolAry [i].readyQueue));
     }
 
@@ -1064,6 +1085,7 @@ _RcmServer_Instance_finalize (RcmServer_Object * obj)
         status = pthread_join (obj->serverThread, NULL);
     }
 
+    /* TODO: Handle unprocessed messages in the serverQue */
     if (obj->serverQue != NULL) {
         status = MessageQ_delete (&(obj->serverQue));
         if (status < 0) {
@@ -2208,7 +2230,15 @@ _RcmServer_serverThrFxn (IArg arg)
                        GT_1CLASS,
                        "_RcmServer_serverThrFxn terminating thread = 0x%x",
                        (IArg)(obj->serverThread));
-            continue;
+            if (msgqMsg == NULL ) {
+                continue;
+            }
+            else {
+                /* TODO: Decide whether to terminate without processing the
+                 *       message. Currently, will process the message and then
+                 *       terminate
+                 */
+            }
         }
 
         packet = (RcmClient_Packet *)msgqMsg;
@@ -2297,6 +2327,7 @@ _RcmServer_workerThrFxn (IArg arg)
     RcmServer_WorkerThread    * obj;
     Bool                        running;
     Int                         rval;
+    Int                         rval1;
 
     GT_1trace (curTrace, GT_ENTER, "_RcmServer_workerThrFxn", arg);
 
@@ -2336,15 +2367,12 @@ _RcmServer_workerThrFxn (IArg arg)
         }
 
         /* Get next message from ready queue */
-        if (packet == NULL)
-            packet = (RcmClient_Packet *)List_get (readyQueueH);
-
+        packet = (RcmClient_Packet *)List_get (readyQueueH);
         if (packet == NULL) {
-            GT_setFailureReason (curTrace,
-                                 GT_4CLASS,
-                                 "_RcmServer_workerThrFxn",
-                                 obj->thread,
-                                 "Ready queue is empty!");
+            GT_1trace (curTrace,
+                       GT_2CLASS,
+                       "_RcmServer_workerThrFxn: Ready queue is empty "
+                       " worker thread = 0x%x", (IArg) obj->thread);
             continue;
         }
 
@@ -2391,7 +2419,7 @@ _RcmServer_workerThrFxn (IArg arg)
             /* Found the job object */
             listH = &job->msgQue;
 
-            /* Get next job message and either process it or queue it */
+            /* Get next job message and queue it */
             do {
                 elem = List_get (listH);
                 if (elem == NULL) {
@@ -2417,10 +2445,10 @@ _RcmServer_workerThrFxn (IArg arg)
                         }
                         packet->message.result = rval;
 
-                        rval = MessageQ_put (
+                        rval1 = MessageQ_put (
                                 MessageQ_getReplyQueue (&packet->msgqHeader),
                                 &packet->msgqHeader);
-                        if (rval < 0) {
+                        if (rval1 < 0) {
                             GT_setFailureReason (curTrace,
                                                  GT_4CLASS,
                                                  "_RcmServer_workerThrFxn",
@@ -2429,10 +2457,12 @@ _RcmServer_workerThrFxn (IArg arg)
                                                  "back to the client!");
                         }
                     }
-                    /* If addressed to different pool, then queue the msg */
-                    else if (pool != obj->pool) {
+                    /* Packet is valid, queue it in the corresponding pool's
+                     * ready queue */
+                    else {
                         listH = &pool->readyQueue;
                         List_put (listH, elem);
+                        packet = NULL;
                         rval = OsalSemaphore_post (pool->sem);
                         if (rval < 0) {
                             GT_setFailureReason (curTrace,
@@ -2443,7 +2473,7 @@ _RcmServer_workerThrFxn (IArg arg)
                         }
                     }
 
-                    /* packet points to message, loop around and process it */
+                    /* Loop around and wait to be run again */
                 }
             } while (rval < 0);
 
