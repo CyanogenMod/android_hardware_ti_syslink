@@ -530,7 +530,7 @@ leave:
  */
 Int RcmClient_delete (RcmClient_Handle * handlePtr)
 {
-    RcmClient_Object  * obj    = (RcmClient_Object *)(*handlePtr);
+    RcmClient_Object  * obj    = NULL;
     Int                 status = RcmClient_S_SUCCESS;
 
     GT_0trace (curTrace, GT_ENTER, "RcmClient_delete");
@@ -564,6 +564,7 @@ Int RcmClient_delete (RcmClient_Handle * handlePtr)
     }
 
     /* Finalize the object */
+    obj    = (RcmClient_Object *)(*handlePtr);
     status = _RcmClient_Instance_finalize (obj);
 
     Memory_free (NULL, (RcmClient_Object *)*handlePtr,
@@ -694,7 +695,7 @@ Int RcmClient_Params_init (RcmClient_Params * params)
  */
 Int RcmClient_acquireJobId (RcmClient_Handle handle, UInt16 * jobIdPtr)
 {
-    RcmClient_Message * msg;
+    RcmClient_Message * msg             = NULL;
     RcmClient_Packet  * packet;
     MessageQ_Msg        msgqMsg;
     UInt16              msgId;
@@ -1639,7 +1640,7 @@ leave:
  */
 Int RcmClient_releaseJobId (RcmClient_Handle handle, UInt16 jobId)
 {
-    RcmClient_Message * msg;
+    RcmClient_Message * msg             = NULL;
     RcmClient_Packet  * packet;
     MessageQ_Msg        msgqMsg;
     UInt16              msgId;
