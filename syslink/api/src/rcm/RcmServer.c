@@ -889,7 +889,7 @@ _RcmServer_Instance_finalize (RcmServer_Object * obj)
     obj->shutdown = TRUE;
 
     if (obj->serverThread != 0) {
-        /* TODO: MessageQ_unblock(obj->serverQue);*/
+        MessageQ_unblock (obj->serverQue);
         status = pthread_join (obj->serverThread, NULL);
         if (status < 0) {
             status = RcmServer_E_FAIL;
@@ -2209,10 +2209,8 @@ _RcmServer_serverThrFxn (IArg arg)
 
         /* Block until message arrives */
         do {
-            status = MessageQ_get(obj->serverQue, &msgqMsg, 1000);
-            /* TODO: rval = MessageQ_get (obj->serverQue, &msgqMsg,
-                                            MESSAGEQ_FOREVER); */
-            if ((status < 0) && (status != MessageQ_E_TIMEOUT)) {
+            status = MessageQ_get (obj->serverQue, &msgqMsg, MessageQ_FOREVER);
+            if ((status < 0) && (status != MessageQ_E_UNBLOCKED)) {
                 GT_setFailureReason (curTrace,
                                      GT_4CLASS,
                                      "_RcmServer_serverThrFxn",
