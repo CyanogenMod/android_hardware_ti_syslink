@@ -50,6 +50,7 @@
 #include <sys/stat.h>
 #include <semaphore.h>
 #include <pthread.h>
+
 /* OSAL & Utils headers */
 #include <OsalPrint.h>
 #include <Memory.h>
@@ -721,19 +722,30 @@ Int main (Int argc, Char * argv [])
         restart = FALSE;
 
         status = ipcSetup (argv[1], (argc == 2) ? NULL : argv[2]);
-        if(status < 0) {
+        if (status < 0) {
             Osal_printf ("ipcSetup failed!\n");
+            sem_destroy (&semDaemonWait);
             return (-1);
         }
         Osal_printf ("ipcSetup succeeded!\n");
 
         /* Create the MMU fault handler thread */
         Osal_printf ("Create MMU fault handler thread.\n");
-        pthread_create (&mmu_fault_handle, NULL,
-                            (Void *)&mmu_fault_handler, NULL);
+        mmu_fault_handle = NULL;
+        status = pthread_create (&mmu_fault_handle, NULL,
+                                    (Void *)&mmu_fault_handler, NULL);
+        if (status) {
+                Osal_printf ("Error Creating thread:%d\n", status);
+                ipcCleanup ();
+                sem_destroy (&semDaemonWait);
+                exit(EXIT_FAILURE);
+        }
 
         /* wait for commands */
         sem_wait (&semDaemonWait);
+
+        /* Wait for thread termination */
+        pthread_join (mmu_fault_handle, NULL);
 
         /* IPC_Cleanup function*/
         ipcCleanup ();
