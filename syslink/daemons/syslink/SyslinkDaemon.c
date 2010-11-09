@@ -235,6 +235,7 @@ static Void mmu_fault_handler (Void)
 static Void signal_handler (Int sig)
 {
     Osal_printf ("\nexiting from the syslink daemon\n ");
+    pthread_kill (mmu_fault_handle, SIGKILL);
     sem_post(&semDaemonWait);
 }
 
@@ -744,8 +745,9 @@ Int main (Int argc, Char * argv [])
         /* wait for commands */
         sem_wait (&semDaemonWait);
 
-        /* Wait for thread termination */
-        pthread_join (mmu_fault_handle, NULL);
+        /* Wait for thread termination when recovering*/
+        if (restart)
+                pthread_join (mmu_fault_handle, NULL);
 
         /* IPC_Cleanup function*/
         ipcCleanup ();
