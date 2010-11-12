@@ -136,15 +136,15 @@ ProcMgrDrvUsr_open (Void)
         if (ProcMgrDrvUsr_handle < 0)
             perror ("ProcMgr driver open: " PROCMGR_DRIVER_NAME);
 
-        ProcDrvTesla_handle = open (PROCTESLA_DRIVER_NAME, O_SYNC | O_RDWR);
+        ProcDrvTesla_handle = open (PROCTESLA_DRIVER_NAME, O_RDONLY);
         if (ProcDrvTesla_handle < 0)
             perror ("ProcMgr driver open: " PROCTESLA_DRIVER_NAME);
 
-        ProcDrvSysM3_handle = open (PROCSYSM3_DRIVER_NAME, O_SYNC | O_RDWR);
+        ProcDrvSysM3_handle = open (PROCSYSM3_DRIVER_NAME, O_RDONLY);
         if (ProcDrvSysM3_handle < 0)
             perror ("ProcMgr driver open: " PROCSYSM3_DRIVER_NAME);
 
-        ProcDrvAppM3_handle = open (PROCAPPM3_DRIVER_NAME, O_SYNC | O_RDWR);
+        ProcDrvAppM3_handle = open (PROCAPPM3_DRIVER_NAME, O_RDONLY);
         if (ProcDrvAppM3_handle < 0)
             perror ("ProcMgr driver open: " PROCAPPM3_DRIVER_NAME);
 

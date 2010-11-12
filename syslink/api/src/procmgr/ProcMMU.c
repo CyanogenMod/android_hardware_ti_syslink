@@ -629,7 +629,7 @@ ProcMMU_open (Int proc)
 
     if (proc == MultiProc_getId("Tesla")){
         ProcMMU_DSP_handle = open (PROC_MMU_DSP_DRIVER_NAME,
-                                    O_SYNC | O_RDWR);
+                                    O_RDONLY);
         if (ProcMMU_DSP_handle < 0) {
             perror ("ProcMgr driver open: " PROC_MMU_DSP_DRIVER_NAME);
             /*! @retval PROCMGR_E_OSFAILURE Failed to open ProcMgr driver with
@@ -644,7 +644,7 @@ ProcMMU_open (Int proc)
     }
     else {
         ProcMMU_MPU_M3_handle = open (PROC_MMU_MPU_M3_DRIVER_NAME,
-                                        O_SYNC | O_RDWR);
+                                        O_RDONLY);
         if (ProcMMU_MPU_M3_handle < 0) {
             perror ("ProcMgr driver open: " PROC_MMU_MPU_M3_DRIVER_NAME);
             status = ProcMMU_E_OSFAILURE;
