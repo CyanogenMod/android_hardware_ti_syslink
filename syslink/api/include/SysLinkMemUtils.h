@@ -72,6 +72,15 @@ typedef struct {
  * =============================================================================
  */
 
+Ptr
+SysLinkMemUtils_DAtoVA (Ptr da);
+
+Int32
+SysLinkMemUtils_alloc (UInt32 dataSize, UInt32 *data);
+
+Int32
+SysLinkMemUtils_free (UInt32 dataSize, UInt32 *data);
+
 Int
 SysLinkMemUtils_map (SyslinkMemUtils_MpuAddrToMap mpuAddrList[],
                      UInt32                       numOfBuffers,
