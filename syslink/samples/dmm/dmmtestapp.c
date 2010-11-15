@@ -77,7 +77,8 @@ enum {
 	COPY_BUFFER = 8,
 	DMM_FILE_COPY = 9,
 	DMM_FILE_TILER_COPY = 10,
-	DMM_TESTS_NUM = DMM_FILE_TILER_COPY
+	COPY_BUFFER_RANGE  = 11,
+	DMM_TESTS_NUM = COPY_BUFFER_RANGE
 };
 /*!
  *  @brief  Structure defining RCM remote function arguments
@@ -922,6 +923,56 @@ exit:
 
 
 /*!
+ *  @brief  Function to compare contents of two buffers.
+ *
+ *  @param  src_ptr          Pointer to the source buffer.
+ *  @param  dest_ptr         Pointer to the destination buffer.
+ *  @param  size             Size of the buffers.
+ *  @param  max_errors       Maximum number of errors to report.
+ *  @sa
+ *
+ *  This function reports difference between the source and destination
+ *  buffers.
+ */
+int buffer_compare(uint32_t *src_ptr, uint32_t *dest_ptr, unsigned int size,
+			int max_errors)
+{
+	uint8_t *src_byte_ptr = (uint8_t *)src_ptr;
+	uint8_t *dest_byte_ptr = (uint8_t *)dest_ptr;
+	unsigned int i;
+	int count = 0;
+
+	/* Compare buffers in word size chunks. */
+	for (i = 0; i < size/sizeof(uint32_t) && count < max_errors; i++) {
+		if (dest_ptr[i] != src_ptr[i]) {
+			Osal_printf("ERROR: Data mismatch at offset"
+				"0x%x\n", i * sizeof(uint32_t));
+			Osal_printf("\tExpected: [0x%x]\tActual:"
+				"[0x%x]\n", src_ptr[i],
+				dest_ptr[i]);
+			count++;
+		}
+	}
+
+	/* Continue comparison for any remaining bytes. */
+	for (i *= sizeof(uint32_t); i < size && count < max_errors; i++) {
+		if (dest_byte_ptr[i] != src_byte_ptr[i]) {
+			Osal_printf("ERROR: Data mismatch at offset"
+				"0x%x\n", i);
+			Osal_printf("\tExpected: [0x%x]\tActual:"
+				"[0x%x]\n", src_byte_ptr[i],
+				dest_byte_ptr[i]);
+			count++;
+		}
+	}
+
+	if (count > 0)
+		return 0;
+	return 1;
+}
+
+
+/*!
  *  @brief  Function to validate buffer copy functionality.
  *
  *  @param  size             Size of the buffer to Map
@@ -1060,20 +1111,10 @@ int test_buffercopy_test(int size, int iterations)
 			tc_passed = 0;
 			goto loop_exit;
 		}
-		for (i = 0; i < map_size/sizeof(uint32_t) &&
-					count < MAX_ERRORS; i++) {
-			if (dest_ptr[i] != src_ptr[i]) {
-				Osal_printf("ERROR: Data mismatch at"
-					"offset"
-					"0x%x\n", i * sizeof(uint32_t));
-				Osal_printf("\tExpected: [0x%x]\tActual:"
-					"[0x%x]\n", src_ptr[i],
-					dest_ptr[i]);
-				count++;
-			}
-		}
-		if (count > 0)
-			tc_passed = 0;
+
+		tc_passed = buffer_compare(src_ptr, dest_ptr, map_size,
+						MAX_ERRORS);
+
 loop_exit:
 		if (mapped_src)
 			SysLinkMemUtils_unmap(mapped_src, PROC_SYSM3);
@@ -1094,6 +1135,45 @@ exit:
 
 	return tc_passed;
 }
+
+
+/*!
+ *  @brief  Function to validate buffer copy functionality with
+ *          multiple buffer sizes.
+ *
+ *  @param  start_size       Staring size of the buffer to Map
+ *  @param  size_inc         Step size to increase buffer size
+ *  @param  max_size         Maximum size of buffer
+ *  @param  iterations       Number of transfers per buffer
+ *  @sa
+ *
+ *  This validates copying the content of one user buffer
+ */
+int test_buffercopy_sizerange_test(int start_size, int size_inc,
+					int max_size, int iterations)
+{
+	int size;
+	int status = 1;
+
+	Osal_printf("test_buffercopy_multitest: starting with size %d,"
+		" size increment %d, max size %d\n",
+		start_size, size_inc, max_size);
+
+	if (start_size <= 0 || start_size > max_size || size_inc > max_size ||
+		size_inc <= 0) {
+		Osal_printf("test_buffercopy_multitest: Invalid argument.\n");
+		return 0;
+	}
+
+	for (size = start_size; size <= max_size && status != 0;
+			size += size_inc) {
+		Osal_printf("Testing buffer size %d\n", size);
+		status = test_buffercopy_test(size, iterations);
+	}
+
+	return status;
+}
+
 
 /*!
 *  @brief  Function to validate file copy using DMM
@@ -1238,19 +1318,8 @@ int test_dmm_filecopy(char *infile, char *outfile, unsigned int map_size)
 			goto loop_exit;
 		}
 
-		for (i = 0; i < read_bytes/sizeof(uint32_t) &&
-					count < MAX_ERRORS; i++) {
-			if (dest_ptr[i] != src_ptr[i]) {
-				Osal_printf("ERROR: Data mismatch at offset"
-					"0x%x\n", i * sizeof(uint32_t));
-				Osal_printf("\tExpected: [0x%x]\tActual:"
-					"[0x%x]\n", src_ptr[i], dest_ptr[i]);
-				count++;
-			}
-		}
-		if (count > 0)
-			tc_passed = 0;
-
+		tc_passed = buffer_compare(src_ptr, dest_ptr, read_bytes,
+								MAX_ERRORS);
 		write(out_file, (void *)dest_ptr, read_bytes);
 
 loop_exit:
@@ -1445,18 +1514,8 @@ int test_dmm_filecopy_tiler(char *infile, char *outfile, unsigned int map_size)
 			goto loop_exit;
 		}
 
-		for (i = 0; i < read_bytes/sizeof(uint32_t) &&
-					count < MAX_ERRORS; i++) {
-			if (dest_ptr[i] != src_ptr[i]) {
-				Osal_printf("ERROR: Data mismatch at offset"
-					"0x%x\n", i * sizeof(uint32_t));
-				Osal_printf("\tExpected: [0x%x]\tActual:"
-					"[0x%x]\n", src_ptr[i], dest_ptr[i]);
-				count++;
-			}
-		}
-		if (count > 0)
-			tc_passed = 0;
+		tc_passed = buffer_compare(src_ptr, dest_ptr, read_bytes,
+								MAX_ERRORS);
 
 		write(out_file, (void *)dest_ptr, read_bytes);
 loop_exit:
@@ -1651,6 +1710,12 @@ int main(int argc, char *argv[])
 		tc_passed = test_dmm_filecopy_tiler(argv[3], argv[4], map_size);
 		break;
 	}
+	case COPY_BUFFER_RANGE:
+	{
+		tc_passed = test_buffercopy_sizerange_test(ATOI(argv[3]),
+			ATOI(argv[4]), ATOI(argv[5]), ATOI(argv[6]));
+		break;
+	}
 	default:
 		Osal_printf("Invalid Test case number.\n");
 	}
@@ -1693,7 +1758,11 @@ exit:
 		Osal_printf("Test 10 - File copy using Tiler test:\n"
 				"\tUsage: ./dmm_daemontest.out 10 <Proc#> "
 				"<src file path> <dest file path> "
-				"[<copy_buf_size_in_page_boundary>]\n");
+				"<copy_buf_size_in_page_boundary>\n");
+		Osal_printf("Test 11 - Buffer copy test over a range of buffer "
+				"sizes:\n\tUsage: ./dmm_daemontest.out 11 "
+				"<Proc#> <Min buf size> <Size increment> "
+				"<Max buf size> <Iterations per size>\n");
 	}
 
 	if (tc_passed == 1 && status == 0) {
