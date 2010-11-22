@@ -152,7 +152,7 @@ extern "C" {
  *  @brief  ProcMgr Module state object
  */
 typedef struct ProcMgr_ModuleObject_tag {
-    UInt32         setupRefCount;
+    Int32          setupRefCount;
     /*!< Reference count for number of times setup/destroy were called in this
          process. */
     ProcMgr_Handle procHandles [MultiProc_MAXPROCESSORS];
@@ -312,51 +312,68 @@ ProcMgr_setup (ProcMgr_Config * cfg)
 
     GT_1trace (curTrace, GT_ENTER, "ProcMgr_setup", cfg);
 
-    /* TBD: Protect from multiple threads. */
-    ProcMgr_state.setupRefCount++;
-    /* This is needed at runtime so should not be in SYSLINK_BUILD_OPTIMIZE. */
-    if (ProcMgr_state.setupRefCount > 1) {
-        /*! @retval PROCMGR_S_ALREADYSETUP Success: ProcMgr module has been
-                                           already setup in this process */
-        status = PROCMGR_S_ALREADYSETUP;
-        GT_1trace (curTrace,
-                   GT_1CLASS,
-                   "    ProcMgr_setup: ProcMgr module has been already setup "
-                   "in this process.\n"
-                   "        RefCount: [%d]\n",
-                   (ProcMgr_state.setupRefCount - 1));
+    GT_assert (curTrace, (cfg != NULL));
+
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+    if (cfg == NULL) {
+        status = PROCMGR_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "ProcMgr_setup",
+                             status,
+                             "Argument of type (ProcMgr_Config *) passed "
+                             "is null!");
     }
     else {
-        /* Set all handles to NULL -- in order for destroy() to work */
-        for (i = 0 ; i < MultiProc_MAXPROCESSORS ; i++) {
-            ProcMgr_state.procHandles [i] = NULL;
-        }
-
-        /* Open the driver handle. */
-        status = ProcMgrDrvUsr_open ();
-#if !defined(SYSLINK_BUILD_OPTIMIZE)
-        if (status < 0) {
-            GT_setFailureReason (curTrace,
-                                 GT_4CLASS,
-                                 "ProcMgr_setup",
-                                 status,
-                                 "Failed to open driver handle!");
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+        /* TBD: Protect from multiple threads. */
+        ProcMgr_state.setupRefCount++;
+        /* This is needed at runtime so should not be in SYSLINK_BUILD_OPTIMIZE. */
+        if (ProcMgr_state.setupRefCount > 1) {
+            /*! @retval PROCMGR_S_ALREADYSETUP Success: ProcMgr module has been
+              already setup in this process */
+            status = PROCMGR_S_ALREADYSETUP;
+            GT_1trace (curTrace,
+                       GT_1CLASS,
+                       "    ProcMgr_setup: ProcMgr module has been already setup "
+                       "in this process.\n"
+                       "        RefCount: [%d]\n",
+                       (ProcMgr_state.setupRefCount - 1));
         }
         else {
-#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-            cmdArgs.cfg = cfg;
-            status = ProcMgrDrvUsr_ioctl (CMD_PROCMGR_SETUP, &cmdArgs);
+            /* Set all handles to NULL -- in order for destroy() to work */
+            for (i = 0 ; i < MultiProc_MAXPROCESSORS ; i++) {
+                ProcMgr_state.procHandles [i] = NULL;
+            }
+
+            /* Open the driver handle. */
+            status = ProcMgrDrvUsr_open ();
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
             if (status < 0) {
                 GT_setFailureReason (curTrace,
                                      GT_4CLASS,
                                      "ProcMgr_setup",
                                      status,
-                                     "API (through IOCTL) failed on kernel-side!");
+                                     "Failed to open driver handle!");
             }
-        }
+            else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+                cmdArgs.cfg = cfg;
+                status = ProcMgrDrvUsr_ioctl (CMD_PROCMGR_SETUP, &cmdArgs);
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+                if (status < 0) {
+                    GT_setFailureReason (curTrace,
+                                         GT_4CLASS,
+                                         "ProcMgr_setup",
+                                         status,
+                                         "API (through IOCTL) failed on kernel-side!");
+                }
+            }
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+        }
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
     }
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
 
     GT_1trace (curTrace, GT_LEAVE, "ProcMgr_setup", status);
 
@@ -385,7 +402,16 @@ ProcMgr_destroy (Void)
     /* TBD: Protect from multiple threads. */
     ProcMgr_state.setupRefCount--;
     /* This is needed at runtime so should not be in SYSLINK_BUILD_OPTIMIZE. */
-    if (ProcMgr_state.setupRefCount >= 1) {
+    if (ProcMgr_state.setupRefCount < 0) {
+        status = PROCMGR_E_INVALIDSTATE;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "ProcMgr_destroy",
+                             status,
+                             "ProcMgr module not setup");
+
+    }
+    else if (ProcMgr_state.setupRefCount >= 1) {
         /*! @retval PROCMGR_S_SETUP Success: ProcMgr module has been setup
                                              by other clients in this process */
         status = PROCMGR_S_SETUP;
@@ -962,19 +988,20 @@ ProcMgr_open (ProcMgr_Handle * handlePtr, UInt16 procId)
         *handlePtr = (ProcMgr_Handle) handle;
         /* TBD: Leave critical section protection. */
         /* Gate_leave (ProcMgr_state.gateHandle, key); */
+
+        /* Open handle to MMU */
+        status = ProcMMU_open (procId);
+        if (status < 0) {
+            GT_setFailureReason (curTrace,
+                                 GT_4CLASS,
+                                 "ProcMgr_open",
+                                 status,
+                                 "ProcMMU_open failed!");
+        }
+
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
     }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-
-    /* Open handle to MMU */
-    status = ProcMMU_open (procId);
-    if (status < 0) {
-        GT_setFailureReason (curTrace,
-                             GT_4CLASS,
-                             "ProcMgr_open",
-                             status,
-                             "ProcMMU_open failed!");
-    }
 
     GT_1trace (curTrace, GT_LEAVE, "ProcMgr_open", status);
 
@@ -1102,20 +1129,20 @@ ProcMgr_close (ProcMgr_Handle * handlePtr)
         }
         /* TBD: Leave critical section protection. */
         /* Gate_leave (ProcMgr_state.gateHandle, key); */
+
+        if (procId != MultiProc_INVALIDID) {
+            status = ProcMMU_close (procId);
+            if (status < 0) {
+                GT_setFailureReason (curTrace,
+                                     GT_4CLASS,
+                                     "ProcMgr_close",
+                                     status,
+                                     "ProcMMU_close failed!");
+            }
+        }
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
     }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-
-    if (procId != MultiProc_INVALIDID) {
-        status = ProcMMU_close (procId);
-        if (status < 0) {
-            GT_setFailureReason (curTrace,
-                                 GT_4CLASS,
-                                 "ProcMgr_close",
-                                 status,
-                                 "ProcMMU_close failed!");
-        }
-    }
 
     GT_1trace (curTrace, GT_LEAVE, "ProcMgr_close", status);
 
