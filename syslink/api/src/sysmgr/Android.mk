@@ -12,6 +12,7 @@ IpcDrv.c \
 ../procmgr/ProcMgrDrvUsr.c \
 ../procmgr/SysLinkMemUtils.c \
 ../procmgr/ProcMMU.c \
+../procmgr/ProcDEH.c \
 ../procmgr/procmgr4430/omap4430proc.c \
 ../procmgr/procmgr4430/omap4430procDrvUsr.c \
 ../procmgr/elfload/arm_dynamic.c \

@@ -88,6 +88,7 @@ SOURCES     = \
 ProcMgr.c \
 ProcMgrDrvUsr.c \
 ProcMMU.c \
+ProcDEH.c \
 SysLinkMemUtils.c \
 elfload/arm_dynamic.c \
 elfload/c60_dynamic.c \

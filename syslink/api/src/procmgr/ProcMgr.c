@@ -124,6 +124,7 @@
 #include <_Ipc.h>
 #include <ProcMMU.h>
 #include <ProcMgr.h>
+#include <ProcDEH.h>
 
 #if defined (__cplusplus)
 extern "C" {
@@ -999,6 +1000,16 @@ ProcMgr_open (ProcMgr_Handle * handlePtr, UInt16 procId)
                                  "ProcMMU_open failed!");
         }
 
+        /* Open handle to DEH */
+        status = ProcDEH_open (procId);
+        if (status < 0) {
+             GT_setFailureReason (curTrace,
+                                  GT_4CLASS,
+                                  "ProcMgr_open",
+                                  status,
+                                  "ProcDEH_open failed!");
+        }
+
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
     }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
@@ -1140,6 +1151,18 @@ ProcMgr_close (ProcMgr_Handle * handlePtr)
                                      "ProcMMU_close failed!");
             }
         }
+
+        if (procId != MultiProc_INVALIDID) {
+            status = ProcDEH_close (procId);
+             if (status < 0) {
+                 GT_setFailureReason (curTrace,
+                                      GT_4CLASS,
+                                      "ProcMgr_close",
+                                      status,
+                                      "ProcDEH_close failed!");
+            }
+        }
+
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
     }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
@@ -3231,6 +3254,7 @@ ProcMgr_waitForMultipleEvents (ProcMgr_ProcId      procId,
     Int                     i;
     Int                     max = 0;
     Bool                    mmuEventUsed = FALSE;
+    Bool                    dehEventUsed = FALSE;
     ProcMgr_CmdArgsRegEvent cmdArgs;
 
     GT_5trace (curTrace, GT_ENTER, "ProcMgr_waitForMultipleEvents", procId,
@@ -3245,7 +3269,7 @@ ProcMgr_waitForMultipleEvents (ProcMgr_ProcId      procId,
                              status,
                              "Invalid value provided for argument size");
     }
-    else if (!index) {
+    else if (index == NULL) {
         status = PROCMGR_E_INVALIDARG;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
@@ -3287,6 +3311,19 @@ ProcMgr_waitForMultipleEvents (ProcMgr_ProcId      procId,
                     }
                     mmuEventUsed = TRUE;
                 }
+                if (eventType [i] == PROC_ERROR && !dehEventUsed) {
+                    status = ProcDEH_open (procId);
+                    if (status < 0) {
+                        status = PROCMGR_E_FAIL;
+                        GT_setFailureReason (curTrace,
+                                             GT_4CLASS,
+                                             "ProcMgr_waitForMultipleEvents",
+                                             status,
+                                             "Error in ProcDEH_open");
+                        break;
+                    }
+                    dehEventUsed = TRUE;
+                }
                 efd [i] = eventfd (0, 0);
                 if (efd [i] == -1) {
                     status = PROCMGR_E_FAIL;
@@ -3310,6 +3347,16 @@ ProcMgr_waitForMultipleEvents (ProcMgr_ProcId      procId,
                     cmdArgs.event = eventType [i];
                     cmdArgs.fd = efd [i];
                     status = ProcMgrDrvUsr_ioctl (CMD_PROCMGR_REGEVENT, &cmdArgs);
+                    break;
+
+                case PROC_ERROR:
+                    status = ProcDEH_registerEvent (procId, efd [i], TRUE);
+                    if (status == ProcDEH_S_SUCCESS) {
+                        status = PROCMGR_SUCCESS;
+                    }
+                    else {
+                        status = PROCMGR_E_FAIL;
+                    }
                     break;
 
                 default:
@@ -3345,13 +3392,21 @@ ProcMgr_waitForMultipleEvents (ProcMgr_ProcId      procId,
                     *index = i;
                     if (eventType [i] == PROC_MMU_FAULT) {
                         ProcMMU_registerEvent (procId, efd [i], FALSE);
-                    } else {
+                    }
+                    else if (eventType [i] == PROC_ERROR) {
+                        ProcDEH_registerEvent (procId, efd [i], FALSE);
+                    }
+                    else {
                         cmdArgs.event = eventType [i];
                         cmdArgs.fd = efd [i];
                         ProcMgrDrvUsr_ioctl (CMD_PROCMGR_UNREGEVENT, &cmdArgs);
                     }
                 }
                 close (efd [i]);
+            }
+
+            if (dehEventUsed) {
+                ProcDEH_close (procId);
             }
 
             if (mmuEventUsed) {
