@@ -463,34 +463,27 @@ exit:
  */
 int test_usebuffer(int size, int iterations)
 {
-	uint32_t			*buf_ptr;
+	uint32_t			*buf_ptr = NULL;
 	int				map_size;
 	SyslinkMemUtils_MpuAddrToMap	mpuAddrList[1];
-	uint32_t			mappedAddr;
+	uint32_t			mappedAddr = 0;
 	int				status;
 	unsigned int			i;
 	RcmClient_Message		*rcmMsg = NULL;
 	int				rcmMsgSize;
-	RCM_Remote_FxnArgs		*fxnArgs;
+	RCM_Remote_FxnArgs		*fxnArgs = NULL;
 	int				count = 0;
-	void				*tilVaPtr;
+	void				*tilVaPtr = NULL;
 	MemAllocBlock			block;
 	int				tiler_buf_length;
-	uint32_t			*dataPtr;
-	uint32_t			dummyMappedAddr;
+	uint32_t			*dataPtr = NULL;
+	uint32_t			dummyMappedAddr = 0;
 	int				tc_passed = 1;
 
 	Osal_printf("Running Tiler use buffer test case\n");
-	/* allocate a remote command message */
-	Osal_printf("Allocating RCM message\n");
-	rcmMsgSize = sizeof(RCM_Remote_FxnArgs);
-	status = RcmClient_alloc(rcm_client_handle, rcmMsgSize, &rcmMsg);
-	if (status < 0) {
-		Osal_printf("Error allocating RCM message\n");
-		tc_passed = 0;
-		goto exit;
-	}
 
+	/* in case of error, cleanup will work */
+	return_msg = NULL;
 	tiler_buf_length = (size + DMMTEST_PAGE_SIZE - 1)
 					& ~(DMMTEST_PAGE_SIZE - 1);
 	map_size = tiler_buf_length + DMMTEST_PAGE_SIZE - 1;
@@ -522,13 +515,19 @@ int test_usebuffer(int size, int iterations)
 			"= 0x%x\n", (uint32_t)tilVaPtr, tiler_buf_length);
 		if (tilVaPtr == NULL) {
 			tc_passed = 0;
-			goto exit_nomem;
+			goto exit_alloc;
 		}
 
 		mpuAddrList[0].mpuAddr = (uint32_t)tilVaPtr;
 		mpuAddrList[0].size = tiler_buf_length;
 		status = SysLinkMemUtils_map(mpuAddrList, 1, &mappedAddr,
 					ProcMgr_MapType_Tiler, PROC_SYSM3);
+		if (status < 0) {
+			Osal_printf("Error mapping buffer\n");
+			tc_passed = 0;
+			goto exit_alloc;
+		}
+
 		Osal_printf("MPU Address = 0x%x     Mapped Address = 0x%x,"
 				"size = 0x%x\n", mpuAddrList[0].mpuAddr,
 				mappedAddr, mpuAddrList[0].size);
@@ -540,6 +539,12 @@ int test_usebuffer(int size, int iterations)
 		mpuAddrList[0].size = map_size;
 		status = SysLinkMemUtils_map(mpuAddrList, 1, &dummyMappedAddr,
 					ProcMgr_MapType_Virt, PROC_SYSM3);
+		if (status < 0) {
+			Osal_printf("Error mapping (#2) buffer\n");
+			tc_passed = 0;
+			goto exit_memmap;
+		}
+
 		/* Do actual test here */
 		for (i = 0; i < tiler_buf_length/sizeof(uint32_t); i++) {
 			dataPtr[i] = 0;
@@ -555,6 +560,17 @@ int test_usebuffer(int size, int iterations)
 		}
 		ProcMgr_flushMemory(dataPtr, tiler_buf_length, PROC_SYSM3);
 
+		/* allocate a remote command message */
+		Osal_printf("Allocating RCM message\n");
+		rcmMsgSize = sizeof(RCM_Remote_FxnArgs);
+		status = RcmClient_alloc(rcm_client_handle, rcmMsgSize, &rcmMsg);
+		if (status < 0) {
+			Osal_printf("Error allocating RCM message\n");
+			tc_passed = 0;
+			goto exit_rcm_fail;
+		}
+		return_msg = rcmMsg;
+
 		/* fill in the remote command message */
 		rcmMsg->fxnIdx = fxn_buffer_test_idx;
 		fxnArgs = (RCM_Remote_FxnArgs *)(&rcmMsg->data);
@@ -565,6 +581,7 @@ int test_usebuffer(int size, int iterations)
 		if (status < 0) {
 			Osal_printf(" RcmClient_execerror.\n");
 			tc_passed = 0;
+			goto exit_rcm_fail;
 		} else {
 			/* Check the buffer data */
 			Osal_printf("Testing data...\n");
@@ -596,17 +613,30 @@ int test_usebuffer(int size, int iterations)
 		for (i = 0; i < tiler_buf_length/sizeof(uint32_t); i++)
 			buf_ptr[i] = 0xdeadbeef;
 
-		SysLinkMemUtils_unmap(mappedAddr, PROC_SYSM3);
+exit_rcm_fail:
+		if (return_msg) {
+			RcmClient_free(rcm_client_handle, return_msg);
+			return_msg = NULL;
+		}
+
 		SysLinkMemUtils_unmap(dummyMappedAddr, PROC_SYSM3);
-		MemMgr_UnMap(tilVaPtr);
-		free(buf_ptr);
+exit_memmap:
+		SysLinkMemUtils_unmap(mappedAddr, PROC_SYSM3);
+exit_alloc:
+		if (tilVaPtr) {
+			MemMgr_UnMap(tilVaPtr);
+			tilVaPtr = NULL;
+		}
+		if (buf_ptr) {
+			free(buf_ptr);
+			buf_ptr = NULL;
+		}
 	}
 
-exit_nomem:
+
 	/* return message to the heap */
 	Osal_printf("Calling RcmClient_free\n");
-	RcmClient_free(rcm_client_handle, return_msg);
-exit:
+
 	return tc_passed;
 }
 
@@ -631,6 +661,8 @@ int test_iobuffertest(int size, int iterations)
 	uint32_t			*map_base;
 	int				fd;
 	int				tc_passed = 1;
+	int 				tiler_width;
+	int				tiler_height;
 
 	Osal_printf("Running IO Map use buffer test case\n");
 	Osal_printf("WARNING WARNING WARNING !\n");
@@ -638,26 +670,27 @@ int test_iobuffertest(int size, int iterations)
 			"for dynamic mapping and unmapping. Restart the\n "
 			"Syslink daemon if you want to run any Tiler related"
 			"Tests after this test!\n");
-	/* allocate a remote command message */
-	Osal_printf("Allocating RCM message\n");
-	rcmMsgSize = sizeof(RCM_Remote_FxnArgs);
-	status = RcmClient_alloc(rcm_client_handle, rcmMsgSize, &rcmMsg);
-	if (status < 0) {
-		Osal_printf("Error allocating RCM message\n");
-		tc_passed  = 0;
-		goto exit;
+
+	/* calculate an image size to approximately represent the buffer size */
+	tiler_width = 16384;
+	tiler_height = size/tiler_width + 1;
+	if (tiler_height == 1) {
+		tiler_width = size;
 	}
 
-	while (iterations-- > 0 && tc_passed != 0) {
+	/* in case of error, cleanup will work */
+	return_msg = NULL;
 
+
+	while (iterations-- > 0 && tc_passed != 0) {
 		TilerMgr_Open();
 		Osal_printf("Calling tilerAlloc.\n");
-		ssptr = TilerMgr_Alloc(PIXEL_FMT_8BIT, size, 1);
+		ssptr = TilerMgr_Alloc(PIXEL_FMT_8BIT, tiler_width, tiler_height);
 		if (ssptr == 0) {
 			Osal_printf("Error: tilerAlloc returned null.\n");
 			status = -1;
 			tc_passed = 0;
-			goto exit_nomem;
+			goto exit;
 		}
 
 		fd = open("/dev/mem", O_RDWR|O_SYNC);
@@ -672,7 +705,9 @@ int test_iobuffertest(int size, int iterations)
 			}
 		} else {
 			Osal_printf("FAILED opening /dev/mem...continue\n");
-			continue;
+			fd = -1;
+			tc_passed = 0;
+			goto exit_mmap_fail;
 		}
 
 		for (i = 0; i < size/sizeof(uint32_t); i++) {
@@ -691,9 +726,25 @@ int test_iobuffertest(int size, int iterations)
 		mpuAddrList[0].size = size;
 		status = SysLinkMemUtils_map(mpuAddrList, 1, &mappedAddr,
 					ProcMgr_MapType_Virt, PROC_SYSM3);
+		if (status < 0) {
+			Osal_printf("Error allocating RCM message\n");
+			tc_passed = 0;
+			goto exit_memmap_fail;
+		}
+
 		Osal_printf("MPU Address = 0x%x     Mapped Address = 0x%x,"
 					"size = 0x%x\n", mpuAddrList[0].mpuAddr,
 					mappedAddr, mpuAddrList[0].size);
+
+		/* allocate a remote command message */
+		rcmMsgSize = sizeof(RCM_Remote_FxnArgs);
+		status = RcmClient_alloc(rcm_client_handle, rcmMsgSize, &rcmMsg);
+		if (status < 0) {
+			Osal_printf("Error allocating RCM message\n");
+			tc_passed  = 0;
+			goto exit_rcm_fail;
+		}
+		return_msg = rcmMsg;
 
 		/* fill in the remote command message */
 		rcmMsg->fxnIdx = fxn_buffer_test_idx;
@@ -705,6 +756,7 @@ int test_iobuffertest(int size, int iterations)
 		if (status < 0) {
 			Osal_printf(" RcmClient_execerror.\n");
 			tc_passed = 0;
+			goto exit_rcm_fail;
 		} else {
 			/* Check the buffer data */
 			Osal_printf("Testing data\n");
@@ -731,18 +783,22 @@ int test_iobuffertest(int size, int iterations)
 		for (i = 0; i < size/sizeof(uint32_t); i++)
 			map_base[i] = 0xdeadbeef;
 
+exit_rcm_fail:
+		if (return_msg) {
+			RcmClient_free(rcm_client_handle, return_msg);
+			return_msg = NULL;
+		}
+
 		SysLinkMemUtils_unmap(mappedAddr, PROC_SYSM3);
+exit_memmap_fail:
 		munmap(map_base, size);
 exit_mmap_fail:
-		close(fd);
+		if (fd >= 0)
+			close(fd);
 		TilerMgr_Free(ssptr);
 		TilerMgr_Close();
 	}
 
-exit_nomem:
-	/* return message to the heap */
-	Osal_printf("Calling RcmClient_free\n");
-	RcmClient_free(rcm_client_handle, return_msg);
 exit:
 	return tc_passed;
 }
