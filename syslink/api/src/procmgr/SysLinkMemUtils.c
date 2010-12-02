@@ -548,7 +548,7 @@ SysLinkMemUtils_free (UInt32 dataSize, UInt32 * data)
 {
     FreeArgs  * args    = (FreeArgs *)data;
     Ptr         ua;
-    Int32       status  = PROCMGR_SUCCESS;
+    Int32       status;
 
     GT_2trace (curTrace, GT_ENTER, (Char *)__func__, dataSize, data);
 
@@ -564,13 +564,22 @@ SysLinkMemUtils_free (UInt32 dataSize, UInt32 * data)
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
     }
     else {
-        SysLinkMemUtils_unmap ((UInt32)ua, PROC_SYSM3);
-        MemMgr_Free (ua);
+        status = SysLinkMemUtils_unmap ((UInt32)ua, PROC_SYSM3);
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+        if (status < 0) {
+            GT_setFailureReason (curTrace,
+                                 GT_4CLASS,
+                                 (Char *)__func__,
+                                 status,
+                                 "SysLinkMemUtils_unmap failed!");
+        }
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+        status = MemMgr_Free (ua);
     }
 
     GT_1trace (curTrace, GT_LEAVE, (Char *)__func__, status);
 
-    return status;
+    return !!status;
 }
 
 
