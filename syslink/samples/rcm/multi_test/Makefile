@@ -34,7 +34,7 @@ CFLAGS += -DSYSLINK_USE_LOADER
 
 LIBS = -lipcutils -lsyslinknotify -lipc -lprocmgr -lrcm -lpthread -lrt
 LIBS += -lsysmgr
-MEMMGRLIBS = -lmemmgr
+MEMMGRLIBS = -ltimemmgr
 
 all: rcm_multitest.out rcm_multithreadtest.out rcm_multiclienttest.out rcm_daemontest.out
 

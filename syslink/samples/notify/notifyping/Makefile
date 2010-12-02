@@ -24,7 +24,7 @@ CFLAGS=-Wall -g -O2 $(INCLUDE) -finline-functions -D$(PROCFAMILY) $(LDFLAGS)
 
 LIBS = -lsyslinknotify -lipcutils -lipc -lprocmgr
 SYSMGRLIBS = -lprocmgr -lsysmgr
-MEMMGRLIBS = -lmemmgr
+MEMMGRLIBS = -ltimemmgr
 
 all: notifyping.out
 

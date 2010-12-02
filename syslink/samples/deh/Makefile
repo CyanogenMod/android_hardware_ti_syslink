@@ -33,7 +33,7 @@ CFLAGS += -DSYSLINK_TRACE_ENABLE
 
 LIBS = -lipcutils -lsyslinknotify -lipc -lprocmgr
 LIBS += -lsysmgr
-MEMMGRLIBS = -lmemmgr
+MEMMGRLIBS = -ltimemmgr
 
 all: dehtest.out dehdaemontest.out
 

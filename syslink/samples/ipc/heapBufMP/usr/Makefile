@@ -25,7 +25,7 @@ CFLAGS=-Wall -g -O2 $(INCLUDE) -finline-functions -D$(PROCFAMILY) $(LDFLAGS)
 CFLAGS += -DSYSLINK_TRACE_ENABLE
 
 LIBS =  -lipcutils -lipc -lprocmgr -lsysmgr -lsyslinknotify
-MEMMGRLIBS = -lmemmgr
+MEMMGRLIBS = -ltimemmgr
 
 all: heapBufMPApp.out
 

@@ -117,7 +117,7 @@ INCLUDES    = \
 # Libraries needed for linking.
 
 #SH_LIBS        = pthread utils
-SH_LIBS        = ipcutils sysmgr memmgr
+SH_LIBS        = ipcutils sysmgr timemmgr
 #SH_LIBS        = utils
 ST_LIBS        = gcc
 

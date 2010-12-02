@@ -35,7 +35,7 @@ CFLAGS += -DSYSLINK_USE_LOADER
 
 LIBS = -lipcutils -lsyslinknotify -lipc -lprocmgr
 LIBS += -lsysmgr
-MEMMGRLIBS = -lmemmgr
+MEMMGRLIBS = -ltimemmgr
 
 all: slpmresources.out
 

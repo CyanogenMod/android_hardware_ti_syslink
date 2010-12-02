@@ -92,7 +92,7 @@ INCLUDES    = \
 # Libraries needed for linking.
 
 #ST_LIBS        = gcc
-#SH_LIBS        = pthread rt utils procmgr ipc rcm notify memmgr
+#SH_LIBS        = pthread rt utils procmgr ipc rcm notify timemmgr
 SH_LIBS        = ipcutils
 
 # Search path for library (and linker command) files.

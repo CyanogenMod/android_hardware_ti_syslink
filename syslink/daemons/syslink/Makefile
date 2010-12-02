@@ -95,7 +95,7 @@ INCLUDES    = \
 # Libraries needed for linking.
 
 ST_LIBS        = gcc
-SH_LIBS        = pthread rt ipcutils procmgr ipc rcm syslinknotify memmgr sysmgr
+SH_LIBS        = pthread rt ipcutils procmgr ipc rcm syslinknotify timemmgr sysmgr
 
 # Search path for library (and linker command) files.
 # Current folder and target folder are included by default.
