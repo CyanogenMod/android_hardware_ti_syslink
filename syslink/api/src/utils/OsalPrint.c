@@ -51,9 +51,37 @@
 /* Linux specifc header files */
 #include <stdarg.h>
 
+#ifdef HAVE_ANDROID_OS
+#include <utils/Log.h>
+#undef LOG_TAG
+#define LOG_TAG "SYSLINK"
+#endif
 
 #if defined (__cplusplus)
 extern "C" {
+#endif
+
+
+#if defined (HAVE_ANDROID_OS)
+Bool printToLogCat = FALSE;
+
+/*!
+ *  @brief      Configure printf for Android systems.
+ *
+ *  @param      print config option.
+ */
+Void Osal_configPrint (Osal_PrintConfig printType)
+{
+    switch (printType) {
+    case 1:
+        printToLogCat = TRUE;
+        break;
+    case 0:
+    default:
+        printToLogCat = FALSE;
+        break;
+   }
+}
 #endif
 
 
@@ -63,16 +91,24 @@ extern "C" {
  *  @param      string which needs to be printed.
  *  @param      Variable number of parameters for printf call
  */
-Void Osal_printf (char* format, ...)
+Void Osal_printf (Char* format, ...)
 {
     va_list args;
-    char    buffer [512 ];
+    Char    buffer [512];
 
     va_start (args, format);
-    vsprintf (buffer, format, args);
+    vsnprintf (buffer, sizeof(buffer), format, args);
     va_end   (args);
 
+#if defined (HAVE_ANDROID_OS)
+    if (printToLogCat == TRUE) {
+        LOGD ("%s", buffer);
+    } else {
+        printf ("%s", buffer);
+    }
+#else
     printf ("%s", buffer);
+#endif
 }
 
 

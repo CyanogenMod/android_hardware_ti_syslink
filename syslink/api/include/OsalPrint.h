@@ -34,9 +34,9 @@
 /** ============================================================================
  *  @file   OsalPrint.h
  *
- *  @brief      Kernel utils Print interface definitions.
+ *  @brief      OS-specific utils Print interface definitions.
  *
- *              This will have the definitions for kernel side printf
+ *              This will have the definitions for printf
  *              statements and also details of variable printfs
  *              supported in existing implementation.
  *
@@ -68,12 +68,24 @@ extern "C" {
 #define OSALPRINT_MODULEID                 (UInt16) 0xC431
 
 
+#if defined (HAVE_ANDROID_OS)
+/* Defines for configuring print */
+typedef enum {
+    Osal_PrintToConsole = 0,
+    Osal_PrintToLogcat  = 1
+} Osal_PrintConfig;
+
+
 /* =============================================================================
  *  APIs
  * =============================================================================
  */
+/* Configure print mechanism */
+Void Osal_configPrint (Osal_PrintConfig printType);
+#endif
+
 /*  printf abstraction at the kernel level. */
-Void Osal_printf(char* format, ...);
+Void Osal_printf (Char* format, ...);
 
 
 #if defined (__cplusplus)
