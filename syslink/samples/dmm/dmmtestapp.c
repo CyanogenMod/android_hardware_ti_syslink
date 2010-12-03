@@ -506,7 +506,7 @@ int test_usebuffer(int size, int iterations)
 
 		 /* allocate aligned buffer */
 		memset(&block, 0, sizeof(block));
-		block.pixelFormat = 4;
+		block.pixelFormat = PIXEL_FMT_PAGE;
 		block.dim.len = tiler_buf_length;
 		block.stride = 0;
 		block.ptr = dataPtr;
@@ -1470,7 +1470,7 @@ int test_dmm_filecopy_tiler(char *infile, char *outfile, unsigned int map_size)
 
 	/* Allocate aligned buffer */
 	memset(&block, 0, sizeof(block));
-	block.pixelFormat = 4;
+	block.pixelFormat = PIXEL_FMT_PAGE;
 	block.dim.len = (map_size + DMMTEST_PAGE_SIZE)
 						& ~(DMMTEST_PAGE_SIZE - 1);
 	block.stride = 0;
