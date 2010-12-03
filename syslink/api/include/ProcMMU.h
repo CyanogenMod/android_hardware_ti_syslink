@@ -213,6 +213,7 @@ extern "C" {
 
 #define L3_TILER_MODE_2_ADDR            0x70000000
 #define DUCATI_TILER_MODE_2_ADDR        0x70000000
+#define TESLA_TILER_MODE_2_ADDR         0x70000000
 
 #define L3_TILER_MODE_3_ADDR            0x78000000
 #define DUCATI_TILER_MODE_3_ADDR        0x78000000
@@ -494,6 +495,9 @@ static const struct Mmu_entry L4MapDsp[] = {
     /* TILER 8-bit and 16-bit modes */
     {L3_TILER_MODE_0_1_ADDR, TESLA_TILER_MODE_0_1_ADDR,
         (PAGE_SIZE_16MB * 16)},
+    /* TILER 32-bit mode */
+    {L3_TILER_MODE_2_ADDR, TESLA_TILER_MODE_2_ADDR,
+        (PAGE_SIZE_16MB * 8)},
     /* TILER: Page-mode */
     {L3_TILER_MODE_3_ADDR, TESLA_TILER_MODE_3_ADDR,
         (PAGE_SIZE_16MB * 8)},
@@ -505,7 +509,7 @@ static const struct Mmu_entry L4MapDsp[] = {
     {L4_PERIPHERAL_L4ABE, TESLA_PERIPHERAL_L4ABE, PAGE_SIZE_16MB},
     /* IVA_HD Config: Covers all modules in IVA_HD Config space 16MB */
     {L3_IVAHD_CONFIG, TESLA_IVAHD_CONFIG, PAGE_SIZE_16MB},
-#if 0 /* No room for below entry. Need to be added when PTE is enabled */
+#if 0 /* Below entry not required since Tesla has local access to SL2 memory */
     /* IVA_HD SL2: Covers all memory in IVA_HD SL2 space 16MB */
     {L3_IVAHD_SL2, TELSA_IVAHD_SL2, PAGE_SIZE_16MB},
 #endif
