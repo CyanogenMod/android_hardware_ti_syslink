@@ -87,32 +87,12 @@ extern "C" {
 #define TILER_ADDRESS_END           0x80000000
 
 /*!
- *  @brief  Alloc parameter structure
- */
-typedef struct {
-    UInt    pixelFormat;
-    /*!< Pixel format */
-    UInt    width;
-    /*!< Width of the buffer */
-    UInt    height;
-    /*!< Height of the buffer */
-    UInt    length;
-    /*!< Length of the buffer */
-    UInt    stride;
-    /*!< stride */
-    Ptr     ptr;
-    /*!< Buffer pointer */
-    UInt  * reserved;
-    /*!< Reserved */
-} AllocParams;
-
-/*!
  *  @brief  Parameter for remote MemMgr_alloc
  */
 typedef struct {
-    UInt        numBuffers;
+    UInt            numBuffers;
     /*!< Number of buffer */
-    AllocParams params [1];
+    MemAllocBlock   memBlock [1];
     /*!< Alloc param struct */
 } AllocArgs;
 
@@ -473,10 +453,10 @@ SysLinkMemUtils_alloc (UInt32 dataSize, UInt32 * data)
     }
     else {
         for (i = 0; i < args->numBuffers; i++) {
-            memBlock [i].pixelFormat = args->params [i].pixelFormat;
-            memBlock [i].dim.area.width = args->params [i].width;
-            memBlock [i].dim.area.height = args->params [i].height;
-            memBlock [i].dim.len = args->params [i].length;
+            memBlock [i].pixelFormat = args->memBlock [i].pixelFormat;
+            memBlock [i].dim.area.width = args->memBlock [i].dim.area.width;
+            memBlock [i].dim.area.height = args->memBlock [i].dim.area.height;
+            memBlock [i].dim.len = args->memBlock [i].dim.len;
         }
     }
 
@@ -497,8 +477,8 @@ SysLinkMemUtils_alloc (UInt32 dataSize, UInt32 * data)
 
     if (status == PROCMGR_SUCCESS) {
         for (i = 0; i < args->numBuffers; i++) {
-            args->params [i].stride = memBlock [i].stride;
-            args->params [i].ptr = memBlock [i].ptr;
+            args->memBlock [i].stride = memBlock [i].stride;
+            args->memBlock [i].ptr = memBlock [i].ptr;
         }
         size = _SysLinkMemUtils_bufferSize (memBlock, args->numBuffers);
         mpuAddrList [0].mpuAddr = (UInt32)allocedPtr;
