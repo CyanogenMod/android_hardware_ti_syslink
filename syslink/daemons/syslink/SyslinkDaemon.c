@@ -104,7 +104,8 @@ HeapBufMP_Handle                heapHandle1         = NULL;
 SizeT                           heapSize1           = 0;
 Ptr                             heapBufPtr1         = NULL;
 IHeap_Handle                    srHeap              = NULL;
-pthread_t                       mmu_fault_handle    = 0;
+pthread_t                       sysM3EvtHandlerThrd = 0;
+pthread_t                       appM3EvtHandlerThrd = 0;
 static Bool                     restart             = TRUE;
 #if defined (SYSLINK_USE_LOADER)
 UInt32                          fileIdSysM3;
@@ -212,22 +213,69 @@ static Void exc_dump_registers()
 }
 
 /*
- *  ======== mmu_fault_handler ========
+ *  ======== sysM3EventHandler ========
  */
-static Void mmu_fault_handler (Void)
+static Void sysM3EventHandler (Void)
 {
-    Int status;
+    Int                 status;
+    UInt                index;
+    ProcMgr_EventType   eventList [] = {PROC_MMU_FAULT, PROC_ERROR};
 
-    status = ProcMgr_waitForEvent (PROC_SYSM3, PROC_MMU_FAULT, -1);
+    status = ProcMgr_waitForMultipleEvents (PROC_SYSM3, eventList, 2, -1,
+                                            &index);
+    if (status == PROCMGR_SUCCESS) {
+        if (eventList [index] == PROC_MMU_FAULT) {
+            Osal_printf ("MMU Fault occured on the M3 subsystem. See crash "
+                         "dump for more details\n");
+        }
+        else {
+            Osal_printf ("Sys Error occured in SysM3. See crash dump for more "
+                         "details\n");
+        }
 
-    /*Dump Crash Info*/
-    exc_dump_registers();
+        /* Dump Crash Info */
+        exc_dump_registers ();
 
-    /* Initiate cleanup */
-    restart = TRUE;
-    sem_post(&semDaemonWait);
+        /* Initiate cleanup */
+        restart = TRUE;
+        sem_post (&semDaemonWait);
+    }
+    else {
+        /* Send a signal to terminate the process */
+        Osal_printf ("SysM3 Event Handler Thread unblock failed.\n");
+        raise (SIGTERM);
+    }
 }
 
+/*
+ *  ======== appM3EventHandler ========
+ */
+static Void appM3EventHandler (Void)
+{
+    Int                 status;
+    UInt                index;
+    ProcMgr_EventType   eventList [] = {PROC_ERROR};
+
+    status = ProcMgr_waitForMultipleEvents (PROC_APPM3, eventList, 1, -1,
+                                            &index);
+    if (status == PROCMGR_SUCCESS) {
+        Osal_printf ("Sys Error occured in AppM3. See crash dump for more "
+                     "details\n");
+
+        /* Dump Crash Info */
+        exc_dump_registers ();
+
+        /* Initiate cleanup */
+        restart = TRUE;
+        sem_post (&semDaemonWait);
+    }
+    else {
+        /* Send a signal to terminate the process */
+        Osal_printf ("AppM3 Event Handler Thread unblock failed.\n");
+        raise (SIGTERM);
+    }
+
+}
 
 /*
  *  ======== signal_handler ========
@@ -235,7 +283,14 @@ static Void mmu_fault_handler (Void)
 static Void signal_handler (Int sig)
 {
     Osal_printf ("\nexiting from the syslink daemon\n ");
-    pthread_kill (mmu_fault_handle, SIGKILL);
+
+    if (sysM3EvtHandlerThrd) {
+        pthread_kill (sysM3EvtHandlerThrd, SIGTERM);
+    }
+    if (appM3EvtHandlerThrd) {
+        pthread_kill (appM3EvtHandlerThrd, SIGTERM);
+    }
+
     sem_post(&semDaemonWait);
 }
 
@@ -714,7 +769,7 @@ Int main (Int argc, Char * argv [])
 
     sem_init (&semDaemonWait, 0, 0);
 
-    /* Setup the signal handlers*/
+    /* Setup the signal handlers */
     signal (SIGINT, signal_handler);
     signal (SIGKILL, signal_handler);
     signal (SIGTERM, signal_handler);
@@ -730,24 +785,48 @@ Int main (Int argc, Char * argv [])
         }
         Osal_printf ("ipcSetup succeeded!\n");
 
-        /* Create the MMU fault handler thread */
-        Osal_printf ("Create MMU fault handler thread.\n");
-        mmu_fault_handle = NULL;
-        status = pthread_create (&mmu_fault_handle, NULL,
-                                    (Void *)&mmu_fault_handler, NULL);
+        /* Create the SYSM3 fault handler thread */
+        Osal_printf ("Create SysM3 event handler thread.\n");
+        status = pthread_create (&sysM3EvtHandlerThrd, NULL,
+                                    (Void *)&sysM3EventHandler, NULL);
         if (status) {
-                Osal_printf ("Error Creating thread:%d\n", status);
+            Osal_printf ("Error Creating SysM3 event handler thread:%d\n",
+                            status);
+            ipcCleanup ();
+            sem_destroy (&semDaemonWait);
+            exit (EXIT_FAILURE);
+        }
+        /* Only if APPM3 image is specified */
+        if (argc != 2) {
+            /* Create an APPM3 fault handler thread */
+            Osal_printf ("Create AppM3 event handler thread.\n");
+            status = pthread_create (&appM3EvtHandlerThrd, NULL,
+                                        (Void *)&appM3EventHandler, NULL);
+            if (status) {
+                Osal_printf ("Error Creating AppM3 event handler thread:%d\n",
+                                status);
+                pthread_kill (sysM3EvtHandlerThrd, SIGTERM);
+                sysM3EvtHandlerThrd = 0;
                 ipcCleanup ();
                 sem_destroy (&semDaemonWait);
-                exit(EXIT_FAILURE);
+                exit (EXIT_FAILURE);
+            }
         }
 
-        /* wait for commands */
+        /* Wait for any event handler thread to be unblocked */
         sem_wait (&semDaemonWait);
 
-        /* Wait for thread termination when recovering*/
-        if (restart)
-                pthread_join (mmu_fault_handle, NULL);
+        /* Clean up event handler threads if reloading remote processors*/
+        if (restart) {
+            if (sysM3EvtHandlerThrd) {
+                pthread_kill (sysM3EvtHandlerThrd, SIGTERM);
+                sysM3EvtHandlerThrd = 0;
+            }
+            if (appM3EvtHandlerThrd) {
+                pthread_kill (appM3EvtHandlerThrd, SIGTERM);
+                appM3EvtHandlerThrd = 0;
+            }
+        }
 
         /* IPC_Cleanup function*/
         ipcCleanup ();
