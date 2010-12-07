@@ -889,7 +889,16 @@ _RcmServer_Instance_finalize (RcmServer_Object * obj)
     obj->shutdown = TRUE;
 
     if (obj->serverThread != 0) {
-        MessageQ_unblock (obj->serverQue);
+        status = MessageQ_unblock (obj->serverQue);
+        if (status < 0) {
+            status = RcmServer_E_FAIL;
+            GT_setFailureReason (curTrace,
+                                 GT_4CLASS,
+                                 "_RcmServer_Instance_finalize",
+                                 status,
+                                 "MessageQ_unblock failed!");
+            goto leave;
+        }
         status = pthread_join (obj->serverThread, NULL);
         if (status < 0) {
             status = RcmServer_E_FAIL;
