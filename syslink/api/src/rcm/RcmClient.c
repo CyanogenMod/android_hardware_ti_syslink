@@ -285,13 +285,32 @@ Int RcmClient_create (String                server,
                              "Module is in an invalid state!");
         goto leave;
     }
+    if (handle == NULL) {
+        status = RcmClient_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "RcmClient_create",
+                             status,
+                             "Handle pointer passed is NULL!");
+        goto leave;
+    }
     if (params == NULL) {
         status = RcmClient_E_INVALIDARG;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "RcmClient_create",
                              status,
-                             "Params passed is NULL!");
+                             "Argument of type (RcmClient_Params *) passed "
+                             "is NULL!");
+        goto leave;
+    }
+    if (server == NULL) {
+        status = RcmClient_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "RcmClient_create",
+                             status,
+                             "Server name passed is NULL!");
         goto leave;
     }
     if ((String_len (server)) > RcmClient_module->defaultCfg.maxNameLen) {
@@ -559,7 +578,7 @@ Int RcmClient_delete (RcmClient_Handle * handlePtr)
                              GT_4CLASS,
                              "RcmClient_delete",
                              status,
-                             "*handlePtr pointer passed is NULL!");
+                             "*handlePtr passed is NULL!");
         goto leave;
     }
 
@@ -723,6 +742,15 @@ Int RcmClient_acquireJobId (RcmClient_Handle handle, UInt16 * jobIdPtr)
                              "Invalid handle passed!");
         goto leave;
     }
+    if (jobIdPtr == NULL) {
+        status = RcmClient_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "RcmClient_acquireJobId",
+                             status,
+                             "jobIdPtr pointer passed is NULL!");
+        goto leave;
+    }
 
     /* Allocate a message */
     status = RcmClient_alloc (handle, sizeof(UInt16), &msg);
@@ -825,16 +853,46 @@ Int RcmClient_addSymbol (RcmClient_Handle           handle,
                              "RcmClient_addSymbol",
                              status,
                              "Module is in an invalid state!");
+        goto leave;
     }
-    else if (handle == NULL) {
+    if (handle == NULL) {
         status = RcmClient_E_INVALIDARG;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "RcmClient_addSymbol",
                              status,
                              "Invalid handle passed!");
+        goto leave;
+    }
+    if (name == NULL) {
+        status = RcmClient_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "RcmClient_addSymbol",
+                             status,
+                             "Remote function name passed is NULL!");
+        goto leave;
+    }
+    if (addr == NULL) {
+        status = RcmClient_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "RcmClient_addSymbol",
+                             status,
+                             "Remote function address is NULL!");
+        goto leave;
+    }
+    if (index == NULL) {
+        status = RcmClient_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "RcmClient_addSymbol",
+                             status,
+                             "Index pointer passed is NULL!");
+        goto leave;
     }
 
+leave:
     GT_1trace (curTrace, GT_LEAVE, "RcmClient_addSymbol", status);
 
     return status;
@@ -899,6 +957,15 @@ Int RcmClient_alloc (RcmClient_Handle       handle,
                              "Invalid handle passed!");
         goto leave;
     }
+    if (message == NULL) {
+        status = RcmClient_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "RcmClient_alloc",
+                             status,
+                             "Message pointer passed is NULL!");
+        goto leave;
+    }
 
     /* Ensure minimum size of UInt32[1] */
     dataSize  = (dataSize < sizeof(UInt32) ? sizeof(UInt32) : dataSize);
@@ -955,6 +1022,34 @@ Int RcmClient_checkForError (RcmClient_Handle       handle,
 
     GT_2trace (curTrace, GT_ENTER, "RcmClient_checkForError", handle, rtnMsg);
 
+    if (RcmClient_module->setupRefCount == 0) {
+        status = RcmClient_E_INVALIDSTATE;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "RcmClient_checkForError",
+                             status,
+                             "Module is in an invalid state!");
+        goto leave;
+    }
+    if (handle == NULL) {
+        status = RcmClient_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "RcmClient_checkForError",
+                             status,
+                             "Invalid handle passed");
+        goto leave;
+    }
+    if (rtnMsg == NULL) {
+        status = RcmClient_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "RcmClient_checkForError",
+                             status,
+                             "Return message pointer passed is NULL!");
+        goto leave;
+    }
+
     *rtnMsg = NULL;
 
     /* Get error message if available (non-blocking) */
@@ -968,7 +1063,7 @@ Int RcmClient_checkForError (RcmClient_Handle       handle,
         status = RcmClient_E_IPCERROR;
         goto leave;
     }
-    else if (msgqMsg == NULL) {
+    if (msgqMsg == NULL) {
         goto leave;
     }
 
@@ -1068,7 +1163,25 @@ Int RcmClient_exec (RcmClient_Handle         handle,
                              GT_4CLASS,
                              "RcmClient_exec",
                              status,
-                             "Invalid handle is passed!");
+                             "Invalid handle passed!");
+        goto leave;
+    }
+    if (cmdMsg == NULL) {
+        status = RcmClient_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "RcmClient_exec",
+                             status,
+                             "Command message passed is NULL!");
+        goto leave;
+    }
+    if (returnMsg == NULL) {
+        status = RcmClient_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "RcmClient_exec",
+                             status,
+                             "Return message pointer passed is NULL!");
         goto leave;
     }
 
@@ -1187,9 +1300,19 @@ Int RcmClient_execAsync (RcmClient_Handle       handle,
                              GT_4CLASS,
                              "RcmClient_execAsync",
                              status,
-                             "Invalid handle is passed!");
+                             "Invalid handle passed!");
         goto leave;
     }
+    if (cmdMsg == NULL) {
+        status = RcmClient_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "RcmClient_execAsync",
+                             status,
+                             "Command message passed is NULL!");
+        goto leave;
+    }
+
     /* Cannot use this function if callback notification is false */
     if (!handle->cbNotify) {
         status = RcmClient_E_EXECASYNCNOTENABLED;
@@ -1261,7 +1384,16 @@ Int RcmClient_execCmd (RcmClient_Handle handle, RcmClient_Message * msg)
                              GT_4CLASS,
                              "RcmClient_execCmd",
                              status,
-                             "Invalid handle is passed!");
+                             "Invalid handle passed!");
+        goto leave;
+    }
+    if (msg == NULL) {
+        status = RcmClient_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "RcmClient_execCmd",
+                             status,
+                             "Command message passed is NULL!");
         goto leave;
     }
 
@@ -1329,7 +1461,25 @@ Int RcmClient_execDpc (RcmClient_Handle     handle,
                              GT_4CLASS,
                              "RcmClient_execDpc",
                              status,
-                             "Invalid handle is passed!");
+                             "Invalid handle passed!");
+        goto leave;
+    }
+    if (cmdMsg == NULL) {
+        status = RcmClient_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "RcmClient_execDpc",
+                             status,
+                             "Command message passed is NULL!");
+        goto leave;
+    }
+    if (returnMsg == NULL) {
+        status = RcmClient_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "RcmClient_execDpc",
+                             status,
+                             "Return message pointer passed is NULL!");
         goto leave;
     }
 
@@ -1403,13 +1553,31 @@ Int RcmClient_execNoWait (RcmClient_Handle       handle,
                              "Module is in an invalid state!");
         goto leave;
     }
-    if (NULL == handle) {
+    if (handle == NULL) {
         status = RcmClient_E_INVALIDARG;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "RcmClient_execNoWait",
                              status,
-                             "Invalid handle is passed!");
+                             "Invalid handle passed!");
+        goto leave;
+    }
+    if (cmdMsg == NULL) {
+        status = RcmClient_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "RcmClient_execNoWait",
+                             status,
+                             "Command message passed is NULL!");
+        goto leave;
+    }
+    if (msgId == NULL) {
+        status = RcmClient_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "RcmClient_execNoWait",
+                             status,
+                             "Message Id pointer passed is NULL!");
         goto leave;
     }
 
@@ -1477,6 +1645,15 @@ Int RcmClient_free (RcmClient_Handle handle, RcmClient_Message * msg)
                              "Invalid handle passed!");
         goto leave;
     }
+    if (msg == NULL) {
+        status = RcmClient_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "RcmClient_free",
+                             status,
+                             "Message passed is NULL!");
+        goto leave;
+    }
 
     msgqMsg = (MessageQ_Msg)_RcmClient_getPacketAddr (msg);
     rval = MessageQ_free (msgqMsg);
@@ -1535,10 +1712,27 @@ Int RcmClient_getSymbolIndex (RcmClient_Handle      handle,
                              GT_4CLASS,
                              "RcmClient_getSymbolIndex",
                              status,
-                             "Invalid handle is passed!");
+                             "Invalid handle passed!");
         goto leave;
     }
-
+    if (name == NULL) {
+        status = RcmClient_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "RcmClient_getSymbolIndex",
+                             status,
+                             "Symbol name passed is NULL!");
+        goto leave;
+    }
+    if (index == NULL) {
+        status = RcmClient_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "RcmClient_getSymbolIndex",
+                             status,
+                             "Index pointer passed is NULL!");
+        goto leave;
+    }
     *index = RcmClient_E_INVALIDFXNIDX;
 
     /* Allocate a message */
@@ -1549,7 +1743,7 @@ Int RcmClient_getSymbolIndex (RcmClient_Handle      handle,
                              GT_4CLASS,
                              "RcmClient_getSymbolIndex",
                              status,
-                             "error allocating RCM message");
+                             "Error allocating RCM message");
         goto leave;
     }
 
@@ -1775,16 +1969,28 @@ Int RcmClient_removeSymbol (RcmClient_Handle handle, String name)
                              "RcmClient_removeSymbol",
                              status,
                              "Module is in an invalid state!");
+        goto leave;
     }
-    else if (handle == NULL) {
+    if (handle == NULL) {
         status = RcmClient_E_INVALIDARG;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "RcmClient_removeSymbol",
                              status,
                              "Invalid handle passed!");
+        goto leave;
+    }
+    if (name == NULL) {
+        status = RcmClient_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "RcmClient_removeSymbol",
+                             status,
+                             "Symbol name passed is NULL!");
+        goto leave;
     }
 
+leave:
     GT_1trace (curTrace, GT_LEAVE, "RcmClient_removeSymbol", status);
 
     return status;
@@ -1804,7 +2010,6 @@ Int RcmClient_waitUntilDone (RcmClient_Handle       handle,
                              RcmClient_Message   ** returnMsg)
 {
     RcmClient_Message * rtnMsg;
-    Int                 rval;
     Int                 status = RcmClient_S_SUCCESS;
 
     GT_3trace (curTrace, GT_ENTER, "RcmClient_waitUntilDone", handle, msgId,
@@ -1834,7 +2039,16 @@ Int RcmClient_waitUntilDone (RcmClient_Handle       handle,
                              GT_4CLASS,
                              "RcmClient_waitUntilDone",
                              status,
-                             "MsgId passed in invalid!");
+                             "Invalid msgId passed!");
+        goto leave;
+    }
+    if (returnMsg == NULL) {
+        status = RcmClient_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "RcmClient_waitUntilDone",
+                             status,
+                             "Return message pointer passed is NULL!");
         goto leave;
     }
 
@@ -1844,7 +2058,7 @@ Int RcmClient_waitUntilDone (RcmClient_Handle       handle,
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "RcmClient_waitUntilDone",
-                             rval,
+                             status,
                              "Get return message failed");
         *returnMsg = NULL;
         goto leave;

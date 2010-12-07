@@ -838,7 +838,7 @@ RcmServer_delete (RcmServer_Handle * handlePtr)
                              GT_4CLASS,
                              "RcmServer_delete",
                              status,
-                             "*handlePtr pointer passed is NULL!");
+                             "*handlePtr passed is NULL!");
         goto leave;
     }
 
@@ -1182,7 +1182,34 @@ RcmServer_addSymbol (RcmServer_Handle   handle,
                              GT_4CLASS,
                              "RcmServer_addSymbol",
                              status,
-                             "handle passed is NULL!");
+                             "Invalid handle passed!");
+        goto leave;
+    }
+    if (funcName == NULL) {
+        status = RcmServer_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "RcmServer_addSymbol",
+                             status,
+                             "Remote function name passed is NULL!");
+        goto leave;
+    }
+    if (addr == NULL) {
+        status = RcmServer_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "RcmServer_addSymbol",
+                             status,
+                             "Remote function address is NULL!");
+        goto leave;
+    }
+    if (index == NULL) {
+        status = RcmServer_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "RcmServer_addSymbol",
+                             status,
+                             "Index pointer passed is NULL!");
         goto leave;
     }
 
@@ -1311,6 +1338,15 @@ RcmServer_removeSymbol (RcmServer_Handle handle, String name)
                              "handle passed is NULL!");
         goto leave;
     }
+    if (name == NULL) {
+        status = RcmServer_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "RcmServer_removeSymbol",
+                             status,
+                             "Symbol name passed is NULL!");
+        goto leave;
+    }
 
     /* Protect the symbol table while changing it */
     /* TODO: key = IGateProvider_enter (handle->gate); */
@@ -1374,17 +1410,17 @@ RcmServer_start (RcmServer_Handle handle)
         status = RcmServer_E_INVALIDSTATE;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
-                             "RcmServer_delete",
+                             "RcmServer_start",
                              status,
                              "Module is in an invalid state!");
     }
-    if (handle == NULL) {
+    else if (handle == NULL) {
         status = RcmServer_E_INVALIDARG;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
-                             "RcmServer_delete",
+                             "RcmServer_start",
                              status,
-                             "handlePtr pointer passed is NULL!");
+                             "Invalid handle passed!");
     }
     else {
         /* Signal the run synchronizer, unblocks the server thread */
