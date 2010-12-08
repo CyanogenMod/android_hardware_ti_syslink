@@ -126,11 +126,51 @@ extern "C" {
  */
 #define ProcDEH_S_OPENHANDLE        PROCDEH_MAKE_SUCCESS(3)
 
+
+/* =============================================================================
+ * Structures & Macros
+ * =============================================================================
+ */
+/*!
+ *  @brief  Command arguments for ProcDEH_registerEvent
+ */
+typedef struct ProcDEH_CmdArgsRegisterEvent_tag {
+    Int32   fd;
+    /*!< Eventfd descriptor id for notification */
+    Int32   eventType;
+    /*!< Type of event to be registered */
+} ProcDEH_CmdArgsRegisterEvent;
+
+/*!
+ *  @brief  Device error types maintained by Device exception handler
+ */
+typedef enum ProcDEH_EventType_t {
+    ProcDEH_SYSERROR = 1,
+    ProcDEH_WATCHDOGERROR
+} ProcDEH_EventType;
+
+
+/*!
+ *  @brief  DEVH driver IOCTL Magic number
+ */
 #define DEVH_IOC_MAGIC              'E'
 
-#define DEVH_IOCWAITONEVENTS        _IO(DEVH_IOC_MAGIC, 0)
-#define DEVH_IOCEVENTREG            _IOW(DEVH_IOC_MAGIC, 1, Int32)
-#define DEVH_IOCEVENTUNREG          _IOW(DEVH_IOC_MAGIC, 2, Int32)
+/*!
+ *  @brief  Command for ProcDEH event notification
+ */
+#define CMD_DEVH_IOCWAITONEVENTS    _IO(DEVH_IOC_MAGIC, 0)
+
+/*!
+ *  @brief  Command for ProcDEH event registration
+ */
+#define CMD_DEVH_IOCEVENTREG        _IOW(DEVH_IOC_MAGIC, 1,                    \
+                                    ProcDEH_CmdArgsRegisterEvent)
+
+/*!
+ *  @brief  Command for ProcDEH event unregistration
+ */
+#define CMD_DEVH_IOCEVENTUNREG      _IOW(DEVH_IOC_MAGIC, 2,                    \
+                                    ProcDEH_CmdArgsRegisterEvent)
 
 
 /* =============================================================================
@@ -165,6 +205,7 @@ Int32 ProcDEH_open (UInt16 procId);
  *  @brief  Function to Register for DEH faults
  *
  *  @param  procId      MultiProc id whose DEH driver needs to be closed
+ *  @param  eventType   ProcDEH Event type
  *  @param  eventfd     Eventfd descriptor to be signalled
  *  @param  reg         Register or Unregister flag
  *
@@ -172,7 +213,10 @@ Int32 ProcDEH_open (UInt16 procId);
  *
  *  @sa
  */
-Int32 ProcDEH_registerEvent (UInt16 procId, Int32 eventfd, Bool reg);
+Int32 ProcDEH_registerEvent (UInt16     procId,
+                             UInt32     eventType,
+                             Int32      eventfd,
+                             Bool       reg);
 
 
 #if defined (__cplusplus)

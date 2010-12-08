@@ -3311,7 +3311,8 @@ ProcMgr_waitForMultipleEvents (ProcMgr_ProcId      procId,
                     }
                     mmuEventUsed = TRUE;
                 }
-                if (eventType [i] == PROC_ERROR && !dehEventUsed) {
+                if ((eventType [i] == PROC_ERROR ||
+                        eventType [i] == PROC_WATCHDOG) && !dehEventUsed) {
                     status = ProcDEH_open (procId);
                     if (status < 0) {
                         status = PROCMGR_E_FAIL;
@@ -3350,7 +3351,20 @@ ProcMgr_waitForMultipleEvents (ProcMgr_ProcId      procId,
                     break;
 
                 case PROC_ERROR:
-                    status = ProcDEH_registerEvent (procId, efd [i], TRUE);
+                    status = ProcDEH_registerEvent (procId, ProcDEH_SYSERROR,
+                                                        efd [i], TRUE);
+                    if (status == ProcDEH_S_SUCCESS) {
+                        status = PROCMGR_SUCCESS;
+                    }
+                    else {
+                        status = PROCMGR_E_FAIL;
+                    }
+                    break;
+
+                case PROC_WATCHDOG:
+                    status = ProcDEH_registerEvent (procId,
+                                                    ProcDEH_WATCHDOGERROR,
+                                                    efd [i], TRUE);
                     if (status == ProcDEH_S_SUCCESS) {
                         status = PROCMGR_SUCCESS;
                     }
@@ -3394,7 +3408,12 @@ ProcMgr_waitForMultipleEvents (ProcMgr_ProcId      procId,
                         ProcMMU_registerEvent (procId, efd [i], FALSE);
                     }
                     else if (eventType [i] == PROC_ERROR) {
-                        ProcDEH_registerEvent (procId, efd [i], FALSE);
+                        ProcDEH_registerEvent (procId, ProcDEH_SYSERROR,
+                                                efd [i], FALSE);
+                    }
+                    else if (eventType [i] == PROC_WATCHDOG) {
+                        ProcDEH_registerEvent (procId, ProcDEH_WATCHDOGERROR,
+                                                efd [i], FALSE);
                     }
                     else {
                         cmdArgs.event = eventType [i];

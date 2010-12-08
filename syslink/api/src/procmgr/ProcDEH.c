@@ -240,15 +240,18 @@ ProcDEH_open (UInt16 procId)
 
 
 /* Function to Register for DEH faults */
-Int32 ProcDEH_registerEvent (UInt16 procId, Int32 eventfd, Bool reg)
+Int32 ProcDEH_registerEvent (UInt16     procId,
+                             UInt32     eventType,
+                             Int32      eventfd,
+                             Bool       reg)
 {
-    Int32   fd          = eventfd;
-    Int32   status      = ProcDEH_S_SUCCESS;
-    Int     osStatus    = 0;
-    UInt32  cmd;
+    Int32                           status      = ProcDEH_S_SUCCESS;
+    Int                             osStatus    = 0;
+    UInt32                          cmd;
+    ProcDEH_CmdArgsRegisterEvent    args;
 
-    GT_3trace (curTrace, GT_ENTER, "ProcDEH_registerEvent", procId, eventfd,
-                reg);
+    GT_4trace (curTrace, GT_ENTER, "ProcDEH_registerEvent", procId, eventType,
+                eventfd, reg);
 
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
     if ((procId == MultiProc_self ()) || (procId == MultiProc_getId ("Tesla"))) {
@@ -259,14 +262,25 @@ Int32 ProcDEH_registerEvent (UInt16 procId, Int32 eventfd, Bool reg)
                              status,
                              "Devh device not supported!");
     }
+    else if (eventType != ProcDEH_SYSERROR &&
+                eventType != ProcDEH_WATCHDOGERROR) {
+        status = ProcDEH_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "ProcDEH_open",
+                             status,
+                             "Invalid Device Error type passed!");
+    }
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-        cmd = (reg ? DEVH_IOCEVENTREG : DEVH_IOCEVENTUNREG);
+        cmd = (reg ? CMD_DEVH_IOCEVENTREG : CMD_DEVH_IOCEVENTUNREG);
+        args.fd = eventfd;
+        args.eventType = eventType;
         if (procId == MultiProc_getId ("SysM3")) {
-            osStatus = ioctl (ProcDEH_SysM3Handle, cmd, &fd);
+            osStatus = ioctl (ProcDEH_SysM3Handle, cmd, &args);
         }
         else if (procId == MultiProc_getId ("AppM3")) {
-            osStatus = ioctl (ProcDEH_AppM3Handle, cmd, &fd);
+            osStatus = ioctl (ProcDEH_AppM3Handle, cmd, &args);
         }
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
         if (osStatus < 0) {

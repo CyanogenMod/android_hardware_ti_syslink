@@ -279,14 +279,16 @@ typedef enum {
  *  @brief  Event types
  */
 typedef enum {
-    PROC_MMU_FAULT = 0u,
+    PROC_MMU_FAULT  = 0u,
     /*!< MMU fault event */
-    PROC_ERROR = 1u,
+    PROC_ERROR      = 1u,
     /*!< Proc Error event */
-    PROC_STOP     = 2u,
+    PROC_STOP       = 2u,
     /*!< Proc Stop event */
-    PROC_START      = 3u
+    PROC_START      = 3u,
     /*!< Proc start event */
+    PROC_WATCHDOG   = 4u,
+    /*!< Proc WatchDog Timer event */
 } ProcMgr_EventType;
 
 /*!
@@ -295,7 +297,7 @@ typedef enum {
 typedef enum {
     ProcMgr_DMM_MemPool    = 0u,
      /*!< Map/unmap to virtual address space (user) */
-    ProcMgr_TILER_MemPool    = 1u,
+    ProcMgr_TILER_MemPool  = 1u,
     /*!< Map/unmap to Tiler address space */
     ProcMgr_NONE_MemPool   = -1,
     /*!< Provide valid Device address as input*/
