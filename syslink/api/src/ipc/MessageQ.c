@@ -1145,29 +1145,29 @@ MessageQ_unregisterHeap (UInt16 heapId)
 
 
 /* Unblocks a MessageQ */
-Void
+Int
 MessageQ_unblock (MessageQ_Handle handle)
 {
-#if !defined(SYSLINK_BUILD_OPTIMIZE)
-    Int                 status  = MessageQ_S_SUCCESS;
-#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+    Int                 status;
     MessageQDrv_CmdArgs cmdArgs;
 
     GT_1trace (curTrace, GT_ENTER, "MessageQ_unblock", handle);
 
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
     if (MessageQ_module->setupRefCount == 0) {
+        status = MessageQ_E_INVALIDSTATE;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "MessageQ_unblock",
-                             MessageQ_E_INVALIDSTATE,
+                             status,
                              "Module is not initialized!");
     }
     else if (handle == NULL) {
+        status = MessageQ_E_INVALIDARG;
         GT_setFailureReason (curTrace,
                              GT_4CLASS,
                              "MessageQ_unblock",
-                             MessageQ_E_INVALIDARG,
+                             status,
                              "handle passed is null!");
     }
     else {
@@ -1175,22 +1175,21 @@ MessageQ_unblock (MessageQ_Handle handle)
         cmdArgs.args.unblock.handle = ((MessageQ_Object *)(handle))->knlObject;
         GT_assert (curTrace,
                    (((MessageQ_Object *)(handle))->knlObject != NULL));
-#if !defined(SYSLINK_BUILD_OPTIMIZE)
-        status =
-#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
-        MessageQDrv_ioctl (CMD_MESSAGEQ_UNBLOCK, &cmdArgs);
+        status = MessageQDrv_ioctl (CMD_MESSAGEQ_UNBLOCK, &cmdArgs);
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
         if (status < 0) {
             GT_setFailureReason (curTrace,
-                    GT_4CLASS,
-                    "MessageQ_unblock",
-                    status,
-                    "API (through IOCTL) failed on kernel-side!");
+                                 GT_4CLASS,
+                                 "MessageQ_unblock",
+                                 status,
+                                 "API (through IOCTL) failed on kernel-side!");
         }
     }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
 
-    GT_0trace (curTrace, GT_LEAVE, "MessageQ_unblock");
+    GT_1trace (curTrace, GT_LEAVE, "MessageQ_unblock", status);
+
+    return status;
 }
 
 

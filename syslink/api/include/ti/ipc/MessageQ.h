@@ -753,9 +753,16 @@ Void MessageQ_setMsgTrace(MessageQ_Msg msg, Bool traceFlag);
  *
  *  @param[in]  handle      MessageQ handle
  *
+ *  @return     Status of the call.
+ *              - #MessageQ_S_SUCCESS denotes success.
+ *              - #MessageQ_E_OSFAILURE denotes failure with the driver call.
+ *              - #MessageQ_E_INVALIDSTATE denotes the module is in an unusable
+                    state.
+ *              - #MessageQ_E_INVALIDARG denotes incorrect arguments.
+ *
  *  @sa         MessageQ_get
  */
-Void MessageQ_unblock(MessageQ_Handle handle);
+Int MessageQ_unblock(MessageQ_Handle handle);
 
 #if defined (__cplusplus)
 }
