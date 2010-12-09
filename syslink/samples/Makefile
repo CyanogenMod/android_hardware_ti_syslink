@@ -67,7 +67,8 @@ pwrmgmt \
 interm3 \
 event_listener \
 dmm \
-memmgr
+memmgr \
+deh
 
 # Filename must not begin with '.', '/' or '\'
 

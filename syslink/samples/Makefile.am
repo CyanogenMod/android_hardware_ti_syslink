@@ -32,4 +32,5 @@ SUBDIRS  = \
 	interm3 \
 	event_listener \
 	dmm \
-	memmgr
+	memmgr \
+	deh
