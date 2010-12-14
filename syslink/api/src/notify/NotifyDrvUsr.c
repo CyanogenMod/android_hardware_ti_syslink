@@ -325,7 +325,7 @@ _NotifyDrvUsr_eventWorker (Void * arg)
 
     GT_1trace (curTrace, GT_ENTER, "_NotifyDrvUsr_eventWorker", arg);
 
-#if defined(__linux)
+#ifndef HAVE_ANDROID_OS
     if (sigfillset (&blockSet) != 0) {
         perror ("Event worker thread error in sigfillset");
         return;
@@ -336,7 +336,7 @@ _NotifyDrvUsr_eventWorker (Void * arg)
         perror ("Event worker thread error in setting sigmask");
         return;
     }
-#endif /* defined(__linux) */
+#endif /* #ifndef HAVE_ANDROID_OS */
 
     while (status >= 0) {
         memset (&packet, 0, sizeof (NotifyDrv_EventPacket));

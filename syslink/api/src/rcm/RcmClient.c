@@ -2480,7 +2480,7 @@ Int _RcmClient_getReturnMsg (RcmClient_Object     * handle,
 
                 /* Remove recipient from wait list */
                 List_remove (handle->recipients, elem);
-#if !defined(__linux)
+#ifdef HAVE_ANDROID_OS
                 /* Android bionic Semdelete code returns -1 if count == 0 */
                 rval = OsalSemaphore_post (self.event);
                 if (rval < 0) {
@@ -2492,7 +2492,7 @@ Int _RcmClient_getReturnMsg (RcmClient_Object     * handle,
                     status = RcmClient_E_FAIL;
                     goto leave;
                 }
-#endif
+#endif /* ifdef HAVE_ANDROID_OS */
                 rval = OsalSemaphore_delete (&(self.event));
                 if (rval < 0){
                     GT_setFailureReason (curTrace,

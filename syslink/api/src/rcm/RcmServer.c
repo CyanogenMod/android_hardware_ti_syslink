@@ -998,7 +998,7 @@ _RcmServer_Instance_finalize (RcmServer_Object * obj)
         }
 
         /* Free up pool resources */
-#if !defined(__linux)
+#ifdef HAVE_ANDROID_OS
         /* Android bionic Semdelete code returns -1 if count == 0 */
         rval = OsalSemaphore_post (poolAry [i].sem);
         if (rval < 0) {
@@ -1010,7 +1010,7 @@ _RcmServer_Instance_finalize (RcmServer_Object * obj)
             status = RcmServer_E_FAIL;
             goto leave;
         }
-#endif
+#endif /* ifdef HAVE_ANDROID_OS */
         status = OsalSemaphore_delete (&(poolAry [i].sem));
         if (status < 0) {
             GT_setFailureReason (curTrace,
@@ -1434,10 +1434,10 @@ RcmServer_start (RcmServer_Handle handle)
     else {
         /* Signal the run synchronizer, unblocks the server thread */
         status = OsalSemaphore_post (handle->run);
-#if !defined(__linux)
+#ifdef HAVE_ANDROID_OS
         /* Signal once more for Android */
         status = OsalSemaphore_post (handle->run);
-#endif
+#endif /* ifdef HAVE_ANDROID_OS */
         if (status < 0) {
             GT_setFailureReason (curTrace,
                                  GT_4CLASS,

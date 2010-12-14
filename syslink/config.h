@@ -48,13 +48,13 @@
 extern "C" {
 #endif
 
-#if defined (__linux)
+#ifndef HAVE_ANDROID_OS
 /*!
  * @def   HAVE_POSIX_MEMALIGN
  * @brief Use Posix Memory Aligned API
  */
 #define HAVE_POSIX_MEMALIGN            1
-#endif /* defined (__linux) */
+#endif /* ifndef HAVE_ANDROID_OS */
 
 #if defined (__cplusplus)
 }
