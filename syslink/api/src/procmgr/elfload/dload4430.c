@@ -286,12 +286,12 @@ DLoad4430_create (UInt16 procId, const DLoad_Params * params)
 
     GT_2trace (curTrace, GT_ENTER, "DLoad4430_create", procId, params);
 
-    GT_assert (curTrace, IS_VALID_PROCID (procId));
+    GT_assert (curTrace, MultiProc_isValidRemoteProc (procId));
     GT_assert (curTrace, (params != NULL));
     GT_assert (curTrace, (params != NULL));
 
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-    if (!IS_VALID_PROCID (procId)) {
+    if (!MultiProc_isValidRemoteProc (procId)) {
         /*! @retval NULL Invalid procId specified */
         status = DLOAD_E_INVALIDARG;
         GT_setFailureReason (curTrace,

@@ -561,12 +561,12 @@ ProcMgr_create (UInt16 procId, const ProcMgr_Params * params)
 
     GT_2trace (curTrace, GT_ENTER, "ProcMgr_create", procId, params);
 
-    GT_assert (curTrace, IS_VALID_PROCID (procId));
+    GT_assert (curTrace, MultiProc_isValidRemoteProc (procId));
     GT_assert (curTrace, (params != NULL));
     GT_assert (curTrace, ((params != NULL)) && (params->procHandle != NULL));
 
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-    if (!IS_VALID_PROCID (procId)) {
+    if (! MultiProc_isValidRemoteProc (procId)) {
         /*! @retval NULL Invalid procId specified */
         status = PROCMGR_E_INVALIDARG;
         GT_setFailureReason (curTrace,
@@ -853,7 +853,7 @@ ProcMgr_open (ProcMgr_Handle * handlePtr, UInt16 procId)
     GT_2trace (curTrace, GT_ENTER, "ProcMgr_open", handlePtr, procId);
 
     GT_assert (curTrace, (handlePtr != NULL));
-    GT_assert (curTrace, IS_VALID_PROCID (procId));
+    GT_assert (curTrace, MultiProc_isValidRemoteProc (procId));
 
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
     if (handlePtr == NULL) {
@@ -865,7 +865,7 @@ ProcMgr_open (ProcMgr_Handle * handlePtr, UInt16 procId)
                              status,
                              "Invalid NULL handle pointer specified");
     }
-    else if (!IS_VALID_PROCID (procId)) {
+    else if (!MultiProc_isValidRemoteProc (procId)) {
         *handlePtr = NULL;
         /*! @retval PROCMGR_E_INVALIDARG Invalid procId specified */
         status = PROCMGR_E_INVALIDARG;

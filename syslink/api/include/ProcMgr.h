@@ -185,13 +185,6 @@ extern "C" {
 #define PROCMGR_MAX_MEMORY_REGIONS  32u
 
 /*!
- *  @def    IS_VALID_PROCID
- *  @brief  Checks if the Processor ID is valid
- */
-#define IS_VALID_PROCID(id)   (id < MultiProc_MAXPROCESSORS)
-
-
-/*!
  *  @brief  Defines ProcMgr object handle
  */
 typedef struct ProcMgr_Object * ProcMgr_Handle;

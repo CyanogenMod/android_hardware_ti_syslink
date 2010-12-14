@@ -450,11 +450,11 @@ OMAP4430PROC_create (UInt16 procId, const OMAP4430PROC_Params * params)
 
     GT_2trace (curTrace, GT_ENTER, "OMAP4430PROC_create", procId, params);
 
-    GT_assert (curTrace, IS_VALID_PROCID (procId));
+    GT_assert (curTrace, MultiProc_isValidRemoteProc (procId));
     GT_assert (curTrace, (params != NULL));
 
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-    if (!IS_VALID_PROCID (procId)) {
+    if (!MultiProc_isValidRemoteProc (procId)) {
         /*! @retval NULL Invalid procId specified */
         status = OMAP4430PROC_E_INVALIDARG;
         GT_setFailureReason (curTrace,
@@ -690,7 +690,7 @@ OMAP4430PROC_open (Handle * handlePtr, UInt16 procId)
     GT_2trace (curTrace, GT_ENTER, "OMAP4430PROC_open", handlePtr, procId);
 
     GT_assert (curTrace, (handlePtr != NULL));
-    GT_assert (curTrace, IS_VALID_PROCID (procId));
+    GT_assert (curTrace, MultiProc_isValidRemoteProc (procId));
 	Osal_printf ("-> OMAP4430PROC_open\n");
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
     if (handlePtr == NULL) {
@@ -703,7 +703,7 @@ OMAP4430PROC_open (Handle * handlePtr, UInt16 procId)
                              status,
                              "Invalid NULL handle pointer specified");
     }
-    else if (!IS_VALID_PROCID (procId)) {
+    else if (!MultiProc_isValidRemoteProc (procId)) {
         *handlePtr = NULL;
         /*! @retval OMAP4430PROC_E_INVALIDARG Invalid procId specified */
         status = OMAP4430PROC_E_INVALIDARG;
