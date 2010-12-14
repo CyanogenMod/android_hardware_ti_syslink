@@ -438,7 +438,7 @@ MultiProc_getName (UInt16 id)
 
 
 /* Function to get maximum proc Id in the system. */
-UInt16
+inline UInt16
 MultiProc_getNumProcessors (Void)
 {
     GT_0trace (curTrace, GT_ENTER, "MultiProc_getNumProcessors");
@@ -454,7 +454,7 @@ MultiProc_getNumProcessors (Void)
 
 
 /* Return Id of current processor */
-UInt16
+inline UInt16
 MultiProc_self (Void)
 {
     GT_0trace (curTrace, GT_ENTER, "MultiProc_self");

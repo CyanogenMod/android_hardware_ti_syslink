@@ -68,6 +68,13 @@ extern "C" {
  */
 #define MultiProc_MAXPROCESSORS 4
 
+/*!
+ *  @brief  Check if the procId passed is a valid remote processor
+ */
+#define MultiProc_isValidRemoteProc(procId)         \
+        ((procId != MultiProc_self ()) &&            \
+        ((UInt16)procId < MultiProc_getNumProcessors ()))
+
 
 /*!
  *  @brief  Configuration structure for MultiProc module
