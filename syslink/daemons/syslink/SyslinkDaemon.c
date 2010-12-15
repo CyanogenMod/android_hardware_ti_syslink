@@ -49,6 +49,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <semaphore.h>
+#include <errno.h>
 #include <pthread.h>
 
 /* OSAL & Utils headers */
@@ -107,6 +108,8 @@ IHeap_Handle                    srHeap              = NULL;
 pthread_t                       sysM3EvtHandlerThrd = 0;
 pthread_t                       appM3EvtHandlerThrd = 0;
 static Bool                     restart             = TRUE;
+static Bool                     isSysM3Event        = FALSE;
+static Bool                     isAppM3Event        = FALSE;
 #if defined (SYSLINK_USE_LOADER)
 UInt32                          fileIdSysM3;
 UInt32                          fileIdAppM3;
@@ -118,34 +121,33 @@ extern "C" {
 
 
 /*
-*========exc_dump_registers=========
-*/
-static Void exc_dump_registers()
+ *========exceptionDumpRegisters=========
+ */
+static Void exceptionDumpRegisters (Void)
 {
-    Int                 status;
-    UInt32              i;
-    volatile ExcContext * excContext;
-    Memory_MapInfo      traceinfo;
-    char              * ttype;
+    Int                     status;
+    UInt32                  i;
+    volatile ExcContext   * excContext;
+    Memory_MapInfo          traceinfo;
+    Char                  * ttype;
 
     traceinfo.src  = CONTEXTBUFFERADD;
     traceinfo.size = 0x80;
     status = Memory_map (&traceinfo);
-
     if (status!= MEMORYOS_SUCCESS) {
         Osal_printf ("Memory_map failed\n");
     }
     else {
-        Osal_printf ("traceinfo.dst: %x   traceinfo.size: %x\n", traceinfo.dst, traceinfo.size);
+        Osal_printf ("\nContext traceinfo.dst = 0x%x traceinfo.size = 0x%x\n",
+                        traceinfo.dst, traceinfo.size);
     }
 
-
-    /*Fill the Structure with data from memory*/
+    /* Fill the Structure with data from memory */
     excContext = (volatile ExcContext *) traceinfo.dst;
 
-    Osal_printf ("\n================================\n");
-    Osal_printf ("==========CONTEXT DUMP==========\n");
-    Osal_printf ("================================\n");
+    Osal_printf ("========================================================\n");
+    Osal_printf ("===================== CONTEXT DUMP =====================\n");
+    Osal_printf ("========================================================\n");
 
     switch (excContext->threadType) {
     case BIOS_ThreadType_Task:
@@ -168,14 +170,14 @@ static Void exc_dump_registers()
     Osal_printf ("%s handle: 0x%x.\n", ttype, excContext->threadHandle);
     Osal_printf ("%s stack base: 0x%x.\n", ttype, excContext->threadStack);
     Osal_printf ("%s stack size: 0x%x.\n", ttype, excContext->threadStackSize);
-    Osal_printf ("R0 = %08x  R8  = %08x\n", excContext->r0, excContext->r8);
-    Osal_printf ("R1 = %08x  R9  = %08x\n", excContext->r1, excContext->r9);
-    Osal_printf ("R2 = %08x  R10 = %08x\n", excContext->r2, excContext->r10);
-    Osal_printf ("R3 = %08x  R11 = %08x\n", excContext->r3, excContext->r11);
-    Osal_printf ("R4 = %08x  R12 = %08x\n", excContext->r4, excContext->r12);
-    Osal_printf ("R5 = %08x  SP  = %08x\n", excContext->r5, excContext->sp);
-    Osal_printf ("R6 = %08x  LR  = %08x\n", excContext->r6, excContext->lr);
-    Osal_printf ("R7 = %08x  PC  = %08x\n", excContext->r7, excContext->pc);
+    Osal_printf ("R0 = %08x  R8      = %08x\n", excContext->r0, excContext->r8);
+    Osal_printf ("R1 = %08x  R9      = %08x\n", excContext->r1, excContext->r9);
+    Osal_printf ("R2 = %08x  R10     = %08x\n", excContext->r2, excContext->r10);
+    Osal_printf ("R3 = %08x  R11     = %08x\n", excContext->r3, excContext->r11);
+    Osal_printf ("R4 = %08x  R12     = %08x\n", excContext->r4, excContext->r12);
+    Osal_printf ("R5 = %08x  SP(R13) = %08x\n", excContext->r5, excContext->sp);
+    Osal_printf ("R6 = %08x  LR(R14) = %08x\n", excContext->r6, excContext->lr);
+    Osal_printf ("R7 = %08x  PC(R15) = %08x\n", excContext->r7, excContext->pc);
     Osal_printf ("PSR = %08x\n", excContext->psr);
     Osal_printf ("ICSR = %08x\n", excContext->ICSR);
     Osal_printf ("MMFSR = %02x\n", excContext->MMFSR);
@@ -189,61 +191,82 @@ static Void exc_dump_registers()
     Osal_printf ("\n");
 
     traceinfo.src = STACKBUFFERADD;
+    traceinfo.size = excContext->threadStackSize + 4;
     if (traceinfo.size > STACKBUFFERSZE - 4) {
-        Osal_printf ("ERROR: Stack size larger than allocated space. Limiting to 12KB\n");
+        Osal_printf ("ERROR: Stack size larger than allocated space. Limiting "
+                        "to 12KB\n");
         traceinfo.size = STACKBUFFERSZE;
     }
 
-    traceinfo.size = excContext->threadStackSize + 4;
     status = Memory_map (&traceinfo);
-
     if (status!= MEMORYOS_SUCCESS) {
         Osal_printf ("Memory_map failed\n");
     }
     else {
-        Osal_printf ("traceinfo.dst %x   traceinfo.size: %x\n", traceinfo.dst, traceinfo.size);
+        Osal_printf ("Stack traceinfo.dst = 0x%x traceinfo.size = 0x%x\n",
+                        traceinfo.dst, traceinfo.size);
     }
 
-    Osal_printf ("\n================================\n");
-    Osal_printf ("==========STACK DUMP============\n");
-    Osal_printf ("================================\n");
+    Osal_printf ("========================================================\n");
+    Osal_printf ("====================== STACK DUMP ======================\n");
+    Osal_printf ("========================================================\n");
+
     for (i = traceinfo.dst; i < traceinfo.dst + traceinfo.size ; i=i + 4) {
-        Osal_printf ("[%04d]:%08x\n", (i - traceinfo.dst)/4 , * ((volatile UInt32 *) i));
+        Osal_printf ("[%04d]:%08x\n", (i - traceinfo.dst)/4 ,
+                        *((volatile UInt32 *) i));
     }
 }
+
 
 /*
  *  ======== sysM3EventHandler ========
  */
 static Void sysM3EventHandler (Void)
 {
-    Int                 status;
+    Int                 status  = PROCMGR_E_FAIL;
     UInt                index;
-    ProcMgr_EventType   eventList [] = {PROC_MMU_FAULT, PROC_ERROR};
+    Int                 size;
+    ProcMgr_EventType   eventList [] = {PROC_MMU_FAULT, PROC_ERROR,
+                                                    PROC_WATCHDOG};
 
-    status = ProcMgr_waitForMultipleEvents (PROC_SYSM3, eventList, 2, -1,
+    size = (sizeof (eventList)) / (sizeof (ProcMgr_EventType));
+    status = ProcMgr_waitForMultipleEvents (PROC_SYSM3, eventList, size, -1,
                                             &index);
     if (status == PROCMGR_SUCCESS) {
         if (eventList [index] == PROC_MMU_FAULT) {
-            Osal_printf ("MMU Fault occured on the M3 subsystem. See crash "
-                         "dump for more details\n");
+            Osal_printf ("\nMMU Fault occured on the M3 subsystem. See crash "
+                         "dump for more details...\n");
+        }
+        else if (eventList [index] == PROC_ERROR) {
+            Osal_printf ("\nSysError occured on SysM3. See crash dump for more "
+                         "details...\n");
         }
         else {
-            Osal_printf ("Sys Error occured in SysM3. See crash dump for more "
-                         "details\n");
+            Osal_printf ("\nWatchDog fired on the M3 subsystem.\n");
         }
 
-        /* Dump Crash Info */
-        exc_dump_registers ();
+        if ((eventList [index] == PROC_MMU_FAULT) ||
+            (eventList [index] == PROC_ERROR)) {
+            /* Dump Crash Info */
+            exceptionDumpRegisters ();
+        }
 
         /* Initiate cleanup */
+        isSysM3Event = TRUE;
         restart = TRUE;
         sem_post (&semDaemonWait);
     }
     else {
-        /* Send a signal to terminate the process */
-        Osal_printf ("SysM3 Event Handler Thread unblock failed.\n");
-        raise (SIGTERM);
+        if (errno == EINTR) {
+            Osal_printf ("SysM3 Event Handler Thread %s\n", strerror(errno));
+        }
+        else {
+            Osal_printf ("SysM3 Event Handler Thread block failed 0x%x\n",
+                status);
+            isSysM3Event = TRUE;
+            /* Post the semaphore to terminate the parent process */
+            sem_post (&semDaemonWait);
+        }
     }
 }
 
@@ -252,27 +275,42 @@ static Void sysM3EventHandler (Void)
  */
 static Void appM3EventHandler (Void)
 {
-    Int                 status;
+    Int                 status  = PROCMGR_E_FAIL;;
     UInt                index;
-    ProcMgr_EventType   eventList [] = {PROC_ERROR};
+    Int                 size;
+    ProcMgr_EventType   eventList [] = {PROC_ERROR, PROC_WATCHDOG};
 
-    status = ProcMgr_waitForMultipleEvents (PROC_APPM3, eventList, 1, -1,
+    size = (sizeof (eventList)) / (sizeof (ProcMgr_EventType));
+    status = ProcMgr_waitForMultipleEvents (PROC_APPM3, eventList, size, -1,
                                             &index);
     if (status == PROCMGR_SUCCESS) {
-        Osal_printf ("Sys Error occured in AppM3. See crash dump for more "
-                     "details\n");
+        if (eventList [index] == PROC_WATCHDOG) {
+            Osal_printf ("\nWatchDog fired on the M3 subsystem.\n");
+        }
+        else {
+            Osal_printf ("\nSysError occured on AppM3. See crash dump for more "
+                         "details...\n");
 
-        /* Dump Crash Info */
-        exc_dump_registers ();
+            /* Dump Crash Info */
+            exceptionDumpRegisters ();
+        }
 
         /* Initiate cleanup */
+        isAppM3Event = TRUE;
         restart = TRUE;
         sem_post (&semDaemonWait);
     }
     else {
-        /* Send a signal to terminate the process */
-        Osal_printf ("AppM3 Event Handler Thread unblock failed.\n");
-        raise (SIGTERM);
+        if (errno == EINTR) {
+            Osal_printf ("AppM3 Event Handler Thread %s\n", strerror(errno));
+        }
+        else {
+            Osal_printf ("AppM3 Event Handler Thread block failed 0x%x\n",
+                status);
+            isAppM3Event = TRUE;
+            /* Post the semaphore to terminate the parent process */
+            sem_post (&semDaemonWait);
+        }
     }
 
 }
@@ -282,16 +320,18 @@ static Void appM3EventHandler (Void)
  */
 static Void signal_handler (Int sig)
 {
-    Osal_printf ("\nexiting from the syslink daemon\n ");
+    pthread_t self = pthread_self ();
 
-    if (sysM3EvtHandlerThrd) {
-        pthread_kill (sysM3EvtHandlerThrd, SIGTERM);
+    if (pthread_equal (self, sysM3EvtHandlerThrd)) {
+        Osal_printf ("\n** SysLink Daemon: SysM3 thread exiting...\n ");
     }
-    if (appM3EvtHandlerThrd) {
-        pthread_kill (appM3EvtHandlerThrd, SIGTERM);
+    else if (pthread_equal (self, appM3EvtHandlerThrd)) {
+        Osal_printf ("\n** SysLink Daemon: AppM3 thread exiting...\n ");
     }
-
-    sem_post(&semDaemonWait);
+    else {
+        Osal_printf ("\n** SysLink Daemon: Exiting due to KILL command...\n");
+        sem_post (&semDaemonWait);
+    }
 }
 
 
@@ -398,7 +438,7 @@ static Void ipcCleanup (Void)
         Osal_printf ("Error in Ipc_destroy: status = 0x%x\n", status);
     }
 
-    Osal_printf ("Done cleaning up ipc!\n");
+    Osal_printf ("Done cleaning up ipc!\n\n");
 }
 
 
@@ -494,7 +534,7 @@ static Int ipcSetup (Char * sysM3ImageName, Char * appM3ImageName)
     }
 
 #if defined(SYSLINK_USE_LOADER)
-    Osal_printf ("SYSM3 Load: loading the SYSM3 image %s\n",
+    Osal_printf ("SysM3 Load: loading the SysM3 image %s\n",
                 sysM3ImageName);
 
     status = ProcMgr_load (procMgrHandleSysM3, sysM3ImageName, 2,
@@ -515,7 +555,7 @@ static Int ipcSetup (Char * sysM3ImageName, Char * appM3ImageName)
 
     if(appM3Client) {
 #if defined(SYSLINK_USE_LOADER)
-        Osal_printf ("APPM3 Load: loading the APPM3 image %s\n",
+        Osal_printf ("AppM3 Load: loading the AppM3 image %s\n",
                     appM3ImageName);
         status = ProcMgr_load (procMgrHandleAppM3, appM3ImageName, 2,
                               &appM3ImageName, &entryPoint, &fileIdAppM3,
@@ -535,7 +575,7 @@ static Int ipcSetup (Char * sysM3ImageName, Char * appM3ImageName)
         }
     }
 
-    Osal_printf ("SYSM3: Creating Ducati DMM pool of size 0x%x\n",
+    Osal_printf ("SysM3: Creating Ducati DMM pool of size 0x%x\n",
                 DUCATI_DMM_POOL_0_SIZE);
     status = ProcMgr_createDMMPool (DUCATI_DMM_POOL_0_ID,
                                     DUCATI_DMM_POOL_0_START,
@@ -686,30 +726,30 @@ Int main (Int argc, Char * argv [])
     FILE  * fp;
     Bool    callIpcSetup = false;
 
-    Osal_printf ("Spawning TILER server daemon...\n");
+    Osal_printf ("Spawning SysLink Daemon...\n");
 
     /* Fork off the parent process */
     child_pid = fork();
     if (child_pid < 0) {
         Osal_printf ("Spawn daemon failed!\n");
-        exit(EXIT_FAILURE);     /* Failure */
+        exit (EXIT_FAILURE);     /* Failure */
     }
     /* If we got a good PID, then we can exit the parent process. */
     if (child_pid > 0) {
-        exit(EXIT_SUCCESS);    /* Succeess */
+        exit (EXIT_SUCCESS);    /* Succeess */
     }
 
     /* Change file mode mask */
-    umask(0);
+    umask (0);
 
     /* Create a new SID for the child process */
-    child_sid = setsid();
+    child_sid = setsid ();
     if (child_sid < 0)
-        exit(EXIT_FAILURE);     /* Failure */
+        exit (EXIT_FAILURE);     /* Failure */
 
     /* Change the current working directory */
     if ((chdir("/")) < 0) {
-        exit(EXIT_FAILURE);     /* Failure */
+        exit (EXIT_FAILURE);     /* Failure */
     }
 
     /* Close standard file descriptors */
@@ -734,11 +774,11 @@ Int main (Int argc, Char * argv [])
         /* Test for file's presence */
         if (strlen (argv[1]) >= 1024) {
             Osal_printf ("Filename is too big\n");
-            exit(EXIT_FAILURE);
+            exit (EXIT_FAILURE);
         }
-        fp = fopen(argv[1], "rb");
+        fp = fopen (argv[1], "rb");
         if (fp != NULL) {
-            fclose(fp);
+            fclose (fp);
             callIpcSetup = true;
         }
         else
@@ -749,14 +789,14 @@ Int main (Int argc, Char * argv [])
         /* Test for file's presence */
         if ((strlen (argv[1]) >= 1024) || (strlen (argv[2]) >= 1024)){
             Osal_printf ("Filenames are too big\n");
-            exit(EXIT_FAILURE);
+            exit (EXIT_FAILURE);
         }
-        fp = fopen(argv[1], "rb");
+        fp = fopen (argv[1], "rb");
         if(fp != NULL) {
-            fclose(fp);
-            fp = fopen(argv[2], "rb");
+            fclose (fp);
+            fp = fopen (argv[2], "rb");
             if(fp != NULL) {
-                fclose(fp);
+                fclose (fp);
                 callIpcSetup = true;
             } else
                 Osal_printf ("File %s could not be opened.\n", argv[2]);
@@ -764,18 +804,24 @@ Int main (Int argc, Char * argv [])
             Osal_printf ("File %s could not be opened.\n", argv[1]);
         break;
     }
-    if(!callIpcSetup)
+    if(!callIpcSetup) {
         return (-1);
-
-    sem_init (&semDaemonWait, 0, 0);
+    }
 
     /* Setup the signal handlers */
-    signal (SIGINT, signal_handler);
-    signal (SIGKILL, signal_handler);
-    signal (SIGTERM, signal_handler);
+    if (signal (SIGINT, signal_handler) == SIG_ERR) {
+        Osal_printf ("SIGINT registration failed!");
+    }
+    if (signal (SIGTERM, signal_handler) == SIG_ERR) {
+        Osal_printf ("SIGTERM registration failed!");
+    }
 
     while (restart) {
         restart = FALSE;
+        isSysM3Event = FALSE;
+        isAppM3Event = FALSE;
+
+        sem_init (&semDaemonWait, 0, 0);
 
         status = ipcSetup (argv[1], (argc == 2) ? NULL : argv[2]);
         if (status < 0) {
@@ -785,10 +831,11 @@ Int main (Int argc, Char * argv [])
         }
         Osal_printf ("ipcSetup succeeded!\n");
 
-        /* Create the SYSM3 fault handler thread */
-        Osal_printf ("Create SysM3 event handler thread.\n");
+        /* Create the SysM3 fault handler thread */
+        Osal_printf ("Create SysM3 event handler thread\n");
         status = pthread_create (&sysM3EvtHandlerThrd, NULL,
                                     (Void *)&sysM3EventHandler, NULL);
+
         if (status) {
             Osal_printf ("Error Creating SysM3 event handler thread:%d\n",
                             status);
@@ -796,10 +843,10 @@ Int main (Int argc, Char * argv [])
             sem_destroy (&semDaemonWait);
             exit (EXIT_FAILURE);
         }
-        /* Only if APPM3 image is specified */
+        /* Only if AppM3 image is specified */
         if (argc != 2) {
-            /* Create an APPM3 fault handler thread */
-            Osal_printf ("Create AppM3 event handler thread.\n");
+            /* Create an AppM3 fault handler thread */
+            Osal_printf ("Create AppM3 event handler thread\n");
             status = pthread_create (&appM3EvtHandlerThrd, NULL,
                                         (Void *)&appM3EventHandler, NULL);
             if (status) {
@@ -816,23 +863,41 @@ Int main (Int argc, Char * argv [])
         /* Wait for any event handler thread to be unblocked */
         sem_wait (&semDaemonWait);
 
-        /* Clean up event handler threads if reloading remote processors*/
-        if (restart) {
-            if (sysM3EvtHandlerThrd) {
-                pthread_kill (sysM3EvtHandlerThrd, SIGTERM);
-                sysM3EvtHandlerThrd = 0;
+        /* Clean up event handler threads */
+        if (sysM3EvtHandlerThrd) {
+            if (isSysM3Event) {
+                status = pthread_join (sysM3EvtHandlerThrd, NULL);
+                Osal_printf ("pthread_join SysM3 Thread = %d\n", status);
             }
-            if (appM3EvtHandlerThrd) {
-                pthread_kill (appM3EvtHandlerThrd, SIGTERM);
-                appM3EvtHandlerThrd = 0;
+            else {
+                if (pthread_kill (sysM3EvtHandlerThrd, SIGTERM) == 0) {
+                    status = pthread_join (sysM3EvtHandlerThrd, NULL);
+                    Osal_printf ("pthread_kill & join SysM3 Thread = %d\n",
+                                    status);
+                }
             }
+            sysM3EvtHandlerThrd = 0;
+        }
+        if (appM3EvtHandlerThrd) {
+            if (isAppM3Event) {
+                status = pthread_join (appM3EvtHandlerThrd, NULL);
+                Osal_printf ("pthread_join AppM3 Thread = %d\n", status);
+            }
+            else {
+                if (pthread_kill (appM3EvtHandlerThrd, SIGTERM) == 0) {
+                    status = pthread_join (appM3EvtHandlerThrd, NULL);
+                    Osal_printf ("pthread_kill & join AppM3 Thread = %d\n",
+                                    status);
+                }
+            }
+            appM3EvtHandlerThrd = 0;
         }
 
-        /* IPC_Cleanup function*/
+        /* IPC_Cleanup function */
         ipcCleanup ();
-    }
 
-    sem_destroy (&semDaemonWait);
+        sem_destroy (&semDaemonWait);
+    }
 
     return 0;
 }
