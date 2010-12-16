@@ -31,7 +31,7 @@
  *  OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  *  EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-/*============================================================================
+/*==============================================================================
  *  @file   SysLinkMemUtils.c
  *
  *  @brief     This modules provides syslink Mem utils functionality
@@ -194,7 +194,7 @@ _SysLinkMemUtils_init (Void)
 {
     List_Params             listParams;
 
-    GT_0trace (curTrace, GT_ENTER, (Char *)__func__);
+    GT_0trace (curTrace, GT_ENTER, "_SysLinkMemUtils_init");
 
     List_Params_init (&listParams);
     SysLinkMemUtils_module->addrTable = List_create (&listParams);
@@ -220,7 +220,7 @@ _SysLinkMemUtils_init (Void)
     }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
 
-    GT_0trace (curTrace, GT_LEAVE, (Char *)__func__);
+    GT_0trace (curTrace, GT_LEAVE, "_SysLinkMemUtils_init");
 }
 
 
@@ -233,12 +233,12 @@ static Void _SysLinkMemUtils_exit (Void) __attribute__((destructor));
 static Void
 _SysLinkMemUtils_exit (Void)
 {
-    GT_0trace (curTrace, GT_ENTER, (Char *)__func__);
+    GT_0trace (curTrace, GT_ENTER, "_SysLinkMemUtils_exit");
 
     List_delete (&SysLinkMemUtils_module->addrTable);
     OsalSemaphore_delete (&SysLinkMemUtils_module->semList);
 
-    GT_0trace (curTrace, GT_LEAVE, (Char *)__func__);
+    GT_0trace (curTrace, GT_LEAVE, "_SysLinkMemUtils_exit");
 }
 
 
@@ -254,7 +254,7 @@ _SysLinkMemUtils_findNode (Ptr da)
 {
     AddrNode  * node;
 
-    GT_1trace (curTrace, GT_ENTER, (Char *)__func__, da);
+    GT_1trace (curTrace, GT_ENTER, "_SysLinkMemUtils_findNode", da);
 
     for (node = List_next (SysLinkMemUtils_module->addrTable, NULL);
         node != NULL; node = List_next (SysLinkMemUtils_module->addrTable,
@@ -264,7 +264,7 @@ _SysLinkMemUtils_findNode (Ptr da)
         }
     }
 
-    GT_1trace (curTrace, GT_LEAVE, (Char *)__func__, node);
+    GT_1trace (curTrace, GT_LEAVE, "_SysLinkMemUtils_findNode", node);
 
     return node;
 }
@@ -285,7 +285,8 @@ _SysLinkMemUtils_insertMapElement (Ptr da, Ptr ua, UInt32 size)
     AddrNode      * node;
     Int32           status = PROCMGR_SUCCESS;
 
-    GT_3trace (curTrace, GT_ENTER, (Char *)__func__, da, ua, size);
+    GT_3trace (curTrace, GT_ENTER, "_SysLinkMemUtils_insertMapElement", da, ua,
+                size);
 
     node = Memory_alloc (NULL, sizeof (AddrNode), 0);
     if (!node) {
@@ -308,7 +309,7 @@ _SysLinkMemUtils_insertMapElement (Ptr da, Ptr ua, UInt32 size)
         OsalSemaphore_post (SysLinkMemUtils_module->semList);
     }
 
-    GT_1trace (curTrace, GT_LEAVE, (Char *)__func__, status);
+    GT_1trace (curTrace, GT_LEAVE, "_SysLinkMemUtils_insertMapElement", status);
 
     return status;
 }
@@ -327,7 +328,7 @@ _SysLinkMemUtils_removeMapElement (Ptr da)
     AddrNode  * node;
     Ptr         addr = NULL;
 
-    GT_1trace (curTrace, GT_ENTER, (Char *)__func__, da);
+    GT_1trace (curTrace, GT_ENTER, "_SysLinkMemUtils_removeMapElement", da);
 
     OsalSemaphore_pend (SysLinkMemUtils_module->semList,
                         OSALSEMAPHORE_WAIT_FOREVER);
@@ -348,7 +349,7 @@ _SysLinkMemUtils_removeMapElement (Ptr da)
     }
     OsalSemaphore_post (SysLinkMemUtils_module->semList);
 
-    GT_1trace (curTrace, GT_LEAVE, (Char *)__func__, addr);
+    GT_1trace (curTrace, GT_LEAVE, "_SysLinkMemUtils_removeMapElement", addr);
 
     return addr;
 }
@@ -368,7 +369,8 @@ _SysLinkMemUtils_bufferSize (MemAllocBlock * memBlock, UInt numBlocks)
     UInt32  i;
     UInt32  size = 0;
 
-    GT_2trace (curTrace, GT_ENTER, (Char *)__func__, memBlock, numBlocks);
+    GT_2trace (curTrace, GT_ENTER, "_SysLinkMemUtils_bufferSize", memBlock,
+                numBlocks);
 
     for (i = 0; i < numBlocks; i++, memBlock++) {
         if (memBlock->pixelFormat == PIXEL_FMT_PAGE) {
@@ -379,7 +381,7 @@ _SysLinkMemUtils_bufferSize (MemAllocBlock * memBlock, UInt numBlocks)
         }
     }
 
-    GT_1trace (curTrace, GT_LEAVE, (Char *)__func__, size);
+    GT_1trace (curTrace, GT_LEAVE, "_SysLinkMemUtils_bufferSize", size);
 
     return size;
 }
@@ -401,7 +403,7 @@ SysLinkMemUtils_DAtoVA (Ptr da)
     AddrNode  * node;
     Ptr         addr = NULL;
 
-    GT_1trace (curTrace, GT_ENTER, (Char *)__func__, da);
+    GT_1trace (curTrace, GT_ENTER, "SysLinkMemUtils_DAtoVA", da);
 
     OsalSemaphore_pend (SysLinkMemUtils_module->semList,
                         OSALSEMAPHORE_WAIT_FOREVER);
@@ -411,7 +413,7 @@ SysLinkMemUtils_DAtoVA (Ptr da)
         addr = node->ua + (da - node->da);
     }
 
-    GT_1trace (curTrace, GT_LEAVE, (Char *)__func__, addr);
+    GT_1trace (curTrace, GT_LEAVE, "SysLinkMemUtils_DAtoVA", addr);
 
     return addr;
 }
@@ -441,7 +443,7 @@ SysLinkMemUtils_alloc (UInt32 dataSize, UInt32 * data)
     Int32                           status          = PROCMGR_SUCCESS;
     SyslinkMemUtils_MpuAddrToMap    mpuAddrList [1];
 
-    GT_2trace (curTrace, GT_ENTER, (Char *)__func__, dataSize, data);
+    GT_2trace (curTrace, GT_ENTER, "SysLinkMemUtils_alloc", dataSize, data);
 
     memBlock = Memory_calloc (NULL, sizeof (MemAllocBlock) * args->numBuffers,
                                 0);
@@ -526,7 +528,7 @@ SysLinkMemUtils_alloc (UInt32 dataSize, UInt32 * data)
     if (memBlock)
         Memory_free (NULL, memBlock, 1);
 
-    GT_1trace (curTrace, GT_LEAVE, (Char *)__func__, retAddr);
+    GT_1trace (curTrace, GT_LEAVE, "SysLinkMemUtils_alloc", retAddr);
 
     return retAddr;
 }
@@ -550,7 +552,7 @@ SysLinkMemUtils_free (UInt32 dataSize, UInt32 * data)
     Ptr         ua;
     Int32       status;
 
-    GT_2trace (curTrace, GT_ENTER, (Char *)__func__, dataSize, data);
+    GT_2trace (curTrace, GT_ENTER, "SysLinkMemUtils_free", dataSize, data);
 
     ua = _SysLinkMemUtils_removeMapElement (args->bufPtr);
     if (!ua) {
@@ -577,7 +579,7 @@ SysLinkMemUtils_free (UInt32 dataSize, UInt32 * data)
         status = MemMgr_Free (ua);
     }
 
-    GT_1trace (curTrace, GT_LEAVE, (Char *)__func__, status);
+    GT_1trace (curTrace, GT_LEAVE, "SysLinkMemUtils_free", status);
 
     return !!status;
 }
@@ -733,7 +735,8 @@ SysLinkMemUtils_virtToPhysPages (UInt32         remoteAddr,
     /* TODO: Hack for tiler */
     if(remoteAddr >= TILER_ADDRESS_START && remoteAddr < TILER_ADDRESS_END) {
         for (i = 0; i < numOfPages; i++) {
-            physEntries[i] = Page_ALIGN_LOW(remoteAddr, Page_SIZE_4K) + (4096 * i);
+            physEntries[i] = Page_ALIGN_LOW(remoteAddr, Page_SIZE_4K) + \
+                                                                    (4096 * i);
         }
     }
     else {
