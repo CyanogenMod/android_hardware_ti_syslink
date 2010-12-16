@@ -45,7 +45,7 @@ extern "C" {
  *  @desc   Number after resevred events.
  *  ============================================================================
  */
-#define EVENT_STARTNO           4
+#define EVENT_STARTNO           5
 #define MAX_ITERATIONS          100
 #define MIN_ITERATIONS          1
 
