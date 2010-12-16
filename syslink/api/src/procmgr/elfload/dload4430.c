@@ -719,7 +719,9 @@ DLoad4430_load (DLoad4430_Handle handle,
                                      "Failed load of file!");
             }
         }
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
     }
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
 
     GT_1trace (curTrace, GT_LEAVE, "DLoad4430_load", status);
 

@@ -2856,9 +2856,11 @@ error_exit:
 Int
 ProcMgr_unmap (ProcMgr_Handle   handle,
                UInt32           mappedAddr,
-               ProcMgr_ProcId procID)
+               ProcMgr_ProcId   procID)
 {
     Int                   status          = PROCMGR_SUCCESS;
+
+    GT_3trace (curTrace, GT_ENTER, "ProcMgr_unmap", handle, mappedAddr, procID);
 
 #if defined(SYSLINK_BUILD_DEBUG)
     GT_assert (curTrace, (handle        != NULL));
@@ -2896,7 +2898,9 @@ ProcMgr_unmap (ProcMgr_Handle   handle,
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
         status = ProcMMU_UnMap (mappedAddr, procID);
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
     }
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
 
     GT_1trace (curTrace, GT_LEAVE, "ProcMgr_unmap", status);
 
