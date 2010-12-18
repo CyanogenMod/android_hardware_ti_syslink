@@ -38,5 +38,6 @@ LOCAL_SHARED_LIBRARIES += \
 		libipcutils
 
 LOCAL_MODULE    := libipc
+LOCAL_MODULE_TAGS:= optional
 
 include $(BUILD_SHARED_LIBRARY)

@@ -2,6 +2,7 @@
 LOCAL_PATH:= $(call my-dir)
 
 include $(CLEAR_VARS)
+LOCAL_MODULE_TAGS:=optional
 
 LOCAL_ARM_MODE := arm
 
@@ -25,5 +26,6 @@ LOCAL_CFLAGS += -MD -pipe  -fomit-frame-pointer -Wall  -Wno-trigraphs -Werror-im
 #LOCAL_CFLAGS += -DSYSLINK_USE_DAEMON
 
 LOCAL_MODULE:= utilsApp.out
+LOCAL_MODULE_TAGS:=optional samples
 
 include $(BUILD_EXECUTABLE)
