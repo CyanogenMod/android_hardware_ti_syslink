@@ -72,7 +72,7 @@ Void Osal_printf (char* format, ...)
     vsprintf (buffer, format, args);
     va_end   (args);
 
-    printf (buffer);
+    printf ("%s", buffer);
 }
 
 
