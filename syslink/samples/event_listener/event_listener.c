@@ -54,11 +54,15 @@ static void *listener_handler(void *data)
 	int status;
 	struct listener_args *args = data;
 	ProcMgr_Handle proc;
-	char *events_name[] = {"MMUFault", "PROC_ERROR", "PROC_STOP", "PROC_START"};
+	char *events_name[] = {"MMUFault", "PROC_ERROR", "PROC_STOP",
+							 "PROC_WATCHDOG"};
 	char *procs[] = {"Tesla", "AppM3", "SysM3"};
-	ProcMgr_EventType events[] = {PROC_STOP, PROC_MMU_FAULT};
+	ProcMgr_EventType events[] = {PROC_MMU_FAULT, PROC_ERROR, PROC_STOP,
+								PROC_WATCHDOG};
 	UInt i;
+	UInt size;
 
+	size = (sizeof (events)) / (sizeof (ProcMgr_EventType));
 
 	while (1) {
 		status = Ipc_setup(NULL);
@@ -84,7 +88,7 @@ static void *listener_handler(void *data)
 		Osal_printf("Waiting fatal erros from %s\n",
 							procs[args->proc]);
 		status = ProcMgr_waitForMultipleEvents(args->proc,
-							events, 2, -1, &i);
+							events, size, -1, &i);
 
 		if (status != PROCMGR_SUCCESS) {
 			Osal_printf ("Error ProcMgr_waitForMultipleEvents %d\n"
@@ -92,7 +96,7 @@ static void *listener_handler(void *data)
 			break;
 		}
 		Osal_printf("Received %s notification from %s\n"
-				, events_name[events[i]], procs[args->proc]);
+				, events_name[i], procs[args->proc]);
 		Osal_printf("Close the opened handles so that recovery can "
 				"restart remote processor\n");
 		usleep(100);
