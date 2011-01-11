@@ -35,7 +35,8 @@ LOCAL_CFLAGS += -pipe -fomit-frame-pointer -Wall  -Wno-trigraphs -Werror-implici
 
 LOCAL_SHARED_LIBRARIES += \
 		libc \
-		libipcutils
+		libipcutils \
+		liblog
 
 LOCAL_MODULE    := libipc
 LOCAL_MODULE_TAGS:= optional

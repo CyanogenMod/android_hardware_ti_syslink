@@ -19,6 +19,7 @@ LOCAL_MODULE    := librcm
 LOCAL_MODULE_TAGS := optional
 LOCAL_SHARED_LIBRARIES := \
 	libipcutils \
-	libipc
+	libipc \
+	liblog
 
 include $(BUILD_SHARED_LIBRARY)

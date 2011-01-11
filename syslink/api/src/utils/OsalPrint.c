@@ -45,11 +45,13 @@
 /* Standard headers */
 #include <Std.h>
 
-/*OSAL and kernel utils */
+/* OSAL and kernel utils */
+#undef SYSLINK_DIRECT_LOGD
 #include <OsalPrint.h>
 
 /* Linux specifc header files */
 #include <stdarg.h>
+#include <stdio.h>
 
 #ifdef HAVE_ANDROID_OS
 #include <utils/Log.h>

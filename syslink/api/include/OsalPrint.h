@@ -43,7 +43,6 @@
  *  ============================================================================
  */
 
-
 #ifndef OSALPRINT_H_0xC431
 #define OSALPRINT_H_0xC431
 
@@ -53,13 +52,6 @@
 /* Linux OS-specific headers */
 #include <stdio.h>
 
-/* OSAL and utils */
-
-
-#if defined (__cplusplus)
-extern "C" {
-#endif
-
 
 /*!
  *  @def    OSALPRINT_MODULEID
@@ -67,14 +59,29 @@ extern "C" {
  */
 #define OSALPRINT_MODULEID                 (UInt16) 0xC431
 
+#if defined (HAVE_ANDROID_OS) && defined (SYSLINK_DIRECT_LOGD)
+
+#ifndef LOG_TAG
+#define LOG_TAG "SYSLINK"
+#endif
+
+#include <utils/Log.h>
+
+#define Osal_printf(...) LOGD( __VA_ARGS__ )
+
+#else /* defined (HAVE_ANDROID_OS) && defined (SYSLINK_DIRECT_LOGD) */
+
+#if defined (__cplusplus)
+extern "C" {
+#endif
 
 #if defined (HAVE_ANDROID_OS)
+
 /* Defines for configuring print */
 typedef enum {
     Osal_PrintToConsole = 0,
     Osal_PrintToLogcat  = 1
 } Osal_PrintConfig;
-
 
 /* =============================================================================
  *  APIs
@@ -82,14 +89,16 @@ typedef enum {
  */
 /* Configure print mechanism */
 Void Osal_configPrint (Osal_PrintConfig printType);
-#endif
+
+#endif /*  defined (HAVE_ANDROID_OS) */
 
 /*  printf abstraction at the kernel level. */
 Void Osal_printf (Char* format, ...);
 
-
 #if defined (__cplusplus)
 }
 #endif /* defined (__cplusplus) */
+
+#endif /* defined (HAVE_ANDROID_OS) && defined (SYSLINK_DIRECT_LOGD) */
 
 #endif /* ifndef OSALPRINT_H_0xC431 */
