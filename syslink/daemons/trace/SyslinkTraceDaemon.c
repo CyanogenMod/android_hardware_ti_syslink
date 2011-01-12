@@ -69,25 +69,48 @@ extern "C" {
 
 #define TRACE_BUFFER_SIZE               0x10000
 
-#define TIMEOUT_SECS                    1
+#define TIMEOUT_USECS                   500000
+
+#ifdef HAVE_ANDROID_OS
+#undef LOG_TAG
+#define LOG_TAG "TRACED"
+#endif
 
 static FILE *log;
-sem_t        semPrint; /* Semaphore to allow only one thread to print at once */
+/* Semaphore to allow only one thread to print at once */
+sem_t        semPrint;
+/* Scratch buffer with extra space for core names */
+Char         tempBuffer [TRACE_BUFFER_SIZE + 128];
 
-/* pull char from queue */
-Void printSysM3Traces (Void *arg)
+
+/* Thread (core) specific info */
+typedef struct traceBufferParams {
+    Char      * coreName;
+    UInt32      bufferAddress;
+} traceBufferParams;
+
+
+
+Void printRemoteTraces (Void *args)
 {
-    Int               status              = 0;
-    Memory_MapInfo    traceinfo;
-    UInt32            numOfBytesInBuffer  = 0;
-    volatile UInt32 * readPointer;
-    volatile UInt32 * writePointer;
-    Char            * traceBuffer;
+    Int                 status              = 0;
+    Memory_MapInfo      traceinfo;
+    UInt32              numOfBytesInBuffer  = 0;
+    volatile UInt32   * readPointer;
+    volatile UInt32   * writePointer;
+    UInt32              writePos;
+    Char              * traceBuffer;
+    UInt32              numBytesToCopy;
+    UInt32              printStart;
+    UInt32              i;
+    traceBufferParams * params = (traceBufferParams*)args;
+    UInt32              coreNameSize = strlen(params->coreName);
+    Char                saveChar;
 
-    fprintf (log, "\nSpawning SysM3 trace thread\n ");
+    Osal_printf ("Creating trace thread for %s\n", params->coreName);
 
     /* Get the user virtual address of the buffer */
-    traceinfo.src  = SYSM3_TRACE_BUFFER_PHYS_ADDR;
+    traceinfo.src  = params->bufferAddress;
     traceinfo.size = TRACE_BUFFER_SIZE;
     status = Memory_map (&traceinfo);
     readPointer = (volatile UInt32 *)traceinfo.dst;
@@ -99,151 +122,75 @@ Void printSysM3Traces (Void *arg)
     *writePointer = 0;
     do {
         do {
-           sleep (TIMEOUT_SECS);
+            usleep (TIMEOUT_USECS);
         } while (*readPointer == *writePointer);
 
-        sem_wait(&semPrint);    /* Acquire exclusive access to printing */
-        if ( *readPointer < *writePointer ) {
-            numOfBytesInBuffer = (*writePointer) - (*readPointer);
-        } else {
-            numOfBytesInBuffer = ((TRACE_BUFFER_SIZE - 8) - (*readPointer)) + (*writePointer);
+        sem_wait (&semPrint);    /* Acquire exclusive access to printing */
+
+        /* Copy the trace buffer contents to the scratch buffer. */
+        memcpy (tempBuffer, params->coreName, coreNameSize);
+        numOfBytesInBuffer = coreNameSize;
+        writePos = *writePointer;
+        if (*readPointer < writePos) {
+            numBytesToCopy = writePos - (*readPointer);
+            memcpy (&tempBuffer [numOfBytesInBuffer],
+                    &traceBuffer [*readPointer], numBytesToCopy);
+            numOfBytesInBuffer += numBytesToCopy;
+        }
+        else {
+            numBytesToCopy = ((TRACE_BUFFER_SIZE - 8) - (*readPointer));
+            memcpy (&tempBuffer [numOfBytesInBuffer],
+                    &traceBuffer [*readPointer], numBytesToCopy);
+            numOfBytesInBuffer += numBytesToCopy;
+            numBytesToCopy = writePos;
+            memcpy (&tempBuffer [numOfBytesInBuffer], traceBuffer,
+                    numBytesToCopy);
+            numOfBytesInBuffer += numBytesToCopy;
         }
 
-        fprintf (log, "\n[SYSM3]: ");
-        while ( numOfBytesInBuffer-- ) {
-            if ((*readPointer) == (TRACE_BUFFER_SIZE - 8)){
-                (*readPointer) = 0;
+        /* Update the read position in shared memory. */
+        *readPointer = writePos;
+
+        /* Print the traces one line at time. */
+        printStart = 0;
+        i = coreNameSize;
+        while ( i < numOfBytesInBuffer ) {
+            /* Search for a newline */
+            while (tempBuffer [i] != '\n' && i < numOfBytesInBuffer ) {
+                i++;
             }
 
-            fprintf (log, "%c", traceBuffer[*readPointer]);
-            if (traceBuffer[*readPointer] == '\n') {
-                fprintf (log, "[SYSM3]: ");
+            /* Pretty print truncated traces at the end of the buffer. */
+            if (tempBuffer [i] != '\n') {
+                tempBuffer [i] = '\n';
             }
 
-            (*readPointer)++;
-        }
-        fflush (log);
-        sem_post(&semPrint);    /* Release exclusive access to printing */
-
-    } while(1);
-
-    fprintf (log, "Leaving printSysM3Traces thread function \n");
-    return;
-}
-
-
-/* pull char from queue */
-Void printAppM3Traces (Void *arg)
-{
-    Int               status              = 0;
-    Memory_MapInfo    traceinfo;
-    UInt32            numOfBytesInBuffer  = 0;
-    volatile UInt32 * readPointer;
-    volatile UInt32 * writePointer;
-    Char            * traceBuffer;
-
-    fprintf (log, "\nSpawning AppM3 trace thread\n ");
-
-    /* Get the user virtual address of the buffer */
-    traceinfo.src  = APPM3_TRACE_BUFFER_PHYS_ADDR;
-    traceinfo.size = TRACE_BUFFER_SIZE;
-    status = Memory_map (&traceinfo);
-    readPointer = (volatile UInt32 *)traceinfo.dst;
-    writePointer = (volatile UInt32 *)(traceinfo.dst + 0x4);
-    traceBuffer = (Char *)(traceinfo.dst + 0x8);
-
-    /* Initialze read and write indexes to zero */
-    *readPointer = 0;
-    *writePointer = 0;
-    do {
-        do {
-           sleep (TIMEOUT_SECS);
-        } while (*readPointer == *writePointer);
-
-        sem_wait(&semPrint);    /* Acquire exclusive access to printing */
-        if ( *readPointer < *writePointer ) {
-            numOfBytesInBuffer = *writePointer - *readPointer;
-        } else {
-            numOfBytesInBuffer = ((TRACE_BUFFER_SIZE - 8) - *readPointer) + *writePointer;
+            /* Temporarily replace the char after newline with '\0', */
+            /* print trace, then prefix next trace with core name.   */
+            saveChar = tempBuffer [i + 1];
+            tempBuffer [i + 1] = 0;
+            if (log == NULL) {
+                Osal_printf (&tempBuffer [printStart]);
+            }
+            else {
+                fprintf (log, &tempBuffer [printStart]);
+            }
+            tempBuffer [i + 1] = saveChar;
+            i++;
+            printStart = i - coreNameSize;
+            memcpy (&tempBuffer [printStart], params->coreName, coreNameSize );
         }
 
-        fprintf (log, "\n[APPM3]: ");
-        while ( numOfBytesInBuffer-- ) {
-            if (*readPointer >= (TRACE_BUFFER_SIZE - 8)){
-                *readPointer = 0;
-            }
-
-            fprintf (log, "%c", traceBuffer[*readPointer]);
-            if (traceBuffer[*readPointer] == '\n') {
-                fprintf (log, "[APPM3]: ");
-            }
-
-            (*readPointer)++;
-        }
-        fflush (log);
-        sem_post(&semPrint);    /* Release exclusive access to printing */
-
-    } while(1);
-
-    fprintf (log, "Leaving printAppM3Traces thread function \n");
-    return;
-}
-
-
-/* pull char from queue */
-Void printTeslaTraces (Void *arg)
-{
-    Int               status              = 0;
-    Memory_MapInfo    traceinfo;
-    UInt32            numOfBytesInBuffer  = 0;
-    volatile UInt32 * readPointer;
-    volatile UInt32 * writePointer;
-    Char            * traceBuffer;
-
-    fprintf (log, "\nSpawning Tesla trace thread\n ");
-
-    /* Get the user virtual address of the buffer */
-    traceinfo.src  = TESLA_TRACE_BUFFER_PHYS_ADDR;
-    traceinfo.size = TRACE_BUFFER_SIZE;
-    status = Memory_map (&traceinfo);
-    readPointer = (volatile UInt32 *)traceinfo.dst;
-    writePointer = (volatile UInt32 *)(traceinfo.dst + 0x4);
-    traceBuffer = (Char *)(traceinfo.dst + 0x8);
-
-    /* Initialze read indexes to zero */
-    *readPointer = 0;
-    *writePointer = 0;
-    do {
-        do {
-           sleep (TIMEOUT_SECS);
-        } while (*readPointer == *writePointer);
-
-        sem_wait(&semPrint);    /* Acquire exclusive access to printing */
-        if ( *readPointer < *writePointer ) {
-            numOfBytesInBuffer = (*writePointer) - (*readPointer);
-        } else {
-            numOfBytesInBuffer = ((TRACE_BUFFER_SIZE - 8) - (*readPointer)) + (*writePointer);
+        if (log != NULL ) {
+            fflush (log);
         }
 
-        fprintf (log, "\n[DSP]: ");
-        while ( numOfBytesInBuffer-- ) {
-            if ((*readPointer) == (TRACE_BUFFER_SIZE - 8)){
-                (*readPointer) = 0;
-            }
+        sem_post (&semPrint);    /* Release exclusive access to printing */
 
-            fprintf (log, "%c", traceBuffer[*readPointer]);
-            if (traceBuffer[*readPointer] == '\n') {
-                fprintf (log, "[DSP]: ");
-            }
+    } while (1);
 
-            (*readPointer)++;
-        }
-        fflush (log);
-        sem_post(&semPrint);    /* Release exclusive access to printing */
+    Osal_printf ("Leaving %s thread function \n", params->coreName);
 
-    } while(1);
-
-    fprintf (log, "Leaving printTeslaTraces thread function \n");
     return;
 }
 
@@ -252,9 +199,10 @@ Void printTeslaTraces (Void *arg)
 static Void printUsageExit (Char * app)
 {
     Osal_printf ("%s: [-h] [-l logfile] [-f]\n", app);
-    Osal_printf ("  -h   show this help message\n");
-    Osal_printf ("  -l   select file to log to (default stdout)\n");
-    Osal_printf ("  -f   run in foreground (do not fork daemon process)\n");
+    Osal_printf ("  -h   Show this help message.\n");
+    Osal_printf ("  -l   Select log file to write. (\"stdout\" can be used for"
+                 "terminal output.)\n");
+    Osal_printf ("  -f   Run in foreground. (Do not fork daemon process.)\n");
 
     exit (EXIT_SUCCESS);
 }
@@ -262,22 +210,28 @@ static Void printUsageExit (Char * app)
 
 Int main (Int argc, Char * argv [])
 {
-    pthread_t   thread_sys; /* server thread object */
-    pthread_t   thread_app; /* server thread object */
-    pthread_t   thread_dsp; /* server thread object */
-    Char      * log_file    = NULL;
-    Bool        daemon      = TRUE;
-    Int         i;
+    pthread_t           thread_sys; /* server thread object */
+    pthread_t           thread_app; /* server thread object */
+    pthread_t           thread_dsp; /* server thread object */
+    Char              * log_file    = NULL;
+    Bool                daemon      = TRUE;
+    Int                 i;
+    traceBufferParams   args_sys;
+    traceBufferParams   args_app;
+    traceBufferParams   args_dsp;
 
     /* parse cmd-line args */
     for (i = 1; i < argc; i++) {
         if (!strcmp ("-l", argv[i])) {
-            if (++i >= argc)
+            if (++i >= argc) {
                 printUsageExit (argv[0]);
+            }
             log_file = argv[i];
-        } else if (!strcmp ("-f", argv[i])) {
+        }
+        else if (!strcmp ("-f", argv[i])) {
             daemon = FALSE;
-        } else if (!strcmp ("-h", argv[i])) {
+        }
+        else if (!strcmp ("-h", argv[i])) {
             printUsageExit (argv[0]);
         }
     }
@@ -308,13 +262,23 @@ Int main (Int argc, Char * argv [])
         }
     }
 
-    if (!log_file) {
-        /* why do we need this?  It would be an issue when logging to file.. */
-        /* Change file mode mask */
-        umask (0);
-        log = stdout;
-    } else {
-        log = fopen (log_file, "a+");
+    if (log_file == NULL) {
+        log = NULL;
+    }
+    else {
+        if (strcmp (log_file, "stdout") == 0) {
+            /* why do we need this?  It would be an issue when logging to file.. */
+            /* Change file mode mask */
+            umask (0);
+            log = stdout;
+        }
+        else {
+            log = fopen (log_file, "a+");
+            if (log == NULL ) {
+                Osal_printf("Failed to open file: %s\n", log_file);
+                exit (EXIT_FAILURE);     /* Failure */
+            }
+        }
     }
 
     /* Change the current working directory */
@@ -323,16 +287,23 @@ Int main (Int argc, Char * argv [])
         exit (EXIT_FAILURE);     /* Failure */
     }
 
-    sem_init(&semPrint, 0, 1);
+    sem_init (&semPrint, 0, 1);
 
     UsrUtilsDrv_setup ();
 
-    pthread_create (&thread_sys, NULL, (Void *)&printSysM3Traces,
-                    NULL);
-    pthread_create (&thread_app, NULL, (Void *)&printAppM3Traces,
-                    NULL);
-    pthread_create (&thread_dsp, NULL, (Void *)&printTeslaTraces,
-                    NULL);
+    args_sys.coreName = "[SYSM3]: ";
+    args_sys.bufferAddress = SYSM3_TRACE_BUFFER_PHYS_ADDR;
+    args_app.coreName = "[APPM3]: ";
+    args_app.bufferAddress = APPM3_TRACE_BUFFER_PHYS_ADDR;
+    args_dsp.coreName = "[DSP]: ";
+    args_dsp.bufferAddress = TESLA_TRACE_BUFFER_PHYS_ADDR;
+
+    pthread_create (&thread_sys, NULL, (Void *)&printRemoteTraces,
+                    (Void*)&args_sys);
+    pthread_create (&thread_app, NULL, (Void *)&printRemoteTraces,
+                    (Void*)&args_app);
+    pthread_create (&thread_dsp, NULL, (Void *)&printRemoteTraces,
+                    (Void*)&args_dsp);
 
     pthread_join (thread_sys, NULL);
     Osal_printf ("SysM3 trace thread exited\n");
@@ -343,7 +314,11 @@ Int main (Int argc, Char * argv [])
 
     UsrUtilsDrv_destroy ();
 
-    sem_destroy(&semPrint);
+    sem_destroy (&semPrint);
+
+    if (log != NULL && log != stdout ) {
+        fclose(log);
+    }
 
     return 0;
 }
