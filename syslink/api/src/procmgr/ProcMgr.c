@@ -566,7 +566,7 @@ ProcMgr_create (UInt16 procId, const ProcMgr_Params * params)
     GT_assert (curTrace, ((params != NULL)) && (params->procHandle != NULL));
 
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-    if (! MultiProc_isValidRemoteProc (procId)) {
+    if (!MultiProc_isValidRemoteProc (procId)) {
         /*! @retval NULL Invalid procId specified */
         status = PROCMGR_E_INVALIDARG;
         GT_setFailureReason (curTrace,
@@ -1293,6 +1293,15 @@ ProcMgr_attach (ProcMgr_Handle handle, ProcMgr_AttachParams * params)
                              status,
                              "Invalid NULL handle specified");
     }
+    else if (params == NULL) {
+        status = PROCMGR_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "ProcMgr_attach",
+                             status,
+                             "Invalid attach params specified");
+
+    }
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
         cmdArgs.handle = procMgrHandle->knlObject;
@@ -1495,30 +1504,26 @@ ProcMgr_load (ProcMgr_Handle handle,
                              status,
                              "Invalid fileId pointer specified");
     }
+    else if (!MultiProc_isValidRemoteProc (procID)) {
+        status = PROCMGR_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "ProcMgr_load",
+                             status,
+                             "Invalid procID specified");
+    }
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
         *fileId = 0; /* Initialize return parameter. */
 
-        if (procID == PROC_MPU) {
-            status = PROCMGR_E_INVALIDARG;
+        status = ProcMgr_setState (ProcMgr_State_Loading);
+        if (status != PROCMGR_SUCCESS) {
+            status = PROCMGR_E_INVALIDSTATE;
             GT_setFailureReason (curTrace,
                                  GT_4CLASS,
                                  "ProcMgr_load",
                                  status,
-                                 "Invalid procID specified. Loading is only"
-                                 " supported for processors PROC_SYSM3 and "
-                                 "PRC_APP3");
-        }
-        else {
-            status = ProcMgr_setState(ProcMgr_State_Loading);
-            if(status != PROCMGR_SUCCESS) {
-                status = PROCMGR_E_INVALIDSTATE;
-                GT_setFailureReason (curTrace,
-                                     GT_4CLASS,
-                                     "ProcMgr_load",
-                                     status,
-                                     "Not Able to set the state");
-            }
+                                 "Not Able to set the state");
         }
 
         if (status >= 0) {
@@ -1716,6 +1721,14 @@ ProcMgr_start (ProcMgr_Handle        handle,
                              status,
                              "Invalid NULL handle specified");
     }
+    else if (params == NULL) {
+        status = PROCMGR_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "ProcMgr_start",
+                             status,
+                             "Invalid NULL params specified");
+    }
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
         /* FIXME: move sysmgr calls from Proc user space */
@@ -1872,7 +1885,16 @@ ProcMgr_stop (ProcMgr_Handle handle, ProcMgr_StopParams * params)
                              "ProcMgr_stop",
                              status,
                              "Invalid NULL handle specified");
-    } else {
+    }
+    else if (params == NULL) {
+        status = PROCMGR_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "ProcMgr_stop",
+                             status,
+                             "Invalid NULL params specified");
+    }
+    else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
 
 #ifdef SYSLINK_USE_SYSMGR
@@ -2230,6 +2252,14 @@ ProcMgr_control (ProcMgr_Handle handle, Int32 cmd, Ptr arg)
                              "ProcMgr_control",
                              status,
                              "Invalid NULL handle specified");
+    }
+    else if (arg == NULL) {
+        status = PROCMGR_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "ProcMgr_control",
+                             status,
+                             "Invalid NULL argument specified");
     }
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
@@ -2704,6 +2734,14 @@ ProcMgr_map (ProcMgr_Handle     handle,
                              status,
                              "Invalid NULL handle specified");
     }
+    else if  (!MultiProc_isValidRemoteProc (procID)) {
+        status = PROCMGR_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "ProcMgr_map",
+                             status,
+                             "Invalid remote proc specified");
+   }
     else if (procAddr == 0u) {
         /*! @retval  PROCMGR_E_INVALIDARG Invalid value 0 provided for
                      argument procAddr */
@@ -2837,6 +2875,14 @@ ProcMgr_unmap (ProcMgr_Handle   handle,
                              status,
                              "Invalid NULL handle specified");
     }
+    else if  (!MultiProc_isValidRemoteProc (procID)) {
+        status = PROCMGR_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "ProcMgr_unmap",
+                             status,
+                             "Invalid remote proc specified");
+   }
     else if (mappedAddr == (UInt32)NULL) {
         /*! @retval  PROCMGR_E_INVALIDARG Invalid value NULL provided for
                      argument mappedAddr */
@@ -3105,6 +3151,14 @@ ProcMgr_virtToPhysPages (ProcMgr_Handle handle,
                            status,
                            "Invalid value provided for argument physEntries");
     }
+    else if (numOfPages == 0) {
+        status = PROCMGR_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                           GT_4CLASS,
+                           "ProcMgr_virtToPhysPages",
+                           status,
+                           "Invalid value provided for argument numEntries");
+    }
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
         cmdArgs.handle = procMgrHandle->knlObject;
@@ -3116,7 +3170,7 @@ ProcMgr_virtToPhysPages (ProcMgr_Handle handle,
         if (status < 0) {
             GT_setFailureReason (curTrace,
                                  GT_4CLASS,
-                                 "ProcMgr_getProcInfo",
+                                 "ProcMgr_virtToPhysPages",
                                  status,
                                  "API (through IOCTL) failed on kernel-side!");
         }
@@ -3160,6 +3214,22 @@ ProcMgr_invalidateMemory(PVOID bufAddr, UInt32 bufSize,
                            "ProcMgr_invalidateMemory",
                            status,
                            "Invalid value provided for argument bufAddr");
+    }
+    else if (bufSize == 0) {
+        status = PROCMGR_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                           GT_4CLASS,
+                           "ProcMgr_invalidateMemory",
+                           status,
+                           "Invalid value provided for argument bufSize");
+    }
+    else if (!MultiProc_isValidRemoteProc (procID)) {
+        status = PROCMGR_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                           GT_4CLASS,
+                           "ProcMgr_invalidateMemory",
+                           status,
+                           "Invalid value provided for argument procID");
     }
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
@@ -3207,6 +3277,22 @@ ProcMgr_flushMemory(PVOID bufAddr, UInt32 bufSize, ProcMgr_ProcId procID) {
                            "ProcMgr_flushMemory",
                            status,
                            "Invalid value provided for argument bufAddr");
+    }
+    else if (bufSize == 0) {
+        status = PROCMGR_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                           GT_4CLASS,
+                           "ProcMgr_flushMemory",
+                           status,
+                           "Invalid value provided for argument bufSize");
+    }
+    else if (!MultiProc_isValidRemoteProc (procID)) {
+        status = PROCMGR_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                           GT_4CLASS,
+                           "ProcMgr_flushMemory",
+                           status,
+                           "Invalid value provided for argument procID");
     }
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
@@ -3490,15 +3576,35 @@ ProcMgr_createDMMPool (UInt32 poolId, UInt32 daBegin, UInt32 size, Int proc)
 
     GT_1trace (curTrace, GT_ENTER, "ProcMgr_createDMMPool", proc);
 
-    status = ProcMMU_CreateVMPool (poolId, size, daBegin, (daBegin + size),
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+    if (size == 0) {
+        status = PROCMGR_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                           GT_4CLASS,
+                           "ProcMgr_createDMMPool",
+                           status,
+                           "Invalid value provided for argument size");
+    }
+    else if (!MultiProc_isValidRemoteProc (proc)) {
+        status = PROCMGR_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                           GT_4CLASS,
+                           "ProcMgr_createDMMPool",
+                           status,
+                           "Invalid value provided for argument proc");
+    }
+    else {
+#endif
+        status = ProcMMU_CreateVMPool (poolId, size, daBegin, (daBegin + size),
                                                                 0, proc);
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-    if (status < 0) {
-        GT_setFailureReason (curTrace,
+        if (status < 0) {
+            GT_setFailureReason (curTrace,
                                  GT_4CLASS,
                                  "ProcMgr_createDMMPool",
                                  status,
-                                 "API (through IOCTL) failed on kernel-side!");
+                                 "API (through ProcMMU) failed!");
+        }
     }
 #endif
 
@@ -3523,14 +3629,26 @@ ProcMgr_deleteDMMPool (UInt32 poolId, Int proc)
 
     GT_1trace (curTrace, GT_ENTER, "ProcMgr_deleteDMMPool", proc);
 
-    status = ProcMMU_DeleteVMPool (poolId, proc);
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
-    if (status < 0) {
+    if (!MultiProc_isValidRemoteProc (proc)) {
+        status = PROCMGR_E_INVALIDARG;
         GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "ProcMgr_deleteDMMPool",
+                             status,
+                             "Invalid value provided for argument proc");
+    }
+    else {
+#endif
+        status = ProcMMU_DeleteVMPool (poolId, proc);
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+        if (status < 0) {
+            GT_setFailureReason (curTrace,
                                  GT_4CLASS,
                                  "ProcMgr_deleteDMMPool",
                                  status,
-                                 "API (through IOCTL) failed on kernel-side!");
+                                 "API (through ProcMMU) failed!");
+        }
     }
 #endif
 

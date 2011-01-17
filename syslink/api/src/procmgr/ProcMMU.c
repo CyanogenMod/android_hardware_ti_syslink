@@ -51,6 +51,7 @@
 #include <UsrUtilsDrv.h>
 #include <Memory.h>
 #include <ti/ipc/MultiProc.h>
+#include <_MultiProc.h>
 
 /* Module level headers */
 #include <ProcMMU.h>
@@ -365,33 +366,55 @@ ProcMMU_InvMemory(PVOID mpuAddr, UInt32 size, Int proc)
  *
  *  @sa     ProcMMU_DeleteVMPool
  */
-
-
-
 Int32
-ProcMMU_CreateVMPool(UInt32 poolId, UInt32 size, UInt32 daBegin, UInt32 daEnd,
-                                                       UInt32 flags, Int proc)
+ProcMMU_CreateVMPool (UInt32    poolId,
+                      UInt32    size,
+                      UInt32    daBegin,
+                      UInt32    daEnd,
+                      UInt32    flags,
+                      Int       proc)
 {
-    Int    status = 0;
+    Int                         status      = 0;
     struct ProcMMU_VaPool_entry poolInfo;
+
     GT_3trace (curTrace, GT_ENTER, "ProcMMU_CreateVMPool", poolId, daBegin,
-                                                                        size);
-    if((poolId == -1) ||(size == 0)){
-            status = ProcMMU_E_INVALIDARG;
-            return status;
-     }
-    poolInfo.poolId= poolId;
-    poolInfo.size = size;
-    poolInfo.daBegin = daBegin;
-    poolInfo.daEnd = daEnd;
-    poolInfo.flags = flags;
-    if (proc == MultiProc_getId("AppM3") || proc == MultiProc_getId("SysM3"))
-        status = ioctl (ProcMMU_MPU_M3_handle, IOVMM_IOCCREATEPOOL, &poolInfo);
-    else if (proc == MultiProc_getId("Tesla"))
-        status = ioctl (ProcMMU_DSP_handle, IOVMM_IOCCREATEPOOL, &poolInfo);
+            size);
+
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+    if ((!MultiProc_isValidRemoteProc (proc)) || (size == 0)
+                                              || ((Int32)poolId < 0)) {
+        status = ProcMMU_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "ProcMMU_CreateVMPool",
+                             status,
+                             "Invalid argument specified!");
+
+    }
+    else {
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+        poolInfo.poolId= poolId;
+        poolInfo.size = size;
+        poolInfo.daBegin = daBegin;
+        poolInfo.daEnd = daEnd;
+        poolInfo.flags = flags;
+        if ((proc == MultiProc_getId ("AppM3")) ||
+            (proc == MultiProc_getId ("SysM3"))) {
+            status = ioctl (ProcMMU_MPU_M3_handle, IOVMM_IOCCREATEPOOL,
+                            &poolInfo);
+        }
+        else if (proc == MultiProc_getId ("Tesla")) {
+            status = ioctl (ProcMMU_DSP_handle, IOVMM_IOCCREATEPOOL, &poolInfo);
+        }
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+    }
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+
     GT_1trace (curTrace, GT_LEAVE, "ProcMMU_CreateVMPool", status);
+
     return status;
 }
+
 
 /*!
  *  @brief  Deletes the Virtual memory pool
@@ -399,16 +422,34 @@ ProcMMU_CreateVMPool(UInt32 poolId, UInt32 size, UInt32 daBegin, UInt32 daEnd,
  *  @sa     ProcMMU_CreateVMPool
  */
 Int32
-ProcMMU_DeleteVMPool(UInt32 poolId, Int proc)
+ProcMMU_DeleteVMPool (UInt32 poolId, Int proc)
 {
     Int status = 0;
 
     GT_1trace (curTrace, GT_ENTER, "ProcMMU_DeleteVMPool", poolId);
 
-    if (proc == MultiProc_getId("AppM3") || proc == MultiProc_getId("SysM3"))
-        status = ioctl (ProcMMU_MPU_M3_handle, IOVMM_IOCDELETEPOOL, &poolId);
-    else if (proc == MultiProc_getId("Tesla"))
-        status = ioctl (ProcMMU_DSP_handle, IOVMM_IOCDELETEPOOL, &poolId);
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+    if ((!MultiProc_isValidRemoteProc (proc)) || ((Int32)poolId < 0)) {
+        status = ProcMMU_E_INVALIDARG;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "ProcMMU_DeleteVMPool",
+                             status,
+                             "Invalid argument specified!");
+    }
+    else {
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
+        if ((proc == MultiProc_getId ("AppM3")) ||
+            (proc == MultiProc_getId ("SysM3"))) {
+            status = ioctl (ProcMMU_MPU_M3_handle, IOVMM_IOCDELETEPOOL,
+                            &poolId);
+        }
+        else if (proc == MultiProc_getId ("Tesla")) {
+            status = ioctl (ProcMMU_DSP_handle, IOVMM_IOCDELETEPOOL, &poolId);
+        }
+#if !defined(SYSLINK_BUILD_OPTIMIZE)
+    }
+#endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
 
     GT_1trace (curTrace, GT_LEAVE, "ProcMMU_DeleteVMPool", status);
 
