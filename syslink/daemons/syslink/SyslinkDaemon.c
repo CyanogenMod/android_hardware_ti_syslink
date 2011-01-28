@@ -66,6 +66,11 @@
 /* Sample headers */
 #include <CrashInfo.h>
 
+#ifdef HAVE_ANDROID_OS
+#undef LOG_TAG
+#define LOG_TAG "SYSLINKD"
+#endif
+
 /* Defines for the default HeapBufMP being configured in the System */
 #define RCM_MSGQ_TILER_HEAPNAME         "Heap0"
 #define RCM_MSGQ_TILER_HEAP_BLOCKS      256
