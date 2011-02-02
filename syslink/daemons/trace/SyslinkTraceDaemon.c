@@ -170,10 +170,10 @@ Void printRemoteTraces (Void *args)
             saveChar = tempBuffer [i + 1];
             tempBuffer [i + 1] = 0;
             if (log == NULL) {
-                Osal_printf (&tempBuffer [printStart]);
+                Osal_printf ("%s", &tempBuffer [printStart]);
             }
             else {
-                fprintf (log, &tempBuffer [printStart]);
+                fprintf (log,"%s", &tempBuffer [printStart]);
             }
             tempBuffer [i + 1] = saveChar;
             i++;

@@ -18,7 +18,8 @@ LOCAL_C_INCLUDES += \
 	$(LOCAL_PATH)/../../../../target/usr/include/memmgr/
 
 LOCAL_SHARED_LIBRARIES := \
-	libipcutils
+	libipcutils \
+	liblog
 
 LOCAL_CFLAGS += -MD -pipe  -fomit-frame-pointer -Wall  -Wno-trigraphs -Werror-implicit-function-declaration  -fno-strict-aliasing -mapcs -mno-sched-prolog -mabi=aapcs-linux -mno-thumb-interwork -msoft-float -Uarm -DMODULE -D__LINUX_ARM_ARCH__=7  -fno-common -DLINUX -DTMS32060 -D_DB_TIOMAP -DSYSLINK_USE_LOADER
 LOCAL_CFLAGS += -DSYSLINK_DIRECT_LOGD
