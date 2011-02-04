@@ -47,10 +47,13 @@
 #include <string.h>
 #include <signal.h>
 #include <sys/types.h>
+#include <fcntl.h>
 #include <sys/stat.h>
 #include <semaphore.h>
 #include <errno.h>
 #include <pthread.h>
+#include <dirent.h>
+#include <ctype.h>
 
 /* OSAL & Utils headers */
 #include <OsalPrint.h>
@@ -65,7 +68,7 @@
 
 /* Sample headers */
 #include <CrashInfo.h>
-
+#include <String.h>
 #ifdef HAVE_ANDROID_OS
 #undef LOG_TAG
 #define LOG_TAG "SYSLINKD"
@@ -96,6 +99,7 @@
 
 #define SYSM3_PROC_NAME                 "SysM3"
 #define APPM3_PROC_NAME                 "AppM3"
+#define READ_BUF_SIZE                   50
 
 ProcMgr_Handle                  procMgrHandleSysM3;
 ProcMgr_Handle                  procMgrHandleAppM3;
@@ -124,6 +128,56 @@ UInt32                          fileIdAppM3;
 extern "C" {
 #endif /* defined (__cplusplus) */
 
+static Bool isDaemonRunning( char* pidName)
+{
+    DIR     *dir;
+    pid_t   pid;
+    Int     dirNum;
+    FILE    *status;
+    struct  dirent *next;
+    Bool    isRunning = FALSE;
+    Char    filename[READ_BUF_SIZE];
+    Char    buffer[READ_BUF_SIZE];
+
+    pid = getpid ();
+    dir = opendir ("/proc");
+    if (!dir) {
+        Osal_printf ("Warning:Cannot open /proc\n");
+        return isRunning;
+    }
+
+    while ((next = readdir (dir)) != NULL) {
+        /* Must skip ".." since that is outside /proc */
+        if (String_cmp (next->d_name, "..") == 0)
+            continue;
+
+        /* If it isn't a number, we don't want it */
+        if (!isdigit (*next->d_name))
+            continue;
+
+        dirNum = strtol (next->d_name, NULL, 10);
+        if (dirNum == pid)
+            continue;
+
+        sprintf (filename, "/proc/%s/cmdline", next->d_name);
+        if (! (status = fopen (filename, "r")) ) {
+            continue;
+        }
+        if (fgets (buffer, READ_BUF_SIZE-1, status) == NULL) {
+            fclose (status);
+            continue;
+        }
+        fclose (status);
+
+        /* Buffer should contain the enitre command line */
+        if (String_cmp (buffer, pidName) == 0) {
+            isRunning = TRUE;
+            break;
+        }
+    }
+
+    return isRunning;
+}
 
 /*
  *========exceptionDumpRegisters=========
@@ -326,7 +380,6 @@ static Void appM3EventHandler (Void)
 static Void signal_handler (Int sig)
 {
     pthread_t self = pthread_self ();
-
     if (pthread_equal (self, sysM3EvtHandlerThrd)) {
         Osal_printf ("\n** SysLink Daemon: SysM3 thread exiting...\n ");
     }
@@ -711,7 +764,6 @@ exit_procmgr_close_sysm3:
     if (status < 0) {
         Osal_printf ("Error in ProcMgr_close: status = 0x%x\n", status);
     }
-
 exit_ipc_destroy:
     status = Ipc_destroy ();
     if (status < 0) {
@@ -731,8 +783,12 @@ Int main (Int argc, Char * argv [])
     FILE  * fp;
     Bool    callIpcSetup = false;
 
-    Osal_printf ("Spawning SysLink Daemon...\n");
+    if (isDaemonRunning (argv[0])) {
+        Osal_printf ("Mulitple instances of %s is not supported\n",argv[0]);
+        return (-1);
+    }
 
+    Osal_printf ("Spawning SysLink Daemon...\n");
     /* Fork off the parent process */
     child_pid = fork();
     if (child_pid < 0) {
