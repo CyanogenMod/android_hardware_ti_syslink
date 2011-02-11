@@ -3404,22 +3404,22 @@ ProcMgr_waitForMultipleEvents (ProcMgr_ProcId      procId,
             while (i--) {
                 if (FD_ISSET (efd [i], &fds)) {
                     *index = i;
-                    if (eventType [i] == PROC_MMU_FAULT) {
-                        ProcMMU_registerEvent (procId, efd [i], FALSE);
-                    }
-                    else if (eventType [i] == PROC_ERROR) {
-                        ProcDEH_registerEvent (procId, ProcDEH_SYSERROR,
-                                                efd [i], FALSE);
-                    }
-                    else if (eventType [i] == PROC_WATCHDOG) {
-                        ProcDEH_registerEvent (procId, ProcDEH_WATCHDOGERROR,
-                                                efd [i], FALSE);
-                    }
-                    else {
-                        cmdArgs.event = eventType [i];
-                        cmdArgs.fd = efd [i];
-                        ProcMgrDrvUsr_ioctl (CMD_PROCMGR_UNREGEVENT, &cmdArgs);
-                    }
+                }
+                if (eventType [i] == PROC_MMU_FAULT) {
+                    ProcMMU_registerEvent (procId, efd [i], FALSE);
+                }
+                else if (eventType [i] == PROC_ERROR) {
+                    ProcDEH_registerEvent (procId, ProcDEH_SYSERROR,
+                                            efd [i], FALSE);
+                }
+                else if (eventType [i] == PROC_WATCHDOG) {
+                    ProcDEH_registerEvent (procId, ProcDEH_WATCHDOGERROR,
+                                            efd [i], FALSE);
+                }
+                else {
+                    cmdArgs.event = eventType [i];
+                    cmdArgs.fd = efd [i];
+                    ProcMgrDrvUsr_ioctl (CMD_PROCMGR_UNREGEVENT, &cmdArgs);
                 }
                 close (efd [i]);
             }
