@@ -117,6 +117,7 @@ typedef struct RcmServer_ThreadPool_tag {
     OsalSemaphore_Handle        sem;        /* Message semaphore (counting) */
     List_Object                 threadList; /* List of worker threads */
     List_Object                 readyQueue; /* Queue of messages */
+    IGateProvider_Handle        readyQueueGate; /* message queue list gate */
 } RcmServer_ThreadPool;
 
 /* RCM Server instance object structure */
@@ -134,6 +135,7 @@ typedef struct RcmServer_Object_tag {
     Int                      poolMap0Len;  /* Length of static table */
     RcmServer_ThreadPool *   poolMap [RCMSERVER_POOL_MAP_LEN];
     List_Handle              jobList;      /* List of job stream queues */
+    IGateProvider_Handle     jobListGate;  /* Job stream queue gate */
 } RcmServer_Object;
 
 /* RCM Worker Thread object structure */
@@ -152,6 +154,7 @@ typedef struct {
     UInt16                      jobId;      /* Job stream id */
     Bool                        empty;      /* True if no messages on server */
     List_Object                 msgQue;     /* Queue of messages */
+    IGateProvider_Handle        msgQueGate; /* Queue of messages gate */
 } RcmServer_JobStream;
 
 /* structure for RcmServer module state */
@@ -530,6 +533,18 @@ _RcmServer_Instance_init (RcmServer_Object        * obj,
 
     /* Create list for job objects */
     List_Params_init (&listP);
+    obj->jobListGate = (IGateProvider_Handle) GateMutex_create ();
+    GT_assert (curTrace, (obj->jobListGate != NULL));
+    if (obj->jobListGate == NULL) {
+        status = RcmServer_E_FAIL;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "_RcmServer_Instance_init",
+                             status,
+                             "Unable to create mutex!");
+        goto leave;
+    }
+    listP.gateHandle = obj->jobListGate;
     obj->jobList = List_create (&listP);
     GT_assert (curTrace, (obj->jobList != NULL));
     if (obj->jobList == NULL) {
@@ -663,8 +678,22 @@ _RcmServer_Instance_init (RcmServer_Object        * obj,
     poolAry [0].stackSeg   = NULL;   /* TODO */
     poolAry [0].sem        = NULL;
 
+    /* ThreadList is static, no gate protection required */
     List_construct (&(poolAry [0].threadList), NULL);
-    List_construct (&(poolAry [0].readyQueue), NULL);
+
+    poolAry [0].readyQueueGate = (IGateProvider_Handle) GateMutex_create ();
+    GT_assert (curTrace, (poolAry [0].readyQueueGate != NULL));
+    if (poolAry [0].readyQueueGate == NULL) {
+        status = RcmServer_E_FAIL;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "_RcmServer_Instance_init",
+                             status,
+                             "Unable to create mutex!");
+        goto leave;
+    }
+    listP.gateHandle = poolAry [0].readyQueueGate;
+    List_construct (&(poolAry [0].readyQueue), &listP);
 
     poolAry [0].sem = OsalSemaphore_create (OsalSemaphore_Type_Counting, 0);
     if (poolAry [0].sem ==  NULL) {
@@ -694,8 +723,23 @@ _RcmServer_Instance_init (RcmServer_Object        * obj,
         poolAry [i+1].stackSize  = params->workerPools.elem [i].stackSize;
         poolAry [i+1].stackSeg   = NULL;  /* TODO */
 
+        /* ThreadList is static, no gate protection required */
         List_construct (&(poolAry [i+1].threadList), NULL);
-        List_construct (&(poolAry [i+1].readyQueue), NULL);
+
+        poolAry [i+1].readyQueueGate =
+                    (IGateProvider_Handle) GateMutex_create ();
+        GT_assert (curTrace, (poolAry [i+1].readyQueueGate != NULL));
+        if (poolAry [0].readyQueueGate == NULL) {
+            status = RcmServer_E_FAIL;
+            GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "_RcmServer_Instance_init",
+                             status,
+                             "Unable to create mutex!");
+            goto leave;
+        }
+        listP.gateHandle = poolAry [i+1].readyQueueGate;
+        List_construct (&(poolAry [i+1].readyQueue), &listP);
 
         /* Create the run synchronizer */
         poolAry [i+1].sem  = OsalSemaphore_create (OsalSemaphore_Type_Counting,
@@ -939,6 +983,16 @@ _RcmServer_Instance_finalize (RcmServer_Object * obj)
 
         /* Finalize the job stream object */
         List_destruct (&job->msgQue);
+        status = GateMutex_delete ((GateMutex_Handle *)&(job->msgQueGate));
+        if (status < 0) {
+            GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "_RcmServer_Instance_finalize",
+                             status,
+                             "Unable to delete mutex");
+            status = RcmClient_E_FAIL;
+            goto leave;
+        }
 
         Memory_free (RcmServer_Module_heap(), job,
                         sizeof (RcmServer_JobStream));
@@ -1046,6 +1100,17 @@ _RcmServer_Instance_finalize (RcmServer_Object * obj)
         }
 
         List_destruct (&(poolAry [i].readyQueue));
+        status = GateMutex_delete (
+                    (GateMutex_Handle *)&(poolAry [i].readyQueueGate));
+        if (status < 0) {
+            GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "_RcmServer_Instance_finalize",
+                             status,
+                             "Unable to delete mutex");
+            status = RcmClient_E_FAIL;
+            goto leave;
+        }
     }
 
     /* Free the name block for the static pools */
@@ -1466,6 +1531,7 @@ _RcmServer_acqJobId (RcmServer_Object * obj, UInt16 * jobIdPtr)
     List_Elem             * elem;
     RcmServer_JobStream   * job;
     Int                     status = RcmServer_S_SUCCESS;
+    List_Params             listP;
 
     GT_2trace (curTrace, GT_ENTER, "_RcmServer_acqJobId", obj, jobIdPtr);
 
@@ -1501,7 +1567,6 @@ _RcmServer_acqJobId (RcmServer_Object * obj, UInt16 * jobIdPtr)
                              "_RcmServer_acqJobId",
                              status,
                              "No job id available!");
-        IGateProvider_leave (obj->gate, key);
         goto leave;
     }
 
@@ -1515,25 +1580,37 @@ _RcmServer_acqJobId (RcmServer_Object * obj, UInt16 * jobIdPtr)
                              RcmServer_E_FAIL,
                              "Memory allocation failed for job stream!");
         status = RcmServer_E_NOMEMORY;
-        IGateProvider_leave (obj->gate, key);
         goto leave;
     }
 
     /* Initialize new job stream object */
     job->jobId = jobId;
     job->empty = TRUE;
-    List_construct (&(job->msgQue), NULL);
+    List_Params_init (&listP);
+    job->msgQueGate = (IGateProvider_Handle) GateMutex_create ();
+    GT_assert (curTrace, (job->msgQueGate != NULL));
+    if (job->msgQueGate == NULL) {
+        status = RcmServer_E_FAIL;
+        GT_setFailureReason (curTrace,
+                             GT_4CLASS,
+                             "_RcmServer_Instance_init",
+                             status,
+                             "Unable to create mutex!");
+        goto leave;
+    }
+    listP.gateHandle = job->msgQueGate;
+    List_construct (&(job->msgQue), &listP);
 
     /* Put new job stream object at end of server list */
     List_put (obj->jobList, (List_Elem *)job);
-
-    /* Leave critical section */
-    IGateProvider_leave (obj->gate, key);
 
     /* Return new job id */
     *jobIdPtr = jobId;
 
 leave:
+    /* Leave critical section */
+    IGateProvider_leave (obj->gate, key);
+
     GT_1trace (curTrace, GT_LEAVE, "_RcmServer_acqJobId", status);
 
     return status;
@@ -2175,8 +2252,6 @@ _RcmServer_relJobId (RcmServer_Object * obj, UInt16 jobId)
         }
     }
 
-    IGateProvider_leave (obj->gate, key);
-
     if (elem == NULL) {
         status = RcmServer_E_JobIdNotFound;
         GT_setFailureReason (curTrace,
@@ -2211,11 +2286,22 @@ _RcmServer_relJobId (RcmServer_Object * obj, UInt16 jobId)
 
     /* Finalize the job stream object */
     List_destruct (&job->msgQue);
-
+    status = GateMutex_delete ((GateMutex_Handle *)&(job->msgQueGate));
+    if (status < 0) {
+        GT_setFailureReason (curTrace,
+                         GT_4CLASS,
+                         "_RcmServer_Instance_finalize",
+                         status,
+                         "Unable to delete mutex");
+        status = RcmClient_E_FAIL;
+        goto leave;
+    }
     Memory_free (RcmServer_Module_heap(), (Ptr)job,
                     sizeof (RcmServer_JobStream));
 
 leave:
+    IGateProvider_leave (obj->gate, key);
+
     GT_1trace (curTrace, GT_LEAVE, "_RcmServer_relJobId", status);
 
     return status;

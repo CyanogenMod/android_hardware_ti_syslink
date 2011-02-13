@@ -508,6 +508,7 @@ Int _RcmClient_Instance_init (RcmClient_Object        * obj,
 
     /* Create the return message recipient list */
     List_Params_init (&listP);
+    listP.gateHandle = obj->gate;
     obj->recipients = List_create (&listP);
     GT_assert (curTrace, (obj->recipients != NULL));
     if (obj->recipients == NULL) {
@@ -522,6 +523,7 @@ Int _RcmClient_Instance_init (RcmClient_Object        * obj,
 
     /* Create list of undelivered messages (new mail) */
     List_Params_init (&listP);
+    listP.gateHandle = obj->gate;
     obj->newMail = List_create (&listP);
     if (obj->newMail == NULL) {
         status = RcmClient_E_LISTCREATEFAILED;
