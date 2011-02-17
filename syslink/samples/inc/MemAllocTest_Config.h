@@ -35,8 +35,10 @@ extern "C" {
 
 #define RCM_SERVER_NAME_SYSM3       "MemAllocServerSysM3"
 #define RCM_SERVER_NAME_APPM3       "MemAllocServerAppM3"
+#define RCM_SERVER_NAME_DSP         "MemAllocServerDsp"
 #define SYSM3_PROC_NAME             "SysM3"
 #define APPM3_PROC_NAME             "AppM3"
+#define DSP_PROC_NAME               "Tesla"
 
 #if defined (__cplusplus)
 }

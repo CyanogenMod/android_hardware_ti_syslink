@@ -110,6 +110,7 @@ static RcmClient_Message  *return_msg;
 static RcmClient_Handle   rcm_client_handle;
 ProcMgr_Handle		proc_mgr_handle;
 ProcMgr_Handle		proc_mgr_handle1;
+ProcMgr_Handle		proc_mgr_handle2;
 
 /*
  *  ======== ipcSetup ========
@@ -125,6 +126,7 @@ int ipcSetup(int proc_id)
 	ProcMgr_State		state;
 	int			proc_sysm3 = 0;
 	int			proc_appm3 = 0;
+	int			proc_tesla = 0;
 
 	Osal_printf("ipcSetup: Setup IPC componnets\n");
 
@@ -136,12 +138,18 @@ int ipcSetup(int proc_id)
 	}
 	Osal_printf("ipcSetup: Ipc_setup status [0x%x]\n", status);
 
-	if (proc_id == PROC_SYSM3)
+	switch (proc_id) {
+	case PROC_SYSM3:
 		proc_sysm3 = 1;
-	else if (proc_id == PROC_APPM3) {
+	break;
+	case PROC_APPM3:
 		proc_sysm3 = 1;
 		proc_appm3 = 1;
-	} else {
+	break;
+	case PROC_TESLA:
+		proc_tesla = 1;
+	break;
+	default:
 		Osal_printf("ipcSetup: INVALID PROCID\n");
 		goto exit;
 	}
@@ -195,6 +203,31 @@ int ipcSetup(int proc_id)
 		}
 	}
 
+	if (proc_tesla) {
+		/* Open a handle to the ProcMgr instance. */
+		status = ProcMgr_open(&proc_mgr_handle2, PROC_TESLA);
+		if (status < 0) {
+			Osal_printf("ipcSetup: Error in ProcMgr_open[0x%x]\n",
+									status);
+			goto exit;
+		}
+
+		Osal_printf("ipcSetup: ProcMgr_open Status [0x%x]\n", status);
+		ProcMgr_getAttachParams(NULL, &attachParams);
+		/* Default params will be used if NULL is passed. */
+		status = ProcMgr_attach(proc_mgr_handle2, &attachParams);
+		if (status < 0) {
+			Osal_printf("ipcSetup: ProcMgr_attach failed [0x%x]\n",
+									status);
+		} else {
+			Osal_printf("ipcSetup: ProcMgr_attach status: [0x%x]\n",
+									status);
+			state = ProcMgr_getState(proc_mgr_handle2);
+			Osal_printf("ipcSetup: After attach: ProcMgr_getState\n"
+						"state [0x%x]\n", state);
+		}
+	}
+
 	/* Set up RCM */
 
 	/* Rcm client module init*/
@@ -215,6 +248,8 @@ int ipcSetup(int proc_id)
 		remote_server_name = RCM_SERVER_NAME_SYSM3;
 	else if (proc_id == PROC_APPM3)
 		remote_server_name = RCM_SERVER_NAME_APPM3;
+	else if (proc_id == PROC_TESLA)
+		remote_server_name = RCM_SERVER_NAME_DSP;
 	else
 		remote_server_name = NULL;
 
@@ -288,7 +323,7 @@ exit:
  *
  *  @sa
  */
-int test_flushfailuretest(int size)
+int test_flushfailuretest(int size, int proc_id)
 {
 	void	*buf_ptr = 0;
 	int	err;
@@ -300,7 +335,7 @@ int test_flushfailuretest(int size)
 		goto exit;
 	}
 
-	err = ProcMgr_flushMemory(buf_ptr, size, PROC_SYSM3);
+	err = ProcMgr_flushMemory(buf_ptr, size, proc_id);
 	if (err < 0) {
 		Osal_printf("Flush memory failed for buffer 0x%x\n",
 						(uint32_t)buf_ptr);
@@ -310,7 +345,7 @@ int test_flushfailuretest(int size)
 						(uint32_t)buf_ptr);
 	}
 
-	err = ProcMgr_invalidateMemory(buf_ptr, size, PROC_SYSM3);
+	err = ProcMgr_invalidateMemory(buf_ptr, size, proc_id);
 	if (err < 0) {
 		Osal_printf("Invalidate memory failed for buffer 0x%x\n",
 						(uint32_t)buf_ptr);
@@ -341,7 +376,7 @@ exit:
  *                           resource cleanup handling the unmapping part.
  *  @sa
  */
-int test_mapbuffertest(int size, int num_of_buffers, bool unmap)
+int test_mapbuffertest(int size, int num_of_buffers, bool unmap, int proc_id)
 {
 	int				status = 0;
 	int				*addresses = 0;
@@ -392,7 +427,7 @@ int test_mapbuffertest(int size, int num_of_buffers, bool unmap)
 		mpuAddrList[0].mpuAddr = (uint32_t)buf_ptr;
 		mpuAddrList[0].size = size;
 		status = SysLinkMemUtils_map(mpuAddrList, 1, &mappedAddr,
-						mapType, PROC_SYSM3);
+						mapType, proc_id);
 		if (status < 0) {
 			Osal_printf("SysLinkMemUtils_map() failed for 0x%x "
 				"size = 0x%x\n", mpuAddrList[0].mpuAddr,
@@ -410,7 +445,7 @@ int test_mapbuffertest(int size, int num_of_buffers, bool unmap)
 
 		Osal_printf("Flushing mpuAddr 0x%x of size 0x%x\n",
 				mpuAddrList[0].mpuAddr, mpuAddrList[0].size);
-		status = ProcMgr_flushMemory(buf_ptr, size, PROC_SYSM3);
+		status = ProcMgr_flushMemory(buf_ptr, size, proc_id);
 		if (status < 0) {
 			Osal_printf("ProcMgr_flushMemory() failed for 0x%x "
 				"size = 0x%x\n", mpuAddrList[0].mpuAddr,
@@ -430,7 +465,7 @@ int test_mapbuffertest(int size, int num_of_buffers, bool unmap)
 	for (i = 0; i < num_of_buffers && buffers[i] != 0; i++) {
 		Osal_printf("Unmapping 0x%x for buffer 0x%x\n", addresses[i],
 				buffers[i]);
-		status = SysLinkMemUtils_unmap(addresses[i], PROC_SYSM3);
+		status = SysLinkMemUtils_unmap(addresses[i], proc_id);
 		if (status < 0) {
 			Osal_printf("SysLinkMemUtils_unmap() failed"
 						"for 0x%x ", addresses[i]);
@@ -461,7 +496,7 @@ exit:
  *  @param  iterations       Number of iterations to run the test
  *  @sa
  */
-int test_usebuffer(int size, int iterations)
+int test_usebuffer(int size, int iterations, int proc_id)
 {
 	uint32_t			*buf_ptr = NULL;
 	int				map_size;
@@ -521,7 +556,7 @@ int test_usebuffer(int size, int iterations)
 		mpuAddrList[0].mpuAddr = (uint32_t)tilVaPtr;
 		mpuAddrList[0].size = tiler_buf_length;
 		status = SysLinkMemUtils_map(mpuAddrList, 1, &mappedAddr,
-					ProcMgr_MapType_Tiler, PROC_SYSM3);
+					ProcMgr_MapType_Tiler, proc_id);
 		if (status < 0) {
 			Osal_printf("Error mapping buffer\n");
 			tc_passed = 0;
@@ -538,7 +573,7 @@ int test_usebuffer(int size, int iterations)
 		mpuAddrList[0].mpuAddr = (uint32_t)buf_ptr;
 		mpuAddrList[0].size = map_size;
 		status = SysLinkMemUtils_map(mpuAddrList, 1, &dummyMappedAddr,
-					ProcMgr_MapType_Virt, PROC_SYSM3);
+					ProcMgr_MapType_Virt, proc_id);
 		if (status < 0) {
 			Osal_printf("Error mapping (#2) buffer\n");
 			tc_passed = 0;
@@ -558,7 +593,7 @@ int test_usebuffer(int size, int iterations)
 				tc_passed = 0;
 			}
 		}
-		ProcMgr_flushMemory(dataPtr, tiler_buf_length, PROC_SYSM3);
+		ProcMgr_flushMemory(dataPtr, tiler_buf_length, proc_id);
 
 		/* allocate a remote command message */
 		Osal_printf("Allocating RCM message\n");
@@ -587,7 +622,7 @@ int test_usebuffer(int size, int iterations)
 			Osal_printf("Testing data...\n");
 			count = 0;
 			ProcMgr_invalidateMemory(dataPtr, tiler_buf_length,
-								PROC_SYSM3);
+								proc_id);
 
 			for (i = 0; i < tiler_buf_length/sizeof(uint32_t) &&
 						count < MAX_ERRORS; i++) {
@@ -619,9 +654,9 @@ exit_rcm_fail:
 			return_msg = NULL;
 		}
 
-		SysLinkMemUtils_unmap(dummyMappedAddr, PROC_SYSM3);
+		SysLinkMemUtils_unmap(dummyMappedAddr, proc_id);
 exit_memmap:
-		SysLinkMemUtils_unmap(mappedAddr, PROC_SYSM3);
+		SysLinkMemUtils_unmap(mappedAddr, proc_id);
 exit_alloc:
 		if (tilVaPtr) {
 			MemMgr_UnMap(tilVaPtr);
@@ -647,7 +682,7 @@ exit_alloc:
  *  @param  iterations       Number of iterations to run the test
  *  @sa
  */
-int test_iobuffertest(int size, int iterations)
+int test_iobuffertest(int size, int iterations, int proc_id)
 {
 	SyslinkMemUtils_MpuAddrToMap	mpuAddrList[1];
 	uint32_t			mappedAddr;
@@ -725,7 +760,7 @@ int test_iobuffertest(int size, int iterations)
 		mpuAddrList[0].mpuAddr = (uint32_t)map_base;
 		mpuAddrList[0].size = size;
 		status = SysLinkMemUtils_map(mpuAddrList, 1, &mappedAddr,
-					ProcMgr_MapType_Virt, PROC_SYSM3);
+					ProcMgr_MapType_Virt, proc_id);
 		if (status < 0) {
 			Osal_printf("Error allocating RCM message\n");
 			tc_passed = 0;
@@ -789,7 +824,7 @@ exit_rcm_fail:
 			return_msg = NULL;
 		}
 
-		SysLinkMemUtils_unmap(mappedAddr, PROC_SYSM3);
+		SysLinkMemUtils_unmap(mappedAddr, proc_id);
 exit_memmap_fail:
 		munmap(map_base, size);
 exit_mmap_fail:
@@ -811,7 +846,7 @@ exit:
  *  @param  align            Alignment of user buffer(power of 2)
  *  @sa
  */
-int test_dmmbuffer(int size, int iterations, int align)
+int test_dmmbuffer(int size, int iterations, int align, int proc_id)
 {
 	uint32_t *buf_ptr;
 	int map_size = size;
@@ -864,7 +899,7 @@ int test_dmmbuffer(int size, int iterations, int align)
 		mpuAddrList[0].mpuAddr = (uint32_t)buf_ptr;
 		mpuAddrList[0].size = map_size;
 		status = SysLinkMemUtils_map(mpuAddrList, 1, &mappedAddr,
-							mapType, PROC_SYSM3);
+							mapType, proc_id);
 		Osal_printf("MPU Address = 0x%x     Mapped Address = 0x%x,"
 					"size = 0x%x\n", mpuAddrList[0].mpuAddr,
 					mappedAddr, mpuAddrList[0].size);
@@ -882,7 +917,7 @@ int test_dmmbuffer(int size, int iterations, int align)
 				tc_passed = 0;
 			}
 		}
-		ProcMgr_flushMemory(buf_ptr, map_size, PROC_SYSM3);
+		ProcMgr_flushMemory(buf_ptr, map_size, proc_id);
 
 		/* fill in the remote command message */
 		rcmMsg->fxnIdx = fxn_buffer_test_idx;
@@ -898,7 +933,7 @@ int test_dmmbuffer(int size, int iterations, int align)
 			/* Check the buffer data */
 			Osal_printf("Testing data\n");
 			count = 0;
-			ProcMgr_invalidateMemory(buf_ptr, map_size, PROC_SYSM3);
+			ProcMgr_invalidateMemory(buf_ptr, map_size, proc_id);
 
 			for (i = 0; i < map_size/sizeof(uint32_t) &&
 						count < MAX_ERRORS; i++) {
@@ -922,7 +957,7 @@ int test_dmmbuffer(int size, int iterations, int align)
 		for (i = 0; i < map_size/sizeof(uint32_t); i++)
 			buf_ptr[i] = 0xdeadbeef;
 
-		SysLinkMemUtils_unmap(mappedAddr, PROC_SYSM3);
+		SysLinkMemUtils_unmap(mappedAddr, proc_id);
 		free(buf_ptr);
 	}
 
@@ -1037,7 +1072,7 @@ int buffer_compare(uint32_t *src_ptr, uint32_t *dest_ptr, unsigned int size,
  *
  *  This validates copying the content of one user buffer
  */
-int test_buffercopy_test(int size, int iterations)
+int test_buffercopy_test(int size, int iterations, int proc_id)
 {
 	uint32_t *src_ptr = NULL;
 	uint32_t *dest_ptr = NULL;
@@ -1076,7 +1111,7 @@ int test_buffercopy_test(int size, int iterations)
 		mpuAddrList[0].mpuAddr = (uint32_t)src_ptr;
 		mpuAddrList[0].size = map_size;
 		status = SysLinkMemUtils_map(mpuAddrList, 1, &mapped_src,
-							mapType, PROC_SYSM3);
+							mapType, proc_id);
 		if (status < 0) {
 			Osal_printf("SysLinkMemUtils_map FAILED !! %d\n",
 								__LINE__);
@@ -1091,7 +1126,7 @@ int test_buffercopy_test(int size, int iterations)
 		mpuAddrList[0].mpuAddr = (uint32_t)dest_ptr;
 		mpuAddrList[0].size = map_size;
 		status = SysLinkMemUtils_map(mpuAddrList, 1, &mapped_dest,
-							mapType, PROC_SYSM3);
+							mapType, proc_id);
 		if (status < 0) {
 			Osal_printf("SysLinkMemUtils_map FAILED !! %d\n",
 								__LINE__);
@@ -1108,7 +1143,7 @@ int test_buffercopy_test(int size, int iterations)
 			src_ptr[i] = (0xbeef0000 | i);
 			dest_ptr[i] = 0xffffbabe;
 		}
-		status = ProcMgr_flushMemory(src_ptr, map_size, PROC_SYSM3);
+		status = ProcMgr_flushMemory(src_ptr, map_size, proc_id);
 		if (status < 0) {
 			Osal_printf("ProcMgr_flushMemory FAILED !! %d\n",
 								__LINE__);
@@ -1122,7 +1157,7 @@ int test_buffercopy_test(int size, int iterations)
 		 * if this buffer is not touched after mapping it to remote
 		 * processor
 		 */
-		status = ProcMgr_flushMemory(dest_ptr, map_size, PROC_SYSM3);
+		status = ProcMgr_flushMemory(dest_ptr, map_size, proc_id);
 		if (status < 0) {
 			Osal_printf("ProcMgr_flushMemory FAILED !! %d\n",
 								__LINE__);
@@ -1160,7 +1195,7 @@ int test_buffercopy_test(int size, int iterations)
 		Osal_printf("Testing data\n");
 		count = 0;
 		status = ProcMgr_invalidateMemory(dest_ptr, map_size,
-							PROC_SYSM3);
+							proc_id);
 		if (status < 0) {
 			Osal_printf("ProcMgr_invalidateMemory FAILED !! %d\n",
 								__LINE__);
@@ -1173,9 +1208,9 @@ int test_buffercopy_test(int size, int iterations)
 
 loop_exit:
 		if (mapped_src)
-			SysLinkMemUtils_unmap(mapped_src, PROC_SYSM3);
+			SysLinkMemUtils_unmap(mapped_src, proc_id);
 		if (mapped_dest)
-			SysLinkMemUtils_unmap(mapped_dest, PROC_SYSM3);
+			SysLinkMemUtils_unmap(mapped_dest, proc_id);
 
 		/* Return message to the heap */
 		Osal_printf("Calling RcmClient_free\n");
@@ -1206,7 +1241,7 @@ exit:
  *  This validates copying the content of one user buffer
  */
 int test_buffercopy_sizerange_test(int start_size, int size_inc,
-					int max_size, int iterations)
+					int max_size, int iterations, int proc_id)
 {
 	int size;
 	int status = 1;
@@ -1224,7 +1259,7 @@ int test_buffercopy_sizerange_test(int start_size, int size_inc,
 	for (size = start_size; size <= max_size && status != 0;
 			size += size_inc) {
 		Osal_printf("Testing buffer size %d\n", size);
-		status = test_buffercopy_test(size, iterations);
+		status = test_buffercopy_test(size, iterations, proc_id);
 	}
 
 	return status;
@@ -1239,7 +1274,7 @@ int test_buffercopy_sizerange_test(int start_size, int size_inc,
 *  @param  map_size         user specified map size
 *  @sa
 */
-int test_dmm_filecopy(char *infile, char *outfile, unsigned int map_size)
+int test_dmm_filecopy(char *infile, char *outfile, unsigned int map_size, int proc_id)
 {
 	uint32_t *src_ptr = NULL;
 	uint32_t *dest_ptr = NULL;
@@ -1291,7 +1326,7 @@ int test_dmm_filecopy(char *infile, char *outfile, unsigned int map_size)
 	mpuAddrList[0].mpuAddr = (uint32_t)src_ptr;
 	mpuAddrList[0].size = map_size;
 	status = SysLinkMemUtils_map(mpuAddrList, 1, &mapped_src,
-						mapType, PROC_SYSM3);
+						mapType, proc_id);
 	if (status < 0) {
 		Osal_printf("SysLinkMemUtils_map FAILED !! %d\n", __LINE__);
 		goto exit;
@@ -1304,7 +1339,7 @@ int test_dmm_filecopy(char *infile, char *outfile, unsigned int map_size)
 	mpuAddrList[0].mpuAddr = (uint32_t)dest_ptr;
 	mpuAddrList[0].size = map_size;
 	status = SysLinkMemUtils_map(mpuAddrList, 1, &mapped_dest,
-						mapType, PROC_SYSM3);
+						mapType, proc_id);
 	if (status < 0) {
 		Osal_printf("SysLinkMemUtils_map FAILED !! %d\n", __LINE__);
 		goto exit;
@@ -1318,7 +1353,7 @@ int test_dmm_filecopy(char *infile, char *outfile, unsigned int map_size)
 	 * there is a chance for the destination buffer getting
 	 * corrupted  when invalidate is called.
 	 */
-	status = ProcMgr_flushMemory(dest_ptr, map_size, PROC_SYSM3);
+	status = ProcMgr_flushMemory(dest_ptr, map_size, proc_id);
 	if (status < 0) {
 		Osal_printf("ProcMgr_flushMemory FAILED !! %d\n", __LINE__);
 		goto exit;
@@ -1331,7 +1366,7 @@ int test_dmm_filecopy(char *infile, char *outfile, unsigned int map_size)
 		if (read_bytes <= 0)
 			break;
 
-		status = ProcMgr_flushMemory(src_ptr, read_bytes, PROC_SYSM3);
+		status = ProcMgr_flushMemory(src_ptr, read_bytes, proc_id);
 		if (status < 0) {
 			Osal_printf("ProcMgr_flushMemory FAILED !! %d\n",
 								__LINE__);
@@ -1366,7 +1401,7 @@ int test_dmm_filecopy(char *infile, char *outfile, unsigned int map_size)
 		}
 		count = 0;
 		status = ProcMgr_invalidateMemory(dest_ptr, read_bytes,
-								PROC_SYSM3);
+								proc_id);
 		if (status < 0) {
 			Osal_printf("ProcMgr_invalidateMemory FAILED !! %d\n",
 								__LINE__);
@@ -1388,9 +1423,9 @@ loop_exit:
 	} while (tc_passed);
 exit:
 	if (mapped_src)
-		SysLinkMemUtils_unmap(mapped_src, PROC_SYSM3);
+		SysLinkMemUtils_unmap(mapped_src, proc_id);
 	if (mapped_dest)
-		SysLinkMemUtils_unmap(mapped_dest, PROC_SYSM3);
+		SysLinkMemUtils_unmap(mapped_dest, proc_id);
 	if (src_ptr)
 		free(src_ptr);
 	if (dest_ptr)
@@ -1412,7 +1447,7 @@ exit:
 *  @param  map_size         user specified map size
 *  @sa
 */
-int test_dmm_filecopy_tiler(char *infile, char *outfile, unsigned int map_size)
+int test_dmm_filecopy_tiler(char *infile, char *outfile, unsigned int map_size, int proc_id)
 {
 	uint32_t *src_ptr = NULL;
 	uint32_t *dest_ptr = NULL;
@@ -1485,7 +1520,7 @@ int test_dmm_filecopy_tiler(char *infile, char *outfile, unsigned int map_size)
 				((uint32_t)src_ptr & (DMMTEST_PAGE_SIZE - 1)));
 	mpuAddrList[0].size = map_size;
 	status = SysLinkMemUtils_map(mpuAddrList, 1, &mapped_src,
-				ProcMgr_MapType_Tiler, PROC_SYSM3);
+				ProcMgr_MapType_Tiler, proc_id);
 	if (status < 0) {
 		Osal_printf("SysLinkMemUtils_map FAILED !!\n");
 		goto exit;
@@ -1498,7 +1533,7 @@ int test_dmm_filecopy_tiler(char *infile, char *outfile, unsigned int map_size)
 	mpuAddrList[0].mpuAddr = (uint32_t)src_ptr;
 	mpuAddrList[0].size = map_size;
 	status = SysLinkMemUtils_map(mpuAddrList, 1, &dummy_mapped,
-					ProcMgr_MapType_Virt, PROC_SYSM3);
+					ProcMgr_MapType_Virt, proc_id);
 	if (status < 0) {
 		Osal_printf("SysLinkMemUtils_map FAILED !! %d\n", __LINE__);
 		goto exit;
@@ -1511,7 +1546,7 @@ int test_dmm_filecopy_tiler(char *infile, char *outfile, unsigned int map_size)
 	mpuAddrList[0].mpuAddr = (uint32_t)dest_ptr;
 	mpuAddrList[0].size = map_size;
 	status = SysLinkMemUtils_map(mpuAddrList, 1, &mapped_dest,
-					ProcMgr_MapType_Virt, PROC_SYSM3);
+					ProcMgr_MapType_Virt, proc_id);
 	if (status < 0) {
 		Osal_printf("SysLinkMemUtils_map FAILED !! %d\n", __LINE__);
 		goto exit;
@@ -1525,7 +1560,7 @@ int test_dmm_filecopy_tiler(char *infile, char *outfile, unsigned int map_size)
 	 * there is a chance for the destination buffer getting
 	 * corrupted  when invalidate is called.
 	 */
-	status = ProcMgr_flushMemory(dest_ptr, map_size, PROC_SYSM3);
+	status = ProcMgr_flushMemory(dest_ptr, map_size, proc_id);
 	if (status < 0) {
 		Osal_printf("ProcMgr_flushMemory FAILED !! %d\n", __LINE__);
 		goto exit;
@@ -1538,7 +1573,7 @@ int test_dmm_filecopy_tiler(char *infile, char *outfile, unsigned int map_size)
 		if (read_bytes <= 0)
 			break;
 
-		status = ProcMgr_flushMemory(src_ptr, read_bytes, PROC_SYSM3);
+		status = ProcMgr_flushMemory(src_ptr, read_bytes, proc_id);
 		if (status < 0) {
 			Osal_printf("ProcMgr_flushMemory FAILED !! %d\n",
 								__LINE__);
@@ -1562,7 +1597,7 @@ int test_dmm_filecopy_tiler(char *infile, char *outfile, unsigned int map_size)
 		}
 		count = 0;
 		status = ProcMgr_invalidateMemory(dest_ptr, read_bytes,
-							PROC_SYSM3);
+							proc_id);
 		if (status < 0) {
 			Osal_printf("ProcMgr_invalidateMemory FAILED !! %d\n",
 								__LINE__);
@@ -1584,11 +1619,11 @@ loop_exit:
 
 exit:
 	if (mapped_src)
-		SysLinkMemUtils_unmap(mapped_src, PROC_SYSM3);
+		SysLinkMemUtils_unmap(mapped_src, proc_id);
 	if (mapped_dest)
-		SysLinkMemUtils_unmap(mapped_dest, PROC_SYSM3);
+		SysLinkMemUtils_unmap(mapped_dest, proc_id);
 	if (dummy_mapped)
-		SysLinkMemUtils_unmap(dummy_mapped, PROC_SYSM3);
+		SysLinkMemUtils_unmap(dummy_mapped, proc_id);
 	if (til_va_ptr)
 		MemMgr_UnMap(til_va_ptr);
 	if (src_ptr)
@@ -1651,6 +1686,20 @@ int ipc_shutdown(int proc_id)
 		}
 	}
 
+	if (proc_id == PROC_TESLA) {
+		status =  ProcMgr_detach(proc_mgr_handle2);
+		Osal_printf("DMMTEST CASE: ProcMgr_detach status [0x%x]\n",
+								status);
+		status = ProcMgr_close(&proc_mgr_handle2);
+		if (status < 0) {
+			Osal_printf("DMMTEST: Error in ProcMgr_close [0x%x]\n",
+								status);
+		} else {
+		    Osal_printf("DMMTEST: ProcMgr_close status: [0x%x]\n",
+								status);
+		}
+	}
+
 	status = Ipc_destroy();
 
 	return status;
@@ -1683,13 +1732,17 @@ int main(int argc, char *argv[])
 
 	/* Determine proc ID based on subtest number */
 	subTestNo = ATOI(argv[2]);
-	if (subTestNo == 1)
+	switch (subTestNo) {
+	case 1:
 		proc_id = PROC_SYSM3;
-	else if (subTestNo == 2)
+	break;
+	case 2:
 		proc_id = PROC_APPM3;
-	/* else if (subTestNo == 3)
-		proc_id = PROC_TESLA; */
-	else {
+	break;
+	case 3:
+		proc_id = PROC_TESLA;
+	break;
+	default:
 		validArgs = FALSE;
 		goto exit;
 	}
@@ -1718,33 +1771,38 @@ int main(int argc, char *argv[])
 				break;
 			}
 		}
-		tc_passed = test_dmmbuffer(ATOI(argv[3]), ATOI(argv[4]), align);
+		tc_passed = test_dmmbuffer(ATOI(argv[3]), ATOI(argv[4]), align,
+						proc_id);
 		break;
 	}
 	case USE_BUFFER:
-		tc_passed = test_usebuffer(ATOI(argv[3]), ATOI(argv[4]));
+		tc_passed = test_usebuffer(ATOI(argv[3]), ATOI(argv[4]),
+						proc_id);
 		break;
 	case MAP_BUFFER:
-		tc_passed = test_mapbuffertest(ATOI(argv[3]), ATOI(argv[4]), 1);
+		tc_passed = test_mapbuffertest(ATOI(argv[3]), ATOI(argv[4]), 1,
+							proc_id);
 		break;
 	case FLUSH_BUFFER_NEG:
-		tc_passed = test_flushfailuretest(ATOI(argv[3]));
+		tc_passed = test_flushfailuretest(ATOI(argv[3]), proc_id);
 		break;
 	case MAP_NO_UNMAP:
-		tc_passed = test_mapbuffertest(ATOI(argv[3]), ATOI(argv[4]), 0);
+		tc_passed = test_mapbuffertest(ATOI(argv[3]), ATOI(argv[4]), 0,
+						proc_id);
 		break;
 	case MAP_IO_BUFFER:
-		tc_passed = test_iobuffertest(ATOI(argv[3]), ATOI(argv[4]));
+		tc_passed = test_iobuffertest(ATOI(argv[3]), ATOI(argv[4]),
+						proc_id);
 		break;
 	case MMU_FAULT_1:
 	{
 		unsigned int fault_address = 0x9A000000;
-
 		tc_passed = test_mmufault(fault_address);
 		break;
 	}
 	case COPY_BUFFER:
-		tc_passed = test_buffercopy_test(ATOI(argv[3]), ATOI(argv[4]));
+		tc_passed = test_buffercopy_test(ATOI(argv[3]), ATOI(argv[4]),
+			proc_id);
 		break;
 	case DMM_FILE_COPY:
 	{
@@ -1753,7 +1811,7 @@ int main(int argc, char *argv[])
 			map_size = 0;
 		else
 			map_size = ATOI(argv[5]);
-		tc_passed = test_dmm_filecopy(argv[3], argv[4], map_size);
+		tc_passed = test_dmm_filecopy(argv[3], argv[4], map_size, proc_id);
 		break;
 	}
 	case DMM_FILE_TILER_COPY:
@@ -1763,15 +1821,15 @@ int main(int argc, char *argv[])
 			map_size = 0;
 		else
 			map_size = ATOI(argv[5]);
-		tc_passed = test_dmm_filecopy_tiler(argv[3], argv[4], map_size);
+		tc_passed = test_dmm_filecopy_tiler(argv[3], argv[4], map_size,
+			proc_id);
 		break;
 	}
 	case COPY_BUFFER_RANGE:
-	{
-		tc_passed = test_buffercopy_sizerange_test(ATOI(argv[3]),
-			ATOI(argv[4]), ATOI(argv[5]), ATOI(argv[6]));
+		tc_passed = test_buffercopy_sizerange_test(
+				ATOI(argv[3]), ATOI(argv[4]), ATOI(argv[5]),
+				ATOI(argv[6]), proc_id);
 		break;
-	}
 	default:
 		Osal_printf("Invalid Test case number.\n");
 	}
