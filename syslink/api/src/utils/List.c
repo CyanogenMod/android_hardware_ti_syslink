@@ -39,8 +39,6 @@
  *  ============================================================================
  */
 
-
-
 /* Standard headers */
 #include <Std.h>
 
@@ -48,9 +46,6 @@
 #include <List.h>
 #include <Memory.h>
 #include <Trace.h>
-#include <Gate.h>
-#include <GateMutex.h>
-
 
 /* Module level headers */
 
@@ -418,18 +413,14 @@ List_empty (List_Handle handle)
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
         GT_assert (curTrace, (obj->gateHandle != NULL));
-        if (obj->gateHandle != IGateProvider_NULL) {
-            key = Gate_enterSystem();
-        }
+        key = IGateProvider_enter (obj->gateHandle);
 
         if (obj->elem.next == &(obj->elem)) {
             /*! @retval TRUE List is empty */
             isEmpty = TRUE;
         }
 
-        if (obj->gateHandle != IGateProvider_NULL) {
-            Gate_leaveSystem(key);
-        }
+        IGateProvider_leave (obj->gateHandle, key);
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
     }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
@@ -469,15 +460,11 @@ List_get (List_Handle handle)
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
         GT_assert (curTrace, (obj->gateHandle != NULL));
-        if (obj->gateHandle != IGateProvider_NULL) {
-            key = Gate_enterSystem();
-        }
+        key = IGateProvider_enter (obj->gateHandle);
 
         elem = List_dequeue(obj);
 
-        if (obj->gateHandle != IGateProvider_NULL) {
-            Gate_leaveSystem(key);
-        }
+        IGateProvider_leave (obj->gateHandle, key);
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
     }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
@@ -524,15 +511,11 @@ List_put (List_Handle handle, List_Elem * elem)
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
         GT_assert (curTrace, (obj->gateHandle != NULL));
-        if (obj->gateHandle != IGateProvider_NULL) {
-            key = Gate_enterSystem();
-        }
+        key = IGateProvider_enter (obj->gateHandle);
 
         List_enqueue (obj, elem);
 
-        if (obj->gateHandle != IGateProvider_NULL) {
-            Gate_leaveSystem(key);
-        }
+        IGateProvider_leave (obj->gateHandle, key);
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
     }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
@@ -804,15 +787,11 @@ List_putHead (List_Handle handle, List_Elem *elem)
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
         GT_assert (curTrace, (obj->gateHandle != NULL));
-        if (obj->gateHandle != IGateProvider_NULL) {
-            key = Gate_enterSystem();
-        }
+        key = IGateProvider_enter (obj->gateHandle);
 
         List_enqueueHead (handle, elem);
 
-        if (obj->gateHandle != IGateProvider_NULL) {
-            Gate_leaveSystem(key);
-        }
+        IGateProvider_leave (obj->gateHandle, key);
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
     }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
@@ -831,7 +810,6 @@ List_dequeue (List_Handle handle)
 {
     List_Elem *   elem = NULL;
     List_Object * obj  = (List_Object *) handle;
-    IArg          key;
 
     GT_1trace (curTrace, GT_ENTER, "List_dequeue", handle);
 
@@ -850,9 +828,6 @@ List_dequeue (List_Handle handle)
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
         GT_assert (curTrace, (obj->gateHandle != NULL));
 
-        /* Protect with gate if provided. */
-        key = IGateProvider_enter (obj->gateHandle);
-
         elem = obj->elem.next;
         /* See if the List was empty */
         if (elem == (List_Elem *)obj) {
@@ -864,7 +839,6 @@ List_dequeue (List_Handle handle)
             elem->next->prev = &(obj->elem);
         }
 
-        IGateProvider_leave(obj->gateHandle, key);
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
     }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
@@ -886,7 +860,6 @@ Void
 List_enqueue (List_Handle handle, List_Elem * elem)
 {
     List_Object * obj    = (List_Object *) handle;
-    IArg          key    = 0;
 
     GT_2trace (curTrace, GT_ENTER, "List_enqueue", handle, elem);
 
@@ -911,15 +884,12 @@ List_enqueue (List_Handle handle, List_Elem * elem)
     else {
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
         GT_assert (curTrace, (obj->gateHandle != NULL));
-        /* Protect with gate if provided. */
-        key = IGateProvider_enter (obj->gateHandle);
 
         elem->next           = &(obj->elem);
         elem->prev           = obj->elem.prev;
         obj->elem.prev->next = elem;
         obj->elem.prev       = elem;
 
-        IGateProvider_leave (obj->gateHandle, key);
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
     }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
@@ -938,7 +908,6 @@ Void
 List_enqueueHead (List_Handle handle, List_Elem * elem)
 {
     List_Object * obj    = (List_Object *) handle;
-    IArg          key;
 
     GT_2trace (curTrace, GT_ENTER, "List_enqueueHead", handle, elem);
 
@@ -964,14 +933,12 @@ List_enqueueHead (List_Handle handle, List_Elem * elem)
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
         GT_assert (curTrace, (obj->gateHandle != NULL));
         /* Protect with gate if provided. */
-        key = IGateProvider_enter (obj->gateHandle);
 
         elem->next           = obj->elem.next;
         elem->prev           = &(obj->elem);
         obj->elem.next->prev = elem;
         obj->elem.next       = elem;
 
-        IGateProvider_leave (obj->gateHandle, key);
 #if !defined(SYSLINK_BUILD_OPTIMIZE)
     }
 #endif /* if !defined(SYSLINK_BUILD_OPTIMIZE) */
