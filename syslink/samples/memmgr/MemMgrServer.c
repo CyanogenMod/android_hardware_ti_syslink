@@ -164,10 +164,7 @@ Void MemMgrThreadFxn (Char * rcmServerName)
                     "from Ducati.\n");
 
     /* wait for commands */
-    sem_init (&semMemMgrWait, 0, 0);
     sem_wait (&semMemMgrWait);
-
-    sem_destroy (&semMemMgrWait);
 
     for (i = 0; i < numFxns; i++) {
         /* Unregister the remote functions */
@@ -203,6 +200,8 @@ Int main (Int argc, Char * argv [])
         goto exit;
     }
 
+    sem_init (&semMemMgrWait, 0, 0);
+
     /* Setup the signal handlers*/
     signal (SIGINT, signalHandler);
     signal (SIGKILL, signalHandler);
@@ -214,6 +213,8 @@ Int main (Int argc, Char * argv [])
                         (Void *)&mmuFaultHandler, NULL);
 
     MemMgrThreadFxn (RCMSERVER_NAME);
+
+    sem_destroy (&semMemMgrWait);
 
     status = Ipc_destroy ();
     if (status < 0) {
