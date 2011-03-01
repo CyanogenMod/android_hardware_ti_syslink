@@ -58,6 +58,7 @@
 /* OSAL & Utils headers */
 #include <OsalPrint.h>
 #include <Memory.h>
+#include <String.h>
 
 /* IPC headers */
 #include <IpcUsr.h>
@@ -68,7 +69,7 @@
 
 /* Sample headers */
 #include <CrashInfo.h>
-#include <String.h>
+
 #ifdef HAVE_ANDROID_OS
 #undef LOG_TAG
 #define LOG_TAG "SYSLINKD"
@@ -128,53 +129,67 @@ UInt32                          fileIdAppM3;
 extern "C" {
 #endif /* defined (__cplusplus) */
 
-static Bool isDaemonRunning( char* pidName)
+static Bool isDaemonRunning (Char * pidName)
 {
-    DIR     *dir;
-    pid_t   pid;
-    Int     dirNum;
-    FILE    *status;
-    struct  dirent *next;
-    Bool    isRunning = FALSE;
-    Char    filename[READ_BUF_SIZE];
-    Char    buffer[READ_BUF_SIZE];
+    DIR           * dir;
+    pid_t           pid;
+    Int             dirNum;
+    FILE          * fp;
+    struct dirent * next;
+    Bool            isRunning                   = FALSE;
+    Char            filename [READ_BUF_SIZE];
+    Char            buffer [READ_BUF_SIZE];
+    Char          * bptr                        = buffer;
+    Char          * name;
 
     pid = getpid ();
     dir = opendir ("/proc");
     if (!dir) {
-        Osal_printf ("Warning:Cannot open /proc\n");
+        Osal_printf ("Warning: Cannot open /proc filesystem\n");
         return isRunning;
     }
 
-    while ((next = readdir (dir)) != NULL) {
-        /* Must skip ".." since that is outside /proc */
-        if (String_cmp (next->d_name, "..") == 0)
-            continue;
+    name = strrchr (pidName, '/');
+    if (name) {
+        pidName = (name + 1);
+    }
 
+    while ((next = readdir (dir)) != NULL) {
         /* If it isn't a number, we don't want it */
-        if (!isdigit (*next->d_name))
+        if (!isdigit (*next->d_name)) {
             continue;
+        }
 
         dirNum = strtol (next->d_name, NULL, 10);
-        if (dirNum == pid)
+        if (dirNum == pid) {
             continue;
+        }
 
-        sprintf (filename, "/proc/%s/cmdline", next->d_name);
-        if (! (status = fopen (filename, "r")) ) {
+        snprintf (filename, READ_BUF_SIZE, "/proc/%s/cmdline", next->d_name);
+        if (!(fp = fopen (filename, "r"))) {
             continue;
         }
-        if (fgets (buffer, READ_BUF_SIZE-1, status) == NULL) {
-            fclose (status);
+        if (fgets (buffer, READ_BUF_SIZE, fp) == NULL) {
+            fclose (fp);
             continue;
         }
-        fclose (status);
+        fclose (fp);
+
+        name = strrchr (buffer, '/');
+        if (name && (name + 1)) {
+            bptr = (name + 1);
+        }
+        else {
+            bptr = buffer;
+        }
 
         /* Buffer should contain the enitre command line */
-        if (String_cmp (buffer, pidName) == 0) {
+        if (String_cmp (bptr, pidName) == 0) {
             isRunning = TRUE;
             break;
         }
     }
+    closedir (dir);
 
     return isRunning;
 }
@@ -784,7 +799,8 @@ Int main (Int argc, Char * argv [])
     Bool    callIpcSetup = false;
 
     if (isDaemonRunning (argv[0])) {
-        Osal_printf ("Mulitple instances of %s is not supported\n",argv[0]);
+        Osal_printf ("Multiple instances of syslink_daemon.out are not "
+                     "supported\n");
         return (-1);
     }
 
