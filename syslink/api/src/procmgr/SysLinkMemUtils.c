@@ -259,7 +259,7 @@ _SysLinkMemUtils_findNode (Ptr da)
     for (node = List_next (SysLinkMemUtils_module->addrTable, NULL);
         node != NULL; node = List_next (SysLinkMemUtils_module->addrTable,
             &node->elem)) {
-        if (da >= node->da && da < node->da + node->size) {
+        if (da == node->da) {
             break;
         }
     }
@@ -405,6 +405,19 @@ SysLinkMemUtils_DAtoVA (Ptr da)
 
     GT_1trace (curTrace, GT_ENTER, "SysLinkMemUtils_DAtoVA", da);
 
+#if 1
+    /* SysLinkMemUtils_DAtoVA() is now a stub that always      */
+    /* returns NULL.  It is necessary to disable this function */
+    /* due to the changes to the block lookup that breaks its  */
+    /* functionality.                                          */
+    (Void)node;
+    (Void)da;
+    GT_setFailureReason (curTrace,
+                         GT_4CLASS,
+                         (Char *)__func__,
+                         -1,
+                         "SysLinkMemUtils_DAtoVA() is unavailable.");
+#else
     OsalSemaphore_pend (SysLinkMemUtils_module->semList,
                         OSALSEMAPHORE_WAIT_FOREVER);
     node = _SysLinkMemUtils_findNode (da);
@@ -412,6 +425,7 @@ SysLinkMemUtils_DAtoVA (Ptr da)
     if (node) {
         addr = node->ua + (da - node->da);
     }
+#endif
 
     GT_1trace (curTrace, GT_LEAVE, "SysLinkMemUtils_DAtoVA", addr);
 
