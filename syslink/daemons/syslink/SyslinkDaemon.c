@@ -76,14 +76,14 @@
 
 /* Defines for the default HeapBufMP being configured in the System */
 #define RCM_MSGQ_TILER_HEAPNAME         "Heap0"
-#define RCM_MSGQ_TILER_HEAP_BLOCKS      256
+#define RCM_MSGQ_TILER_HEAP_BLOCKS      128
 #define RCM_MSGQ_TILER_HEAP_ALIGN       128
 #define RCM_MSGQ_TILER_MSGSIZE          256
 #define RCM_MSGQ_TILER_HEAPID           0
 #define RCM_MSGQ_DOMX_HEAPNAME          "Heap1"
 #define RCM_MSGQ_DOMX_HEAP_BLOCKS       256
 #define RCM_MSGQ_DOMX_HEAP_ALIGN        128
-#define RCM_MSGQ_DOMX_MSGSIZE           256
+#define RCM_MSGQ_DOMX_MSGSIZE           384
 #define RCM_MSGQ_DOMX_HEAPID            1
 #define RCM_MSGQ_HEAP_SR                1
 
