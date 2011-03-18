@@ -792,9 +792,10 @@ exit:
 static Void printUsage (Void)
 {
     Osal_printf ("\nInvalid arguments!\n"
-                 "Usage: ./syslink_daemon.out <[-s] <SysM3 image file>> "
+                 "Usage: ./syslink_daemon.out [-f] <[-s] <SysM3 image file>> "
                  "[<[-a] <AppM3 image file>>]\n"
                  "Rules: - Full paths must be provided for image files.\n"
+                 "       - Use '-f' option to run as a regular process.\n"
                  "       - Images can be specified in any order as long as\n"
                  "         the corresponding option is specified.\n"
                  "       - All images not preceded by an option are applied\n"
@@ -808,6 +809,7 @@ Int main (Int argc, Char * argv [])
     pid_t   child_pid;
     pid_t   child_sid;
     Int     status      = 0;
+    Bool    daemon      = TRUE;
     Int     o;
     Int     i;
     Char  * images []   = {NULL, NULL};
@@ -819,44 +821,17 @@ Int main (Int argc, Char * argv [])
         return (-1);
     }
 
-    Osal_printf ("Spawning SysLink Daemon...\n");
-    /* Fork off the parent process */
-    child_pid = fork();
-    if (child_pid < 0) {
-        Osal_printf ("Spawn daemon failed!\n");
-        exit (EXIT_FAILURE);     /* Failure */
-    }
-    /* If we got a good PID, then we can exit the parent process. */
-    if (child_pid > 0) {
-        exit (EXIT_SUCCESS);    /* Succeess */
-    }
-
-    /* Change file mode mask */
-    umask (0);
-
-    /* Create a new SID for the child process */
-    child_sid = setsid ();
-    if (child_sid < 0)
-        exit (EXIT_FAILURE);     /* Failure */
-
-    /* Change the current working directory */
-    if ((chdir("/")) < 0) {
-        exit (EXIT_FAILURE);     /* Failure */
-    }
-
-    /* Close standard file descriptors */
-    //close(STDIN_FILENO);
-    //close(STDOUT_FILENO);
-    //close(STDERR_FILENO);
-
     /* Determine args */
-    while ((o = getopt (argc, argv, ":a:s:")) != -1) {
+    while ((o = getopt (argc, argv, ":fs:a:")) != -1) {
         switch (o) {
         case 's':
             images [0] = optarg;
             break;
         case 'a':
             images [1] = optarg;
+            break;
+        case 'f':
+            daemon = FALSE;
             break;
         case ':':
             status = -1;
@@ -886,6 +861,35 @@ Int main (Int argc, Char * argv [])
 
     if (status || optind < argc || !images [0]) {
         printUsage ();
+    }
+
+    /* Process will be daemonised if daemon flag is true */
+    if (daemon) {
+        Osal_printf ("Spawning SysLink Daemon...\n");
+        /* Fork off the parent process */
+        child_pid = fork ();
+        if (child_pid < 0) {
+            Osal_printf ("Spawn daemon failed!\n");
+            exit (EXIT_FAILURE);     /* Failure */
+        }
+        /* If we got a good PID, then we can exit the parent process. */
+        if (child_pid > 0) {
+            exit (EXIT_SUCCESS);    /* Success */
+        }
+
+        /* Change file mode mask */
+        umask (0);
+
+        /* Create a new SID for the child process */
+        child_sid = setsid ();
+        if (child_sid < 0) {
+            exit (EXIT_FAILURE);     /* Failure */
+        }
+
+        /* Change the current working directory */
+        if ((chdir("/")) < 0) {
+            exit (EXIT_FAILURE);     /* Failure */
+        }
     }
 
     /* Setup the signal handlers */
