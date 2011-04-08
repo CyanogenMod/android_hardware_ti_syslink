@@ -45,7 +45,7 @@ extern "C" {
  *  @desc   Number after resevred events.
  *  ============================================================================
  */
-#define EVENT_STARTNO           5
+#define EVENT_STARTNO           6
 #define MAX_ITERATIONS          100
 #define MIN_ITERATIONS          1
 
@@ -460,10 +460,10 @@ Int NotifyPing_execute (Void)
 
     /* Start sending and receiving events */
     if (eventNo == Notify_MAXEVENTS) {
-        /* Send all events, from 4 - 31, to Ducati for each
+        /* Send all events, from 6 - 31, to Ducati for each
            number of transfer */
         for(j = numIterations; j > 0; j--) {
-            /* Send for events from 5 - 31 */
+            /* Send for events from 7 - 31 */
             for(i = EVENT_STARTNO + 1; i < Notify_MAXEVENTS; i++) {
                 payload++;
                 if ((j == 1) && (i == Notify_MAXEVENTS - 1))
@@ -482,7 +482,7 @@ Int NotifyPing_execute (Void)
                 Osal_printf ("[NotifyPingExecute]>>>>>>>> Sent Event[%d]\n", i);
             }
 
-            /* Wait for events from 4 - 31 */
+            /* Wait for events from 6 - 31 */
             for(i = EVENT_STARTNO; i < Notify_MAXEVENTS; i++) {
                 Osal_printf ("[NotifyPingExecute] Waiting on event %d\n", i);
                 status = NotifyPing_waitSem (event [i]);
@@ -500,7 +500,7 @@ Int NotifyPing_execute (Void)
 
             /* Start the next iteration here */
             payload++;
-            /* Send event 4 for the next iteration */
+            /* Send event 6 for the next iteration */
             status = Notify_sendEvent (procId,
                                        NOTIFYAPP_LINEID,
                                        EVENT_STARTNO,
@@ -511,8 +511,8 @@ Int NotifyPing_execute (Void)
                 Osal_printf ("Error after send event, status %d\n", status);
                 return status;
             }
-            Osal_printf ("Notify_sendEvent status[%d] for Event[4] \n", status);
-            Osal_printf ("[NotifyPingExecute]>>>>>>>> Sent Event[4]\n");
+            Osal_printf ("Notify_sendEvent status[%d] for Event[6] \n", status);
+            Osal_printf ("[NotifyPingExecute]>>>>>>>> Sent Event[6]\n");
         }
     }
     else {
@@ -689,7 +689,7 @@ Void printUsage (Void)
     Osal_printf ("Usage: ./notifyping.out <TestNo> [[<EventNo>] "
         "[<numIterations>]]\n");
     Osal_printf ("\tValid Values:\n\t\tTestNo: 1 or 2 or 3\n"
-                "\t\tEventNo: 4 to 31\n"
+                "\t\tEventNo: 6 to 31\n"
                 "\t\tnumIterations: 1 to 100, default: 5\n");
     Osal_printf ("\tExamples:\n");
     Osal_printf ("\t./notifyping.out 1      : "
@@ -700,8 +700,8 @@ Void printUsage (Void)
                     "NotifyPing all events on Tesla\n");
     Osal_printf ("\t./notifyping.out 1 17   : "
                     "NotifyPing event#17 on SysM3 for 5 iterations\n");
-    Osal_printf ("\t./notifyping.out 2 5    : "
-                    "NotifyPing event#5 on AppM3 for 5 iterations\n");
+    Osal_printf ("\t./notifyping.out 2 6    : "
+                    "NotifyPing event#6 on AppM3 for 5 iterations\n");
     Osal_printf ("\t./notifyping.out 3 7    : "
                     "NotifyPing event#7 on Tesla for 5 iterations\n");
     Osal_printf ("\t./notifyping.out 1 8 10 : "
