@@ -98,6 +98,8 @@
 #define FAULT_RECOVERY_DELAY            500000
 
 #define CONTEXTBUFFERADD                0x9E0FC000
+#define CONTEXTBUFFERWDTSYSM3           CONTEXTBUFFERADD
+#define CONTEXTBUFFERWDTAPPM3           (CONTEXTBUFFERADD + 0X0080)
 #define STACKBUFFERADD                  0x9E0FD000
 #define STACKBUFFERSZE                  0x3000
 
@@ -202,6 +204,70 @@ static Bool isDaemonRunning (Char * pidName)
     closedir (dir);
 
     return isRunning;
+}
+
+/*
+ *========exceptionDumpWdtRegisters=========
+ */
+static Void exceptionDumpWdtRegisters (Int ProcId)
+{
+    Int                     status;
+    volatile ExcContext   * excContext;
+    Memory_MapInfo          traceinfo;
+    Char                  * ttype;
+    Char                  * core;
+
+    if (ProcId == PROC_SYSM3) {
+        traceinfo.src  = CONTEXTBUFFERWDTSYSM3;
+        core = "SYSM3";
+    }
+    else {
+        traceinfo.src  = CONTEXTBUFFERWDTAPPM3;
+        core = "APPM3";
+    }
+
+    Osal_printf ("========================================================\n"
+                 "=============== %s WDT CONTEXT DUMP =================\n"
+                 "========================================================\n",
+                 core );
+
+    traceinfo.size = 0x80;
+    status = Memory_map (&traceinfo);
+    if (status!= MEMORYOS_SUCCESS) {
+        Osal_printf ("\nCrash-dump Memory_map failed\n\n");
+    }
+    else {
+        /* Fill the Structure with data from memory */
+        excContext = (volatile ExcContext *) traceinfo.dst;
+
+        switch (excContext->threadType) {
+        case BIOS_ThreadType_Task:
+            ttype = "Task";
+            break;
+        case BIOS_ThreadType_Swi:
+            ttype = "Swi";
+            break;
+        default:
+            ttype = "Hwi/Main";
+        }
+
+        Osal_printf ("%s Exception occurred in ThreadType_%s.\n", core, ttype);
+        Osal_printf ("%s %s handle: 0x%x.\n", core, ttype,
+                     excContext->threadHandle);
+        Osal_printf ("%s %s stack base: 0x%x.\n", core, ttype,
+                     excContext->threadStack);
+        Osal_printf ("%s %s stack size: 0x%x.\n", core, ttype,
+                     excContext->threadStackSize);
+        Osal_printf ("%s R0 = %08x  R1 = %08x\n", core, excContext->r0,
+                     excContext->r1);
+        Osal_printf ("%s R2 = %08x  R3 = %08x\n", core, excContext->r2,
+                     excContext->r3);
+        Osal_printf ("%s R12= %08x  SP(R13) = %08x\n", core, excContext->r12,
+                     excContext->sp);
+        Osal_printf ("%s PC = %08x  LR(R14) = %08x\n", core, excContext->pc,
+                     excContext->lr);
+        Osal_printf ("%s PSR = %08x\n\n", core, excContext->psr);
+    }
 }
 
 /*
@@ -334,6 +400,10 @@ static Void sysM3EventHandler (Void)
             /* Dump Crash Info */
             exceptionDumpRegisters ();
         }
+        else if (eventList [index] == PROC_WATCHDOG) {
+            /* Dump Crash Info */
+            exceptionDumpWdtRegisters (PROC_SYSM3);
+        }
 
         /* Initiate cleanup */
         isSysM3Event = TRUE;
@@ -359,7 +429,7 @@ static Void sysM3EventHandler (Void)
  */
 static Void appM3EventHandler (Void)
 {
-    Int                 status  = PROCMGR_E_FAIL;;
+    Int                 status  = PROCMGR_E_FAIL;
     UInt                index;
     Int                 size;
     ProcMgr_EventType   eventList [] = {PROC_ERROR, PROC_WATCHDOG};
@@ -370,6 +440,8 @@ static Void appM3EventHandler (Void)
     if (status == PROCMGR_SUCCESS) {
         if (eventList [index] == PROC_WATCHDOG) {
             Osal_printf ("\nWatchDog fired on the M3 subsystem.\n");
+            /* Dump Crash Info */
+            exceptionDumpWdtRegisters (PROC_APPM3);
         }
         else {
             Osal_printf ("\nSysError occured on AppM3. See crash dump for more "
