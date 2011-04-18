@@ -729,7 +729,7 @@ Int32 ProcMMU_registerEvent (Int32 procId, Int32 eventfd, bool reg)
     Int32 status    = ProcMMU_S_SUCCESS;
 
     GT_3trace (curTrace, GT_ENTER, "ProcMMU_registerEvent", procId, eventfd,
-                bool);
+                reg);
 
     if ((procId == MultiProc_getId("AppM3")) || \
         (procId == MultiProc_getId("SysM3"))) {
