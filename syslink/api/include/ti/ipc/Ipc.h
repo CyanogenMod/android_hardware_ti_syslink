@@ -201,7 +201,7 @@ Int readConfig(UInt16 remoteProcId, UInt32 tag, Ptr cfg, SizeT size);
  *              - #Ipc_S_SUCCESS: if operation was successful
  *              - #Ipc_E_FAIL: if operation failed
  */
-Int Ipc_start(Void);
+Int Ipc_start(void);
 
 /*!
  *  @brief      Writes the config entry to the config area.

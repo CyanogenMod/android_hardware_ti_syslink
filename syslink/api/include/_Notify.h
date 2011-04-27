@@ -133,7 +133,7 @@ Void Notify_getConfig (Notify_Config * cfg);
 Int Notify_setup (Notify_Config * cfg);
 
 /* Function to destroy the Notify module */
-Int Notify_destroy (Void);
+Int Notify_destroy (void);
 
 /* Function to create an instance of Notify driver */
 Notify_Handle Notify_create (      Ptr                 driverHandle,

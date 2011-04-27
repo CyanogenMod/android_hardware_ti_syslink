@@ -101,7 +101,7 @@ GateMP_setup (const GateMP_Config * cfg);
  *  Function to destroy the GateMP module.
  */
 Int32
-GateMP_destroy (Void);
+GateMP_destroy (void);
 
 /*!
  *  Function to attach GateMP to a remote processor
@@ -125,7 +125,7 @@ GateMP_start (Ptr sharedAddr);
  *  Function to start GateMP
  */
 Int
-GateMP_stop (Void);
+GateMP_stop (void);
 
 /*!
  *  Function to create local GateMP
@@ -137,7 +137,7 @@ GateMP_createLocal (GateMP_LocalProtect localProtect);
  *  Function to return size required in shared region 0
  */
 SizeT
-GateMP_getRegion0ReservedSize (Void);
+GateMP_getRegion0ReservedSize (void);
 
 /*!
  *  Function to shared address of a GateMP object

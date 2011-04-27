@@ -319,7 +319,7 @@ Int GateMP_delete(GateMP_Handle *handlePtr);
  *
  *  @return     GateMP handle
  */
-GateMP_Handle GateMP_getDefaultRemote(Void);
+GateMP_Handle GateMP_getDefaultRemote(void);
 
 /*!
  *  @brief      Open a created GateMP by name

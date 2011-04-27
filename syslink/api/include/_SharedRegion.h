@@ -141,7 +141,7 @@ Int SharedRegion_setup (SharedRegion_Config * config);
  *
  *  @sa         SharedRegion_setup
  */
-Int SharedRegion_destroy (Void);
+Int SharedRegion_destroy (void);
 
 /*!
  *  @brief      Creates a heap by owner of region for each SharedRegion.
@@ -152,7 +152,7 @@ Int SharedRegion_destroy (Void);
  *
  *  @sa         Ipc_start
  */
-Int SharedRegion_start (Void);
+Int SharedRegion_start (void);
 
 /*!
  *  @brief      Function to stop Shared Region 0
@@ -161,7 +161,7 @@ Int SharedRegion_start (Void);
  *
  *  @sa         Ipc_stop
  */
-Int SharedRegion_stop (Void);
+Int SharedRegion_stop (void);
 
 /*!
  *  @brief      Opens a heap, for non-owner processors, for each SharedRegion.
@@ -219,7 +219,7 @@ Int _SharedRegion_setEntry(UInt16 regionId, SharedRegion_Entry *entry);
 
 
 /*! @brief      Function to clear the reserved memory */
-Void SharedRegion_clearReservedMemory (void);
+void SharedRegion_clearReservedMemory (void);
 
 /*! @brief      Return the region info
  *
@@ -234,13 +234,13 @@ Void SharedRegion_getRegionInfo (UInt16                i,
  * not on user space
  */
 Int
-_SharedRegion_setRegions (Void);
+_SharedRegion_setRegions (void);
 
 /*! Clears the regions in user space that are created in knl space and
  * not on user space.
  */
 Int
-_SharedRegion_clearRegions (Void);
+_SharedRegion_clearRegions (void);
 
 
 #if defined (__cplusplus)
