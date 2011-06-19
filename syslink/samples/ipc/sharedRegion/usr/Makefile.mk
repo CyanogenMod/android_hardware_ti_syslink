@@ -27,14 +27,14 @@ CFLAGS += -DSYSLINK_TRACE_ENABLE
 LIBS = -lipcutils -lipc -lprocmgr -lsysmgr -lsyslinknotify
 MEMMGRLIBS = -ltimemmgr
 
-all: sharedRegionApp.out
+all: sharedRegionApp
 
-sharedRegionApp.out:
-	$(CC) $(CFLAGS) -o sharedRegionApp.out SharedRegionAppOS.c SharedRegionApp.c $(LIBS) $(MEMMGRLIBS)
+sharedRegionApp:
+	$(CC) $(CFLAGS) -o sharedRegionApp SharedRegionAppOS.c SharedRegionApp.c $(LIBS) $(MEMMGRLIBS)
 
-install: sharedRegionApp.out
+install: sharedRegionApp
 	$(INSTALL) -D $< $(TARGETDIR)/syslink/$<
 	$(STRIP) -s $(TARGETDIR)/syslink/$<
 
 clean:
-	\rm -f sharedRegionApp.out
+	\rm -f sharedRegionApp

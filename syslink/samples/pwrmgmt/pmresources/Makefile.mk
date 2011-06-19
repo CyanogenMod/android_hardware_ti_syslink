@@ -37,16 +37,16 @@ LIBS = -lipcutils -lsyslinknotify -lipc -lprocmgr
 LIBS += -lsysmgr
 MEMMGRLIBS = -ltimemmgr
 
-all: slpmresources.out
+all: slpmresources
 
-slpmresources.out:
-	$(CC) $(CFLAGS) -o slpmresources.out slpmresourcesOS.c slpmresourcesApp.c $(LIBS) $(MEMMGRLIBS)
+slpmresources:
+	$(CC) $(CFLAGS) -o slpmresources slpmresourcesOS.c slpmresourcesApp.c $(LIBS) $(MEMMGRLIBS)
 
-slpmresourcesinstall: slpmresources.out
+slpmresourcesinstall: slpmresources
 	$(INSTALL) -D $< $(TARGETDIR)/syslink/$<
 	$(STRIP) -s $(TARGETDIR)/syslink/$<
 
 install: slpmresourcesinstall
 
 clean:
-	\rm -f slpmresources.out
+	\rm -f slpmresources

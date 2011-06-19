@@ -41,12 +41,12 @@ API_LIBS = \
 	$(LDPATH)/sysmgr/libsysmgr.la
 
 
-bin_PROGRAMS = slpmresources.out
+bin_PROGRAMS = slpmresources
 
-slpmresources_out_SOURCES = \
+slpmresources_SOURCES = \
 	slpmresourcesOS.c \
 	slpmresourcesApp.c
 
-slpmresources_out_CPPFLAGS = $(AM_CFLAGS)
+slpmresources_CPPFLAGS = $(AM_CFLAGS)
 
-slpmresources_out_LDADD = $(API_LIBS)
+slpmresources_LDADD = $(API_LIBS)

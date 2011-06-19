@@ -34,10 +34,10 @@ API_LIBS = \
 	$(MEMMGR_LIBS) \
 	$(LDPATH)/rcm/librcm.la
 
-bin_PROGRAMS =  memmgrserver.out
+bin_PROGRAMS =  memmgrserver
 
-memmgrserver_out_SOURCES = MemMgrServer.c
+memmgrserver_SOURCES = MemMgrServer.c
 
-memmgrserver_out_CPPFLAGS = $(AM_CFLAGS)
+memmgrserver_CPPFLAGS = $(AM_CFLAGS)
 
-memmgrserver_out_LDADD = $(API_LIBS)
+memmgrserver_LDADD = $(API_LIBS)

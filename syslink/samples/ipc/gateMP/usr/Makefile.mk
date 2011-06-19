@@ -27,13 +27,13 @@ CFLAGS += -DSYSLINK_TRACE_ENABLE
 LIBS =  -lipcutils -lipc -lprocmgr -lsysmgr -lsyslinknotify
 MEMMGRLIBS = -ltimemmgr
 
-all: gateMPApp.out
+all: gateMPApp
 
-gateMPApp.out:
-	$(CC) $(CFLAGS) -o gateMPApp.out GateMPApp.c $(LIBS) $(MEMMGRLIBS)
+gateMPApp:
+	$(CC) $(CFLAGS) -o gateMPApp GateMPApp.c $(LIBS) $(MEMMGRLIBS)
 
-install: gateMPApp.out
+install: gateMPApp
 	$(INSTALL) -D $< $(TARGETDIR)/syslink/$<
 	$(STRIP) -s $(TARGETDIR)/syslink/$<
 clean:
-	\rm -f gateMPApp.out
+	\rm -f gateMPApp

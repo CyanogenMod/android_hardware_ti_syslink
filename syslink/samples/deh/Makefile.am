@@ -39,18 +39,18 @@ API_LIBS = \
 	$(LDPATH)/sysmgr/libsysmgr.la
 
 
-bin_PROGRAMS = dehtest.out dehdaemontest.out
+bin_PROGRAMS = dehtest dehdaemontest
 
-dehtest_out_SOURCES = \
+dehtest_SOURCES = \
 	dehOS.c \
 	dehApp.c
 
-dehdaemontest_out_SOURCES = \
+dehdaemontest_SOURCES = \
 	dehOS.c \
 	dehApp.c
 
-dehtest_out_CPPFLAGS = $(AM_CFLAGS) -DSYSLINK_USE_LOADER
-dehdaemontest_out_CPPFLAGS = $(AM_CFLAGS) -DSYSLINK_USE_DAEMON
+dehtest_CPPFLAGS = $(AM_CFLAGS) -DSYSLINK_USE_LOADER
+dehdaemontest_CPPFLAGS = $(AM_CFLAGS) -DSYSLINK_USE_DAEMON
 
-dehtest_out_LDADD = $(API_LIBS)
-dehdaemontest_out_LDADD = $(API_LIBS)
+dehtest_LDADD = $(API_LIBS)
+dehdaemontest_LDADD = $(API_LIBS)

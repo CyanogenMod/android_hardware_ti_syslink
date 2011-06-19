@@ -37,16 +37,16 @@ LIBS = -lipcutils -lsyslinknotify -lipc -lprocmgr
 LIBS += -lsysmgr
 MEMMGRLIBS = -ltimemmgr
 
-all: messageQApp.out
+all: messageQApp
 
-messageQApp.out:
-	$(CC) $(CFLAGS) -o messageQApp.out MessageQAppOS.c MessageQApp.c $(LIBS) $(MEMMGRLIBS)
+messageQApp:
+	$(CC) $(CFLAGS) -o messageQApp MessageQAppOS.c MessageQApp.c $(LIBS) $(MEMMGRLIBS)
 
-messageQinstall1: messageQApp.out
+messageQinstall1: messageQApp
 	$(INSTALL) -D $< $(TARGETDIR)/syslink/$<
 	$(STRIP) -s $(TARGETDIR)/syslink/$<
 
 install: messageQinstall1
 
 clean:
-	\rm -f messageQApp.out
+	\rm -f messageQApp

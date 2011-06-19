@@ -1,0 +1,26 @@
+# Ignore all the sample executable names
+deh/dehdaemontest
+deh/dehtest
+dmm/dmm_daemontest
+event_listener/event_listener
+interm3/interm3
+ipc/gateMP/usr/gateMPApp
+ipc/heapBufMP/usr/heapBufMPApp
+ipc/heapMemMP/usr/heapMemMPApp
+ipc/listMP/usr/listMPApp
+ipc/messageQ/usr/messageQApp
+ipc/nameServer/usr/nameServerApp
+ipc/sharedRegion/usr/sharedRegionApp
+memmgr/memmgrserver
+notify/notifyping/notifyping
+procmgr/ducati_load/ducati_load
+procmgr/procmgrapp/procMgrApp
+pwrmgmt/pmgeneric/slpmtest
+pwrmgmt/pmresources/slpmresources
+pwrmgmt/pmtransport/slpmtransport
+rcm/multi_test/rcm_daemontest
+rcm/multi_test/rcm_multiclienttest
+rcm/multi_test/rcm_multitest
+rcm/multi_test/rcm_multithreadtest
+rcm/single_test/rcm_singletest
+tiler/syslink_tilertest

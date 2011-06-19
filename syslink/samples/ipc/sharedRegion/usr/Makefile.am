@@ -39,10 +39,10 @@ API_LIBS = \
 	$(LDPATH)/sysmgr/libsysmgr.la \
 	$(LDPATH)/notify/libsyslinknotify.la
 
-bin_PROGRAMS = sharedRegionApp.out
+bin_PROGRAMS = sharedRegionApp
 
-sharedRegionApp_out_SOURCES = SharedRegionAppOS.c SharedRegionApp.c
+sharedRegionApp_SOURCES = SharedRegionAppOS.c SharedRegionApp.c
 
-sharedRegionApp_out_CPPFLAGS = $(AM_CFLAGS)
+sharedRegionApp_CPPFLAGS = $(AM_CFLAGS)
 
-sharedRegionApp_out_LDADD = $(API_LIBS)
+sharedRegionApp_LDADD = $(API_LIBS)

@@ -26,14 +26,14 @@ LIBS = -lsyslinknotify -lipcutils -lipc -lprocmgr
 SYSMGRLIBS = -lprocmgr -lsysmgr
 MEMMGRLIBS = -ltimemmgr
 
-all: notifyping.out
+all: notifyping
 
-notifyping.out: notifyping.c
-	$(CC) $(CFLAGS) -o notifyping.out notifyping.c $(LIBS) $(SYSMGRLIBS) $(MEMMGRLIBS)
+notifyping: notifyping.c
+	$(CC) $(CFLAGS) -o notifyping notifyping.c $(LIBS) $(SYSMGRLIBS) $(MEMMGRLIBS)
 
-install: notifyping.out
+install: notifyping
 	$(INSTALL) -D $< $(TARGETDIR)/syslink/$<
 	$(STRIP) -s $(TARGETDIR)/syslink/$<
 
 clean:
-	\rm -f notifyping.out
+	\rm -f notifyping

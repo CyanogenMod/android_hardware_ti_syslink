@@ -28,14 +28,14 @@ LDPATH=../../../api/src
 API_LIBS = \
 	$(LDPATH)/utils/libutils.la
 
-bin_PROGRAMS =  utilsApp.out
+bin_PROGRAMS =  utilsApp
 
-utilsApp_out_SOURCES = \
+utilsApp_SOURCES = \
 	utilsApp.c \
 	GateTest.c \
 	MemoryTest.c \
 	ListTest.c
 
-utilsApp_out_CPPFLAGS = $(AM_CFLAGS)
+utilsApp_CPPFLAGS = $(AM_CFLAGS)
 
-utilsApp_out_LDADD = $(API_LIBS)
+utilsApp_LDADD = $(API_LIBS)

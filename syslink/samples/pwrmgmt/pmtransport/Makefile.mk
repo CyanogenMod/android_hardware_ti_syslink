@@ -37,16 +37,16 @@ LIBS = -lipcutils -lsyslinknotify -lipc -lprocmgr
 LIBS += -lsysmgr
 MEMMGRLIBS = -ltimemmgr
 
-all: slpmtransport.out
+all: slpmtransport
 
-slpmtransport.out:
-	$(CC) $(CFLAGS) -o slpmtransport.out slpmtransportOS.c slpmtransportApp.c $(LIBS) $(MEMMGRLIBS)
+slpmtransport:
+	$(CC) $(CFLAGS) -o slpmtransport slpmtransportOS.c slpmtransportApp.c $(LIBS) $(MEMMGRLIBS)
 
-slpmtransportinstall: slpmtransport.out
+slpmtransportinstall: slpmtransport
 	$(INSTALL) -D $< $(TARGETDIR)/syslink/$<
 	$(STRIP) -s $(TARGETDIR)/syslink/$<
 
 install: slpmtransportinstall
 
 clean:
-	\rm -f slpmtransport.out
+	\rm -f slpmtransport

@@ -35,24 +35,24 @@ LIBS = -lipcutils -lsyslinknotify -lipc -lprocmgr
 LIBS += -lsysmgr
 MEMMGRLIBS = -ltimemmgr
 
-all: dehtest.out dehdaemontest.out
+all: dehtest dehdaemontest
 
-dehtest.out: dehOS.c dehApp.c
-	$(CC) $(CFLAGS) -DSYSLINK_USE_LOADER -o dehtest.out dehOS.c dehApp.c $(LIBS) $(MEMMGRLIBS)
+dehtest: dehOS.c dehApp.c
+	$(CC) $(CFLAGS) -DSYSLINK_USE_LOADER -o dehtest dehOS.c dehApp.c $(LIBS) $(MEMMGRLIBS)
 
-dehdaemontest.out: dehOS.c dehApp.c
-	$(CC) $(CFLAGS) -DSYSLINK_USE_DAEMON -o dehdaemontest.out dehOS.c dehApp.c $(LIBS) $(MEMMGRLIBS)
+dehdaemontest: dehOS.c dehApp.c
+	$(CC) $(CFLAGS) -DSYSLINK_USE_DAEMON -o dehdaemontest dehOS.c dehApp.c $(LIBS) $(MEMMGRLIBS)
 
-dehtestinstall1: dehtest.out
+dehtestinstall1: dehtest
 	$(INSTALL) -D $< $(TARGETDIR)/syslink/$<
 	$(STRIP) -s $(TARGETDIR)/syslink/$<
 
-dehtestinstall2: dehdaemontest.out
+dehtestinstall2: dehdaemontest
 	$(INSTALL) -D $< $(TARGETDIR)/syslink/$<
 	$(STRIP) -s $(TARGETDIR)/syslink/$<
 
 install: dehtestinstall1 dehtestinstall2
 
 clean:
-	\rm -f dehtest.out
-	\rm -f dehdaemontest.out
+	\rm -f dehtest
+	\rm -f dehdaemontest

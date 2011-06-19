@@ -26,14 +26,14 @@ CFLAGS += -DSYSLINK_TRACE_ENABLE
 LIBS = -lipcutils -lipc -lprocmgr -lsysmgr -lsyslinknotify
 MEMMGRLIBS = -ltimemmgr
 
-all: listMPApp.out
+all: listMPApp
 
-listMPApp.out:
-	$(CC) $(CFLAGS) -o listMPApp.out ListMPAppOS.c ListMPApp.c $(LIBS) $(MEMMGRLIBS)
+listMPApp:
+	$(CC) $(CFLAGS) -o listMPApp ListMPAppOS.c ListMPApp.c $(LIBS) $(MEMMGRLIBS)
 
-install: listMPApp.out
+install: listMPApp
 	$(INSTALL) -D $< $(TARGETDIR)/syslink/$<
 	$(STRIP) -s $(TARGETDIR)/syslink/$<
 
 clean:
-	\rm -f listMPApp.out
+	\rm -f listMPApp

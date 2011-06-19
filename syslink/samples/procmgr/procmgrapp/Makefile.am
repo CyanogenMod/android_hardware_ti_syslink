@@ -31,10 +31,10 @@ API_LIBS = \
 	$(LDPATH)/sysmgr/libsysmgr.la \
 	$(LDPATH)/notify/libsyslinknotify.la
 
-bin_PROGRAMS = procMgrApp.out
+bin_PROGRAMS = procMgrApp
 
-procMgrApp_out_SOURCES = ProcMgrApp.c ProcMgrAppOS.c
+procMgrApp_SOURCES = ProcMgrApp.c ProcMgrAppOS.c
 
-procMgrApp_out_CPPFLAGS = $(AM_CFLAGS)
+procMgrApp_CPPFLAGS = $(AM_CFLAGS)
 
-procMgrApp_out_LDADD = $(API_LIBS)
+procMgrApp_LDADD = $(API_LIBS)

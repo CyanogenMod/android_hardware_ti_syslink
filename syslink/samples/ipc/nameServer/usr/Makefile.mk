@@ -27,14 +27,14 @@ CFLAGS += -DSYSLINK_TRACE_ENABLE
 LIBS =  -lipcutils -lipc -lprocmgr -lsysmgr -lsyslinknotify
 MEMMGRLIBS = -ltimemmgr
 
-all: nameServerApp.out
+all: nameServerApp
 
-nameServerApp.out:
-	$(CC) $(CFLAGS) -o nameServerApp.out NameServerApp.c $(LIBS) $(MEMMGRLIBS)
+nameServerApp:
+	$(CC) $(CFLAGS) -o nameServerApp NameServerApp.c $(LIBS) $(MEMMGRLIBS)
 
-install: nameServerApp.out
+install: nameServerApp
 	$(INSTALL) -D $< $(TARGETDIR)/syslink/$<
 	$(STRIP) -s $(TARGETDIR)/syslink/$<
 
 clean:
-	\rm -f nameServerApp.out
+	\rm -f nameServerApp

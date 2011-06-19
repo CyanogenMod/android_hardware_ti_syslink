@@ -30,10 +30,10 @@ API_LIBS = \
 	$(LDPATH)/procmgr/libprocmgr.la \
 	$(LDPATH)/sysmgr/libsysmgr.la
 
-bin_PROGRAMS = listMPApp.out
+bin_PROGRAMS = listMPApp
 
-listMPApp_out_SOURCES = ListMPAppOS.c ListMPApp.c
+listMPApp_SOURCES = ListMPAppOS.c ListMPApp.c
 
-listMPApp_out_CPPFLAGS = $(AM_CFLAGS)
+listMPApp_CPPFLAGS = $(AM_CFLAGS)
 
-listMPApp_out_LDADD = $(API_LIBS)
+listMPApp_LDADD = $(API_LIBS)

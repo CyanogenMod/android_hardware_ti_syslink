@@ -40,10 +40,10 @@ API_LIBS = \
 	$(LDPATH)/notify/libsyslinknotify.la
 
 
-bin_PROGRAMS = nameServerApp.out
+bin_PROGRAMS = nameServerApp
 
-nameServerApp_out_SOURCES = NameServerApp.c
+nameServerApp_SOURCES = NameServerApp.c
 
-nameServerApp_out_CPPFLAGS = $(AM_CFLAGS)
+nameServerApp_CPPFLAGS = $(AM_CFLAGS)
 
-nameServerApp_out_LDADD = $(API_LIBS)
+nameServerApp_LDADD = $(API_LIBS)

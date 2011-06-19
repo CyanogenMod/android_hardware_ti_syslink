@@ -30,10 +30,10 @@ API_LIBS = \
 	$(LDPATH)/procmgr/libprocmgr.la \
 	$(LDPATH)/sysmgr/libsysmgr.la
 
-bin_PROGRAMS = heapBufMPApp.out
+bin_PROGRAMS = heapBufMPApp
 
-heapBufMPApp_out_SOURCES = HeapBufMPAppOS.c HeapBufMPApp.c
+heapBufMPApp_SOURCES = HeapBufMPAppOS.c HeapBufMPApp.c
 
-heapBufMPApp_out_CPPFLAGS = $(AM_CFLAGS)
+heapBufMPApp_CPPFLAGS = $(AM_CFLAGS)
 
-heapBufMPApp_out_LDADD = $(API_LIBS)
+heapBufMPApp_LDADD = $(API_LIBS)

@@ -37,12 +37,12 @@ API_LIBS = \
 
 
 
-bin_PROGRAMS =  syslink_tilertest.out
+bin_PROGRAMS =  syslink_tilertest
 
-syslink_tilertest_out_SOURCES = \
+syslink_tilertest_SOURCES = \
 	TilerSyslinkApp.c \
 	TilerTestApp.c
 
-syslink_tilertest_out_CPPFLAGS = $(AM_CFLAGS)
+syslink_tilertest_CPPFLAGS = $(AM_CFLAGS)
 
-syslink_tilertest_out_LDADD = $(API_LIBS)
+syslink_tilertest_LDADD = $(API_LIBS)

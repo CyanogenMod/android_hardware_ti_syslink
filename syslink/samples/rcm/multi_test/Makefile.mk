@@ -36,40 +36,40 @@ LIBS = -lipcutils -lsyslinknotify -lipc -lprocmgr -lrcm -lpthread -lrt
 LIBS += -lsysmgr
 MEMMGRLIBS = -ltimemmgr
 
-all: rcm_multitest.out rcm_multithreadtest.out rcm_multiclienttest.out rcm_daemontest.out
+all: rcm_multitest rcm_multithreadtest rcm_multiclienttest rcm_daemontest
 
-rcm_multitest.out:
-	$(CC) $(CFLAGS) -o rcm_multitest.out RcmClientServerTest.c $(LIBS) $(MEMMGRLIBS)
+rcm_multitest:
+	$(CC) $(CFLAGS) -o rcm_multitest RcmClientServerTest.c $(LIBS) $(MEMMGRLIBS)
 
-rcm_multithreadtest.out:
-	$(CC) $(CFLAGS) -o rcm_multithreadtest.out RcmMultiThreadTest.c $(LIBS) $(MEMMGRLIBS)
+rcm_multithreadtest:
+	$(CC) $(CFLAGS) -o rcm_multithreadtest RcmMultiThreadTest.c $(LIBS) $(MEMMGRLIBS)
 
-rcm_multiclienttest.out:
-	$(CC) $(CFLAGS) -o rcm_multiclienttest.out RcmMultiClientTest.c $(LIBS) $(MEMMGRLIBS)
+rcm_multiclienttest:
+	$(CC) $(CFLAGS) -o rcm_multiclienttest RcmMultiClientTest.c $(LIBS) $(MEMMGRLIBS)
 
-rcm_daemontest.out:
-	$(CC) $(CFLAGS) -DSYSLINK_USE_DAEMON -o rcm_daemontest.out RcmMultiThreadTest.c $(LIBS) $(MEMMGRLIBS)
+rcm_daemontest:
+	$(CC) $(CFLAGS) -DSYSLINK_USE_DAEMON -o rcm_daemontest RcmMultiThreadTest.c $(LIBS) $(MEMMGRLIBS)
 
-install1: rcm_multitest.out
+install1: rcm_multitest
 	$(INSTALL) -D $< $(TARGETDIR)/syslink/$<
 	$(STRIP) -s $(TARGETDIR)/syslink/$<
 
-install2: rcm_multithreadtest.out
+install2: rcm_multithreadtest
 	$(INSTALL) -D $< $(TARGETDIR)/syslink/$<
 	$(STRIP) -s $(TARGETDIR)/syslink/$<
 
-install3: rcm_multiclienttest.out
+install3: rcm_multiclienttest
 	$(INSTALL) -D $< $(TARGETDIR)/syslink/$<
 	$(STRIP) -s $(TARGETDIR)/syslink/$<
 
-install4: rcm_daemontest.out
+install4: rcm_daemontest
 	$(INSTALL) -D $< $(TARGETDIR)/syslink/$<
 	$(STRIP) -s $(TARGETDIR)/syslink/$<
 
 install: install1 install2 install3 install4
 
 clean:
-	\rm -f rcm_multitest.out
-	\rm -f rcm_multithreadtest.out
-	\rm -f rcm_multiclienttest.out
-	\rm -f rcm_daemontest.out
+	\rm -f rcm_multitest
+	\rm -f rcm_multithreadtest
+	\rm -f rcm_multiclienttest
+	\rm -f rcm_daemontest

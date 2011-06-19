@@ -114,7 +114,7 @@ ifeq ($(TARGETTYPE),ST_LIB)
    TARGET      := $(basename $(TARGETNAME)).a
 else
 ifeq ($(TARGETTYPE),EXEC)
-   TARGET      := $(basename $(TARGETNAME)).out
+   TARGET      := $(basename $(TARGETNAME))
 else
 ifneq ($(TARGETTYPE),)
 TARGET         := $(error Invalid TARGETTYPE)

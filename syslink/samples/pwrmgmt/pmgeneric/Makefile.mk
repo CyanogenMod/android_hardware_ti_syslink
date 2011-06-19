@@ -37,16 +37,16 @@ LIBS = -lipcutils -lsyslinknotify -lipc -lprocmgr
 LIBS += -lsysmgr
 MEMMGRLIBS = -ltimemmgr
 
-all: slpmtest.out
+all: slpmtest
 
-slpmtest.out:
-	$(CC) $(CFLAGS) -o slpmtest.out slpmtestOS.c slpmtestApp.c $(LIBS) $(MEMMGRLIBS)
+slpmtest:
+	$(CC) $(CFLAGS) -o slpmtest slpmtestOS.c slpmtestApp.c $(LIBS) $(MEMMGRLIBS)
 
-slpmtestinstall: slpmtest.out
+slpmtestinstall: slpmtest
 	$(INSTALL) -D $< $(TARGETDIR)/syslink/$<
 	$(STRIP) -s $(TARGETDIR)/syslink/$<
 
 install: slpmtestinstall
 
 clean:
-	\rm -f slpmtest.out
+	\rm -f slpmtest

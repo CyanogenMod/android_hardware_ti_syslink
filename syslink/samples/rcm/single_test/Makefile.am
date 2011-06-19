@@ -34,13 +34,13 @@ API_LIBS = \
 	$(LDPATH)/sysmgr/libsysmgr.la \
 	$(LDPATH)/rcm/librcm.la
 
-bin_PROGRAMS =  rcm_singletest.out
+bin_PROGRAMS =  rcm_singletest
 
-rcm_singletest_out_SOURCES = \
+rcm_singletest_SOURCES = \
 	Server.c \
 	Client.c \
 	TestApp.c
 
-rcm_singletest_out_CPPFLAGS = $(AM_CFLAGS)
+rcm_singletest_CPPFLAGS = $(AM_CFLAGS)
 
-rcm_singletest_out_LDADD = $(API_LIBS)
+rcm_singletest_LDADD = $(API_LIBS)

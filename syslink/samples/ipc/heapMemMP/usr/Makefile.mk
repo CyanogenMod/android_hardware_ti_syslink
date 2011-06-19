@@ -27,14 +27,14 @@ CFLAGS += -DSYSLINK_TRACE_ENABLE
 LIBS =  -lipcutils -lipc -lprocmgr -lsysmgr -lsyslinknotify
 MEMMGRLIBS = -ltimemmgr
 
-all: heapMemMPApp.out
+all: heapMemMPApp
 
-heapMemMPApp.out:
-	$(CC) $(CFLAGS) -o heapMemMPApp.out HeapMemMPAppOS.c HeapMemMPApp.c $(LIBS) $(MEMMGRLIBS)
+heapMemMPApp:
+	$(CC) $(CFLAGS) -o heapMemMPApp HeapMemMPAppOS.c HeapMemMPApp.c $(LIBS) $(MEMMGRLIBS)
 
-install: heapMemMPApp.out
+install: heapMemMPApp
 	$(INSTALL) -D $< $(TARGETDIR)/syslink/$<
 	$(STRIP) -s $(TARGETDIR)/syslink/$<
 
 clean:
-	\rm -f heapMemMPApp.out
+	\rm -f heapMemMPApp

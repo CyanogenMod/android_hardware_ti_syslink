@@ -26,14 +26,14 @@ LIBS = -lsyslinknotify -lipcutils -lipc -lprocmgr
 SYSMGRLIBS = -lprocmgr -lsysmgr
 MEMMGRLIBS = -ltimemmgr
 
-all: interm3.out
+all: interm3
 
-interm3.out: interm3.c
-	$(CC) $(CFLAGS) -o interm3.out interm3.c $(LIBS) $(SYSMGRLIBS) $(MEMMGRLIBS)
+interm3: interm3.c
+	$(CC) $(CFLAGS) -o interm3 interm3.c $(LIBS) $(SYSMGRLIBS) $(MEMMGRLIBS)
 
-install: interm3.out
+install: interm3
 	$(INSTALL) -D $< $(TARGETDIR)/syslink/$<
 	$(STRIP) -s $(TARGETDIR)/syslink/$<
 
 clean:
-	\rm -f interm3.out
+	\rm -f interm3

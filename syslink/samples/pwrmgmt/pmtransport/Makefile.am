@@ -41,12 +41,12 @@ API_LIBS = \
 	$(LDPATH)/sysmgr/libsysmgr.la
 
 
-bin_PROGRAMS = slpmtransport.out
+bin_PROGRAMS = slpmtransport
 
-slpmtransport_out_SOURCES = \
+slpmtransport_SOURCES = \
 	slpmtransportOS.c \
 	slpmtransportApp.c
 
-slpmtransport_out_CPPFLAGS = $(AM_CFLAGS)
+slpmtransport_CPPFLAGS = $(AM_CFLAGS)
 
-slpmtransport_out_LDADD = $(API_LIBS)
+slpmtransport_LDADD = $(API_LIBS)
