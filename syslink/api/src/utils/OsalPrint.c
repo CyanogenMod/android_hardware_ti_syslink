@@ -96,21 +96,22 @@ Void Osal_configPrint (Osal_PrintConfig printType)
 Void Osal_printf (Char* format, ...)
 {
     va_list args;
-    Char    buffer [512];
 
     va_start (args, format);
-    vsnprintf (buffer, sizeof(buffer), format, args);
-    va_end   (args);
 
 #if defined (HAVE_ANDROID_OS)
     if (printToLogCat == TRUE) {
+        Char buffer [512];
+        vsnprintf (buffer, sizeof(buffer), format, args);
         LOGD ("%s", buffer);
-    } else {
-        printf ("%s", buffer);
+        va_end (args);
+        return;
     }
-#else
-    printf ("%s", buffer);
 #endif
+
+    vprintf (format, args);
+
+    va_end (args);
 }
 
 
