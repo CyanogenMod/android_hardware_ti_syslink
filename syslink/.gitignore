@@ -12,5 +12,9 @@ libtool
 config.h.in
 config
 configure
+config.status
+config.h
+config.log
+stamp-h1
 
 build
