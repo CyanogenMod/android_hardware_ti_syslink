@@ -122,6 +122,7 @@ echo Found libpthread.so in $LIBPTHREAD
 #.. uncomment to include our unit tests as well
 ENABLE_UNIT_TESTS=--enable-unit-tests
 ENABLE_TESTS=--enable-tests
+ENABLE_SAMPLES=--enable-samples
 
 #.. uncomment to export the tilermgr.h header - this is currently needed by
 #   syslink
@@ -164,7 +165,7 @@ function build_syslink()
 	echo "							  "
 	./bootstrap.sh
 	./configure --prefix ${PREFIX}/target --bindir ${PREFIX}/target/syslink \
-	--host ${HOST} ${ENABLE_DEBUG}  --build i686-pc-linux-gnu
+	--host ${HOST} ${ENABLE_DEBUG}  --build i686-pc-linux-gnu ${ENABLE_SAMPLES}
 	export TILER_INC_PATH=${TILER_USERSPACE}
 	if [[ "$arg" == "--clean" ]]; then
 		make clean > /dev/null 2>&1

@@ -72,6 +72,15 @@ AC_ARG_ENABLE([debug],
 	esac],[debug=$default_debug])
 AM_CONDITIONAL([DEBUG], [test x$debug = xtrue])
 
+# Don't build samples by default.. normal release only needs daemons and api
+AC_ARG_ENABLE([samples],
+	[  --enable-samples        Build Samples, [default=false]],
+	[case "${enableval}" in
+	yes) enable_samples=true;;
+	*)   enable_samples=false;;
+	esac],
+	[enable_samples=false])
+AM_CONDITIONAL([BUILD_SAMPLES], test "x$enable_samples" = "xtrue")
 
 # Check for kernel src path:
 AC_ARG_WITH(kpath,[  --with-kpath             specify the path to the kernel modules],[
