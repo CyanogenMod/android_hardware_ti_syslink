@@ -36,16 +36,16 @@ PROJROOT = $(top_srcdir)/daemons
 AM_CFLAGS = -DSYSLINK_USE_LOADER
 #AM_CFLAGS += -DSYSLINK_TRACE_ENABLE
 
-bin_PROGRAMS = syslink_trace_daemon.out
+bin_PROGRAMS = syslink_trace_daemon
 
-syslink_trace_daemon_out_SOURCES = \
+syslink_trace_daemon_SOURCES = \
 SyslinkTraceDaemon.c
 
-syslink_trace_daemon_out_CPPFLAGS    = \
+syslink_trace_daemon_CPPFLAGS    = \
 	-I$(PROJROOT)/../api/include \
 	 $(AM_CFLAGS)
 
 API_SRCDIR = ../../api/src
 
-syslink_trace_daemon_out_LDADD = \
+syslink_trace_daemon_LDADD = \
 	$(API_SRCDIR)/utils/libipcutils.la
