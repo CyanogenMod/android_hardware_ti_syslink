@@ -40,12 +40,12 @@ include $(PROJROOT)/make/start.mk
 
 # Arguments to tools, will move to make system once finalized.
 
-CFLAGS         = 
+CFLAGS         =
 CDEFS          = DEBUG
 
-EXEC_ARGS      = 
-ST_LIB_ARGS    = 
-SH_LIB_ARGS    = 
+EXEC_ARGS      =
+ST_LIB_ARGS    =
+SH_LIB_ARGS    =
 
 # Define this macro if target runs in kernel mode
 #__KERNEL__ = 1
@@ -63,7 +63,7 @@ TARGETNAME  =
 TARGETTYPE  =
 
 # For shared object library, soname is filename.so.maj_ver
-SH_SONAME = 
+SH_SONAME =
 
 # Folders in which gmake will run before building current target
 
