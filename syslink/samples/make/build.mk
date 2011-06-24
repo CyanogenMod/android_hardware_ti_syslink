@@ -183,7 +183,7 @@ all :  $(CHECKSHELL) $(SUBMODULES)
 $(SUBMODULES):
 ifndef NORECURSE
 ifndef norecurse
-	$(MAKE) -C $@ $(filter-out $(SUBMODULES),$(MAKECMDGOALS))
+	$(MAKE) --file=Makefile.mk -C $@ $(filter-out $(SUBMODULES),$(MAKECMDGOALS))
 endif
 endif
 

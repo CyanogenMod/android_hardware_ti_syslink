@@ -1,26 +1,19 @@
 #
-#  Copyright 2001-2009 Texas Instruments - http://www.ti.com/
-# 
+#  Copyright 2001-2008 Texas Instruments - http://www.ti.com/
+#
 #  Licensed under the Apache License, Version 2.0 (the "License");
 #  you may not use this file except in compliance with the License.
 #  You may obtain a copy of the License at
-# 
+#
 #     http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 #  Unless required by applicable law or agreed to in writing, software
 #  distributed under the License is distributed on an "AS IS" BASIS,
 #  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
-#   ============================================================================
-#   @file   Makefile
-#
-#   @brief  Makefile for user-side MessageQ samples
-#
-#   ============================================================================
-
-PROJROOT=../../..
+PROJROOT=../..
 
 include $(PROJROOT)/make/start.mk
 
@@ -29,24 +22,18 @@ LDPATH=$(TARGETDIR)/lib $(TARGETDIR)/usr/lib
 LDFLAGS = $(addprefix -L, $(LDPATH))
 
 CFLAGS=-Wall -g -O2 $(INCLUDE) -finline-functions -D$(PROCFAMILY) $(LDFLAGS)
-CFLAGS += -DSYSLINK_TRACE_ENABLE
-CFLAGS += -DSYSLINK_USE_LOADER
 
-
-LIBS = -lipcutils -lsyslinknotify -lipc -lprocmgr
-LIBS += -lsysmgr
+LIBS = -lipcutils -lipc -lprocmgr -lomap4430proc -lsysmgr -lsyslinknotify
 MEMMGRLIBS = -ltimemmgr
 
-all: messageQApp.out
+all: ducati_load.out
 
-messageQApp.out:
-	$(CC) $(CFLAGS) -o messageQApp.out MessageQAppOS.c MessageQApp.c $(LIBS) $(MEMMGRLIBS)
+ducati_load.out: ducati_load.c getopt.c
+	$(CC) $(CFLAGS) -o ducati_load.out ducati_load.c getopt.c $(LIBS) $(MEMMGRLIBS)
 
-messageQinstall1: messageQApp.out
+install: ducati_load.out
 	$(INSTALL) -D $< $(TARGETDIR)/syslink/$<
 	$(STRIP) -s $(TARGETDIR)/syslink/$<
 
-install: messageQinstall1
-
 clean:
-	\rm -f messageQApp.out
+	\rm -f ducati_load.out
