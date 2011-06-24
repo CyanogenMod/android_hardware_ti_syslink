@@ -32,7 +32,7 @@
 #   EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-PROJROOT = ../../..
+PROJROOT = ../../../..
 
 include $(PROJROOT)/api/make/start.mk
 
@@ -40,15 +40,15 @@ include $(PROJROOT)/api/make/start.mk
 
 # Arguments to tools, will move to make system once finalized.
 
-CFLAGS         = 
-CDEFS          = 
+CFLAGS         =
+CDEFS          =
 ifeq ($(BUILD),udeb)
-CDEFS          += DEBUG 
+CDEFS          += DEBUG
 endif
 
-EXEC_ARGS      = 
-ST_LIB_ARGS    = 
-SH_LIB_ARGS    = 
+EXEC_ARGS      =
+ST_LIB_ARGS    =
+SH_LIB_ARGS    =
 
 # Define this macro if target runs in kernel mode
 #__KERNEL__ = 1
@@ -58,7 +58,7 @@ SH_LIB_ARGS    =
 # shared library soname (SH_LIB): filename.so.maj_ver.min_ver
 # executable            (EXEC)  : filename.out
 
-TARGETNAME  = librcm
+TARGETNAME  = libomap4430proc
 
 
 # TARGETTYPE must be EXEC, ST_LIB or SH_LIB in upper case.
@@ -73,7 +73,7 @@ ROOTFSRELEASE = lib
 
 # For shared object library, soname is filename.so.maj_ver
 
-SH_SONAME = librcm.so.0
+SH_SONAME = libproc4430.so.2
 
 # Folders in which gmake will run before building current target
 
@@ -82,23 +82,29 @@ SUBMODULES  = \
 # Filename must not begin with '.', '/' or '\'
 
 SOURCES     = \
-RcmClient.c \
-RcmServer.c 
+omap4430proc.c \
+omap4430procDrvUsr.c\
 
 # Search path for include files
 
 INCLUDES    = \
     $(PROJROOT)/api/include \
+    $(PROJROOT)/api/include/linux\
+    $(PROJROOT)/api/src/procmgr
 
 # Libraries needed for linking.
 
-ST_LIBS        =
-SH_LIBS        = pthread ipcutils ipc
+#SH_LIBS        = pthread utils
+#SH_LIBS        = pthread utils
+SH_LIBS        = ipcutils
 
 # Search path for library (and linker command) files.
 # Current folder and target folder are included by default.
 
-LIBINCLUDES += $(PROJROOT)/api/src/utils $(PROJROOT)/api/src/ipc
+LIBINCLUDES = \
+	  $(PROJROOT)/api/src/utils
+
+
 
 # Do not change below "include" line(s)
 

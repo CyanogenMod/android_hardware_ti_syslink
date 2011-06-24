@@ -13,7 +13,7 @@
 #
 #   *  Redistributions in binary form must reproduce the above copyright
 #      notice, this list of conditions and the following disclaimer in the
-#     documentation and/or other materials provided with the distribution.
+#      documentation and/or other materials provided with the distribution.
 #
 #   *  Neither the name of Texas Instruments Incorporated nor the names of
 #      its contributors may be used to endorse or promote products derived
@@ -32,8 +32,7 @@
 #   EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-
-PROJROOT = ../../..
+PROJROOT = ../..
 
 include $(PROJROOT)/api/make/start.mk
 
@@ -41,15 +40,15 @@ include $(PROJROOT)/api/make/start.mk
 
 # Arguments to tools, will move to make system once finalized.
 
-CFLAGS         = 
-CDEFS          = 
-ifeq ($(BUILD),udeb)
-CDEFS          += DEBUG 
-endif
+CFLAGS         =
+# CDEFS          =
+# ifeq ($(BUILD),udeb)
+CDEFS          = DEBUG
+# endif
 
-EXEC_ARGS      = 
-ST_LIB_ARGS    = 
-SH_LIB_ARGS    = 
+EXEC_ARGS      =
+ST_LIB_ARGS    =
+SH_LIB_ARGS    =
 
 # Define this macro if target runs in kernel mode
 #__KERNEL__ = 1
@@ -59,42 +58,56 @@ SH_LIB_ARGS    =
 # shared library soname (SH_LIB): filename.so.maj_ver.min_ver
 # executable            (EXEC)  : filename.out
 
-TARGETNAME  = libsysmgr
+TARGETNAME  =
 
 
 # TARGETTYPE must be EXEC, ST_LIB or SH_LIB in upper case.
-
-TARGETTYPE  = SH_LIB
-
-# install directory relative to the HOSTTARGET directory
-HOSTRELEASE = lib
-
-# install directory relative to the root filesystem
-ROOTFSRELEASE = lib
+#TARGETTYPE  = ST_LIB
+TARGETTYPE  =
 
 # For shared object library, soname is filename.so.maj_ver
-
-SH_SONAME = libsysmgr.so.0
+SH_SONAME =
 
 # Folders in which gmake will run before building current target
+ifeq ($(PROCFAMILY),OMAP_4430)
+SUBMODULES	+= utils
+endif
 
-SUBMODULES  = \
+ifeq ($(PROCFAMILY),OMAP_4430)
+SUBMODULES	+= notify
+endif
+
+ifeq ($(PROCFAMILY),OMAP_4430)
+SUBMODULES	+= ipc
+endif
+
+ifeq ($(PROCFAMILY),OMAP_4430)
+SUBMODULES	+= sysmgr
+endif
+
+ifeq ($(PROCFAMILY),OMAP_4430)
+SUBMODULES	+= procmgr
+endif
+
+
+ifeq ($(PROCFAMILY),OMAP_4430)
+SUBMODULES	+= rcm
+endif
+
+# Framework
 
 # Filename must not begin with '.', '/' or '\'
 
-SOURCES     = \
-Ipc.c \
-IpcDrv.c
+SOURCES     =
 
 # Search path for include files
 
-INCLUDES    = \
-    $(PROJROOT)/api/include \
+INCLUDES    =
 
 # Libraries needed for linking.
 
 ST_LIBS        =
-SH_LIBS        = rt pthread
+SH_LIBS        =
 
 # Search path for library (and linker command) files.
 # Current folder and target folder are included by default.

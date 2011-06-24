@@ -32,7 +32,6 @@
 #   EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
-
 PROJROOT = ../../..
 
 include $(PROJROOT)/api/make/start.mk
@@ -40,16 +39,16 @@ include $(PROJROOT)/api/make/start.mk
 # Do not change above "include" line(s)
 
 # Arguments to tools, will move to make system once finalized.
-
-CFLAGS         = 
-CDEFS          = 
+CFLAGS         = -DSYSLINK_USE_SYSMGR
+#CFLAGS        =
+CDEFS          = ARM_TARGET C60_TARGET
 ifeq ($(BUILD),udeb)
-CDEFS          += DEBUG 
+CDEFS          += DEBUG
 endif
 
-EXEC_ARGS      = 
-ST_LIB_ARGS    = 
-SH_LIB_ARGS    = 
+EXEC_ARGS      =
+ST_LIB_ARGS    =
+SH_LIB_ARGS    =
 
 # Define this macro if target runs in kernel mode
 #__KERNEL__ = 1
@@ -59,7 +58,8 @@ SH_LIB_ARGS    =
 # shared library soname (SH_LIB): filename.so.maj_ver.min_ver
 # executable            (EXEC)  : filename.out
 
-TARGETNAME  = libipcutils
+TARGETNAME  = libprocmgr
+#TARGETNAME  = libprocmgr_nonsysmgr
 
 
 # TARGETTYPE must be EXEC, ST_LIB or SH_LIB in upper case.
@@ -73,47 +73,65 @@ HOSTRELEASE = lib
 ROOTFSRELEASE = lib
 
 # For shared object library, soname is filename.so.maj_ver
-SH_SONAME = libipcutils.so.0
+
+SH_SONAME = libprocmgr.so.2
+#SH_SONAME = libprocmgr_nonsysmgr.so.2
 
 # Folders in which gmake will run before building current target
 
 SUBMODULES  = \
+procmgr4430
 
 # Filename must not begin with '.', '/' or '\'
 
 SOURCES     = \
-List.c \
-Memory.c \
-Trace.c \
-Gate.c \
-String.c \
-MemoryOS.c \
-OsalPrint.c \
-Heap.c \
-OsalDrv.c \
-OsalMutex.c \
-GateMutex.c \
-OsalSemaphore.c \
-TraceDrv.c \
-UsrUtilsDrv.c
+ProcMgr.c \
+ProcMgrDrvUsr.c \
+ProcMMU.c \
+ProcDEH.c \
+SysLinkMemUtils.c \
+elfload/arm_dynamic.c \
+elfload/c60_dynamic.c \
+elfload/arm_reloc.c \
+elfload/c60_reloc.c \
+elfload/ArrayList.c \
+elfload/dload4430.c \
+elfload/dload.c \
+elfload/dload_endian.c \
+elfload/dlw_client.c \
+elfload/dlw_debug.c \
+elfload/dlw_dsbt.c \
+elfload/dlw_trgmem.c \
+elfload/elf32.c \
+elfload/symtab.c
+
 
 # Search path for include files
 
 INCLUDES    = \
-    $(PROJROOT) \
     $(PROJROOT)/api/include \
-    $(PROJROOT)/api/include/linux
+    $(PROJROOT)/api/inc \
+    $(PROJROOT)/api/include/linux\
+    $(TILER_INC_PATH)
 
 # Libraries needed for linking.
 
+#SH_LIBS        = pthread utils
+SH_LIBS        = ipcutils sysmgr timemmgr
+#SH_LIBS        = utils
 ST_LIBS        = gcc
-SH_LIBS        = rt
 
 # Search path for library (and linker command) files.
 # Current folder and target folder are included by default.
 
-LIBINCLUDES =
+LIBINCLUDES += \
+	  $(PROJROOT)/api/src/utils \
+	  $(PROJROOT)/api/src/sysmgr
 
+#LIBINCLUDES += \
+#    $(PROJROOT)/api/src/utils
+
+LIBINCLUDES += $(TILER_INC_PATH)/../ $(TILER_INC_PATH)
 
 # Do not change below "include" line(s)
 

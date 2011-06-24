@@ -32,6 +32,7 @@
 #   EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
 
+
 PROJROOT = ../../..
 
 include $(PROJROOT)/api/make/start.mk
@@ -40,15 +41,15 @@ include $(PROJROOT)/api/make/start.mk
 
 # Arguments to tools, will move to make system once finalized.
 
-CFLAGS         = 
-CDEFS          = 
+CFLAGS         =
+CDEFS          =
 ifeq ($(BUILD),udeb)
-CDEFS          += DEBUG 
+CDEFS          += DEBUG
 endif
 
-EXEC_ARGS      = 
-ST_LIB_ARGS    = 
-SH_LIB_ARGS    = 
+EXEC_ARGS      =
+ST_LIB_ARGS    =
+SH_LIB_ARGS    =
 
 # Define this macro if target runs in kernel mode
 #__KERNEL__ = 1
@@ -58,7 +59,7 @@ SH_LIB_ARGS    =
 # shared library soname (SH_LIB): filename.so.maj_ver.min_ver
 # executable            (EXEC)  : filename.out
 
-TARGETNAME  = libipc
+TARGETNAME  = libsysmgr
 
 
 # TARGETTYPE must be EXEC, ST_LIB or SH_LIB in upper case.
@@ -73,7 +74,7 @@ ROOTFSRELEASE = lib
 
 # For shared object library, soname is filename.so.maj_ver
 
-SH_SONAME = libipc.so.0
+SH_SONAME = libsysmgr.so.0
 
 # Folders in which gmake will run before building current target
 
@@ -82,23 +83,8 @@ SUBMODULES  = \
 # Filename must not begin with '.', '/' or '\'
 
 SOURCES     = \
-IPCManager.c \
-SharedRegionDrv.c \
-SharedRegion.c\
-HeapMemMPDrv.c \
-HeapMemMP.c \
-GateMPDrv.c \
-GateMP.c \
-HeapBufMPDrv.c \
-HeapBufMP.c \
-NameServerDrv.c \
-NameServer.c \
-ListMPDrv.c \
-ListMP.c \
-MessageQDrv.c \
-MessageQ.c \
-MultiProcDrv.c \
-MultiProc.c
+Ipc.c \
+IpcDrv.c
 
 # Search path for include files
 
