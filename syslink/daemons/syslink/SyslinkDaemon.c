@@ -1036,7 +1036,7 @@ exit:
 static Void printUsage (Void)
 {
     Osal_printf ("\nInvalid arguments!\n"
-                 "Usage: ./syslink_daemon.out [-f] <[<[-s] <SysM3 image file>> "
+                 "Usage: ./syslink_daemon [-f] <[<[-s] <SysM3 image file>> "
                  "[<[-a] <AppM3 image file>>]] [<[-d] <DSP image file>>]>\n"
                  "Rules: - Full paths must be provided for image files.\n"
                  "       - Use '-f' option to run as a regular process.\n"
@@ -1045,7 +1045,7 @@ static Void printUsage (Void)
                  "       - All images not preceded by an option are applied\n"
                  "         to the cores whose images are not already\n"
                  "         specified in the order of SysM3, AppM3, DSP\n"
-                 "       - Daemon can launch just SysM3, just DSP, both SysM3 "
+                 "       - Daemon can launch just SysM3, just DSP, both SysM3\n"
                  "         & AppM3, or all SysM3, AppM3 & DSP cores.\n\n");
     exit (EXIT_FAILURE);
 }
