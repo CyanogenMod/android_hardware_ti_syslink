@@ -587,7 +587,7 @@ Void MessageQ_staticMsgInit(MessageQ_Msg msg, UInt32 size);
  *  @param      handle      MessageQ handle
  *  @param      msg         Pointer to the message
  *  @param[in]  timeout     Maximum duration to wait for a message in
- *                          microseconds.
+ *                          milliseconds.
  *
  *  @return     Number of messages in the message queue.
  *
